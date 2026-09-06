@@ -34,7 +34,10 @@ use crate::pages::master::taxes::{TaxNewPage, TaxesPage};
 use crate::pages::people::department::DepartmentPage;
 use crate::pages::people::departments::{DepartmentNewPage, DepartmentsPage};
 use crate::pages::people::home::PeopleHomePage;
-use crate::pages::sales::accounts::AccountsPage;
+// Aliased: `pages::account` is the viewer's own profile, and both are called
+// AccountPage in their own module.
+use crate::pages::sales::account::AccountPage as ChartAccountPage;
+use crate::pages::sales::accounts::{AccountNewPage, AccountsPage};
 use crate::pages::sales::home::SalesHomePage;
 use crate::pages::sales::invoice::{InvoiceNewPage, InvoicePage};
 use crate::pages::sales::invoices::InvoicesPage;
@@ -181,6 +184,10 @@ pub fn app() -> impl IntoView {
                     // and the store send anybody who picks Books.
                     <Route path=path!("/sales") view=SalesHomePage />
                     <Route path=path!("/sales/accounts") view=AccountsPage />
+                    // Before `:id`, so "new" is a screen rather than an
+                    // account id that fails to parse.
+                    <Route path=path!("/sales/accounts/new") view=AccountNewPage />
+                    <Route path=path!("/sales/accounts/:id") view=ChartAccountPage />
                     <Route path=path!("/sales/invoices") view=InvoicesPage />
                     // Before the parameter, so "new" is a screen rather than an
                     // invoice id that fails to parse.

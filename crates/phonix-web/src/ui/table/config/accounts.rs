@@ -10,14 +10,16 @@
 
 use app_books::account::Account;
 use leptos::prelude::*;
+use phonix_core::permissions;
 
 use super::GridConfig;
+use crate::components::account_class::{ClassChip, ClassDot};
 use crate::components::page::{Badge, Tone};
 use crate::i18n::t;
 use crate::icons::Icon;
 use crate::l;
 use crate::server_fns::books_fns::list_accounts;
-use crate::ui::table::{Cell, Column, Filter, FilterChoice, Source};
+use crate::ui::table::{Cell, Column, Filter, FilterChoice, RowAction, Source, ToolbarAction};
 
 /// What this workspace posts to.
 pub fn accounts_grid() -> GridConfig<Account> {
@@ -37,7 +39,7 @@ pub fn accounts_grid() -> GridConfig<Account> {
             .findable()
             .pinned()
             .essential()
-            .class("font-mono tabular-nums"),
+            .render(|row| number_cell(row).into_any()),
         )
         .column(
             Column::new("name", l!("field.name"), |row: &Account| {
@@ -52,7 +54,7 @@ pub fn accounts_grid() -> GridConfig<Account> {
                 Cell::text(t(&row.class().label()))
             })
             .sortable()
-            .class("text-xs text-content-muted"),
+            .render(|row| view! { <ClassChip class=row.class() /> }.into_any()),
         )
         .column(
             Column::new("type", l!("field.type"), |row: &Account| {
@@ -108,6 +110,32 @@ pub fn accounts_grid() -> GridConfig<Account> {
                 _ => true,
             }),
         )
+        .toolbar(
+            ToolbarAction::link(l!("accounts.new"), Icon::Plus, "/sales/accounts/new")
+                .require(permissions::ACCOUNTS_CREATE)
+                .primary(),
+        )
+        .action(
+            RowAction::link(l!("common.open"), Icon::ArrowRight, |row: &Account| {
+                format!("/sales/accounts/{}", row.id)
+            })
+            .require(permissions::ACCOUNTS),
+        )
+}
+
+/// The number, with the class colour in front of it. The dot rather than the
+/// chip: a chip on every row of a three-hundred-row chart is a wall of colour,
+/// and the class already has a column of its own.
+fn number_cell(row: &Account) -> impl IntoView {
+    let number = row.number.clone();
+    let class = row.class();
+
+    view! {
+        <span class="flex items-center gap-2">
+            <ClassDot class=class />
+            <code class="font-mono tabular-nums text-content">{number}</code>
+        </span>
+    }
 }
 
 /// The name, with what the account is for underneath. The description is the

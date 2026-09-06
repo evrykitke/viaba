@@ -216,6 +216,21 @@ pub mod kinds {
         singleton: false,
     };
 
+    /// One account in the chart, and what it is for.
+    ///
+    /// The change worth recording is the *type*: it decides the normal balance
+    /// and which side of a report a balance lands on, so retyping an account
+    /// restates every period it appears in. Renumbering is recorded for the
+    /// same reason a rename is - somebody will ask why last year's export does
+    /// not match this year's.
+    pub const ACCOUNT: EntityKind = EntityKind {
+        name: "account",
+        singular_key: "entity.account.singular",
+        plural_key: "entity.account.plural",
+        href: Some("/sales/accounts/{id}"),
+        singleton: false,
+    };
+
     /// A part of the organization, and whether spending is charged to it.
     ///
     /// The audited change that matters is not the rename: it is
@@ -286,6 +301,7 @@ pub const ENTITY_KINDS: &[EntityKind] = &[
     kinds::TAX_CODE,
     kinds::TAX_GROUP,
     kinds::SALES_INVOICE,
+    kinds::ACCOUNT,
     kinds::DEPARTMENT,
 ];
 

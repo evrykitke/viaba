@@ -12,7 +12,7 @@
 //! the document's date and on a rate table it cannot see. [`tax_treatments`]
 //! hands them over once, and everything after that is local.
 
-use app_books::account::Account;
+use app_books::account::{Account, AccountInput};
 use app_books::invoice::{Invoice, InvoiceInput, InvoiceStatus, InvoiceSummary, PostOutcome};
 use chrono::NaiveDate;
 use leptos::prelude::*;
@@ -30,6 +30,42 @@ pub async fn list_accounts() -> Result<Vec<Account>, ServerFnError> {
     let (pool, caller) = pool_and_caller().await?;
 
     phonix_services::books::account::list(&pool, &caller)
+        .await
+        .map_err(service_error)
+}
+
+/// One account.
+#[server(name = AccountDetail, prefix = "/api", endpoint = "books/accounts/detail")]
+pub async fn account_detail(account_id: Uuid) -> Result<Account, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::books::account::detail(&pool, &caller, account_id)
+        .await
+        .map_err(service_error)
+}
+
+/// The editable part of one, for the form to open on.
+#[server(name = AccountEdit, prefix = "/api", endpoint = "books/accounts/edit")]
+pub async fn account_edit(account_id: Uuid) -> Result<AccountInput, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::books::account::edit(&pool, &caller, account_id)
+        .await
+        .map_err(service_error)
+}
+
+/// Add an account or change one. Which, comes from the draft's own `id`.
+#[server(name = SaveAccount, prefix = "/api", endpoint = "books/accounts/save")]
+pub async fn save_account(draft: AccountInput) -> Result<Submission<AccountInput>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::books::account::save(&pool, &caller, draft)
         .await
         .map_err(service_error)
 }

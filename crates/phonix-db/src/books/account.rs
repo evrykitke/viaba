@@ -4,11 +4,89 @@
 //! next; until they exist, nothing has been posted to any of these accounts and
 //! the chart is a vocabulary rather than a ledger.
 
-use app_books::account::{Account, AccountType, DefaultChart};
+use app_books::account::{Account, AccountInput, AccountType, DefaultChart};
+use phonix_core::identity::UserId;
 use sqlx::{PgExecutor, Row};
 use uuid::Uuid;
 
 use crate::error::DbError;
+
+/// The unique index a duplicate number lands on.
+const NUMBER_INDEX: &str = "accounts_number_key";
+
+fn as_number_conflict(err: sqlx::Error, number: &str) -> DbError {
+    match &err {
+        sqlx::Error::Database(db) if db.constraint() == Some(NUMBER_INDEX) => DbError::CodeExists {
+            entity: "account",
+            code: number.to_owned(),
+        },
+        _ => DbError::Query(err),
+    }
+}
+
+/// Add an account to the chart.
+///
+/// `is_default` is not written: a row somebody added by hand is theirs, not
+/// something a redeploy may reason about.
+pub async fn insert<'e, E>(
+    executor: E,
+    draft: &AccountInput,
+    actor: Option<UserId>,
+) -> Result<Uuid, DbError>
+where
+    E: PgExecutor<'e>,
+{
+    sqlx::query_scalar(
+        "INSERT INTO books.accounts
+             (number, name, account_type, description, is_active, created_by, updated_by)
+         VALUES ($1, $2, $3, $4, $5, $6, $6)
+         RETURNING id",
+    )
+    .bind(&draft.number)
+    .bind(&draft.name)
+    .bind(draft.account_type.as_str())
+    .bind(draft.description.as_deref())
+    .bind(draft.is_active)
+    .bind(actor)
+    .fetch_one(executor)
+    .await
+    .map_err(|err| as_number_conflict(err, &draft.number))
+}
+
+/// Change one. Answers whether a row was there to change.
+pub async fn update<'e, E>(
+    executor: E,
+    id: Uuid,
+    draft: &AccountInput,
+    actor: Option<UserId>,
+) -> Result<bool, DbError>
+where
+    E: PgExecutor<'e>,
+{
+    let result = sqlx::query(
+        "UPDATE books.accounts
+            SET number       = $2,
+                name         = $3,
+                account_type = $4,
+                description  = $5,
+                is_active    = $6,
+                updated_at   = now(),
+                updated_by   = $7
+          WHERE id = $1",
+    )
+    .bind(id)
+    .bind(&draft.number)
+    .bind(&draft.name)
+    .bind(draft.account_type.as_str())
+    .bind(draft.description.as_deref())
+    .bind(draft.is_active)
+    .bind(actor)
+    .execute(executor)
+    .await
+    .map_err(|err| as_number_conflict(err, &draft.number))?;
+
+    Ok(result.rows_affected() > 0)
+}
 
 /// Install the chart a workspace starts with.
 ///

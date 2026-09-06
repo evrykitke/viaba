@@ -1,3 +1,4 @@
+pub mod account_class;
 pub mod app_home;
 pub mod avatar;
 pub mod diff;

@@ -2,7 +2,9 @@
 //!
 //! ```text
 //! /sales                   the app's home    counts and the ways in
-//! /sales/accounts          the chart         a read-only grid
+//! /sales/accounts          the chart          a grid and a tree
+//! /sales/accounts/new      add one            a form
+//! /sales/accounts/:id      one account        Details | History
 //! /sales/invoices          the list          a grid
 //! /sales/invoices/new      raise one         the editor
 //! /sales/invoices/:id      one invoice       the editor, or the document
@@ -15,7 +17,9 @@
 //! posting does not move an invoice - it changes what may be done to it, and a
 //! link somebody sent last week should still open the thing they meant.
 
+pub mod account;
 pub mod accounts;
+pub mod chart_tree;
 pub mod home;
 pub mod invoice;
 pub mod invoices;

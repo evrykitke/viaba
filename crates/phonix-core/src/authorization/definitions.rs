@@ -12,6 +12,7 @@
 //!  |   +- .Upload  .Delete
 //!  +- Pages.Sales
 //!  |   +- Pages.Sales.Accounts
+//!  |   |   +- .Create  .Edit
 //!  |   +- Pages.Sales.Invoices
 //!  |       +- .Create  .Edit  .Post  .Void
 //!  +- Pages.Master
@@ -51,6 +52,8 @@ pub mod names {
     pub const SALES: &str = "Pages.Sales";
 
     pub const ACCOUNTS: &str = "Pages.Sales.Accounts";
+    pub const ACCOUNTS_CREATE: &str = "Pages.Sales.Accounts.Create";
+    pub const ACCOUNTS_EDIT: &str = "Pages.Sales.Accounts.Edit";
 
     pub const INVOICES: &str = "Pages.Sales.Invoices";
     pub const INVOICES_CREATE: &str = "Pages.Sales.Invoices.Create";
@@ -195,14 +198,31 @@ pub const DEFINITIONS: &[PermissionDefinition] = &[
         parent: Some(names::PAGES),
         default_for_user: false,
     },
-    // Read-only, and deliberately without Create, Edit or Delete beneath it.
-    // The chart arrives seeded and nothing in this release changes it; a gate
-    // over an act nobody can perform is a promise the software does not keep.
+    // No Delete. An account that has been posted to can never be removed - the
+    // history would stop naming anything - and one that has not is retired by
+    // clearing Active. A gate over an act nobody may perform is a promise the
+    // software does not keep.
     PermissionDefinition {
         name: names::ACCOUNTS,
         display_name: "Chart of accounts",
         description: Some("See the accounts this workspace posts to."),
         parent: Some(names::SALES),
+        default_for_user: false,
+    },
+    PermissionDefinition {
+        name: names::ACCOUNTS_CREATE,
+        display_name: "Create",
+        description: Some("Add an account to the chart."),
+        parent: Some(names::ACCOUNTS),
+        default_for_user: false,
+    },
+    PermissionDefinition {
+        name: names::ACCOUNTS_EDIT,
+        display_name: "Edit",
+        // Retyping an account moves every balance it carries to the other side
+        // of a report, which is why this is a stronger grant than it looks.
+        description: Some("Change an account's number, name, type or status."),
+        parent: Some(names::ACCOUNTS),
         default_for_user: false,
     },
     PermissionDefinition {
