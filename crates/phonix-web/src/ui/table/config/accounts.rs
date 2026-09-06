@@ -8,7 +8,7 @@
 //! a chart in number order because the ranges *are* the classification, and a
 //! grid that opened sorted by name would throw that away.
 
-use app_books::account::Account;
+use app_books::account::{Account, AccountClass, AccountType};
 use leptos::prelude::*;
 use phonix_core::permissions;
 
@@ -79,6 +79,17 @@ pub fn accounts_grid() -> GridConfig<Account> {
             .render(|row| status_cell(row).into_any()),
         )
         .filter(
+            // Twenty-eight choices, each prefixed with its class so the assets
+            // sit together in the list. The class is the cut most people want
+            // and has a filter of its own; the type is the sharper one.
+            Filter::new("account_type", l!("field.type"), type_choices())
+                .matching(|row: &Account, wanted| row.account_type.as_str() == wanted),
+        )
+        .filter(
+            Filter::new("class", l!("accounts.class"), class_choices())
+                .matching(|row: &Account, wanted| row.class().as_str() == wanted),
+        )
+        .filter(
             Filter::new(
                 "postable",
                 l!("accounts.postable"),
@@ -121,6 +132,34 @@ pub fn accounts_grid() -> GridConfig<Account> {
             })
             .require(permissions::ACCOUNTS),
         )
+}
+
+/// Every type, in class order, each named with the class it belongs to.
+fn type_choices() -> Vec<FilterChoice> {
+    let mut choices = vec![FilterChoice::all(l!("common.all"))];
+
+    choices.extend(AccountType::ALL.iter().copied().map(|account_type| {
+        let class = t(&account_type.class().label());
+        let name = t(&account_type.label());
+
+        FilterChoice::new(account_type.as_str(), format!("{class} · {name}"))
+    }));
+
+    choices
+}
+
+/// The five classes.
+fn class_choices() -> Vec<FilterChoice> {
+    let mut choices = vec![FilterChoice::all(l!("common.all"))];
+
+    choices.extend(
+        AccountClass::ALL
+            .iter()
+            .copied()
+            .map(|class| FilterChoice::new(class.as_str(), t(&class.label()))),
+    );
+
+    choices
 }
 
 /// The number, with the class colour in front of it. The dot rather than the
