@@ -65,6 +65,7 @@
 
 pub mod confirm;
 pub mod host;
+pub mod sound;
 
 use std::time::Duration;
 
@@ -242,9 +243,16 @@ impl Alerts {
     }
 
     /// Show an alert, wherever it says it belongs.
+    ///
+    /// Every surface goes through here, which is why the chime is rung here and
+    /// not in the toast: a failure raised as a message box has to make the same
+    /// noise as one raised as a toast.
     pub fn post(self, alert: Alert) {
         let id = self.claim();
         let fades = alert.fades();
+
+        sound::play(alert.tone);
+
         let posted = Posted { id, alert };
 
         match posted.alert.channel {

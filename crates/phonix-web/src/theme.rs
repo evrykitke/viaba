@@ -196,12 +196,50 @@ impl SidebarState {
     }
 }
 
+/// Whether an alert makes a noise as well as appearing.
+///
+/// Off by default. A sound the person did not ask for, in an office, is worse
+/// than a sound they have to switch on.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+pub enum Sounds {
+    #[default]
+    Off,
+    On,
+}
+
+impl Sounds {
+    pub const ALL: &'static [Sounds] = &[Self::Off, Self::On];
+
+    pub const fn key(self) -> &'static str {
+        match self {
+            Self::Off => "quiet",
+            Self::On => "audible",
+        }
+    }
+
+    pub const fn is_on(self) -> bool {
+        matches!(self, Self::On)
+    }
+
+    pub const fn toggled(self) -> Self {
+        match self {
+            Self::Off => Self::On,
+            Self::On => Self::Off,
+        }
+    }
+
+    pub fn parse(key: &str) -> Option<Self> {
+        Self::ALL.iter().copied().find(|sounds| sounds.key() == key)
+    }
+}
+
 /// What the viewer has chosen.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub struct ThemePreference {
     pub mode: ThemeMode,
     pub accent: Accent,
     pub sidebar: SidebarState,
+    pub sounds: Sounds,
 }
 
 impl ThemePreference {
@@ -213,10 +251,11 @@ impl ThemePreference {
     /// decodes rather than resetting someone's theme on deploy day.
     pub fn encode(self) -> String {
         format!(
-            "{}:{}:{}",
+            "{}:{}:{}:{}",
             self.mode.key(),
             self.accent.key(),
-            self.sidebar.key()
+            self.sidebar.key(),
+            self.sounds.key()
         )
     }
 
@@ -235,6 +274,7 @@ impl ThemePreference {
                 .next()
                 .and_then(SidebarState::parse)
                 .unwrap_or_default(),
+            sounds: fields.next().and_then(Sounds::parse).unwrap_or_default(),
         }
     }
 
@@ -348,6 +388,22 @@ impl Theme {
         self.preference.get().sidebar
     }
 
+    pub fn sounds(self) -> Sounds {
+        self.preference.get().sounds
+    }
+
+    /// Read without subscribing, for the alert path - posting an alert must not
+    /// make the poster reactive over the sound setting.
+    pub fn sounds_untracked(self) -> Sounds {
+        self.preference.get_untracked().sounds
+    }
+
+    pub fn toggle_sounds(self) {
+        self.preference
+            .update(|preference| preference.sounds = preference.sounds.toggled());
+        self.apply();
+    }
+
     pub fn set_mode(self, mode: ThemeMode) {
         self.preference.update(|preference| preference.mode = mode);
         self.apply();
@@ -432,12 +488,15 @@ mod tests {
         for mode in ThemeMode::ALL {
             for accent in Accent::ALL {
                 for sidebar in SidebarState::ALL {
-                    let preference = ThemePreference {
-                        mode: *mode,
-                        accent: *accent,
-                        sidebar: *sidebar,
-                    };
-                    assert_eq!(ThemePreference::decode(&preference.encode()), preference);
+                    for sounds in Sounds::ALL {
+                        let preference = ThemePreference {
+                            mode: *mode,
+                            accent: *accent,
+                            sidebar: *sidebar,
+                            sounds: *sounds,
+                        };
+                        assert_eq!(ThemePreference::decode(&preference.encode()), preference);
+                    }
                 }
             }
         }
@@ -457,19 +516,22 @@ mod tests {
             "dark:chartreuse",
             "dark:teal:sideways",
             "dark:teal:rail:extra",
+            "dark:teal:rail:loud",
         ] {
             let decoded = ThemePreference::decode(raw);
             assert!(ThemeMode::ALL.contains(&decoded.mode), "{raw:?}");
             assert!(Accent::ALL.contains(&decoded.accent), "{raw:?}");
             assert!(SidebarState::ALL.contains(&decoded.sidebar), "{raw:?}");
+            assert!(Sounds::ALL.contains(&decoded.sounds), "{raw:?}");
         }
 
-        // A cookie written before the sidebar field existed still decodes, and
-        // keeps the two fields it does have.
+        // A cookie written before the sidebar and sound fields existed still
+        // decodes, and keeps the two fields it does have.
         let older = ThemePreference::decode("dark:teal");
         assert_eq!(older.mode, ThemeMode::Dark);
         assert_eq!(older.accent, Accent::Teal);
         assert_eq!(older.sidebar, SidebarState::Expanded);
+        assert_eq!(older.sounds, Sounds::Off);
 
         // The recognisable half survives even when the rest does not.
         assert_eq!(
@@ -502,6 +564,11 @@ mod tests {
             assert_eq!(SidebarState::parse(sidebar.key()), Some(*sidebar));
             assert!(!SidebarState::ALL[..index].contains(sidebar));
             assert_eq!(sidebar.toggled().toggled(), *sidebar);
+        }
+        for (index, sounds) in Sounds::ALL.iter().enumerate() {
+            assert_eq!(Sounds::parse(sounds.key()), Some(*sounds));
+            assert!(!Sounds::ALL[..index].contains(sounds));
+            assert_eq!(sounds.toggled().toggled(), *sounds);
         }
     }
 

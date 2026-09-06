@@ -26,6 +26,8 @@ pub enum Icon {
     Ban,
     /// Lucide `bell`.
     Bell,
+    /// Lucide `bell-off`.
+    BellOff,
     /// Lucide `blocks`.
     Blocks,
     /// Lucide `bold`.
@@ -214,6 +216,7 @@ impl Icon {
             Self::ArrowRight => "arrow-right",
             Self::Ban => "ban",
             Self::Bell => "bell",
+            Self::BellOff => "bell-off",
             Self::Blocks => "blocks",
             Self::Bold => "bold",
             Self::Boxes => "boxes",
@@ -312,6 +315,7 @@ impl Icon {
             Self::ArrowRight => r#"<path d="M5 12h14" /> <path d="m12 5 7 7-7 7" />"#,
             Self::Ban => r#"<circle cx="12" cy="12" r="10" /> <path d="M4.929 4.929 19.07 19.071" />"#,
             Self::Bell => r#"<path d="M10.268 21a2 2 0 0 0 3.464 0" /> <path d="M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326" />"#,
+            Self::BellOff => r#"<path d="M10.268 21a2 2 0 0 0 3.464 0" /> <path d="M17 17H4a1 1 0 0 1-.74-1.673C4.59 13.956 6 12.499 6 8a6 6 0 0 1 .258-1.742" /> <path d="m2 2 20 20" /> <path d="M8.668 3.01A6 6 0 0 1 18 8c0 2.687.77 4.653 1.707 6.05" />"#,
             Self::Blocks => r#"<path d="M10 22V7a1 1 0 0 0-1-1H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-5a1 1 0 0 0-1-1H2" /> <rect x="14" y="2" width="8" height="8" rx="1" />"#,
             Self::Bold => r#"<path d="M6 12h9a4 4 0 0 1 0 8H7a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h7a4 4 0 0 1 0 8" />"#,
             Self::Boxes => r#"<path d="M2.97 12.92A2 2 0 0 0 2 14.63v3.24a2 2 0 0 0 .97 1.71l3 1.8a2 2 0 0 0 2.06 0L12 19v-5.5l-5-3-4.03 2.42Z" /> <path d="m7 16.5-4.74-2.85" /> <path d="m7 16.5 5-3" /> <path d="M7 16.5v5.17" /> <path d="M12 13.5V19l3.97 2.38a2 2 0 0 0 2.06 0l3-1.8a2 2 0 0 0 .97-1.71v-3.24a2 2 0 0 0-.97-1.71L17 10.5l-5 3Z" /> <path d="m17 16.5-5-3" /> <path d="m17 16.5 4.74-2.85" /> <path d="M17 16.5v5.17" /> <path d="M7.97 4.42A2 2 0 0 0 7 6.13v4.37l5 3 5-3V6.13a2 2 0 0 0-.97-1.71l-3-1.8a2 2 0 0 0-2.06 0l-3 1.8Z" /> <path d="M12 8 7.26 5.15" /> <path d="m12 8 4.74-2.85" /> <path d="M12 13.5V8" />"#,
@@ -409,6 +413,7 @@ impl Icon {
         Icon::ArrowRight,
         Icon::Ban,
         Icon::Bell,
+        Icon::BellOff,
         Icon::Blocks,
         Icon::Bold,
         Icon::Boxes,
@@ -513,6 +518,7 @@ impl core::str::FromStr for Icon {
             "arrow-right" => Ok(Self::ArrowRight),
             "ban" => Ok(Self::Ban),
             "bell" => Ok(Self::Bell),
+            "bell-off" => Ok(Self::BellOff),
             "blocks" => Ok(Self::Blocks),
             "bold" => Ok(Self::Bold),
             "boxes" => Ok(Self::Boxes),

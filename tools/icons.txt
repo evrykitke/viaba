@@ -8,6 +8,7 @@
 
 # -- shell chrome -----------------------------------------------------------
 bell
+bell-off
 chevron-down
 chevron-left
 chevron-right

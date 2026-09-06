@@ -247,7 +247,45 @@ fn appearance() -> impl IntoView {
                     })
                     .collect::<Vec<_>>()}
             </div>
+
+            <button
+                type="button"
+                class="mt-2 flex h-row w-full items-center gap-2 rounded-control px-1 text-sm text-content-muted hover:bg-surface-hover hover:text-content"
+                role="menuitemcheckbox"
+                aria-checked=move || if theme.sounds().is_on() { "true" } else { "false" }
+                on:click=move |_| theme.toggle_sounds()
+            >
+                {move || {
+                    let icon = if theme.sounds().is_on() { Icon::Bell } else { Icon::BellOff };
+                    view! { <Icon icon=icon size=IconSize::Sm /> }
+                }}
+                <span class="flex-1 text-left">{l!("menu.sounds")}</span>
+                <Switch on=Signal::derive(move || theme.sounds().is_on()) />
+            </button>
         </div>
+    }
+}
+
+/// The track and knob of the sound toggle. Drawn rather than an `<input>`
+/// because the whole row is the control, and a checkbox inside a button is two
+/// things to click.
+#[component]
+fn switch(#[prop(into)] on: Signal<bool>) -> impl IntoView {
+    view! {
+        <span
+            class=move || {
+                let track = if on.get() { "bg-brand" } else { "bg-surface-sunken" };
+                format!("relative inline-flex h-4 w-7 shrink-0 rounded-full transition-colors {track}")
+            }
+            aria-hidden="true"
+        >
+            <span class=move || {
+                let position = if on.get() { "translate-x-3.5" } else { "translate-x-0.5" };
+                format!(
+                    "absolute top-0.5 size-3 rounded-full bg-surface-raised shadow transition-transform {position}",
+                )
+            } />
+        </span>
     }
 }
 
