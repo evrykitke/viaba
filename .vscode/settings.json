@@ -1,0 +1,27 @@
+{
+  // rust-analyzer runs its own cargo beside whatever you are building. Two
+  // instances of it held 8.5 GB between them when this box ran out of memory
+  // on 2026-09-04, so everything here is about what it is allowed to spend.
+
+  // Its own target dir. Sharing `target/` with the build means the two take
+  // turns on the cargo lock and invalidate each other's fingerprints.
+  "rust-analyzer.cargo.targetDir": true,
+
+  // Check the crate you touched, not all seventeen.
+  "rust-analyzer.check.workspace": false,
+
+  // Skip test and bench targets. They pull in the whole workspace - the same
+  // reason profile.dev sets split-debuginfo.
+  "rust-analyzer.check.allTargets": false,
+  "rust-analyzer.cargo.allTargets": false,
+
+  // Leave cores for the build that is usually running next to it.
+  "rust-analyzer.numThreads": 4,
+
+  // The query cache. Unbounded by default, and this workspace fills it.
+  "rust-analyzer.lru.capacity": 64,
+
+  "files.watcherExclude": {
+    "**/target/**": true
+  }
+}

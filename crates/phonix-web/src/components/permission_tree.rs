@@ -890,11 +890,25 @@ mod tests {
     fn a_branch_counts_only_the_children_this_workspace_could_hold() {
         // `Pages` would otherwise sit permanently part-ticked over children
         // nobody in this workspace can ever be granted.
-        let books_off: Vec<String> = Vec::new();
+        let nothing_subscribed: Vec<String> = Vec::new();
 
-        let (_, total) = tally(&PermissionSet::new(), perms::PAGES, Some(&books_off));
+        let (_, total) = tally(
+            &PermissionSet::new(),
+            perms::PAGES,
+            Some(&nothing_subscribed),
+        );
         let (_, everything) = tally(&PermissionSet::new(), perms::PAGES, None);
 
+        // Every app that can be switched off, rather than a hardcoded Books:
+        // adding a second optional app must not silently stop this checking the
+        // first. See ADR 0006 section 1.
+        let optional: Vec<&'static str> = phonix_core::apps::CATALOG
+            .iter()
+            .filter(|app| !app.always_on)
+            .map(|app| app.permission)
+            .collect();
+
+        assert!(!optional.is_empty(), "an app has to be switchable off");
         assert!(
             total < everything,
             "the tally has to shrink when an app is off",
@@ -903,9 +917,11 @@ mod tests {
             everything - total,
             DEFINITIONS
                 .iter()
-                .filter(|d| d.name.starts_with("Pages.Sales"))
+                .filter(|d| optional
+                    .iter()
+                    .any(|root| d.name == *root || is_descendant_of(d.name, root)))
                 .count(),
-            "and shrink by exactly what Books owns",
+            "and shrink by exactly what the optional apps own",
         );
     }
 

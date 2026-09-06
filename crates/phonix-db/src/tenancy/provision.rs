@@ -305,6 +305,7 @@ async fn migrate_app(
             })?;
 
         install_number_sequences(&pool, database, app.app_id).await?;
+        install_app_defaults(&pool, database, app.app_id).await?;
         sync_permission_tree(&pool, database, app.app_id).await?;
 
         apps::record_installed(&pool, app.app_id, &app.latest_version()).await
@@ -465,6 +466,59 @@ async fn install_number_sequences(
         declared = series.len(),
         created,
         "number sequences installed"
+    );
+    Ok(())
+}
+
+/// Insert the rows this app's tables hold on the first morning.
+///
+/// The other half of ADR 0006 section 4. `install_number_sequences` above is
+/// generic because every app's series have the same shape; defaults do not - a
+/// chart of accounts and a set of stock adjustment types have nothing in common
+/// but the directory they live in - so the shape is the app's own type and this
+/// dispatches on the app id.
+///
+/// That `match` is the honest cost of the design. It is here rather than behind
+/// a trait because there are two apps with defaults and a trait extracted for
+/// two callers is a `dyn` in front of a `match`; ADR 0001's rule about waiting
+/// for the third applies to this as much as to a port.
+///
+/// Runs on every migration pass, like the sequences and for the same reason: an
+/// upgrade that adds an account has to reach the workspaces that already have
+/// the app. Every install is `ON CONFLICT DO NOTHING`, so a re-run can neither
+/// put back a row somebody deleted nor overwrite one they edited.
+async fn install_app_defaults(
+    pool: &sqlx::PgPool,
+    database: &str,
+    app_id: &str,
+) -> Result<(), DbError> {
+    if app_id != crate::tenancy::apps::BOOKS_APP_ID {
+        // Most apps have nothing to seed yet.
+        return Ok(());
+    }
+
+    let chart: app_books::account::DefaultChart = phonix_config::defaults::load_for(app_id)
+        .map_err(|err| DbError::CorruptCatalogRow {
+            slug: app_id.to_owned(),
+            reason: format!("default chart of accounts is unusable: {err}"),
+        })?;
+
+    // Validated before a row is written, so a bad file stops a deployment where
+    // somebody is watching rather than half-installing a chart that an
+    // accountant then has to unpick in a live workspace.
+    chart.check().map_err(|err| DbError::CorruptCatalogRow {
+        slug: app_id.to_owned(),
+        reason: format!("default chart of accounts is unusable: {err}"),
+    })?;
+
+    let created = crate::books::account::install_defaults(pool, &chart).await?;
+
+    tracing::info!(
+        database,
+        app = app_id,
+        declared = chart.account.len(),
+        created,
+        "default chart of accounts installed"
     );
     Ok(())
 }

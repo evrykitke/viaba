@@ -82,6 +82,16 @@ impl Language {
             native_name: "Français",
             direction: Direction::Ltr,
         },
+        // Simplified Chinese. `zh` rather than `zh-Hans` or `zh-CN`, matching
+        // the rule above: `negotiate_tag` takes the primary subtag, so a
+        // browser asking for zh-CN, zh-Hans or zh-SG lands here. Traditional
+        // would be a genuinely different catalog and would earn its own entry.
+        Self {
+            code: "zh",
+            english_name: "Chinese",
+            native_name: "中文",
+            direction: Direction::Ltr,
+        },
     ];
 
     /// The BCP-47 code: what is stored, what names the file, what goes in

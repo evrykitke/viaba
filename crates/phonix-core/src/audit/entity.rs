@@ -216,6 +216,21 @@ pub mod kinds {
         singleton: false,
     };
 
+    /// A part of the organization, and whether spending is charged to it.
+    ///
+    /// The audited change that matters is not the rename: it is
+    /// `is_cost_centre`, because switching it on puts the department into every
+    /// posting picker in the workspace and switching it off takes it out of
+    /// them, and "who made this chargeable" is a question a cost report
+    /// eventually asks.
+    pub const DEPARTMENT: EntityKind = EntityKind {
+        name: "department",
+        singular_key: "entity.department.singular",
+        plural_key: "entity.department.plural",
+        href: Some("/people/departments/{id}"),
+        singleton: false,
+    };
+
     /// A document number series: its format, its reset period, where it starts.
     ///
     /// The one settings change that can make two documents share a number, so
@@ -271,6 +286,7 @@ pub const ENTITY_KINDS: &[EntityKind] = &[
     kinds::TAX_CODE,
     kinds::TAX_GROUP,
     kinds::SALES_INVOICE,
+    kinds::DEPARTMENT,
 ];
 
 /// The kind with this stored name, if this build knows it.

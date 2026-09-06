@@ -8,6 +8,7 @@
 //!
 //! | Module | Question it answers |
 //! | ------ | ------------------- |
+//! | [`account`] | What may be posted to, and which way its balance runs? |
 //! | [`quantity`] | How many, at four decimal places? |
 //! | [`invoice`] | What is on the document, and what state is it in? |
 //! | [`pricing`] | What does it come to? |
@@ -51,6 +52,7 @@
     )
 )]
 
+pub mod account;
 pub mod invoice;
 pub mod pricing;
 pub mod quantity;
@@ -68,6 +70,11 @@ pub const SALES_INVOICE: &str = "sales_invoice";
 /// Procurement also calls a supplier is the same row, and that is the point.
 pub const CUSTOMER_ROLE: &str = phonix_master::party::roles::CUSTOMER;
 
+pub use account::{
+    Account, AccountClass, AccountError, AccountInput, AccountSummary, AccountType, DefaultAccount,
+    DefaultChart, DefaultChartError, MAX_ACCOUNT_DESCRIPTION_LEN, MAX_ACCOUNT_NAME_LEN,
+    MAX_ACCOUNT_NUMBER_LEN, Side,
+};
 pub use invoice::{
     Invoice, InvoiceError, InvoiceInput, InvoiceLine, InvoiceLineInput, InvoiceStatus,
     InvoiceSummary, InvoiceTotals, PartySnapshot, PostOutcome,

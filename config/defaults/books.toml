@@ -1,0 +1,1287 @@
+# The chart of accounts a workspace starts with.
+#
+# Inserted when Books is first enabled, with ON CONFLICT DO NOTHING against
+# `accounts_number_key`. After that the workspace owns every row: a redeploy
+# never puts back an account somebody deleted and never overwrites one they
+# edited. A default is what you start with, not what you are held to.
+#
+# WHY IT IS EXHAUSTIVE
+#
+# The alternative is a starter set of thirty accounts, and the failure mode of a
+# starter set is that the workspace discovers a missing account at the moment it
+# is trying to post something. An unused account costs one row and one line in a
+# picker that is searchable anyway. A missing one costs a posting failure and a
+# phone call.
+#
+# So the accounts that starter charts leave out are deliberately here, and they
+# are the ones a growing company hits first - see ADR 0006 sections 4, 6.2, 6.5
+# and 7:
+#
+#   2010  goods received not invoiced   the three-way match cannot work without it
+#   5090  landed cost absorbed          freight and duty into stock value, not expense
+#   5230  purchase price variance       ordered price vs billed price, posted not absorbed
+#   5200  inventory adjustment          and 5210-5250, so one bucket does not swallow every discrepancy
+#   1240  inventory in transit          a transfer's third state, neither here nor there
+#   8040  foreign exchange gain         and 8540 loss, held apart
+#   8550  rounding differences          so a penny does not land in suspense
+#   1170  input tax recoverable         held separately from 2100 output tax
+#   1410  suspense                      because it is better to have one than to improvise one
+#
+# NUMBERS ARE A CONVENTION, TYPES ARE NOT
+#
+# `type` is what the software reasons about - it decides the normal balance,
+# whether the balance closes at year end, and whether a sub-ledger owns the
+# account. `number` decides only the order things are read in, and a workspace
+# is free to renumber the whole chart. The ranges below are the usual ones:
+#
+#   1000-1999  assets            5000-5999  cost of sales
+#   2000-2999  liabilities       6000-7999  operating expenses
+#   3000-3999  equity            8000-8999  other income and expense
+#   4000-4999  revenue           9000-9999  tax and appropriations
+#
+# Gaps between groups are intentional: a workspace inserting its own account
+# next to a related one should not have to renumber to do it.
+
+# ---------------------------------------------------------------------------
+# 1000-1099  Cash and bank
+# ---------------------------------------------------------------------------
+
+[[account]]
+number = "1000"
+name = "Petty cash"
+type = "cash"
+
+[[account]]
+number = "1010"
+name = "Cash on hand"
+type = "cash"
+
+[[account]]
+number = "1020"
+name = "Undeposited funds"
+type = "cash"
+description = "Takings received and not yet banked. Clearing this to a bank account is what makes a bank reconciliation possible."
+
+[[account]]
+number = "1030"
+name = "Bank current account"
+type = "bank"
+
+[[account]]
+number = "1040"
+name = "Bank savings account"
+type = "bank"
+
+[[account]]
+number = "1050"
+name = "Bank deposit account"
+type = "bank"
+
+[[account]]
+number = "1060"
+name = "Payment processor clearing"
+type = "bank"
+description = "Money taken by a card or wallet processor and not yet settled to the bank."
+
+[[account]]
+number = "1070"
+name = "Card settlement clearing"
+type = "bank"
+
+[[account]]
+number = "1080"
+name = "Foreign currency bank account"
+type = "bank"
+
+[[account]]
+number = "1090"
+name = "Bank transfers in transit"
+type = "bank"
+description = "The other side of a transfer between two of the workspace's own accounts, for the days it is in neither."
+
+# ---------------------------------------------------------------------------
+# 1100-1199  Receivables
+# ---------------------------------------------------------------------------
+
+[[account]]
+number = "1100"
+name = "Trade receivables"
+type = "accounts_receivable"
+description = "The sales ledger's control account. Posted to by invoices and receipts, never by a hand-typed journal."
+
+[[account]]
+number = "1110"
+name = "Trade receivables - retentions"
+type = "other_current_asset"
+
+[[account]]
+number = "1120"
+name = "Allowance for doubtful debts"
+type = "contra_asset"
+description = "Carries a credit balance against 1100. What is expected not to be collected, before it is written off."
+
+[[account]]
+number = "1130"
+name = "Other receivables"
+type = "other_current_asset"
+
+[[account]]
+number = "1140"
+name = "Accrued income"
+type = "other_current_asset"
+description = "Earned and not yet invoiced."
+
+[[account]]
+number = "1150"
+name = "Employee advances"
+type = "other_current_asset"
+
+[[account]]
+number = "1160"
+name = "Directors' loan account"
+type = "other_current_asset"
+
+[[account]]
+number = "1170"
+name = "Input tax recoverable"
+type = "other_current_asset"
+description = "Tax paid on purchases, held apart from 2100 output tax. Netting the two into one account is how a return stops being checkable."
+
+[[account]]
+number = "1180"
+name = "Tax refund due"
+type = "other_current_asset"
+
+# ---------------------------------------------------------------------------
+# 1200-1299  Inventory
+# ---------------------------------------------------------------------------
+
+[[account]]
+number = "1200"
+name = "Inventory - raw materials"
+type = "inventory"
+description = "The stock ledger's control account. Its balance is the sum of the stock movements by construction, not by reconciliation."
+
+[[account]]
+number = "1210"
+name = "Inventory - work in progress"
+type = "inventory"
+
+[[account]]
+number = "1220"
+name = "Inventory - finished goods"
+type = "inventory"
+
+[[account]]
+number = "1230"
+name = "Inventory - goods for resale"
+type = "inventory"
+
+[[account]]
+number = "1240"
+name = "Inventory in transit"
+type = "inventory"
+description = "Stock that has left one location and not arrived at the other. On the balance sheet the whole time, which is why a transfer is one document and not two adjustments."
+
+[[account]]
+number = "1250"
+name = "Consignment inventory"
+type = "inventory"
+
+[[account]]
+number = "1260"
+name = "Allowance for obsolete inventory"
+type = "contra_asset"
+
+# ---------------------------------------------------------------------------
+# 1300-1399  Prepayments and deposits
+# ---------------------------------------------------------------------------
+
+[[account]]
+number = "1300"
+name = "Prepaid expenses"
+type = "prepaid_expense"
+
+[[account]]
+number = "1310"
+name = "Prepaid insurance"
+type = "prepaid_expense"
+
+[[account]]
+number = "1320"
+name = "Prepaid rent"
+type = "prepaid_expense"
+
+[[account]]
+number = "1330"
+name = "Prepaid subscriptions"
+type = "prepaid_expense"
+
+[[account]]
+number = "1340"
+name = "Deposits paid"
+type = "other_current_asset"
+
+# ---------------------------------------------------------------------------
+# 1400-1499  Other current assets
+# ---------------------------------------------------------------------------
+
+[[account]]
+number = "1400"
+name = "Short-term investments"
+type = "other_current_asset"
+
+[[account]]
+number = "1410"
+name = "Suspense"
+type = "other_current_asset"
+description = "Where a posting goes when nobody yet knows where it goes. Better to have one and watch it than to have people improvise one."
+
+[[account]]
+number = "1420"
+name = "Intercompany receivable"
+type = "other_current_asset"
+
+[[account]]
+number = "1430"
+name = "Payroll clearing"
+type = "other_current_asset"
+
+# ---------------------------------------------------------------------------
+# 1500-1599  Fixed assets, at cost
+# ---------------------------------------------------------------------------
+
+[[account]]
+number = "1500"
+name = "Land"
+type = "fixed_asset"
+
+[[account]]
+number = "1510"
+name = "Buildings"
+type = "fixed_asset"
+
+[[account]]
+number = "1520"
+name = "Leasehold improvements"
+type = "fixed_asset"
+
+[[account]]
+number = "1530"
+name = "Plant and machinery"
+type = "fixed_asset"
+
+[[account]]
+number = "1540"
+name = "Motor vehicles"
+type = "fixed_asset"
+
+[[account]]
+number = "1550"
+name = "Office equipment"
+type = "fixed_asset"
+
+[[account]]
+number = "1560"
+name = "Computer equipment"
+type = "fixed_asset"
+
+[[account]]
+number = "1570"
+name = "Furniture and fittings"
+type = "fixed_asset"
+
+[[account]]
+number = "1580"
+name = "Right-of-use assets"
+type = "fixed_asset"
+
+[[account]]
+number = "1590"
+name = "Assets under construction"
+type = "fixed_asset"
+
+# ---------------------------------------------------------------------------
+# 1600-1699  Accumulated depreciation (credit balances against 1500-1599)
+# ---------------------------------------------------------------------------
+
+[[account]]
+number = "1610"
+name = "Accumulated depreciation - buildings"
+type = "accumulated_depreciation"
+
+[[account]]
+number = "1620"
+name = "Accumulated depreciation - leasehold improvements"
+type = "accumulated_depreciation"
+
+[[account]]
+number = "1630"
+name = "Accumulated depreciation - plant and machinery"
+type = "accumulated_depreciation"
+
+[[account]]
+number = "1640"
+name = "Accumulated depreciation - motor vehicles"
+type = "accumulated_depreciation"
+
+[[account]]
+number = "1650"
+name = "Accumulated depreciation - office equipment"
+type = "accumulated_depreciation"
+
+[[account]]
+number = "1660"
+name = "Accumulated depreciation - computer equipment"
+type = "accumulated_depreciation"
+
+[[account]]
+number = "1670"
+name = "Accumulated depreciation - furniture and fittings"
+type = "accumulated_depreciation"
+
+[[account]]
+number = "1680"
+name = "Accumulated depreciation - right-of-use assets"
+type = "accumulated_depreciation"
+
+# ---------------------------------------------------------------------------
+# 1700-1799  Intangible assets
+# ---------------------------------------------------------------------------
+
+[[account]]
+number = "1700"
+name = "Goodwill"
+type = "intangible_asset"
+
+[[account]]
+number = "1710"
+name = "Software licences"
+type = "intangible_asset"
+
+[[account]]
+number = "1720"
+name = "Patents and trademarks"
+type = "intangible_asset"
+
+[[account]]
+number = "1730"
+name = "Capitalised development costs"
+type = "intangible_asset"
+
+[[account]]
+number = "1740"
+name = "Accumulated amortisation - intangibles"
+type = "accumulated_depreciation"
+
+# ---------------------------------------------------------------------------
+# 1800-1899  Non-current and other assets
+# ---------------------------------------------------------------------------
+
+[[account]]
+number = "1800"
+name = "Long-term investments"
+type = "other_asset"
+
+[[account]]
+number = "1810"
+name = "Long-term deposits"
+type = "other_asset"
+
+[[account]]
+number = "1820"
+name = "Deferred tax asset"
+type = "other_asset"
+
+# ---------------------------------------------------------------------------
+# 2000-2099  Payables
+# ---------------------------------------------------------------------------
+
+[[account]]
+number = "2000"
+name = "Trade payables"
+type = "accounts_payable"
+description = "The purchase ledger's control account. Cleared by bills, not by hand."
+
+[[account]]
+number = "2010"
+name = "Goods received not invoiced"
+type = "goods_received_not_invoiced"
+description = "The liability from the moment goods arrive rather than from the moment the paperwork does. A receipt credits it; the supplier's bill clears it. Without this account there is no three-way match."
+
+[[account]]
+number = "2020"
+name = "Other payables"
+type = "other_current_liability"
+
+[[account]]
+number = "2030"
+name = "Accrued expenses"
+type = "accrued_liability"
+
+[[account]]
+number = "2040"
+name = "Accrued payroll"
+type = "accrued_liability"
+
+[[account]]
+number = "2050"
+name = "Credit cards payable"
+type = "other_current_liability"
+
+[[account]]
+number = "2060"
+name = "Customer deposits"
+type = "other_current_liability"
+
+[[account]]
+number = "2070"
+name = "Deferred revenue"
+type = "other_current_liability"
+description = "Invoiced or collected, and not yet earned."
+
+[[account]]
+number = "2080"
+name = "Intercompany payable"
+type = "other_current_liability"
+
+# ---------------------------------------------------------------------------
+# 2100-2199  Tax liabilities
+# ---------------------------------------------------------------------------
+
+[[account]]
+number = "2100"
+name = "Output tax payable"
+type = "tax_payable"
+description = "Tax charged on sales, held apart from 1170 input tax so a return can be checked against both."
+
+[[account]]
+number = "2110"
+name = "Tax payable - net"
+type = "tax_payable"
+description = "Where 1170 and 2100 are netted when a return is filed."
+
+[[account]]
+number = "2120"
+name = "Sales tax payable"
+type = "tax_payable"
+
+[[account]]
+number = "2130"
+name = "Income tax withheld from pay"
+type = "tax_payable"
+
+[[account]]
+number = "2140"
+name = "Social security payable"
+type = "tax_payable"
+
+[[account]]
+number = "2150"
+name = "Corporation tax payable"
+type = "tax_payable"
+
+[[account]]
+number = "2160"
+name = "Withholding tax payable"
+type = "tax_payable"
+
+# ---------------------------------------------------------------------------
+# 2200-2299  Payroll liabilities
+# ---------------------------------------------------------------------------
+
+[[account]]
+number = "2200"
+name = "Net wages payable"
+type = "other_current_liability"
+
+[[account]]
+number = "2210"
+name = "Pension contributions payable"
+type = "other_current_liability"
+
+[[account]]
+number = "2220"
+name = "Employee deductions payable"
+type = "other_current_liability"
+
+[[account]]
+number = "2230"
+name = "Holiday pay accrual"
+type = "accrued_liability"
+
+# ---------------------------------------------------------------------------
+# 2300-2399  Short-term borrowing
+# ---------------------------------------------------------------------------
+
+[[account]]
+number = "2300"
+name = "Bank overdraft"
+type = "other_current_liability"
+
+[[account]]
+number = "2310"
+name = "Short-term loans"
+type = "other_current_liability"
+
+[[account]]
+number = "2320"
+name = "Current portion of long-term debt"
+type = "other_current_liability"
+
+[[account]]
+number = "2330"
+name = "Lease liability - current"
+type = "other_current_liability"
+
+# ---------------------------------------------------------------------------
+# 2500-2599  Long-term liabilities
+# ---------------------------------------------------------------------------
+
+[[account]]
+number = "2500"
+name = "Long-term loans"
+type = "long_term_liability"
+
+[[account]]
+number = "2510"
+name = "Mortgages payable"
+type = "long_term_liability"
+
+[[account]]
+number = "2520"
+name = "Lease liability - non-current"
+type = "long_term_liability"
+
+[[account]]
+number = "2530"
+name = "Deferred tax liability"
+type = "long_term_liability"
+
+[[account]]
+number = "2540"
+name = "Provisions"
+type = "long_term_liability"
+
+# ---------------------------------------------------------------------------
+# 3000-3999  Equity
+# ---------------------------------------------------------------------------
+
+[[account]]
+number = "3000"
+name = "Share capital"
+type = "equity"
+
+[[account]]
+number = "3010"
+name = "Share premium"
+type = "equity"
+
+[[account]]
+number = "3020"
+name = "Owner's capital"
+type = "equity"
+
+[[account]]
+number = "3030"
+name = "Owner's drawings"
+type = "contra_equity"
+description = "A debit balance against equity. Not an expense - drawings never reach the profit and loss account."
+
+[[account]]
+number = "3040"
+name = "Treasury shares"
+type = "contra_equity"
+
+[[account]]
+number = "3050"
+name = "Revaluation reserve"
+type = "equity"
+
+[[account]]
+number = "3060"
+name = "Foreign currency translation reserve"
+type = "equity"
+
+[[account]]
+number = "3070"
+name = "Other reserves"
+type = "equity"
+
+[[account]]
+number = "3080"
+name = "Retained earnings"
+type = "retained_earnings"
+description = "Where every revenue and expense account closes at year end."
+
+[[account]]
+number = "3090"
+name = "Current year earnings"
+type = "retained_earnings"
+
+# ---------------------------------------------------------------------------
+# 4000-4999  Revenue
+# ---------------------------------------------------------------------------
+
+[[account]]
+number = "4000"
+name = "Sales - goods"
+type = "revenue"
+
+[[account]]
+number = "4010"
+name = "Sales - services"
+type = "revenue"
+
+[[account]]
+number = "4020"
+name = "Sales - export"
+type = "revenue"
+
+[[account]]
+number = "4030"
+name = "Sales - online"
+type = "revenue"
+
+[[account]]
+number = "4040"
+name = "Subscription revenue"
+type = "revenue"
+
+[[account]]
+number = "4050"
+name = "Freight recharged to customers"
+type = "revenue"
+
+[[account]]
+number = "4060"
+name = "Commission income"
+type = "revenue"
+
+[[account]]
+number = "4070"
+name = "Sundry sales"
+type = "revenue"
+
+[[account]]
+number = "4100"
+name = "Sales returns"
+type = "contra_revenue"
+description = "A debit balance against revenue. Kept apart from sales so the return rate is visible rather than netted away."
+
+[[account]]
+number = "4110"
+name = "Discounts allowed"
+type = "contra_revenue"
+
+[[account]]
+number = "4120"
+name = "Early settlement discounts"
+type = "contra_revenue"
+
+# ---------------------------------------------------------------------------
+# 5000-5999  Cost of sales
+# ---------------------------------------------------------------------------
+
+[[account]]
+number = "5000"
+name = "Cost of goods sold"
+type = "cost_of_sales"
+
+[[account]]
+number = "5010"
+name = "Cost of services delivered"
+type = "cost_of_sales"
+
+[[account]]
+number = "5020"
+name = "Opening stock"
+type = "cost_of_sales"
+
+[[account]]
+number = "5030"
+name = "Closing stock"
+type = "cost_of_sales"
+
+[[account]]
+number = "5040"
+name = "Purchases"
+type = "cost_of_sales"
+
+[[account]]
+number = "5050"
+name = "Purchase returns"
+type = "cost_of_sales"
+
+[[account]]
+number = "5060"
+name = "Discounts received"
+type = "cost_of_sales"
+
+[[account]]
+number = "5070"
+name = "Carriage inwards"
+type = "cost_of_sales"
+
+[[account]]
+number = "5080"
+name = "Import duty"
+type = "cost_of_sales"
+
+[[account]]
+number = "5090"
+name = "Landed cost absorbed"
+type = "cost_of_sales"
+description = "The contra to freight, duty and handling as they are capitalised into stock value. Expensing them instead carries inventory below cost and overstates every margin on those goods."
+
+[[account]]
+number = "5100"
+name = "Direct labour"
+type = "cost_of_sales"
+
+[[account]]
+number = "5110"
+name = "Subcontractor costs"
+type = "cost_of_sales"
+
+[[account]]
+number = "5120"
+name = "Production overhead"
+type = "cost_of_sales"
+
+[[account]]
+number = "5130"
+name = "Freight and shipping - inbound"
+type = "cost_of_sales"
+
+[[account]]
+number = "5200"
+name = "Inventory adjustment"
+type = "cost_of_sales"
+description = "The general case. The accounts below exist so this one does not become a number that grows and tells nobody anything - an adjustment type names which."
+
+[[account]]
+number = "5210"
+name = "Inventory write-off"
+type = "cost_of_sales"
+
+[[account]]
+number = "5220"
+name = "Stock count variance"
+type = "cost_of_sales"
+
+[[account]]
+number = "5230"
+name = "Purchase price variance"
+type = "cost_of_sales"
+description = "The difference between the price ordered and the price billed. Posted, not absorbed silently into the stock value."
+
+[[account]]
+number = "5240"
+name = "Inventory revaluation"
+type = "cost_of_sales"
+
+[[account]]
+number = "5250"
+name = "Shrinkage and damage"
+type = "cost_of_sales"
+
+[[account]]
+number = "5260"
+name = "Expired and obsolete stock"
+type = "cost_of_sales"
+
+[[account]]
+number = "5270"
+name = "Samples and promotional stock"
+type = "cost_of_sales"
+
+# ---------------------------------------------------------------------------
+# 6000-6099  Employment costs
+# ---------------------------------------------------------------------------
+
+[[account]]
+number = "6000"
+name = "Wages and salaries"
+type = "operating_expense"
+
+[[account]]
+number = "6010"
+name = "Employer social security"
+type = "operating_expense"
+
+[[account]]
+number = "6020"
+name = "Pension costs"
+type = "operating_expense"
+
+[[account]]
+number = "6030"
+name = "Staff training"
+type = "operating_expense"
+
+[[account]]
+number = "6040"
+name = "Staff welfare"
+type = "operating_expense"
+
+[[account]]
+number = "6050"
+name = "Recruitment costs"
+type = "operating_expense"
+
+[[account]]
+number = "6060"
+name = "Temporary and agency staff"
+type = "operating_expense"
+
+[[account]]
+number = "6070"
+name = "Directors' remuneration"
+type = "operating_expense"
+
+[[account]]
+number = "6080"
+name = "Employee benefits"
+type = "operating_expense"
+
+# ---------------------------------------------------------------------------
+# 6100-6199  Premises
+# ---------------------------------------------------------------------------
+
+[[account]]
+number = "6100"
+name = "Rent"
+type = "operating_expense"
+
+[[account]]
+number = "6110"
+name = "Rates and property taxes"
+type = "operating_expense"
+
+[[account]]
+number = "6120"
+name = "Service charges"
+type = "operating_expense"
+
+[[account]]
+number = "6130"
+name = "Light and heat"
+type = "operating_expense"
+
+[[account]]
+number = "6140"
+name = "Water"
+type = "operating_expense"
+
+[[account]]
+number = "6150"
+name = "Cleaning"
+type = "operating_expense"
+
+[[account]]
+number = "6160"
+name = "Repairs and maintenance"
+type = "operating_expense"
+
+[[account]]
+number = "6170"
+name = "Insurance"
+type = "operating_expense"
+
+[[account]]
+number = "6180"
+name = "Security"
+type = "operating_expense"
+
+# ---------------------------------------------------------------------------
+# 6200-6299  Office and technology
+# ---------------------------------------------------------------------------
+
+[[account]]
+number = "6200"
+name = "Telephone and internet"
+type = "operating_expense"
+
+[[account]]
+number = "6210"
+name = "Software subscriptions"
+type = "operating_expense"
+
+[[account]]
+number = "6220"
+name = "IT support"
+type = "operating_expense"
+
+[[account]]
+number = "6230"
+name = "Hosting and cloud services"
+type = "operating_expense"
+
+[[account]]
+number = "6240"
+name = "Postage and courier"
+type = "operating_expense"
+
+[[account]]
+number = "6250"
+name = "Printing and stationery"
+type = "operating_expense"
+
+[[account]]
+number = "6260"
+name = "Office supplies"
+type = "operating_expense"
+
+[[account]]
+number = "6270"
+name = "Equipment hire"
+type = "operating_expense"
+
+# ---------------------------------------------------------------------------
+# 6300-6399  Sales and marketing
+# ---------------------------------------------------------------------------
+
+[[account]]
+number = "6300"
+name = "Advertising"
+type = "operating_expense"
+
+[[account]]
+number = "6310"
+name = "Marketing and promotion"
+type = "operating_expense"
+
+[[account]]
+number = "6320"
+name = "Website costs"
+type = "operating_expense"
+
+[[account]]
+number = "6330"
+name = "Entertaining"
+type = "operating_expense"
+
+[[account]]
+number = "6340"
+name = "Trade shows and exhibitions"
+type = "operating_expense"
+
+[[account]]
+number = "6350"
+name = "Sales commissions"
+type = "operating_expense"
+
+# ---------------------------------------------------------------------------
+# 6400-6499  Travel and motor
+# ---------------------------------------------------------------------------
+
+[[account]]
+number = "6400"
+name = "Travel"
+type = "operating_expense"
+
+[[account]]
+number = "6410"
+name = "Motor vehicle running costs"
+type = "operating_expense"
+
+[[account]]
+number = "6420"
+name = "Fuel"
+type = "operating_expense"
+
+[[account]]
+number = "6430"
+name = "Vehicle leasing"
+type = "operating_expense"
+
+[[account]]
+number = "6440"
+name = "Subsistence"
+type = "operating_expense"
+
+[[account]]
+number = "6450"
+name = "Parking and tolls"
+type = "operating_expense"
+
+# ---------------------------------------------------------------------------
+# 6500-6599  Professional and financial
+# ---------------------------------------------------------------------------
+
+[[account]]
+number = "6500"
+name = "Legal fees"
+type = "operating_expense"
+
+[[account]]
+number = "6510"
+name = "Accountancy fees"
+type = "operating_expense"
+
+[[account]]
+number = "6520"
+name = "Audit fees"
+type = "operating_expense"
+
+[[account]]
+number = "6530"
+name = "Consultancy fees"
+type = "operating_expense"
+
+[[account]]
+number = "6540"
+name = "Professional indemnity"
+type = "operating_expense"
+
+[[account]]
+number = "6550"
+name = "Bank charges"
+type = "operating_expense"
+
+[[account]]
+number = "6560"
+name = "Payment processing fees"
+type = "operating_expense"
+
+[[account]]
+number = "6570"
+name = "Licences and permits"
+type = "operating_expense"
+
+[[account]]
+number = "6580"
+name = "Subscriptions and memberships"
+type = "operating_expense"
+
+# ---------------------------------------------------------------------------
+# 6600-6699  Distribution
+# ---------------------------------------------------------------------------
+
+[[account]]
+number = "6600"
+name = "Carriage outwards"
+type = "operating_expense"
+
+[[account]]
+number = "6610"
+name = "Packaging"
+type = "operating_expense"
+
+[[account]]
+number = "6620"
+name = "Warehousing costs"
+type = "operating_expense"
+
+[[account]]
+number = "6630"
+name = "Customs and clearance"
+type = "operating_expense"
+
+# ---------------------------------------------------------------------------
+# 6700-6799  Bad debts
+# ---------------------------------------------------------------------------
+
+[[account]]
+number = "6700"
+name = "Bad debt written off"
+type = "operating_expense"
+
+[[account]]
+number = "6710"
+name = "Movement in allowance for doubtful debts"
+type = "operating_expense"
+
+# ---------------------------------------------------------------------------
+# 6800-6899  Other operating
+# ---------------------------------------------------------------------------
+
+[[account]]
+number = "6800"
+name = "Research and development"
+type = "operating_expense"
+
+[[account]]
+number = "6810"
+name = "Donations"
+type = "operating_expense"
+
+[[account]]
+number = "6820"
+name = "Sundry expenses"
+type = "operating_expense"
+
+[[account]]
+number = "6830"
+name = "General expenses"
+type = "operating_expense"
+
+# ---------------------------------------------------------------------------
+# 7000-7099  Depreciation and amortisation
+# ---------------------------------------------------------------------------
+
+[[account]]
+number = "7000"
+name = "Depreciation - buildings"
+type = "depreciation"
+
+[[account]]
+number = "7010"
+name = "Depreciation - leasehold improvements"
+type = "depreciation"
+
+[[account]]
+number = "7020"
+name = "Depreciation - plant and machinery"
+type = "depreciation"
+
+[[account]]
+number = "7030"
+name = "Depreciation - motor vehicles"
+type = "depreciation"
+
+[[account]]
+number = "7040"
+name = "Depreciation - office equipment"
+type = "depreciation"
+
+[[account]]
+number = "7050"
+name = "Depreciation - computer equipment"
+type = "depreciation"
+
+[[account]]
+number = "7060"
+name = "Depreciation - furniture and fittings"
+type = "depreciation"
+
+[[account]]
+number = "7070"
+name = "Depreciation - right-of-use assets"
+type = "depreciation"
+
+[[account]]
+number = "7080"
+name = "Amortisation - intangibles"
+type = "depreciation"
+
+# ---------------------------------------------------------------------------
+# 8000-8499  Other income
+# ---------------------------------------------------------------------------
+
+[[account]]
+number = "8000"
+name = "Interest income"
+type = "other_income"
+
+[[account]]
+number = "8010"
+name = "Dividend income"
+type = "other_income"
+
+[[account]]
+number = "8020"
+name = "Rental income"
+type = "other_income"
+
+[[account]]
+number = "8030"
+name = "Gain on disposal of fixed assets"
+type = "other_income"
+
+[[account]]
+number = "8040"
+name = "Foreign exchange gain"
+type = "other_income"
+description = "Held apart from 8540 loss. Netting the two hides the size of the exposure."
+
+[[account]]
+number = "8050"
+name = "Grant income"
+type = "other_income"
+
+[[account]]
+number = "8060"
+name = "Sundry income"
+type = "other_income"
+
+# ---------------------------------------------------------------------------
+# 8500-8999  Other expense
+# ---------------------------------------------------------------------------
+
+[[account]]
+number = "8500"
+name = "Interest expense"
+type = "other_expense"
+
+[[account]]
+number = "8510"
+name = "Loan interest"
+type = "other_expense"
+
+[[account]]
+number = "8520"
+name = "Lease interest"
+type = "other_expense"
+
+[[account]]
+number = "8530"
+name = "Loss on disposal of fixed assets"
+type = "other_expense"
+
+[[account]]
+number = "8540"
+name = "Foreign exchange loss"
+type = "other_expense"
+
+[[account]]
+number = "8550"
+name = "Rounding differences"
+type = "other_expense"
+description = "The half-penny that stops a journal balancing. Somewhere to put it that is not suspense and not a fudged line."
+
+[[account]]
+number = "8560"
+name = "Penalties and fines"
+type = "other_expense"
+
+[[account]]
+number = "8570"
+name = "Impairment losses"
+type = "other_expense"
+
+[[account]]
+number = "8580"
+name = "Write-offs and adjustments"
+type = "other_expense"
+
+# ---------------------------------------------------------------------------
+# 9000-9999  Tax and appropriations
+# ---------------------------------------------------------------------------
+
+[[account]]
+number = "9000"
+name = "Corporation tax expense"
+type = "income_tax"
+
+[[account]]
+number = "9010"
+name = "Deferred tax expense"
+type = "income_tax"
+
+[[account]]
+number = "9020"
+name = "Prior year tax adjustment"
+type = "income_tax"
+
+[[account]]
+number = "9500"
+name = "Dividends declared"
+type = "contra_equity"
+description = "An appropriation of profit, not an expense. It reduces equity directly and never reaches the profit and loss account."
+
+[[account]]
+number = "9510"
+name = "Transfers to reserves"
+type = "contra_equity"

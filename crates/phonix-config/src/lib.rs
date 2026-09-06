@@ -14,6 +14,7 @@
 //! `[REDACTED]`. That matters here because the whole config struct is logged at
 //! startup.
 
+pub mod defaults;
 pub mod model;
 pub mod numbering;
 pub mod validate;

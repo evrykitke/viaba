@@ -18,6 +18,9 @@
 //!  |   |   +- .Create  .Edit  .Delete
 //!  |   +- Pages.Master.Taxes
 //!  |       +- .Edit
+//!  +- Pages.People
+//!  |   +- Pages.People.Departments
+//!  |       +- .Create  .Edit  .Delete
 //!  +- Pages.Administration
 //!      +- Pages.Administration.Users
 //!      |   +- .Create  .Edit  .Delete  .ChangePermissions  .Impersonate
@@ -51,6 +54,13 @@ pub mod names {
     pub const INVOICES_EDIT: &str = "Pages.Sales.Invoices.Edit";
     pub const INVOICES_POST: &str = "Pages.Sales.Invoices.Post";
     pub const INVOICES_VOID: &str = "Pages.Sales.Invoices.Void";
+
+    pub const PEOPLE: &str = "Pages.People";
+
+    pub const DEPARTMENTS: &str = "Pages.People.Departments";
+    pub const DEPARTMENTS_CREATE: &str = "Pages.People.Departments.Create";
+    pub const DEPARTMENTS_EDIT: &str = "Pages.People.Departments.Edit";
+    pub const DEPARTMENTS_DELETE: &str = "Pages.People.Departments.Delete";
 
     pub const MASTER: &str = "Pages.Master";
 
@@ -278,6 +288,60 @@ pub const DEFINITIONS: &[PermissionDefinition] = &[
         // can reach.
         description: Some("Change a tax code, its rates, or the groups it belongs to."),
         parent: Some(names::TAXES),
+        default_for_user: false,
+    },
+    // -- People -----------------------------------------------------------
+    //
+    // Not under Administration, for the reason master data is not: knowing how
+    // the company is arranged is ordinary work that most of a workspace does,
+    // and putting the department list in the administration area would mean
+    // granting the administration area to everybody who has to pick a cost
+    // centre on a requisition.
+    //
+    // `Pages.People` rather than `Pages.Hr` because it is what appears in a
+    // role editor, and "HR" reads as a department rather than as a part of the
+    // software. The app id stays `hr`: it is a schema name, and it is chosen
+    // for what the app becomes.
+    PermissionDefinition {
+        name: names::PEOPLE,
+        display_name: "People",
+        description: Some("Reach the people area."),
+        parent: Some(names::PAGES),
+        default_for_user: false,
+    },
+    PermissionDefinition {
+        name: names::DEPARTMENTS,
+        display_name: "Departments",
+        description: Some("View the departments and cost centres this workspace is arranged into."),
+        parent: Some(names::PEOPLE),
+        default_for_user: false,
+    },
+    PermissionDefinition {
+        name: names::DEPARTMENTS_CREATE,
+        display_name: "Create",
+        description: Some("Add a department."),
+        parent: Some(names::DEPARTMENTS),
+        default_for_user: false,
+    },
+    PermissionDefinition {
+        name: names::DEPARTMENTS_EDIT,
+        display_name: "Edit",
+        // The cost-centre flag is edited under this one gate and not its own.
+        // It is not a stronger act than renaming: both change what a picker
+        // offers, and a grant that let somebody rename a department but not
+        // mark it chargeable would leave them unable to finish the job they
+        // were let in to do.
+        description: Some(
+            "Change a department's name, where it sits, and whether it is a cost centre.",
+        ),
+        parent: Some(names::DEPARTMENTS),
+        default_for_user: false,
+    },
+    PermissionDefinition {
+        name: names::DEPARTMENTS_DELETE,
+        display_name: "Delete",
+        description: Some("Remove a department that holds nothing and has never been charged to."),
+        parent: Some(names::DEPARTMENTS),
         default_for_user: false,
     },
     PermissionDefinition {

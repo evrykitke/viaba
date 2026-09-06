@@ -25,14 +25,33 @@
 //! sleep in here would make every future caller wait too: the API, a script,
 //! a bulk provisioning run.
 //!
-//! # Switching off is not deleting
+//! # Switching off deletes nothing at all
 //!
-//! The rows stay. What goes is the permission, everywhere - including from
-//! roles the organization defined themselves, because a role is not a
-//! subscription. Switching the app back on restores `Admin`'s access and leaves
-//! the custom roles for somebody to decide about again, which is the honest
-//! default: re-granting a role months later would be re-granting access
-//! somebody may have meant to remove in between.
+//! Not the app's rows, and - since ADR 0006 - not the permission grants either.
+//! [`uninstall`] writes one column, `installed_apps.enabled_at`, and stops.
+//!
+//! This used to revoke: `role::revoke_everywhere(app.permission)`, which
+//! deleted every grant beneath the app's root from every role in the workspace
+//! including the ones the organization wrote themselves, plus every per-user
+//! override. The justification was that a role is not a subscription. The
+//! trouble is that it made a lapsed subscription cost an organization the
+//! permission structure they had spent a week building, silently - nothing told
+//! the administrator that switching Books off had just erased eleven grants
+//! across four roles - and switching it back on could not put them back,
+//! because the rows were gone.
+//!
+//! What replaces it is a *filter*, applied once where an `AuthUser` is
+//! assembled: `PermissionSet::for_enabled_apps` in
+//! `identity::authentication::load_auth_user`. A disabled app is still gone
+//! from the menu, the launcher, the palette and every grid, and its services
+//! still refuse - because all of those read the filtered set - so this is not a
+//! cosmetic toggle and an unpaid app cannot be reached by guessing a URL. It is
+//! simply reversible.
+//!
+//! The old objection to a second gate still stands and is the reason the filter
+//! goes where the set is *built* rather than where it is checked: there is one
+//! call site, so a service that forgets about enablement is not a thing that can
+//! exist. See `docs/adr/0006-apps-ports-and-defaults.md` section 1.
 
 use phonix_core::apps::{self, AppDescriptor};
 use phonix_core::permissions;
@@ -119,6 +138,12 @@ pub async fn install(pool: &PgPool, caller: &Caller, app_id: &str) -> ServiceRes
     if !switched_on.is_empty() {
         // Once, after the whole set. Syncing per app would leave a window in
         // which Books' pages were reachable and master data's were not.
+        //
+        // This half is deliberately *not* symmetrical with [`uninstall`], which
+        // revokes nothing. Enabling has to grant, or the app is on and nobody
+        // can reach it; disabling does not have to revoke, because the
+        // enablement filter already hides it. Additive here, and nothing
+        // destructive there, is the shape that makes the pair reversible.
         role::sync_static_roles(pool).await?;
     }
 
@@ -154,27 +179,22 @@ pub async fn uninstall(
     }
 
     if !installs::disable(pool, app.id).await? {
-        // Already off. Nothing to record and nothing to revoke.
+        // Already off. Nothing to record.
         return Ok(UninstallOutcome::SwitchedOff);
     }
 
-    // Both halves, in this order. `sync_static_roles` rewrites Admin and User
-    // from the compiled tree filtered by what is now enabled; `revoke_everywhere`
-    // deals with the roles an organization defined for itself and with per-user
-    // overrides, which the sync deliberately does not touch.
-    role::sync_static_roles(pool).await?;
-    let revoked = role::revoke_everywhere(pool, app.permission).await?;
-
+    // One column, and nothing else. See the note above on why nothing is
+    // revoked here any more.
     audit::changed_json(
         pool,
         caller,
         Target::new(kinds::APP, app.id).named(app.id),
         serde_json::json!({ "enabled": true }),
-        serde_json::json!({ "enabled": false, "grants_revoked": revoked }),
+        serde_json::json!({ "enabled": false }),
     )
     .await;
 
-    tracing::info!(app = app.id, revoked, "app switched off");
+    tracing::info!(app = app.id, "app switched off");
     Ok(UninstallOutcome::SwitchedOff)
 }
 

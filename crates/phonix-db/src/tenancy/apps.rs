@@ -63,6 +63,13 @@ pub const MASTER_APP_ID: &str = "master";
 /// one that proves `core.number_sequences` works end to end.
 pub const BOOKS_APP_ID: &str = "books";
 
+/// People: departments, and the ones that are cost centres.
+///
+/// The first app with no dependencies at all - it names no party and charges no
+/// tax - and the first that generates a *code* rather than a document number
+/// out of `core.number_sequences`.
+pub const HR_APP_ID: &str = "hr";
+
 /// One installable app's migration stream.
 #[derive(Debug)]
 pub struct AppMigrations {
@@ -116,6 +123,16 @@ pub static APPS: &[AppMigrations] = &[
     AppMigrations {
         app_id: MASTER_APP_ID,
         migrator: &crate::MASTER_MIGRATIONS,
+    },
+    // HR depends on nothing at all, so its position is free. It sits here
+    // rather than at the end for one reason: `this_registry_and_the_catalog_
+    // name_the_same_apps` compares the two lists in order, and the catalog
+    // lists People before Books. Two orders that are allowed to disagree
+    // eventually do, and the drift is the kind nobody notices until a tenant
+    // database is built wrongly.
+    AppMigrations {
+        app_id: HR_APP_ID,
+        migrator: &crate::HR_MIGRATIONS,
     },
     // After master, because an invoice references a party and a tax group. The
     // order here is install order, and nothing enforces the dependency beyond

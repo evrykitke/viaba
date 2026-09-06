@@ -58,6 +58,7 @@ pub fn icon_of(app: &AppDescriptor) -> Icon {
         "layout-dashboard" => Icon::LayoutDashboard,
         "boxes" => Icon::Boxes,
         "file-text" => Icon::FileText,
+        "building-2" => Icon::Building2,
         _ => Icon::Package,
     }
 }

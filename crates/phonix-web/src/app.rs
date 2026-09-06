@@ -31,6 +31,9 @@ use crate::pages::master::party::PartyPage;
 use crate::pages::master::tax::TaxPage;
 use crate::pages::master::tax_group::{TaxGroupNewPage, TaxGroupPage};
 use crate::pages::master::taxes::{TaxNewPage, TaxesPage};
+use crate::pages::people::department::DepartmentPage;
+use crate::pages::people::departments::{DepartmentNewPage, DepartmentsPage};
+use crate::pages::people::home::PeopleHomePage;
 use crate::pages::sales::home::SalesHomePage;
 use crate::pages::sales::invoice::{InvoiceNewPage, InvoicePage};
 use crate::pages::sales::invoices::InvoicesPage;
@@ -195,6 +198,17 @@ pub fn app() -> impl IntoView {
                     // party id that fails to parse.
                     <Route path=path!("/master/parties/new") view=PartyNewPage />
                     <Route path=path!("/master/parties/:id") view=PartyPage />
+                    // People. Also not under /admin, and for a sharper version
+                    // of the same reason: a requisition names a cost centre
+                    // before it names anything else, so the department list is
+                    // something most of a workspace reads.
+                    <Route path=path!("/people") view=PeopleHomePage />
+                    <Route path=path!("/people/departments") view=DepartmentsPage />
+                    // Before the parameter, so "new" is a screen rather than a
+                    // department id that fails to parse.
+                    <Route path=path!("/people/departments/new") view=DepartmentNewPage />
+                    <Route path=path!("/people/departments/:id") view=DepartmentPage />
+
                     <Route path=path!("/master/taxes") view=TaxesPage />
                     <Route path=path!("/master/taxes/new") view=TaxNewPage />
                     <Route path=path!("/master/taxes/:id") view=TaxPage />

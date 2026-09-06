@@ -1,0 +1,29 @@
+[package]
+name = "app-hr"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+# The `hr` app: departments, and the ones that are cost centres.
+#
+# Named `app-*` for the reason `app-books` is: `phonix-*` is infrastructure
+# every app may depend on, an `app-*` crate is a product, and a build can leave
+# it out. The id and the schema stay bare - `hr` - because that is what a tenant
+# database sees.
+#
+# `hr` rather than `departments` because the schema name is a primary key in
+# every tenant database and must never be renamed, and this app grows employees
+# and contracts later. See docs/adr/0006-apps-ports-and-defaults.md section 9.
+#
+# Compiled for BOTH the server and the wasm client, like phonix-core,
+# phonix-master and app-books, so it must never depend on tokio, sqlx, redis or
+# lapin. The department form validates in the browser with this code and on the
+# server with the same code, which is the whole reason the crate exists.
+[dependencies]
+phonix-core = { workspace = true }
+
+serde = { workspace = true }
+thiserror = { workspace = true }
+uuid = { workspace = true }
+phonix-ports = { workspace = true }

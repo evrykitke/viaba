@@ -21,4 +21,5 @@
 //! and the `UPDATE` that stores the number have to be in the same one. A failed
 //! post then *returns* the number rather than burning it.
 
+pub mod account;
 pub mod invoice;

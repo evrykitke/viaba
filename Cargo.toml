@@ -15,6 +15,11 @@ repository = ""
 phonix-core = { path = "crates/phonix-core" }
 phonix-tax = { path = "crates/phonix-tax" }
 phonix-master = { path = "crates/phonix-master" }
+# The traits one app reaches another through, and nothing else. Declared by the
+# app that NEEDS a capability, implemented by the app that provides it, owned by
+# neither - which is what lets either be left out of a build. See
+# docs/adr/0006-apps-ports-and-defaults.md section 2.
+phonix-ports = { path = "crates/phonix-ports" }
 
 # --- apps ---
 # `app-*` rather than `phonix-*`: the prefix says which side of the core
@@ -25,6 +30,10 @@ phonix-master = { path = "crates/phonix-master" }
 # already uses for this: `migrations/apps/`, `core.installed_apps`, `app_id`,
 # `AppMigrations`. Two words for one idea eventually disagree.
 app-books = { path = "crates/app-books" }
+# Departments, and the ones that are cost centres. First because a cost centre
+# is a dimension on a journal line, and a dimension has to be in the ledger's
+# shape from its first migration - see ADR 0006 sections 6.4 and 9.
+app-hr = { path = "crates/app-hr" }
 phonix-config = { path = "crates/phonix-config" }
 phonix-telemetry = { path = "crates/phonix-telemetry" }
 # Development only, and gated twice over - see
@@ -273,6 +282,10 @@ web-sys = { version = "0.3", features = [
     # Telling a click on a table row apart from the end of a drag over the text
     # in one of its cells. See `ui::table::is_a_plain_click`.
     "Selection",
+    # The chime an alert plays. `play` and `set_volume` are on the media element
+    # rather than the audio one, and web-sys gates each interface separately.
+    "HtmlAudioElement",
+    "HtmlMediaElement",
 ] }
 # Only for the `Array` a Blob's parts have to arrive in.
 js-sys = "0.3"
@@ -385,8 +398,8 @@ hash-files = true
 tailwind-input-file = "style/main.css"
 
 # Dev server
-site-addr = "127.0.0.1:3000"
-reload-port = 3001
+site-addr = "127.0.0.1:3010"
+reload-port = 3011
 browserquery = "defaults"
 watch-additional-files = ["config", "style"]
 

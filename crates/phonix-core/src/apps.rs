@@ -13,12 +13,20 @@
 //! that appears the moment somebody subscribes is a migration running under a
 //! live request, and a bundle that fetches a route is a security surface.
 //!
-//! Installing an app **enables** it. What that means concretely is in
-//! `phonix_services::workspace::apps`: the workspace's static roles gain the
-//! permissions that hang beneath the app's root, and lose them again when it is
-//! switched off. Everything downstream - the menu, the command palette, the
-//! grids, and `Caller::require` in every service - already answers to
-//! permissions, so enablement reaches all of them without a second mechanism.
+//! Installing an app **enables** it, and enabling it is a fact about the
+//! *workspace* rather than about anybody's role. `phonix_services::workspace::apps`
+//! has the detail; the shape is that enabling grants the app's permission
+//! subtree to the static roles, so somebody can reach the new pages, and
+//! disabling revokes nothing at all.
+//!
+//! Disabling instead *filters*: `PermissionSet::for_enabled_apps` is applied
+//! where an `AuthUser` is assembled, so a permission for an app the workspace
+//! has switched off is not a permission anybody holds. Everything downstream -
+//! the menu, the command palette, the grids, and `Caller::require` in every
+//! service - already answers to permissions, so enablement reaches all of them
+//! without a second mechanism, and without destroying a role structure that
+//! took somebody a week to build. See
+//! `docs/adr/0006-apps-ports-and-defaults.md` section 1.
 //!
 //! # Why the catalog lives here
 //!
@@ -85,9 +93,10 @@ pub struct AppDescriptor {
     /// The permission every one of this app's pages hangs beneath.
     ///
     /// Enabling the app grants this and its descendants to the static roles;
-    /// disabling revokes them. That is why an app must own a whole subtree and
-    /// not scatter permissions through somebody else's: revocation is a prefix
-    /// match, and a shared parent would take a neighbour's pages down with it.
+    /// disabling filters them back out again. That is why an app must own a
+    /// whole subtree and not scatter permissions through somebody else's: both
+    /// the grant and the filter are prefix matches, and a shared parent would
+    /// take a neighbour's pages down with it.
     pub permission: &'static str,
 
     /// App ids that have to be on for this one to be useful.
@@ -160,6 +169,8 @@ pub const CORE: &str = "core";
 pub const MASTER: &str = "master";
 /// Sales: what the workspace invoices.
 pub const BOOKS: &str = "books";
+/// People: how the workspace is arranged, and what it charges to.
+pub const HR: &str = "hr";
 
 /// Every app this build can offer.
 ///
@@ -190,6 +201,23 @@ pub const CATALOG: &[AppDescriptor] = &[
         // Part of every workspace - see the field. It keeps its own schema and
         // its own migration stream all the same.
         always_on: true,
+    },
+    AppDescriptor {
+        id: HR,
+        name: "app.hr.name",
+        summary: "app.hr.summary",
+        icon: "building-2",
+        version: "0.1.0",
+        permission: names::PEOPLE,
+        home: Some("/people"),
+        // Nothing. A department is a fact about the organization rather than
+        // about its trade - it names no party, charges no tax and issues no
+        // document - so this is the first app that needs neither master data
+        // nor anything else. That is worth stating rather than assuming: it is
+        // what lets a workspace switch People on before it has decided whether
+        // it is doing any accounting at all.
+        requires: &[],
+        always_on: false,
     },
     AppDescriptor {
         id: BOOKS,
@@ -362,7 +390,7 @@ mod tests {
         assert_eq!(always_on, vec![CORE, MASTER]);
         assert_eq!(
             optional().map(|app| app.id).collect::<Vec<_>>(),
-            vec![BOOKS]
+            vec![HR, BOOKS]
         );
     }
 
@@ -527,6 +555,14 @@ mod tests {
         let some = vec![BOOKS.to_owned()];
         let ids: Vec<&str> = enabled_in(&some).map(|app| app.id).collect();
         assert_eq!(ids, vec![CORE, MASTER, BOOKS]);
+
+        // An app with no dependencies at all, on by itself. People is the
+        // first: a department names no party and charges no tax, so a
+        // workspace can have it before it has decided whether it is doing any
+        // accounting.
+        let people_only = vec![HR.to_owned()];
+        let ids: Vec<&str> = enabled_in(&people_only).map(|app| app.id).collect();
+        assert_eq!(ids, vec![CORE, MASTER, HR]);
     }
 
     #[test]

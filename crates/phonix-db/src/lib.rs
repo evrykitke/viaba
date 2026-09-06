@@ -89,6 +89,7 @@ pub mod currency;
 pub mod desk;
 pub mod error;
 pub mod files;
+pub mod hr;
 pub mod identity;
 pub mod mail;
 pub mod master;
@@ -135,3 +136,12 @@ pub static MASTER_MIGRATIONS: sqlx::migrate::Migrator =
 /// `config/numbering/books.toml`.
 pub static BOOKS_MIGRATIONS: sqlx::migrate::Migrator =
     sqlx::migrate!("../../migrations/apps/books");
+
+/// Migrations for the `hr` schema: how the workspace is arranged, and which
+/// parts of it spending is charged to.
+///
+/// One table. It is here before the ledger that will consume it because a cost
+/// centre is a *dimension* on a journal line, and a dimension has to be in the
+/// ledger's shape from that ledger's first migration - see
+/// `docs/adr/0006-apps-ports-and-defaults.md` section 9.
+pub static HR_MIGRATIONS: sqlx::migrate::Migrator = sqlx::migrate!("../../migrations/apps/hr");

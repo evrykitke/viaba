@@ -1,0 +1,19 @@
+# Codes the `hr` app generates.
+#
+# Defaults. Installing the app inserts them into `core.number_sequences` with
+# `ON CONFLICT DO NOTHING`; after that the tenant owns them.
+#
+# A department is not a document, and it uses the document numbering machinery
+# anyway: it is the same problem, and the alternative is a second allocator that
+# does the same thing slightly differently. See ADR 0006 section 3.
+
+[[series]]
+doc_type = "department"
+label    = "hr.doc_type.department"
+
+# `DEPT-###` renders `DEPT-004`. No year and no reset: a department code stays
+# on reports and exports for as long as the department does, and a reset would
+# hand two departments the same number in different years.
+mask     = "DEPT-###"
+reset    = "never"
+start_at = 1

@@ -109,6 +109,44 @@ pub static MENU: &[NavNode] = &[
         ],
     )
     .require(names::MASTER),
+    // People, after master data and before administration: arranging the
+    // company is closer to keeping the customer list tidy than it is to
+    // managing user accounts, and somebody looking for departments looks in
+    // neither of the other two.
+    NavNode::group(
+        "people",
+        "nav.hr",
+        Icon::Building2,
+        &[
+            NavNode::leaf(
+                "people-overview",
+                "nav.overview",
+                Icon::LayoutGrid,
+                "/people",
+            )
+            .require(names::PEOPLE)
+            .keywords(&["hr", "home", "start"]),
+            NavNode::leaf(
+                "departments",
+                "nav.departments",
+                Icon::Building2,
+                "/people/departments",
+            )
+            .require(names::DEPARTMENTS)
+            // "Cost centre" is here rather than as a screen of its own: a cost
+            // centre is a department with a flag, and somebody searching the
+            // palette for one should land on the grid that has the filter.
+            .keywords(&[
+                "cost centre",
+                "cost center",
+                "division",
+                "team",
+                "org",
+                "structure",
+            ]),
+        ],
+    )
+    .require(names::PEOPLE),
     NavNode::group(
         "administration",
         "nav.administration",

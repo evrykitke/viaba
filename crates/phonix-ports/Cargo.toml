@@ -1,0 +1,44 @@
+[package]
+name = "phonix-ports"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+# The traits one app reaches another through, and nothing else.
+#
+# ADR 0001 forbids a foreign key across app schemas and says twice to "resolve
+# through a capability port" without saying what one is. This crate is what one
+# is: a trait declared by the app that NEEDS a capability, in a crate neither
+# app owns, implemented by the app that provides it.
+#
+# The direction is the part that is easy to get backwards. Inventory needs to
+# post a journal; it does not depend on `app-books`. It depends on this, and
+# `app-books` implements `Ledger`. Wiring happens once, in `phonix-server`,
+# which is the only place allowed to know both apps exist.
+#
+# WHY THIS IS NOT PART OF phonix-core
+#
+# `core` is what every app may depend on, and its test is that it holds no
+# opinion about a business process (ADR 0001 section 1). A ledger and a cost
+# centre are business opinions. Putting them in core would mean every app -
+# including a clinical one that never posts a journal - carries the vocabulary.
+#
+# DEPENDENCIES
+#
+# `phonix-core` for Money, ids and Message, and nothing else, ever. A port crate
+# that depended on an app would defeat its own purpose. Compiled to wasm like
+# everything below the server, so no tokio, sqlx, redis or lapin.
+[dependencies]
+phonix-core = { workspace = true }
+
+async-trait = { workspace = true }
+serde = { workspace = true }
+thiserror = { workspace = true }
+uuid = { workspace = true }
+
+[dev-dependencies]
+# The port traits are `async_trait`, so exercising even the do-nothing
+# implementation needs a runtime. `rt` and `macros` only: these tests await
+# functions that do no I/O at all.
+tokio = { workspace = true }

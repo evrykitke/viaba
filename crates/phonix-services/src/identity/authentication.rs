@@ -34,6 +34,7 @@ use phonix_db::identity::user::UserRecord;
 use phonix_db::identity::{AuditEntry, IdentityEvent};
 use phonix_db::identity::{audit, mfa as mfa_store, session as session_store, user};
 use phonix_db::sqlx::PgPool;
+use phonix_db::tenancy::installs;
 use phonix_db::{authorization, settings as settings_store};
 use secrecy::SecretString;
 
@@ -605,13 +606,37 @@ pub async fn sign_out(
 }
 
 /// Load the roles and permissions that go with an account.
+///
+/// # The enablement filter, and why it is here and nowhere else
+///
+/// A permission the user holds for an app the workspace has switched off is not
+/// a permission they have. That is enforced *once*, here, by narrowing the set
+/// at the moment it is assembled - so every `Caller::require`, every `can` in
+/// every component and every grid answers correctly without any of them knowing
+/// that apps can be switched off.
+///
+/// The alternative, which is what this codebase did until now, is to implement
+/// enablement by *deleting* the grants - see `workspace::apps::uninstall`. That
+/// makes a lapsed subscription cost an organization the role structure they
+/// built, permanently, and re-enabling cannot put it back because the rows are
+/// gone. Filtering leaves `core.role_permissions` untouched, so switching an app
+/// back on restores custom roles and per-user overrides intact and instantly.
+///
+/// It costs one extra query per authenticated request. That is the same query
+/// the shell already makes to draw its launcher, and it is the price of the
+/// guarantee that no service anywhere has to remember this rule.
+///
+/// See `docs/adr/0006-apps-ports-and-defaults.md` section 1.
 pub async fn load_auth_user(
     pool: &PgPool,
     account: &UserRecord,
     mfa_satisfied: bool,
 ) -> ServiceResult<AuthUser> {
     let roles = authorization::role::names_for_user(pool, account.id).await?;
-    let permissions = authorization::permission::resolve_for_user(pool, account.id).await?;
+    let enabled = installs::enabled_ids(pool).await?;
+    let permissions = authorization::permission::resolve_for_user(pool, account.id)
+        .await?
+        .for_enabled_apps(&enabled);
 
     Ok(account.to_auth_user(roles, permissions, mfa_satisfied))
 }

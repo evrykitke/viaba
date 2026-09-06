@@ -37,6 +37,7 @@ pub mod api_keys;
 pub mod audit;
 pub mod changes;
 pub mod currencies;
+pub mod departments;
 pub mod invoices;
 pub mod numbering;
 pub mod parties;

@@ -15,6 +15,8 @@ license.workspace = true
 phonix-core = { workspace = true }
 phonix-master = { workspace = true }
 app-books = { workspace = true }
+app-hr = { workspace = true }
+phonix-ports = { workspace = true }
 phonix-tax = { workspace = true }
 phonix-config = { workspace = true }
 phonix-db = { workspace = true }
@@ -34,6 +36,9 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 uuid = { workspace = true, features = ["v4", "v7"] }
 chrono = { workspace = true }
+# Only for the port implementations in `hr::cost_centre`: `phonix_ports`' traits
+# are `async_trait`, so implementing one needs the same attribute.
+async-trait = { workspace = true }
 tracing = { workspace = true }
 thiserror = { workspace = true }
 
