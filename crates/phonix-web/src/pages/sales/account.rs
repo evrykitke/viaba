@@ -85,7 +85,7 @@ fn account_editor(account: Account) -> impl IntoView {
         view! {
             <div class="grid gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
                 <CollapsibleCard title=l!("accounts.edit") icon=Icon::ListTree open=true>
-                    <EntityForm config=account_form(true) value=draft />
+                    <EntityForm config=account_form(true, Vec::new()) value=draft />
                 </CollapsibleCard>
 
                 // What the software concludes from the type, rather than

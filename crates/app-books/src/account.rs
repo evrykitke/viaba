@@ -256,6 +256,51 @@ impl AccountType {
         Self::ALL.iter().copied().find(|it| it.as_str() == raw)
     }
 
+    /// Where an account of this type conventionally starts.
+    ///
+    /// The ranges the default chart in `config/defaults/books.toml` uses, which
+    /// are the ordinary ones. This is a *suggestion* and nothing more: the
+    /// migration is explicit that a workspace numbering its revenue in the
+    /// 7000s is unusual rather than wrong, and nothing in the software reads
+    /// meaning out of a digit. It exists so somebody adding an account is
+    /// offered the number they were going to type anyway.
+    pub const fn suggested_range(self) -> (u32, u32) {
+        match self {
+            Self::Cash => (1000, 1099),
+            Self::Bank => (1000, 1099),
+            Self::AccountsReceivable => (1100, 1199),
+            Self::Inventory => (1200, 1299),
+            Self::PrepaidExpense => (1300, 1399),
+            Self::OtherCurrentAsset => (1400, 1499),
+            Self::FixedAsset => (1500, 1599),
+            Self::AccumulatedDepreciation => (1600, 1699),
+            Self::ContraAsset => (1600, 1699),
+            Self::IntangibleAsset => (1700, 1799),
+            Self::OtherAsset => (1800, 1899),
+
+            Self::AccountsPayable => (2000, 2099),
+            Self::GoodsReceivedNotInvoiced => (2000, 2099),
+            Self::TaxPayable => (2100, 2199),
+            Self::AccruedLiability => (2200, 2299),
+            Self::OtherCurrentLiability => (2300, 2399),
+            Self::LongTermLiability => (2500, 2599),
+
+            Self::Equity => (3000, 3999),
+            Self::RetainedEarnings => (3000, 3999),
+            Self::ContraEquity => (3000, 3999),
+
+            Self::Revenue => (4000, 4999),
+            Self::ContraRevenue => (4000, 4999),
+            Self::OtherIncome => (8000, 8499),
+
+            Self::CostOfSales => (5000, 5999),
+            Self::OperatingExpense => (6000, 6899),
+            Self::Depreciation => (7000, 7099),
+            Self::OtherExpense => (8500, 8999),
+            Self::IncomeTax => (9000, 9999),
+        }
+    }
+
     pub const fn class(self) -> AccountClass {
         match self {
             Self::Cash
@@ -406,6 +451,34 @@ impl Account {
     pub fn label(&self) -> String {
         format!("{} · {}", self.number, self.name)
     }
+}
+
+/// The next free number for an account of this type.
+///
+/// The highest number already used inside the type's conventional range, plus
+/// ten - the gap an accountant leaves so a related account can be inserted
+/// beside this one later without renumbering anything. Falls back to the start
+/// of the range when the type has no accounts yet, and answers `None` when the
+/// range is full, because inventing a number outside it would be worse than
+/// letting somebody type their own.
+///
+/// Only numbers that are entirely digits are considered. A chart using `1200A`
+/// is legal and is not something to derive a successor from.
+pub fn suggest_number(account_type: AccountType, chart: &[Account]) -> Option<String> {
+    let (start, end) = account_type.suggested_range();
+
+    let highest = chart
+        .iter()
+        .filter_map(|account| account.number.parse::<u32>().ok())
+        .filter(|number| *number >= start && *number <= end)
+        .max();
+
+    let next = match highest {
+        None => start,
+        Some(highest) => highest.checked_add(10)?,
+    };
+
+    (next <= end).then(|| next.to_string())
 }
 
 /// One row of the chart, as a grid reads it.
@@ -660,6 +733,93 @@ pub enum DefaultChartError {
     DescriptionTooLong { number: String },
     #[error("account {number} is declared twice")]
     Duplicate { number: String },
+}
+
+#[cfg(test)]
+mod suggestion_tests {
+    use super::*;
+
+    fn account(number: &str, account_type: AccountType) -> Account {
+        Account {
+            id: Uuid::nil(),
+            number: number.to_owned(),
+            name: "An account".to_owned(),
+            account_type,
+            description: None,
+            is_active: true,
+            is_default: false,
+        }
+    }
+
+    #[test]
+    fn an_empty_range_suggests_its_first_number() {
+        assert_eq!(
+            suggest_number(AccountType::OperatingExpense, &[]).as_deref(),
+            Some("6000")
+        );
+        assert_eq!(
+            suggest_number(AccountType::Revenue, &[]).as_deref(),
+            Some("4000")
+        );
+    }
+
+    #[test]
+    fn it_leaves_a_gap_of_ten_after_the_highest_in_the_range() {
+        // The gap an accountant leaves so a related account can be inserted
+        // beside this one later without renumbering anything.
+        let chart = vec![
+            account("6200", AccountType::OperatingExpense),
+            account("6210", AccountType::OperatingExpense),
+        ];
+
+        assert_eq!(
+            suggest_number(AccountType::OperatingExpense, &chart).as_deref(),
+            Some("6220")
+        );
+    }
+
+    #[test]
+    fn it_reads_the_range_and_not_the_type() {
+        // Numbers are a convention a workspace may change, so the suggestion
+        // looks at what occupies the range rather than at what each row calls
+        // itself. An account somebody retyped still holds its number.
+        let chart = vec![account("6300", AccountType::Revenue)];
+
+        assert_eq!(
+            suggest_number(AccountType::OperatingExpense, &chart).as_deref(),
+            Some("6310")
+        );
+    }
+
+    #[test]
+    fn a_number_that_is_not_all_digits_is_not_a_successor_to_derive_from() {
+        let chart = vec![
+            account("1200A", AccountType::Inventory),
+            account("1200", AccountType::Inventory),
+        ];
+
+        assert_eq!(
+            suggest_number(AccountType::Inventory, &chart).as_deref(),
+            Some("1210")
+        );
+    }
+
+    #[test]
+    fn a_full_range_suggests_nothing_rather_than_a_number_outside_it() {
+        let chart = vec![account("1099", AccountType::Bank)];
+
+        assert_eq!(suggest_number(AccountType::Bank, &chart), None);
+    }
+
+    #[test]
+    fn every_range_is_ordered_and_wide_enough_to_hold_something() {
+        for account_type in AccountType::ALL {
+            let (start, end) = account_type.suggested_range();
+
+            assert!(start < end, "{account_type:?}");
+            assert!(suggest_number(*account_type, &[]).is_some(), "{account_type:?}");
+        }
+    }
 }
 
 #[cfg(test)]

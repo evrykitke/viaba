@@ -57,6 +57,7 @@
   "account.title": "Mein Konto",
 
   "accounts.active_help": "Ein Konto mit Historie wird hier stillgelegt statt gelöscht, damit seine bisherigen Buchungen weiterhin etwas benennen.",
+  "accounts.add_to_type": "Konto der Art {kind} anlegen",
   "accounts.class": "Klasse",
   "accounts.classification": "Was daraus folgt",
   "accounts.default": "Standard",
@@ -77,6 +78,7 @@
   "accounts.postable.yes": "Bebuchbar",
   "accounts.search": "Kontenplan durchsuchen",
   "accounts.subtitle": "Jedes Konto, auf das dieser Arbeitsbereich buchen kann, und wofür es da ist.",
+  "accounts.suggest_number": "Nummer vorschlagen",
   "accounts.title": "Kontenplan",
   "accounts.type_help": "Bestimmt den Normalsaldo, ob der Saldo zum Jahresende abgeschlossen wird und ob ein Nebenbuch das Konto führt.",
   "alert.dismiss": "Schließen",

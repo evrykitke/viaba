@@ -57,6 +57,7 @@
   "account.title": "Mon compte",
 
   "accounts.active_help": "Un compte mouvementé est désactivé ici plutôt que supprimé, afin que ses écritures passées désignent toujours quelque chose.",
+  "accounts.add_to_type": "Ajouter un compte de type {kind}",
   "accounts.class": "Classe",
   "accounts.classification": "Ce que cela détermine",
   "accounts.default": "Par défaut",
@@ -77,6 +78,7 @@
   "accounts.postable.yes": "Imputable",
   "accounts.search": "Rechercher dans le plan",
   "accounts.subtitle": "Chaque compte sur lequel cet espace de travail peut imputer, et à quoi il sert.",
+  "accounts.suggest_number": "Proposer un numéro",
   "accounts.title": "Plan comptable",
   "accounts.type_help": "Décide du solde normal, de la clôture du solde en fin d'exercice, et de l'appartenance du compte à un livre auxiliaire.",
   "alert.dismiss": "Fermer",

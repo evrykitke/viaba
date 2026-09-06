@@ -57,6 +57,7 @@
   "account.title": "My account",
 
   "accounts.active_help": "An account with history is retired here rather than removed, so its past entries still name something.",
+  "accounts.add_to_type": "Add a {kind} account",
   "accounts.class": "Class",
   "accounts.classification": "What this decides",
   "accounts.default": "Default",
@@ -77,6 +78,7 @@
   "accounts.postable.yes": "Postable",
   "accounts.search": "Search the chart",
   "accounts.subtitle": "Every account this workspace can post to, and what each one is for.",
+  "accounts.suggest_number": "Suggest a number",
   "accounts.title": "Chart of accounts",
   "accounts.type_help": "This decides the normal balance, whether the balance closes at year end, and whether a sub-ledger owns the account.",
   "alert.dismiss": "Dismiss",

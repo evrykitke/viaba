@@ -113,7 +113,7 @@ pub const SETUP: &[phonix_core::SetupItem] = &[
 pub use account::{
     Account, AccountClass, AccountError, AccountInput, AccountSummary, AccountType, DefaultAccount,
     DefaultChart, DefaultChartError, MAX_ACCOUNT_DESCRIPTION_LEN, MAX_ACCOUNT_NAME_LEN,
-    MAX_ACCOUNT_NUMBER_LEN, Side,
+    MAX_ACCOUNT_NUMBER_LEN, Side, suggest_number,
 };
 pub use period::{NewPeriod, Period, PeriodError};
 pub use journal::{

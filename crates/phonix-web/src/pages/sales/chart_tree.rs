@@ -26,10 +26,13 @@ use app_books::account::{Account, AccountClass, AccountType};
 use leptos::prelude::*;
 use leptos_router::components::A;
 
+use phonix_core::permissions;
+
 use crate::components::account_class::{ClassChip, ClassDot, swatch};
 use crate::i18n::t;
 use crate::icons::{Icon, IconSize};
 use crate::l;
+use crate::ui::viewer::Viewer;
 
 /// Every account, grouped the way an accountant reads a chart.
 #[component]
@@ -93,7 +96,7 @@ fn type_branch(
 
     view! {
         <details open=true class="group/type">
-            <summary class="flex cursor-pointer list-none items-center gap-2 rounded-control px-2 py-1.5 hover:bg-surface-hover">
+            <summary class="group/row flex cursor-pointer list-none items-center gap-2 rounded-control px-2 py-1.5 hover:bg-surface-hover">
                 <span class="text-content-subtle transition-transform group-open/type:rotate-90">
                     <Icon icon=Icon::ChevronRight size=IconSize::Xs />
                 </span>
@@ -101,6 +104,7 @@ fn type_branch(
                 <span class="text-xs font-medium text-content-muted">{label}</span>
                 <span class="flex-1" />
                 <span class="text-2xs tabular-nums text-content-subtle">{count}</span>
+                <AddToType account_type=account_type />
             </summary>
 
             <ul class="ml-5">
@@ -110,6 +114,46 @@ fn type_branch(
                     .collect::<Vec<_>>()}
             </ul>
         </details>
+    }
+}
+
+/// Add an account of this type.
+///
+/// Inside the type rather than one button at the top of the screen, because the
+/// question "what kind of account is this" has already been answered by the
+/// branch somebody is looking at - and answering it twice is how an account
+/// ends up filed under the wrong type.
+///
+/// The type travels in the URL, so the form opens on it and the number
+/// suggestion is right on the first render.
+#[component]
+fn add_to_type(account_type: AccountType) -> impl IntoView {
+    let viewer = Viewer::get();
+    let href = format!("/sales/accounts/new?type={}", account_type.as_str());
+    let label = l!("accounts.add_to_type", kind = t(&account_type.label()));
+
+    let may_create = move || {
+        viewer
+            .get()
+            .is_some_and(|user| user.can(permissions::ACCOUNTS_CREATE))
+    };
+
+    view! {
+        <Show when=may_create fallback=|| ()>
+            <A
+                href=href.clone()
+                attr:class="grid size-5 shrink-0 place-items-center rounded-control text-content-subtle opacity-0 transition-opacity hover:bg-surface-sunken hover:text-content focus-visible:opacity-100 group-hover/row:opacity-100"
+                attr:title=label.clone()
+                attr:aria-label=label.clone()
+                on:click=|event| {
+                    // The row is a <summary>; without this the click that
+                    // follows the link also folds the branch shut behind it.
+                    event.stop_propagation();
+                }
+            >
+                <Icon icon=Icon::Plus size=IconSize::Xs />
+            </A>
+        </Show>
     }
 }
 

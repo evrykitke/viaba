@@ -100,6 +100,7 @@ where
 
     let control_id = id.clone();
     let field_for_control = field.clone();
+    let field_for_suggest = field.clone();
     let label_for_field = label.clone();
     let help_text = help.clone();
 
@@ -124,14 +125,18 @@ where
                 described_by=Signal::derive(described_by)
             />
 
-            {help_text
-                .map(|help| {
-                    view! {
-                        <p id=help_id.clone() class="text-xs text-content-subtle">
-                            {help}
-                        </p>
-                    }
-                })}
+            <div class="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
+                {help_text
+                    .map(|help| {
+                        view! {
+                            <p id=help_id.clone() class="text-xs text-content-subtle">
+                                {help}
+                            </p>
+                        }
+                    })}
+
+                <Suggestion field=field_for_suggest state=state editable=editable />
+            </div>
 
             <Show when=move || error().is_some() fallback=|| ()>
                 <p id=error_id.clone() class="text-xs text-danger" role="alert">
@@ -139,6 +144,61 @@ where
                 </p>
             </Show>
         </div>
+    }
+}
+
+/// A value the form can work out, offered as a link.
+///
+/// Drawn only when the field declares one *and* the closure has something to
+/// offer for the draft as it stands - a link that does nothing when clicked is
+/// worse than no link. Reactive over the draft, because the suggestion for an
+/// account number changes the moment somebody picks a different account type.
+#[component]
+fn suggestion<T>(field: Field<T>, state: FormState<T>, editable: bool) -> impl IntoView
+where
+    T: Clone + PartialEq + Send + Sync + 'static,
+{
+    let name = field.name();
+    let suggest = field.suggest.clone();
+    let writer = field.clone();
+
+    let offer = move || {
+        if !editable {
+            return None;
+        }
+
+        let (label, suggest) = suggest.as_ref()?;
+        let value = state.draft.with(|draft| suggest(draft))?;
+
+        Some((label.clone(), value))
+    };
+
+    view! {
+        {move || {
+            offer()
+                .map(|(label, value)| {
+                    let writer = writer.clone();
+                    let apply = move |_| {
+                        // Written through the field's own writer, so a
+                        // suggestion lands exactly where typing would.
+                        state
+                            .edit(
+                                name,
+                                |draft| writer.apply(draft, &FieldValue::text(value.clone())),
+                            );
+                    };
+
+                    view! {
+                        <button
+                            type="button"
+                            class="ml-auto text-xs text-brand hover:underline"
+                            on:click=apply
+                        >
+                            {label}
+                        </button>
+                    }
+                })
+        }}
     }
 }
 

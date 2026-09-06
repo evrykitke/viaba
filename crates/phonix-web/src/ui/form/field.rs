@@ -71,9 +71,16 @@ pub struct Field<T: 'static> {
     /// Takes the full width of the form rather than one column.
     pub(crate) wide: bool,
     pub(crate) available: Option<Applies<T>>,
+    /// A value the form can work out for itself, offered rather than imposed.
+    /// The label and the closure that computes one from the draft as it
+    /// stands; `None` back means there is nothing to offer right now.
+    pub(crate) suggest: Option<(String, Suggest<T>)>,
     pub(crate) read: Read<T>,
     pub(crate) write: Option<Write<T>>,
 }
+
+/// Works a value out from the rest of the draft. See [`Field::suggest`].
+type Suggest<T> = Arc<dyn Fn(&T) -> Option<String> + Send + Sync>;
 
 impl<T: 'static> Clone for Field<T> {
     fn clone(&self) -> Self {
@@ -88,6 +95,7 @@ impl<T: 'static> Clone for Field<T> {
             permission: self.permission,
             wide: self.wide,
             available: self.available.clone(),
+            suggest: self.suggest.clone(),
             read: Arc::clone(&self.read),
             write: self.write.clone(),
         }
@@ -113,6 +121,7 @@ impl<T: 'static> Field<T> {
             permission: None,
             wide: false,
             available: None,
+            suggest: None,
             read: Arc::new(read),
             write: None,
         }
@@ -296,6 +305,27 @@ impl<T: 'static> Field<T> {
     #[must_use]
     pub const fn required(mut self) -> Self {
         self.required = true;
+        self
+    }
+
+    /// Offer a value the form can work out, as a link beside the control.
+    ///
+    /// A link and not a default, because the two are different promises. A
+    /// prefilled box says "this is the value"; a link says "here is one if you
+    /// want it", and the person stays the author of what they typed. An
+    /// account number is the case this exists for - the software knows the
+    /// convention, the accountant owns the decision.
+    ///
+    /// The closure sees the whole draft, so a suggestion may depend on another
+    /// field. It returns `None` when there is nothing sensible to offer, and
+    /// the link is then not drawn at all rather than drawn and inert.
+    #[must_use]
+    pub fn suggest(
+        mut self,
+        label: impl Into<String>,
+        suggest: impl Fn(&T) -> Option<String> + Send + Sync + 'static,
+    ) -> Self {
+        self.suggest = Some((label.into(), Arc::new(suggest)));
         self
     }
 

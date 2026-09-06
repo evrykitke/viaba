@@ -1,16 +1,27 @@
 //! The account form.
 //!
-//! The number is typed, never generated, and blank is refused even on create:
-//! the default chart supplies a number and an accountant adding an account has
-//! one in mind before they have a name. That is the opposite of a department
-//! code, and the reason is in ADR 0006 section 3 - a number an accountant reads
-//! in a report is theirs to choose.
+//! # The type comes before the number
+//!
+//! Because that is the order the decision is made in. An accountant adding an
+//! account knows what kind of account it is first, and the number follows from
+//! where that kind lives in the chart - so asking for the number first is
+//! asking somebody to answer the second question before the first.
+//!
+//! It is also what makes the suggestion possible: once the type is chosen the
+//! software knows the range, and can offer the number the person was going to
+//! type. Offered as a link, never prefilled - the accountant owns the number.
+//! The migration is explicit that nothing reads meaning out of a digit, so a
+//! workspace that ignores every suggestion is not doing anything wrong.
+//!
+//! The number is still typed and never generated, and blank is refused even on
+//! create. That is the opposite of a department code, and ADR 0006 section 3
+//! says why: a number an accountant reads in a report is theirs to choose.
 //!
 //! The type picker is grouped by class, because the class is what a reader is
 //! actually choosing between and twenty-eight flat options is a list nobody
 //! reads to the end of.
 
-use app_books::account::{AccountInput, AccountType};
+use app_books::account::{Account, AccountInput, AccountType, suggest_number};
 
 use phonix_core::permissions;
 
@@ -22,7 +33,9 @@ use crate::server_fns::books_fns::save_account;
 use crate::ui::form::{Choice, Field, FieldValue, FormAction, Then};
 
 /// What an account is, and whether it is still in use.
-pub fn account_form(editing: bool) -> FormConfig<AccountInput> {
+/// `chart` is the accounts as the screen has them, for the number suggestion.
+/// Passed in rather than fetched here so this stays a description of a form.
+pub fn account_form(editing: bool, chart: Vec<Account>) -> FormConfig<AccountInput> {
     let gate = if editing {
         permissions::ACCOUNTS_EDIT
     } else {
@@ -32,25 +45,6 @@ pub fn account_form(editing: bool) -> FormConfig<AccountInput> {
     FormConfig::new("account", |draft: AccountInput| async move {
         save_account(draft).await
     })
-    .field(
-        Field::text("number", l!("field.number"), |m: &AccountInput| {
-            FieldValue::text(&m.number)
-        })
-        .writing(|m, value| m.number = value.as_input())
-        .placeholder("6200")
-        .help(l!("accounts.number_help"))
-        .require(gate)
-        .required(),
-    )
-    .field(
-        Field::text("name", l!("field.name"), |m: &AccountInput| {
-            FieldValue::text(&m.name)
-        })
-        .writing(|m, value| m.name = value.as_input())
-        .placeholder("Office rent")
-        .require(gate)
-        .required(),
-    )
     .field(
         Field::select(
             "account_type",
@@ -67,6 +61,31 @@ pub fn account_form(editing: bool) -> FormConfig<AccountInput> {
             }
         })
         .help(l!("accounts.type_help"))
+        .require(gate)
+        .required(),
+    )
+    .field(
+        Field::text("number", l!("field.number"), |m: &AccountInput| {
+            FieldValue::text(&m.number)
+        })
+        .writing(|m, value| m.number = value.as_input())
+        .placeholder("6200")
+        .help(l!("accounts.number_help"))
+        // Recomputed as the type changes, and offered rather than filled in.
+        // Nothing is suggested while editing: an account that has been posted
+        // to keeps the number the ledger already recorded.
+        .suggest(l!("accounts.suggest_number"), move |draft: &AccountInput| {
+            (!editing).then(|| suggest_number(draft.account_type, &chart))?
+        })
+        .require(gate)
+        .required(),
+    )
+    .field(
+        Field::text("name", l!("field.name"), |m: &AccountInput| {
+            FieldValue::text(&m.name)
+        })
+        .writing(|m, value| m.name = value.as_input())
+        .placeholder("Office rent")
         .require(gate)
         .required(),
     )
