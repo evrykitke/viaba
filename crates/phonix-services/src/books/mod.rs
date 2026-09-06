@@ -18,4 +18,5 @@
 //! auditor asks about. [`invoice::post`] is the only thing here that touches a
 //! sequence, and it does it in the same transaction as the write.
 
+pub mod account;
 pub mod invoice;

@@ -52,6 +52,8 @@ pub enum Icon {
     ChevronsUpDown,
     /// Lucide `chevron-up`.
     ChevronUp,
+    /// Lucide `circle`.
+    Circle,
     /// Lucide `circle-alert`.
     CircleAlert,
     /// Lucide `circle-check`.
@@ -112,6 +114,8 @@ pub enum Icon {
     Link2Off,
     /// Lucide `list`.
     List,
+    /// Lucide `list-checks`.
+    ListChecks,
     /// Lucide `list-ordered`.
     ListOrdered,
     /// Lucide `list-tree`.
@@ -229,6 +233,7 @@ impl Icon {
             Self::ChevronRight => "chevron-right",
             Self::ChevronsUpDown => "chevrons-up-down",
             Self::ChevronUp => "chevron-up",
+            Self::Circle => "circle",
             Self::CircleAlert => "circle-alert",
             Self::CircleCheck => "circle-check",
             Self::CircleHelp => "circle-help",
@@ -259,6 +264,7 @@ impl Icon {
             Self::Link => "link",
             Self::Link2Off => "link-2-off",
             Self::List => "list",
+            Self::ListChecks => "list-checks",
             Self::ListOrdered => "list-ordered",
             Self::ListTree => "list-tree",
             Self::LoaderCircle => "loader-circle",
@@ -328,6 +334,7 @@ impl Icon {
             Self::ChevronRight => r#"<path d="m9 18 6-6-6-6" />"#,
             Self::ChevronsUpDown => r#"<path d="m7 15 5 5 5-5" /> <path d="m7 9 5-5 5 5" />"#,
             Self::ChevronUp => r#"<path d="m18 15-6-6-6 6" />"#,
+            Self::Circle => r#"<circle cx="12" cy="12" r="10" />"#,
             Self::CircleAlert => r#"<circle cx="12" cy="12" r="10" /> <line x1="12" x2="12" y1="8" y2="12" /> <line x1="12" x2="12.01" y1="16" y2="16" />"#,
             Self::CircleCheck => r#"<circle cx="12" cy="12" r="10" /> <path d="m9 12 2 2 4-4" />"#,
             Self::CircleHelp => r#"<circle cx="12" cy="12" r="10" /> <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" /> <path d="M12 17h.01" />"#,
@@ -358,6 +365,7 @@ impl Icon {
             Self::Link => r#"<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" /> <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />"#,
             Self::Link2Off => r#"<path d="M9 17H7A5 5 0 0 1 7 7" /> <path d="M15 7h2a5 5 0 0 1 4 8" /> <line x1="8" x2="12" y1="12" y2="12" /> <line x1="2" x2="22" y1="2" y2="22" />"#,
             Self::List => r#"<path d="M3 5h.01" /> <path d="M3 12h.01" /> <path d="M3 19h.01" /> <path d="M8 5h13" /> <path d="M8 12h13" /> <path d="M8 19h13" />"#,
+            Self::ListChecks => r#"<path d="M13 5h8" /> <path d="M13 12h8" /> <path d="M13 19h8" /> <path d="m3 17 2 2 4-4" /> <path d="m3 7 2 2 4-4" />"#,
             Self::ListOrdered => r#"<path d="M11 5h10" /> <path d="M11 12h10" /> <path d="M11 19h10" /> <path d="M4 4h1v5" /> <path d="M4 9h2" /> <path d="M6.5 20H3.4c0-1 2.6-1.925 2.6-3.5a1.5 1.5 0 0 0-2.6-1.02" />"#,
             Self::ListTree => r#"<path d="M8 5h13" /> <path d="M13 12h8" /> <path d="M13 19h8" /> <path d="M3 10a2 2 0 0 0 2 2h3" /> <path d="M3 5v12a2 2 0 0 0 2 2h3" />"#,
             Self::LoaderCircle => r#"<path d="M21 12a9 9 0 1 1-6.219-8.56" />"#,
@@ -426,6 +434,7 @@ impl Icon {
         Icon::ChevronRight,
         Icon::ChevronsUpDown,
         Icon::ChevronUp,
+        Icon::Circle,
         Icon::CircleAlert,
         Icon::CircleCheck,
         Icon::CircleHelp,
@@ -456,6 +465,7 @@ impl Icon {
         Icon::Link,
         Icon::Link2Off,
         Icon::List,
+        Icon::ListChecks,
         Icon::ListOrdered,
         Icon::ListTree,
         Icon::LoaderCircle,
@@ -531,6 +541,7 @@ impl core::str::FromStr for Icon {
             "chevron-right" => Ok(Self::ChevronRight),
             "chevrons-up-down" => Ok(Self::ChevronsUpDown),
             "chevron-up" => Ok(Self::ChevronUp),
+            "circle" => Ok(Self::Circle),
             "circle-alert" => Ok(Self::CircleAlert),
             "circle-check" => Ok(Self::CircleCheck),
             "circle-help" => Ok(Self::CircleHelp),
@@ -561,6 +572,7 @@ impl core::str::FromStr for Icon {
             "link" => Ok(Self::Link),
             "link-2-off" => Ok(Self::Link2Off),
             "list" => Ok(Self::List),
+            "list-checks" => Ok(Self::ListChecks),
             "list-ordered" => Ok(Self::ListOrdered),
             "list-tree" => Ok(Self::ListTree),
             "loader-circle" => Ok(Self::LoaderCircle),

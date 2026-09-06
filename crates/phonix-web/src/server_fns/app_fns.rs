@@ -8,6 +8,7 @@
 
 use leptos::prelude::*;
 use phonix_core::apps::{AppState, Installed, UninstallOutcome};
+use phonix_core::setup::SetupStatus;
 
 /// Every app in this release, and what this workspace has done about each.
 #[server(name = AppCatalog, prefix = "/api", endpoint = "apps")]
@@ -17,6 +18,22 @@ pub async fn app_catalog() -> Result<Vec<AppState>, ServerFnError> {
     let (pool, caller) = pool_and_caller().await?;
 
     phonix_services::workspace::apps::catalog(&pool, &caller)
+        .await
+        .map_err(service_error)
+}
+
+/// What one app still needs before it is useful.
+///
+/// Answered per app rather than for all of them at once: the list is drawn on
+/// an app's own home page, and a workspace with six apps has no screen that
+/// wants all six checklists.
+#[server(name = AppSetup, prefix = "/api", endpoint = "apps/setup")]
+pub async fn app_setup(app_id: String) -> Result<Vec<SetupStatus>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::workspace::setup::checklist(&pool, &caller, &app_id)
         .await
         .map_err(service_error)
 }

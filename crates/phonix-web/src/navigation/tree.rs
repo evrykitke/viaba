@@ -84,6 +84,14 @@ pub static MENU: &[NavNode] = &[
             )
             .require(names::INVOICES)
             .keywords(&["bill", "billing", "receivable", "sales", "customer"]),
+            NavNode::leaf(
+                "accounts",
+                "nav.accounts",
+                Icon::ListTree,
+                "/sales/accounts",
+            )
+            .require(names::ACCOUNTS)
+            .keywords(&["chart", "ledger", "gl", "nominal", "coa"]),
         ],
     )
     .require(names::SALES),

@@ -2,9 +2,9 @@
 
 Status: proposed; built so far — section 1 (the enablement filter), section 2
 (`phonix-ports` and `CostCentres`), section 3 (generated codes, for HR),
-section 9 (the HR app), and the first half of section 4: sensible defaults, with
-the chart of accounts as their first consumer. Still specified only — the setup
-checklist in section 4, the ledger in section 5, and Inventory in section 7.
+section 4 in full (sensible defaults, the exhaustive chart of accounts, and the
+setup checklist), and section 9 (the HR app). Still specified only — the ledger
+in section 5 and Inventory in section 7.
 Date: 2026-09-04
 
 ADR 0001 drew the line between infrastructure and an app, and proved it with
@@ -267,8 +267,11 @@ Books                                            3 of 5 ready
   ✗  Opening balances           not entered
 ```
 
-Every app declares its own items as a `&'static [SetupItem]`, each with a
-predicate over the tenant database and a link to the screen that satisfies it.
+Every app declares its own items as a `&'static [SetupItem]`, each with a link
+to the screen that satisfies it; `phonix_services::workspace::setup` holds the
+predicate. The declaration and the predicate are split for the reason
+`apps::CATALOG` and `tenancy::apps` are: one compiles to wasm so the browser can
+draw the list, and the other holds a pool.
 The list is *advisory* for most items and *blocking* for a few: an app whose
 blocking items are unsatisfied refuses to post, with a message naming what is
 missing rather than a foreign-key violation from four layers down.

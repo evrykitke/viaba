@@ -70,6 +70,30 @@ pub const SALES_INVOICE: &str = "sales_invoice";
 /// Procurement also calls a supplier is the same row, and that is the point.
 pub const CUSTOMER_ROLE: &str = phonix_master::party::roles::CUSTOMER;
 
+/// What this app needs before it is useful, checked on its home page.
+///
+/// The chart blocks rather than advises: an account is the other side of every
+/// posting, and a workspace whose chart somebody emptied should be told that in
+/// a sentence rather than by a foreign-key violation from four layers down. It
+/// is seeded from `config/defaults/books.toml`, so it is green on the first
+/// morning without anybody typing anything.
+pub const SETUP: &[phonix_core::SetupItem] = &[
+    phonix_core::SetupItem::blocking(
+        "chart_of_accounts",
+        "books.setup.chart",
+        "/sales/accounts",
+        "books.setup.chart_missing",
+    ),
+    // Master's screen, reached by a link. Books holds no code of master's, and
+    // an invoice with no tax code to name is Books' problem to report.
+    phonix_core::SetupItem::advisory(
+        "tax_codes",
+        "books.setup.taxes",
+        "/master/taxes",
+        "books.setup.taxes_missing",
+    ),
+];
+
 pub use account::{
     Account, AccountClass, AccountError, AccountInput, AccountSummary, AccountType, DefaultAccount,
     DefaultChart, DefaultChartError, MAX_ACCOUNT_DESCRIPTION_LEN, MAX_ACCOUNT_NAME_LEN,

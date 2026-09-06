@@ -44,6 +44,7 @@ warehouse
 
 # -- administration ---------------------------------------------------------
 clipboard-list
+list-checks
 list-tree
 scroll-text
 settings
@@ -89,6 +90,7 @@ image
 upload
 
 # -- status -----------------------------------------------------------------
+circle
 circle-alert
 circle-check
 circle-help

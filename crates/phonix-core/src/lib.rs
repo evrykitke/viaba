@@ -62,6 +62,7 @@ pub mod money;
 pub mod numbering;
 pub mod organization;
 pub mod query;
+pub mod setup;
 pub mod tenant;
 
 pub use error::{Error, Result};
@@ -87,6 +88,7 @@ pub use money::{Conversion, ExchangeRate, Money, MoneyError, Rate, RateError, Ro
 pub use numbering::{NumberContext, Pattern, PatternError, ResetPeriod};
 pub use organization::OrganizationProfile;
 pub use query::{Page, PageRequest, Sort, SortDirection};
+pub use setup::{SetupItem, SetupStatus};
 pub use tenant::{
     Licence, LicenceStanding, LicenceState, TenantId, TenantSlug, TenantStatus, TenantSummary,
     WorkspaceSecuritySettings,

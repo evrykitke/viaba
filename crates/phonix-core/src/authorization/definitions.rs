@@ -11,6 +11,7 @@
 //!  +- Pages.Files
 //!  |   +- .Upload  .Delete
 //!  +- Pages.Sales
+//!  |   +- Pages.Sales.Accounts
 //!  |   +- Pages.Sales.Invoices
 //!  |       +- .Create  .Edit  .Post  .Void
 //!  +- Pages.Master
@@ -48,6 +49,8 @@ pub mod names {
     pub const FILES_DELETE: &str = "Pages.Files.Delete";
 
     pub const SALES: &str = "Pages.Sales";
+
+    pub const ACCOUNTS: &str = "Pages.Sales.Accounts";
 
     pub const INVOICES: &str = "Pages.Sales.Invoices";
     pub const INVOICES_CREATE: &str = "Pages.Sales.Invoices.Create";
@@ -190,6 +193,16 @@ pub const DEFINITIONS: &[PermissionDefinition] = &[
         display_name: "Sales",
         description: Some("Reach the sales area."),
         parent: Some(names::PAGES),
+        default_for_user: false,
+    },
+    // Read-only, and deliberately without Create, Edit or Delete beneath it.
+    // The chart arrives seeded and nothing in this release changes it; a gate
+    // over an act nobody can perform is a promise the software does not keep.
+    PermissionDefinition {
+        name: names::ACCOUNTS,
+        display_name: "Chart of accounts",
+        description: Some("See the accounts this workspace posts to."),
+        parent: Some(names::SALES),
         default_for_user: false,
     },
     PermissionDefinition {

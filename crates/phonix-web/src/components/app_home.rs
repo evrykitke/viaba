@@ -32,10 +32,13 @@ use leptos_router::components::A;
 use phonix_core::apps::AppDescriptor;
 use phonix_core::i18n::Message;
 
+use phonix_core::setup::{self, SetupStatus};
+
 use crate::apps::icon_of;
 use crate::i18n::t;
 use crate::icons::{Icon, IconSize};
 use crate::l;
+use crate::server_fns::app_fns::app_setup;
 use crate::ui::viewer::Viewer;
 
 /// One number, with the word for what it counts.
@@ -161,6 +164,8 @@ pub fn app_home(
                     })
             }}
 
+            <SetupChecklist app_id=app.id />
+
             <section class="space-y-2">
                 <h2 class="text-xs font-medium uppercase tracking-wide text-content-subtle">
                     {l!("apps.home.go_to")}
@@ -194,6 +199,112 @@ pub fn app_home(
                 </div>
             </section>
         </div>
+    }
+}
+
+/// What this app still needs, and what it already has.
+///
+/// Drawn by the platform rather than by each app, so an app cannot ship without
+/// one and two apps cannot disagree about what a checklist looks like. An app
+/// that declares no items renders nothing at all.
+///
+/// Fully satisfied it collapses to one line. A list of ticks is a list nobody
+/// reads twice, and the point of the panel is the item that is not ticked.
+#[component]
+fn setup_checklist(app_id: &'static str) -> impl IntoView {
+    let checklist = Resource::new(
+        || (),
+        move |()| async move { app_setup(app_id.to_owned()).await.unwrap_or_default() },
+    );
+
+    view! {
+        <Suspense fallback=|| ()>
+            {move || Suspend::new(async move {
+                let statuses = checklist.await;
+
+                if statuses.is_empty() {
+                    return ().into_any();
+                }
+
+                let (done, total) = setup::progress(&statuses);
+                let ready = done == total;
+
+                view! {
+                    <section class="rounded-card border border-edge bg-surface-raised">
+                        <header class="flex flex-wrap items-center justify-between gap-2 px-4 py-3">
+                            <h2 class="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-content-subtle">
+                                <Icon icon=Icon::ListChecks size=IconSize::Xs />
+                                {l!("setup.title")}
+                            </h2>
+                            <span class="text-xs tabular-nums text-content-muted">
+                                {l!("setup.progress", done = done, total = total)}
+                            </span>
+                        </header>
+
+                        <Show
+                            when=move || ready
+                            fallback=move || {
+                                let statuses = statuses.clone();
+                                view! {
+                                    <ul class="border-t border-edge">
+                                        {statuses
+                                            .into_iter()
+                                            .map(|status| view! { <SetupLine status=status /> })
+                                            .collect::<Vec<_>>()}
+                                    </ul>
+                                }
+                            }
+                        >
+                            <p class="border-t border-edge px-4 py-3 text-sm text-content-muted">
+                                {l!("setup.done")}
+                            </p>
+                        </Show>
+                    </section>
+                }
+                    .into_any()
+            })}
+        </Suspense>
+    }
+}
+
+/// One line of the checklist.
+///
+/// The whole row is the link to the screen that satisfies it, satisfied or not:
+/// somebody who wants to see the chart they already have should not have to
+/// find another way in.
+#[component]
+fn setup_line(status: SetupStatus) -> impl IntoView {
+    let label = t(&status.label);
+    let note = status.note.as_ref().map(|note| t(note));
+    let href = status.href.clone();
+
+    let (icon, tint) = if status.satisfied {
+        (Icon::Check, "text-success")
+    } else if status.blocking {
+        (Icon::CircleAlert, "text-danger")
+    } else {
+        (Icon::Circle, "text-content-subtle")
+    };
+
+    view! {
+        <li class="border-b border-edge last:border-b-0">
+            <A
+                href=href
+                attr:class="flex items-center gap-2.5 px-4 py-2.5 hover:bg-surface-hover"
+            >
+                <span class=format!("shrink-0 {tint}")>
+                    <Icon icon=icon size=IconSize::Sm />
+                </span>
+                <span class="min-w-0 flex-1 text-sm text-content">{label}</span>
+                {note
+                    .map(|note| {
+                        view! { <span class="text-xs text-content-muted">{note}</span> }
+                    })}
+                <span class="text-content-subtle">
+                    <Icon icon=Icon::ChevronRight size=IconSize::Xs />
+                </span>
+            </A>
+        </li>
     }
 }
 

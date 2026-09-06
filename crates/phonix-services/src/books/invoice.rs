@@ -205,6 +205,11 @@ pub async fn post(pool: &PgPool, caller: &Caller, id: Uuid) -> ServiceResult<Pos
     caller.require(permissions::INVOICES_POST)?;
     acting_user(caller)?;
 
+    // What the app cannot work without, checked before a number is spent on a
+    // document that has nowhere to land. Named in a sentence rather than left
+    // to surface as a violation from further down - ADR 0006 section 4.
+    crate::workspace::setup::require_ready(pool, app_books::APP_ID).await?;
+
     let invoice = find(pool, caller, id).await?;
     if invoice.status != InvoiceStatus::Draft {
         return Ok(PostOutcome::NotADraft);

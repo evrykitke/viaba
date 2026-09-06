@@ -36,6 +36,19 @@ pub const APP_ID: &str = "hr";
 /// it is the same problem, so it uses the same allocator.
 pub const DEPARTMENT: &str = "department";
 
+/// What this app needs before it is useful, checked on its home page.
+///
+/// Advisory: departments are worth having whether or not any of them is
+/// chargeable, and nothing here refuses to save without one. The gap it names
+/// is the one Books and Inventory feel — a requisition with nowhere to charge
+/// itself to.
+pub const SETUP: &[phonix_core::SetupItem] = &[phonix_core::SetupItem::advisory(
+    "cost_centres",
+    "hr.setup.cost_centres",
+    "/people/departments",
+    "hr.setup.cost_centres_missing",
+)];
+
 pub use department::{
     DeleteOutcome, Department, DepartmentError, DepartmentInput, DepartmentSummary,
     MAX_DEPARTMENT_CODE_LEN, MAX_DEPARTMENT_DEPTH, MAX_DEPARTMENT_NAME_LEN, in_tree_order,

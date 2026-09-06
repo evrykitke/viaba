@@ -12,6 +12,7 @@
 //! the document's date and on a rate table it cannot see. [`tax_treatments`]
 //! hands them over once, and everything after that is local.
 
+use app_books::account::Account;
 use app_books::invoice::{Invoice, InvoiceInput, InvoiceStatus, InvoiceSummary, PostOutcome};
 use chrono::NaiveDate;
 use leptos::prelude::*;
@@ -20,6 +21,18 @@ use phonix_core::form::Submission;
 use phonix_tax::group::TaxTreatment;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
+
+/// The chart of accounts, in number order.
+#[server(name = ListAccounts, prefix = "/api", endpoint = "books/accounts")]
+pub async fn list_accounts() -> Result<Vec<Account>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::books::account::list(&pool, &caller)
+        .await
+        .map_err(service_error)
+}
 
 /// Which invoices a screen is asking for.
 ///

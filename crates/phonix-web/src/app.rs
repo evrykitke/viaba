@@ -34,6 +34,7 @@ use crate::pages::master::taxes::{TaxNewPage, TaxesPage};
 use crate::pages::people::department::DepartmentPage;
 use crate::pages::people::departments::{DepartmentNewPage, DepartmentsPage};
 use crate::pages::people::home::PeopleHomePage;
+use crate::pages::sales::accounts::AccountsPage;
 use crate::pages::sales::home::SalesHomePage;
 use crate::pages::sales::invoice::{InvoiceNewPage, InvoicePage};
 use crate::pages::sales::invoices::InvoicesPage;
@@ -179,6 +180,7 @@ pub fn app() -> impl IntoView {
                     // The app's own front page, which is where the launcher
                     // and the store send anybody who picks Books.
                     <Route path=path!("/sales") view=SalesHomePage />
+                    <Route path=path!("/sales/accounts") view=AccountsPage />
                     <Route path=path!("/sales/invoices") view=InvoicesPage />
                     // Before the parameter, so "new" is a screen rather than an
                     // invoice id that fails to parse.
