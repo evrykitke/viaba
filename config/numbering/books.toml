@@ -23,3 +23,18 @@ label    = "books.doc_type.sales_invoice"
 mask     = "INV-{YYYY}-#####"
 reset    = "fiscal_year"
 start_at = 1
+
+[[series]]
+doc_type = "journal"
+label    = "books.doc_type.journal"
+
+# `JNL-{YYYY}-#####` renders `JNL-2026-00042`. Same shape as an invoice and for
+# the same reason: a journal number that names its year is one a person can file
+# a working paper against without looking anything up.
+#
+# The counter resets with the financial year, which is also what makes a
+# journal number stable evidence - JNL-2026-00042 is that year's forty-second
+# posting and nothing else ever will be.
+mask     = "JNL-{YYYY}-#####"
+reset    = "fiscal_year"
+start_at = 1

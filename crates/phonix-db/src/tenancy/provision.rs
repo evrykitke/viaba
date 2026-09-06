@@ -7,6 +7,8 @@ use sqlx::Connection;
 use super::apps::{self, AppMigrations};
 use super::catalog::{Catalog, NewTenant, TenantOrigin, TenantRecord};
 use super::licence::{self, LicenceInput};
+use chrono::Datelike;
+
 use crate::error::DbError;
 
 /// Create a tenant's database, migrate it, and mark the tenant active.
@@ -519,6 +521,42 @@ async fn install_app_defaults(
         declared = chart.account.len(),
         created,
         "default chart of accounts installed"
+    );
+
+    open_first_periods(pool, database).await
+}
+
+/// Open the accounting calendar a workspace starts with.
+///
+/// A chart of accounts nobody can post into is the same blank page section 4 of
+/// ADR 0006 is about: the ledger refuses any date no period covers, so a
+/// workspace with no calendar cannot post at all on its first morning.
+///
+/// This year and next, on the organization's own year-start month. Two rather
+/// than one so a workspace created in December can still post in January, and
+/// not more because opening a year is cheap and guessing five of them is
+/// clutter in a screen somebody has to read.
+async fn open_first_periods(pool: &sqlx::PgPool, database: &str) -> Result<(), DbError> {
+    let start_month = u32::from(crate::organization::load(pool).await?.profile.fiscal_year_start_month)
+        .clamp(1, 12);
+    let this_year = chrono::Utc::now().date_naive().year();
+
+    let mut periods = Vec::new();
+
+    for year in [this_year, this_year + 1] {
+        let Some(first_day) = chrono::NaiveDate::from_ymd_opt(year, start_month, 1) else {
+            continue;
+        };
+        periods.extend(app_books::period::year_from(first_day));
+    }
+
+    let created = crate::books::period::open_year(pool, &periods).await?;
+
+    tracing::info!(
+        database,
+        start_month,
+        created,
+        "accounting periods opened"
     );
     Ok(())
 }

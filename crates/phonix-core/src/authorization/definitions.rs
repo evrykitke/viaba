@@ -13,6 +13,10 @@
 //!  +- Pages.Sales
 //!  |   +- Pages.Sales.Accounts
 //!  |   |   +- .Create  .Edit
+//!  |   +- Pages.Sales.Journals
+//!  |   |   +- .Post  .Reverse
+//!  |   +- Pages.Sales.Periods
+//!  |   |   +- .Manage
 //!  |   +- Pages.Sales.Invoices
 //!  |       +- .Create  .Edit  .Post  .Void
 //!  +- Pages.Master
@@ -54,6 +58,13 @@ pub mod names {
     pub const ACCOUNTS: &str = "Pages.Sales.Accounts";
     pub const ACCOUNTS_CREATE: &str = "Pages.Sales.Accounts.Create";
     pub const ACCOUNTS_EDIT: &str = "Pages.Sales.Accounts.Edit";
+
+    pub const JOURNALS: &str = "Pages.Sales.Journals";
+    pub const JOURNALS_POST: &str = "Pages.Sales.Journals.Post";
+    pub const JOURNALS_REVERSE: &str = "Pages.Sales.Journals.Reverse";
+
+    pub const PERIODS: &str = "Pages.Sales.Periods";
+    pub const PERIODS_MANAGE: &str = "Pages.Sales.Periods.Manage";
 
     pub const INVOICES: &str = "Pages.Sales.Invoices";
     pub const INVOICES_CREATE: &str = "Pages.Sales.Invoices.Create";
@@ -223,6 +234,47 @@ pub const DEFINITIONS: &[PermissionDefinition] = &[
         // of a report, which is why this is a stronger grant than it looks.
         description: Some("Change an account's number, name, type or status."),
         parent: Some(names::ACCOUNTS),
+        default_for_user: false,
+    },
+    // Posting and reversing are separate grants because they are separate
+    // acts. Posting records what happened; reversing withdraws something
+    // already filed, and an organization that lets everybody do the first and
+    // nobody the second is expressing a real control.
+    PermissionDefinition {
+        name: names::JOURNALS,
+        display_name: "Journals",
+        description: Some("See what has been posted to the ledger."),
+        parent: Some(names::SALES),
+        default_for_user: false,
+    },
+    PermissionDefinition {
+        name: names::JOURNALS_POST,
+        display_name: "Post",
+        description: Some("Post a journal to the ledger."),
+        parent: Some(names::JOURNALS),
+        default_for_user: false,
+    },
+    PermissionDefinition {
+        name: names::JOURNALS_REVERSE,
+        display_name: "Reverse",
+        description: Some("Reverse a posted journal with a correcting one."),
+        parent: Some(names::JOURNALS),
+        default_for_user: false,
+    },
+    // Closing a period is the strongest routine control in an accounting
+    // system: it is what makes a filed report stay filed.
+    PermissionDefinition {
+        name: names::PERIODS,
+        display_name: "Accounting periods",
+        description: Some("See the accounting calendar and which periods are closed."),
+        parent: Some(names::SALES),
+        default_for_user: false,
+    },
+    PermissionDefinition {
+        name: names::PERIODS_MANAGE,
+        display_name: "Open and close",
+        description: Some("Open a financial year, and close or reopen a period."),
+        parent: Some(names::PERIODS),
         default_for_user: false,
     },
     PermissionDefinition {

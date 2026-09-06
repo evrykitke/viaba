@@ -216,6 +216,34 @@ pub mod kinds {
         singleton: false,
     };
 
+    /// A posting to the general ledger.
+    ///
+    /// Recorded even though a journal is already append-only, because the trail
+    /// answers a different question: the ledger says what was posted, and this
+    /// says who posted it and from which screen. A reversal appears here as its
+    /// own creation, which is what makes the pair readable as a correction
+    /// rather than as an edit.
+    pub const JOURNAL: EntityKind = EntityKind {
+        name: "journal",
+        singular_key: "entity.journal.singular",
+        plural_key: "entity.journal.plural",
+        href: Some("/sales/journals/{id}"),
+        singleton: false,
+    };
+
+    /// A period of the accounting calendar, opened and closed.
+    ///
+    /// Closing is the strongest routine control there is - it is what makes a
+    /// filed report stay filed - and reopening one is the act an auditor most
+    /// wants to be able to see.
+    pub const PERIOD: EntityKind = EntityKind {
+        name: "period",
+        singular_key: "entity.period.singular",
+        plural_key: "entity.period.plural",
+        href: Some("/sales/periods"),
+        singleton: false,
+    };
+
     /// One account in the chart, and what it is for.
     ///
     /// The change worth recording is the *type*: it decides the normal balance
@@ -302,6 +330,8 @@ pub const ENTITY_KINDS: &[EntityKind] = &[
     kinds::TAX_GROUP,
     kinds::SALES_INVOICE,
     kinds::ACCOUNT,
+    kinds::JOURNAL,
+    kinds::PERIOD,
     kinds::DEPARTMENT,
 ];
 

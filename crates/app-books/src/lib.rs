@@ -54,6 +54,8 @@
 
 pub mod account;
 pub mod invoice;
+pub mod journal;
+pub mod period;
 pub mod pricing;
 pub mod quantity;
 
@@ -63,6 +65,10 @@ pub const APP_ID: &str = "books";
 
 /// The document type this app numbers. One, so far.
 pub const SALES_INVOICE: &str = "sales_invoice";
+
+/// The other. A journal takes a number at the moment it is posted, from the
+/// same allocator and in the same transaction as the write.
+pub const JOURNAL: &str = "journal";
 
 /// What Books claims about a party.
 ///
@@ -98,6 +104,11 @@ pub use account::{
     Account, AccountClass, AccountError, AccountInput, AccountSummary, AccountType, DefaultAccount,
     DefaultChart, DefaultChartError, MAX_ACCOUNT_DESCRIPTION_LEN, MAX_ACCOUNT_NAME_LEN,
     MAX_ACCOUNT_NUMBER_LEN, Side,
+};
+pub use period::{NewPeriod, Period, PeriodError};
+pub use journal::{
+    Dimension, DimensionValue, JournalEntry, JournalError, JournalLineInput, JournalSummary,
+    MAX_LINES, MAX_MEMO_LEN, MAX_NARRATION_LEN, Posted, PostedLine, Source,
 };
 pub use invoice::{
     Invoice, InvoiceError, InvoiceInput, InvoiceLine, InvoiceLineInput, InvoiceStatus,
