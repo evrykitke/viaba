@@ -117,7 +117,8 @@ pub use account::{
 };
 pub use period::{NewPeriod, Period, PeriodError};
 pub use journal::{
-    Dimension, DimensionValue, JournalEntry, JournalError, JournalLineInput, JournalSummary,
+    Dimension, DimensionValue, JournalDraft, JournalDraftLine, JournalEntry, JournalError,
+    JournalLineInput, JournalSummary,
     MAX_LINES, MAX_MEMO_LEN, MAX_NARRATION_LEN, Posted, PostedLine, Source,
 };
 pub use invoice::{

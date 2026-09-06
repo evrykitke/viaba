@@ -3,8 +3,15 @@
 Status: proposed; built so far — section 1 (the enablement filter), section 2
 (`phonix-ports` and `CostCentres`), section 3 (generated codes, for HR),
 section 4 in full (sensible defaults, the exhaustive chart of accounts, and the
-setup checklist), and section 9 (the HR app). Still specified only — the ledger
-in section 5 and Inventory in section 7.
+setup checklist), section 5 in full (the general ledger: double entry enforced
+by the type, append-only posting, sourced journals, period locks, dimensions on
+the line, and the six-column currency snapshot), and section 9 (the HR app).
+Still specified only — Inventory in section 7.
+
+The `Ledger` port of section 2 is deliberately still unwritten. Books posts
+through its own service; the trait waits for Inventory, which is its first
+caller from outside — a trait extracted for one caller is that caller's service
+with a `dyn` in front of it.
 Date: 2026-09-04
 
 ADR 0001 drew the line between infrastructure and an app, and proved it with

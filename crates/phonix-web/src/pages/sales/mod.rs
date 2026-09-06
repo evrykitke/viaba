@@ -6,6 +6,7 @@
 //! /sales/accounts/new      add one            a form
 //! /sales/accounts/:id      one account        Details | History
 //! /sales/journals          the ledger         a grid
+//! /sales/journals/new      post one           two money columns
 //! /sales/journals/:id      one journal        the document, read-only
 //! /sales/periods           the calendar       open a year, close a month
 //! /sales/invoices          the list          a grid
@@ -25,6 +26,7 @@ pub mod accounts;
 pub mod chart_tree;
 pub mod home;
 pub mod journal;
+pub mod journal_new;
 pub mod journals;
 pub mod periods;
 pub mod invoice;

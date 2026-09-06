@@ -197,7 +197,13 @@ impl JournalLineInput {
 /// The fields are private and there is no way to change one after assembly:
 /// anything that could edit a line could unbalance it, and an unbalanced
 /// journal must not be representable rather than merely rejected.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+///
+/// Deliberately **not** `Serialize` or `Deserialize`. A derived `Deserialize`
+/// would rebuild those private fields straight from a payload, which is a way
+/// round [`Self::assemble`] and therefore round the only rule this type
+/// exists to keep. What crosses the wire is [`JournalDraft`] going in and
+/// [`Posted`] coming back; the assembly happens on the server, between them.
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct JournalEntry {
     entry_date: NaiveDate,
     narration: String,
@@ -366,6 +372,50 @@ impl JournalEntry {
                 total.checked_add(line.base_amount)
             })
             .unwrap_or_else(|_| Money::zero(currency))
+    }
+}
+
+/// What a screen submits: amounts as typed, and no promise that they balance.
+///
+/// The counterpart to [`JournalEntry`] and the reason that type can stay
+/// unconstructable from the outside. This is what a form produces and what
+/// crosses the wire; the service turns it into an entry, and the turning is
+/// where the arithmetic, the currency and the cost centres are resolved.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct JournalDraft {
+    pub entry_date: Option<NaiveDate>,
+    pub narration: String,
+    /// What the amounts are typed in. The workspace's own currency unless
+    /// somebody deliberately chose another.
+    pub currency: Option<String>,
+    pub lines: Vec<JournalDraftLine>,
+}
+
+/// One line as typed.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct JournalDraftLine {
+    pub account_id: Option<Uuid>,
+    pub side: Option<Side>,
+    /// Text, not a number: it is what somebody typed, and parsing it is the
+    /// service's job so the message about a bad one comes back on the line.
+    pub amount: String,
+    pub memo: String,
+    pub cost_centre_id: Option<Uuid>,
+}
+
+impl JournalDraftLine {
+    /// Whether this row is still empty. A form starts with blank rows and
+    /// somebody halfway through typing should not be told the last one is
+    /// wrong.
+    pub fn is_blank(&self) -> bool {
+        self.account_id.is_none() && self.amount.trim().is_empty() && self.memo.trim().is_empty()
+    }
+}
+
+impl JournalDraft {
+    /// The rows worth submitting: everything that is not still blank.
+    pub fn filled_lines(&self) -> impl Iterator<Item = &JournalDraftLine> {
+        self.lines.iter().filter(|line| !line.is_blank())
     }
 }
 

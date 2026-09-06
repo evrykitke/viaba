@@ -21,6 +21,9 @@ phonix-tax = { workspace = true }
 # in the browser.
 app-books = { workspace = true }
 app-hr = { workspace = true }
+# `CostCentre` crosses the wire to the journal form. The traits stay on the
+# server; only the port's value type reaches the browser.
+phonix-ports = { workspace = true }
 
 leptos = { workspace = true }
 leptos_meta = { workspace = true }

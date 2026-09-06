@@ -40,6 +40,7 @@ use crate::pages::sales::account::AccountPage as ChartAccountPage;
 use crate::pages::sales::accounts::{AccountNewPage, AccountsPage};
 use crate::pages::sales::home::SalesHomePage;
 use crate::pages::sales::journal::JournalPage;
+use crate::pages::sales::journal_new::JournalNewPage;
 use crate::pages::sales::journals::JournalsPage;
 use crate::pages::sales::periods::PeriodsPage;
 use crate::pages::sales::invoice::{InvoiceNewPage, InvoicePage};
@@ -192,6 +193,9 @@ pub fn app() -> impl IntoView {
                     <Route path=path!("/sales/accounts/new") view=AccountNewPage />
                     <Route path=path!("/sales/accounts/:id") view=ChartAccountPage />
                     <Route path=path!("/sales/journals") view=JournalsPage />
+                    // Before `:id`, so "new" is a screen rather than a journal
+                    // id that fails to parse.
+                    <Route path=path!("/sales/journals/new") view=JournalNewPage />
                     <Route path=path!("/sales/journals/:id") view=JournalPage />
                     <Route path=path!("/sales/periods") view=PeriodsPage />
                     <Route path=path!("/sales/invoices") view=InvoicesPage />

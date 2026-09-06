@@ -13,7 +13,7 @@
 //! hands them over once, and everything after that is local.
 
 use app_books::account::{Account, AccountInput};
-use app_books::journal::{JournalSummary, Posted};
+use app_books::journal::{JournalDraft, JournalSummary, Posted};
 use app_books::period::Period;
 use app_books::invoice::{Invoice, InvoiceInput, InvoiceStatus, InvoiceSummary, PostOutcome};
 use chrono::NaiveDate;
@@ -98,6 +98,87 @@ pub async fn list_journals(filter: JournalFilter) -> Result<Vec<JournalSummary>,
     };
 
     phonix_services::books::journal::list(&pool, &caller, query)
+        .await
+        .map_err(service_error)
+}
+
+/// What a journal form needs before somebody can type into it.
+///
+/// One round trip rather than four. All of it is workspace-shaped rather than
+/// document-shaped, so it is fetched once when the screen opens.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct JournalContext {
+    /// What this workspace keeps its books in. The accountant set it, and it is
+    /// what the currency picker opens on.
+    pub base_currency: String,
+    /// Only the accounts a person may post to directly: a control account is
+    /// owned by a sub-ledger, and posting to one by hand breaks a
+    /// reconciliation.
+    pub accounts: Vec<Account>,
+    /// From the `CostCentres` port. Empty where no app provides one, which is a
+    /// journal that simply cannot be charged to anything.
+    pub cost_centres: Vec<phonix_ports::CostCentre>,
+    /// What the workspace deals in, which is not every currency there is. A
+    /// picker offering all of them would offer a hundred with no rate on file.
+    pub currencies: Vec<phonix_core::locale::Currency>,
+}
+
+/// Everything the journal form opens on.
+#[server(name = JournalFormContext, prefix = "/api", endpoint = "books/journals/context")]
+pub async fn journal_context() -> Result<JournalContext, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+    use phonix_ports::CostCentres;
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    let accounts = phonix_services::books::account::list(&pool, &caller)
+        .await
+        .map_err(service_error)?
+        .into_iter()
+        .filter(app_books::account::Account::is_postable)
+        .collect();
+
+    let profile = phonix_services::workspace::profile::current(&pool)
+        .await
+        .map_err(service_error)?;
+
+    // A port that cannot answer costs the picker, not the screen: a journal
+    // with nothing to charge to is still a journal.
+    let cost_centres = phonix_services::hr::HrCostCentres::new(pool.clone())
+        .list()
+        .await
+        .unwrap_or_default();
+
+    let mut currencies: Vec<phonix_core::locale::Currency> =
+        phonix_services::currency::enabled(&pool)
+            .await
+            .map_err(service_error)?
+            .into_iter()
+            .map(|row| row.currency)
+            .collect();
+
+    // The workspace's own is always offered, even if somebody switched it off
+    // in the currency list: it is what the books are kept in.
+    if !currencies.contains(&profile.currency) {
+        currencies.insert(0, profile.currency);
+    }
+
+    Ok(JournalContext {
+        base_currency: profile.currency.code().to_owned(),
+        accounts,
+        cost_centres,
+        currencies,
+    })
+}
+
+/// Post what somebody typed.
+#[server(name = PostJournal, prefix = "/api", endpoint = "books/journals/post", input = Json)]
+pub async fn post_journal(draft: JournalDraft) -> Result<Posted, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::books::journal::post_draft(&pool, &caller, draft)
         .await
         .map_err(service_error)
 }

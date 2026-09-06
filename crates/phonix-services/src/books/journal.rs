@@ -31,10 +31,13 @@
 //! worked out later from today's rate silently restates history, which is the
 //! classic bug this ledger exists to avoid.
 
-use app_books::journal::{JournalEntry, JournalSummary, Posted};
+use app_books::journal::{
+    Dimension, DimensionValue, JournalDraft, JournalDraftLine, JournalEntry, JournalSummary,
+    Posted, Source,
+};
 use chrono::NaiveDate;
 use phonix_core::locale::Currency;
-use phonix_core::money::Rounding;
+use phonix_core::money::{Money, Rounding};
 use phonix_core::msg;
 use phonix_core::permissions;
 use phonix_db::books::journal as store;
@@ -45,6 +48,7 @@ use uuid::Uuid;
 
 use crate::audit::{self, Target, kinds};
 use crate::caller::{Caller, acting_user};
+use phonix_ports::CostCentres;
 use crate::error::{ServiceError, ServiceResult};
 
 pub use phonix_db::books::journal::JournalQuery;
@@ -174,6 +178,144 @@ pub(crate) async fn post_unchecked(
     Ok(posted)
 }
 
+/// Turn what somebody typed into a journal, and post it.
+///
+/// The only path from a screen to the ledger. Everything the form could not
+/// know is resolved here: what the workspace's own currency is, what the rate
+/// was on the day, and what each cost centre is called - and only then is the
+/// entry assembled, which is where the balance is enforced.
+pub async fn post_draft(
+    pool: &PgPool,
+    caller: &Caller,
+    draft: JournalDraft,
+) -> ServiceResult<Posted> {
+    caller.require(permissions::JOURNALS_POST)?;
+    acting_user(caller)?;
+
+    let base = base_currency(pool).await?;
+
+    let Some(entry_date) = draft.entry_date else {
+        return Err(ServiceError::rejected(
+            "entry_date",
+            msg!("journals.error.date_required"),
+        ));
+    };
+
+    // Preselected on the form, so this is the base currency unless somebody
+    // deliberately chose otherwise - and choosing otherwise is what needs a
+    // rate on file.
+    let currency = match draft.currency.as_deref() {
+        None => base,
+        Some(code) => Currency::parse(code)
+            .map_err(|_| ServiceError::rejected("currency", msg!("journals.error.bad_currency")))?,
+    };
+
+    let rate = if currency == base {
+        None
+    } else {
+        Some(
+            crate::currency::rate_on(pool, currency, base, entry_date, None)
+                .await?
+                .ok_or_else(|| {
+                    ServiceError::rejected(
+                        "currency",
+                        msg!(
+                            "journals.error.no_rate",
+                            pair = format!("{}/{}", currency.code(), base.code()),
+                            date = entry_date
+                        ),
+                    )
+                })?,
+        )
+    };
+
+    let centres = crate::hr::HrCostCentres::new(pool.clone());
+    let mut lines = Vec::new();
+
+    for line in draft.filled_lines() {
+        lines.push(resolve_line(line, currency, rate.as_ref(), entry_date, &centres).await?);
+    }
+
+    // `assemble` is what refuses an unbalanced journal, too few lines, or a
+    // narration nobody wrote. Nothing above re-checks any of that.
+    let entry = JournalEntry::assemble(entry_date, draft.narration, Source::manual(), lines)
+        .map_err(|err| ServiceError::rejected(err.field(), err.message()))?;
+
+    post_unchecked(pool, caller, entry).await
+}
+
+/// One typed row, with its amount parsed, its conversion applied and its cost
+/// centre resolved through the port.
+async fn resolve_line(
+    line: &JournalDraftLine,
+    currency: Currency,
+    rate: Option<&phonix_core::money::ExchangeRate>,
+    entry_date: NaiveDate,
+    centres: &crate::hr::HrCostCentres,
+) -> ServiceResult<app_books::journal::JournalLineInput> {
+    let Some(account_id) = line.account_id else {
+        return Err(ServiceError::rejected(
+            "lines",
+            msg!("journals.error.account_required"),
+        ));
+    };
+
+    let Some(side) = line.side else {
+        return Err(ServiceError::rejected(
+            "lines",
+            msg!("journals.error.side_required"),
+        ));
+    };
+
+    let amount = Money::parse(currency, line.amount.trim())
+        .map_err(|err| ServiceError::rejected("lines", err.message()))?;
+
+    // Converted here and stored, never recomputed later from a newer rate -
+    // which is the bug that silently restates a filed period.
+    let (base_amount, exchange_rate) = match rate {
+        None => (amount, "1".to_owned()),
+        Some(rate) => {
+            let converted = amount
+                .convert(rate, Rounding::HalfUp)
+                .map_err(|err| ServiceError::rejected("lines", err.message()))?;
+
+            (converted.base_amount, rate.rate.to_storage_string())
+        }
+    };
+
+    let mut input = app_books::journal::JournalLineInput {
+        account_id,
+        side,
+        amount,
+        base_amount,
+        exchange_rate,
+        rate_date: entry_date,
+        memo: (!line.memo.trim().is_empty()).then(|| line.memo.trim().to_owned()),
+        dimensions: Vec::new(),
+    };
+
+    if let Some(cost_centre_id) = line.cost_centre_id {
+        // Through the port, so Books learns the code and name without knowing
+        // that `hr` has tables. What comes back is stored as a snapshot.
+        let centre = centres
+            .resolve(cost_centre_id)
+            .await
+            .map_err(from_port)?
+            .ok_or_else(|| {
+                ServiceError::rejected("lines", msg!("journals.error.unknown_cost_centre"))
+            })?;
+
+        input = input.charged_to(DimensionValue {
+            dimension: Dimension::CostCentre,
+            id: centre.id,
+            code: centre.code,
+            name: centre.name,
+        });
+    }
+
+    Ok(input)
+}
+
 /// Reverse a journal: every line, on the other side, as a second journal that
 /// names the first.
 ///
@@ -257,6 +399,24 @@ async fn check_rates(pool: &PgPool, entry: &JournalEntry, base: Currency) -> Ser
     }
 
     Ok(())
+}
+
+/// What a port failure means to the service that asked.
+///
+/// The two vocabularies are deliberately different - `PortError` lives below
+/// every app and knows nothing about callers or permissions - so the mapping is
+/// written out rather than derived. `Refused` is the provider answering no,
+/// which belongs beside the control that caused it; `Unavailable` is the
+/// provider failing to answer at all, which must fail this posting rather than
+/// be read as "there are no cost centres".
+fn from_port(err: phonix_ports::PortError) -> ServiceError {
+    match err {
+        phonix_ports::PortError::Refused(message) => ServiceError::rejected("lines", message),
+        unavailable @ phonix_ports::PortError::Unavailable { .. } => {
+            tracing::error!(error = %unavailable, "a port failed during a posting");
+            ServiceError::rejected("lines", msg!("journals.error.port_unavailable"))
+        }
+    }
 }
 
 fn names_a_missing_row(err: &DbError) -> bool {

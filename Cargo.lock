@@ -3153,6 +3153,7 @@ dependencies = [
  "phonix-db",
  "phonix-master",
  "phonix-messaging",
+ "phonix-ports",
  "phonix-services",
  "phonix-storage",
  "phonix-tax",
