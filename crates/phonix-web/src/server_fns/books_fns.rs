@@ -13,6 +13,8 @@
 //! hands them over once, and everything after that is local.
 
 use app_books::account::{Account, AccountInput};
+use app_books::journal::{JournalSummary, Posted};
+use app_books::period::Period;
 use app_books::invoice::{Invoice, InvoiceInput, InvoiceStatus, InvoiceSummary, PostOutcome};
 use chrono::NaiveDate;
 use leptos::prelude::*;
@@ -66,6 +68,117 @@ pub async fn save_account(draft: AccountInput) -> Result<Submission<AccountInput
     let (pool, caller) = pool_and_caller().await?;
 
     phonix_services::books::account::save(&pool, &caller, draft)
+        .await
+        .map_err(service_error)
+}
+
+/// Which journals a screen is asking for.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct JournalFilter {
+    pub period_id: Option<Uuid>,
+    pub account_id: Option<Uuid>,
+    pub source_app: Option<String>,
+    pub from: Option<NaiveDate>,
+    pub to: Option<NaiveDate>,
+}
+
+/// What has been posted to the ledger.
+#[server(name = ListJournals, prefix = "/api", endpoint = "books/journals", input = Json)]
+pub async fn list_journals(filter: JournalFilter) -> Result<Vec<JournalSummary>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    let query = phonix_services::books::journal::JournalQuery {
+        period_id: filter.period_id,
+        account_id: filter.account_id,
+        source_app: filter.source_app,
+        from: filter.from,
+        to: filter.to,
+    };
+
+    phonix_services::books::journal::list(&pool, &caller, query)
+        .await
+        .map_err(service_error)
+}
+
+/// One journal, with its lines.
+#[server(name = JournalDetail, prefix = "/api", endpoint = "books/journals/detail")]
+pub async fn journal_detail(journal_id: Uuid) -> Result<Posted, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::books::journal::detail(&pool, &caller, journal_id)
+        .await
+        .map_err(service_error)
+}
+
+/// Reverse one, with a second journal that names it.
+#[server(name = ReverseJournal, prefix = "/api", endpoint = "books/journals/reverse")]
+pub async fn reverse_journal(
+    journal_id: Uuid,
+    on: NaiveDate,
+    narration: Option<String>,
+) -> Result<Posted, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::books::journal::reverse(&pool, &caller, journal_id, on, narration)
+        .await
+        .map_err(service_error)
+}
+
+/// The accounting calendar.
+#[server(name = ListPeriods, prefix = "/api", endpoint = "books/periods")]
+pub async fn list_periods() -> Result<Vec<Period>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::books::period::list(&pool, &caller)
+        .await
+        .map_err(service_error)
+}
+
+/// Open a financial year, and say how many periods that created.
+#[server(name = OpenFinancialYear, prefix = "/api", endpoint = "books/periods/open")]
+pub async fn open_financial_year(year: i32) -> Result<u64, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::books::period::open_year(&pool, &caller, year)
+        .await
+        .map_err(service_error)
+}
+
+/// Close a period, or open it again.
+#[server(name = SetPeriodClosed, prefix = "/api", endpoint = "books/periods/close")]
+pub async fn set_period_closed(period_id: Uuid, closed: bool) -> Result<Period, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    let result = if closed {
+        phonix_services::books::period::close(&pool, &caller, period_id).await
+    } else {
+        phonix_services::books::period::reopen(&pool, &caller, period_id).await
+    };
+
+    result.map_err(service_error)
+}
+
+/// The financial year this workspace is currently in - what the calendar screen
+/// offers to open when it runs out.
+#[server(name = CurrentFinancialYear, prefix = "/api", endpoint = "books/periods/current-year")]
+pub async fn current_financial_year() -> Result<i32, ServerFnError> {
+    use crate::state::{service_error, tenant_pool};
+
+    let pool = tenant_pool().await?;
+
+    phonix_services::books::period::current_year(&pool)
         .await
         .map_err(service_error)
 }

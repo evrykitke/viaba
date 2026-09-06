@@ -5,6 +5,9 @@
 //! /sales/accounts          the chart          a grid and a tree
 //! /sales/accounts/new      add one            a form
 //! /sales/accounts/:id      one account        Details | History
+//! /sales/journals          the ledger         a grid
+//! /sales/journals/:id      one journal        the document, read-only
+//! /sales/periods           the calendar       open a year, close a month
 //! /sales/invoices          the list          a grid
 //! /sales/invoices/new      raise one         the editor
 //! /sales/invoices/:id      one invoice       the editor, or the document
@@ -21,5 +24,8 @@ pub mod account;
 pub mod accounts;
 pub mod chart_tree;
 pub mod home;
+pub mod journal;
+pub mod journals;
+pub mod periods;
 pub mod invoice;
 pub mod invoices;

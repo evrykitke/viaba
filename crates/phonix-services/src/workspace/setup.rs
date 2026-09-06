@@ -58,6 +58,7 @@ async fn answer(pool: &PgPool, app_id: &str) -> ServiceResult<Vec<SetupStatus>> 
 
 async fn books(pool: &PgPool) -> ServiceResult<Vec<SetupStatus>> {
     let (accounts, _active) = phonix_db::books::account::counts(pool).await?;
+    let (_periods, open_periods) = phonix_db::books::period::counts(pool).await?;
     let taxes = phonix_db::master::tax::list_codes(pool).await?.len() as i64;
 
     Ok(vec![
@@ -68,6 +69,11 @@ async fn books(pool: &PgPool) -> ServiceResult<Vec<SetupStatus>> {
         ),
         answered(
             &app_books::SETUP[1],
+            open_periods > 0,
+            pmsg!("books.setup.periods_found", open_periods),
+        ),
+        answered(
+            &app_books::SETUP[2],
             taxes > 0,
             pmsg!("books.setup.taxes_found", taxes),
         ),
@@ -104,7 +110,7 @@ mod tests {
     fn every_app_with_declared_items_has_a_predicate_for_each() {
         // `books` and `hr` index into SETUP by position. A declaration added
         // without a predicate would answer the wrong item, or panic.
-        assert_eq!(app_books::SETUP.len(), 2);
+        assert_eq!(app_books::SETUP.len(), 3);
         assert_eq!(app_hr::SETUP.len(), 1);
     }
 

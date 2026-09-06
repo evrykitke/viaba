@@ -92,6 +92,17 @@ pub static MENU: &[NavNode] = &[
             )
             .require(names::ACCOUNTS)
             .keywords(&["chart", "ledger", "gl", "nominal", "coa"]),
+            NavNode::leaf(
+                "journals",
+                "nav.journals",
+                Icon::ScrollText,
+                "/sales/journals",
+            )
+            .require(names::JOURNALS)
+            .keywords(&["ledger", "gl", "posting", "entry", "double entry"]),
+            NavNode::leaf("periods", "nav.periods", Icon::Calendar, "/sales/periods")
+                .require(names::PERIODS)
+                .keywords(&["close", "month end", "year end", "calendar", "lock"]),
         ],
     )
     .require(names::SALES),

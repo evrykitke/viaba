@@ -40,6 +40,7 @@ pub mod changes;
 pub mod currencies;
 pub mod departments;
 pub mod invoices;
+pub mod journals;
 pub mod numbering;
 pub mod parties;
 pub mod roles;

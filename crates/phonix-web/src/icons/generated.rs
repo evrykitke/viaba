@@ -124,6 +124,8 @@ pub enum Icon {
     LoaderCircle,
     /// Lucide `lock`.
     Lock,
+    /// Lucide `lock-open`.
+    LockOpen,
     /// Lucide `log-out`.
     LogOut,
     /// Lucide `mail`.
@@ -269,6 +271,7 @@ impl Icon {
             Self::ListTree => "list-tree",
             Self::LoaderCircle => "loader-circle",
             Self::Lock => "lock",
+            Self::LockOpen => "lock-open",
             Self::LogOut => "log-out",
             Self::Mail => "mail",
             Self::Menu => "menu",
@@ -370,6 +373,7 @@ impl Icon {
             Self::ListTree => r#"<path d="M8 5h13" /> <path d="M13 12h8" /> <path d="M13 19h8" /> <path d="M3 10a2 2 0 0 0 2 2h3" /> <path d="M3 5v12a2 2 0 0 0 2 2h3" />"#,
             Self::LoaderCircle => r#"<path d="M21 12a9 9 0 1 1-6.219-8.56" />"#,
             Self::Lock => r#"<rect width="18" height="11" x="3" y="11" rx="2" ry="2" /> <path d="M7 11V7a5 5 0 0 1 10 0v4" />"#,
+            Self::LockOpen => r#"<rect width="18" height="11" x="3" y="11" rx="2" ry="2" /> <path d="M7 11V7a5 5 0 0 1 9.9-1" />"#,
             Self::LogOut => r#"<path d="m16 17 5-5-5-5" /> <path d="M21 12H9" /> <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />"#,
             Self::Mail => r#"<path d="m22 7-8.991 5.727a2 2 0 0 1-2.009 0L2 7" /> <rect x="2" y="4" width="20" height="16" rx="2" />"#,
             Self::Menu => r#"<path d="M4 5h16" /> <path d="M4 12h16" /> <path d="M4 19h16" />"#,
@@ -470,6 +474,7 @@ impl Icon {
         Icon::ListTree,
         Icon::LoaderCircle,
         Icon::Lock,
+        Icon::LockOpen,
         Icon::LogOut,
         Icon::Mail,
         Icon::Menu,
@@ -577,6 +582,7 @@ impl core::str::FromStr for Icon {
             "list-tree" => Ok(Self::ListTree),
             "loader-circle" => Ok(Self::LoaderCircle),
             "lock" => Ok(Self::Lock),
+            "lock-open" => Ok(Self::LockOpen),
             "log-out" => Ok(Self::LogOut),
             "mail" => Ok(Self::Mail),
             "menu" => Ok(Self::Menu),

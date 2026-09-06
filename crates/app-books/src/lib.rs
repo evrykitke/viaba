@@ -90,6 +90,16 @@ pub const SETUP: &[phonix_core::SetupItem] = &[
         "/sales/accounts",
         "books.setup.chart_missing",
     ),
+    // Blocking for the same reason the chart is: the ledger refuses any date no
+    // open period covers, so a workspace whose calendar has run out cannot post
+    // at all. Seeded at provisioning, so it is green on the first morning and
+    // only turns amber years later, when somebody has to open the next year.
+    phonix_core::SetupItem::blocking(
+        "accounting_periods",
+        "books.setup.periods",
+        "/sales/periods",
+        "books.setup.periods_missing",
+    ),
     // Master's screen, reached by a link. Books holds no code of master's, and
     // an invoice with no tax code to name is Books' problem to report.
     phonix_core::SetupItem::advisory(

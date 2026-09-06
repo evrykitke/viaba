@@ -58,6 +58,7 @@ circle-user
 key-round
 key-square
 lock
+lock-open
 log-out
 qr-code
 shield
