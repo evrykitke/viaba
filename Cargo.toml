@@ -34,6 +34,9 @@ app-books = { path = "crates/app-books" }
 # is a dimension on a journal line, and a dimension has to be in the ledger's
 # shape from its first migration - see ADR 0006 sections 6.4 and 9.
 app-hr = { path = "crates/app-hr" }
+# What the workspace stocks, where it is, and how it moved. A sub-ledger: it
+# posts through the `Ledger` port and never names `app-books`.
+app-inventory = { path = "crates/app-inventory" }
 phonix-config = { path = "crates/phonix-config" }
 phonix-telemetry = { path = "crates/phonix-telemetry" }
 # Development only, and gated twice over - see

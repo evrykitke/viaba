@@ -171,6 +171,8 @@ pub const MASTER: &str = "master";
 pub const BOOKS: &str = "books";
 /// People: how the workspace is arranged, and what it charges to.
 pub const HR: &str = "hr";
+/// Inventory: what the workspace stocks, where it is, and how it moved.
+pub const INVENTORY: &str = "inventory";
 
 /// Every app this build can offer.
 ///
@@ -217,6 +219,26 @@ pub const CATALOG: &[AppDescriptor] = &[
         // what lets a workspace switch People on before it has decided whether
         // it is doing any accounting at all.
         requires: &[],
+        always_on: false,
+    },
+    AppDescriptor {
+        id: INVENTORY,
+        name: "app.inventory.name",
+        summary: "app.inventory.summary",
+        icon: "warehouse",
+        version: "0.1.0",
+        permission: names::INVENTORY,
+        home: Some("/inventory"),
+        // Master, because a purchase order names a supplier and a delivery
+        // names a customer, and both are master's parties.
+        //
+        // NOT books, deliberately, and it is the clearest example in the
+        // catalog of what ADR 0006 section 2 is for: this app posts a journal
+        // for every receipt, and it does it through `phonix_ports::Ledger`. A
+        // workspace with Inventory and no accounting still receives goods - the
+        // movement happens and records that no journal was posted. Naming books
+        // here would turn "works better with" into "will not run without".
+        requires: &[MASTER],
         always_on: false,
     },
     AppDescriptor {

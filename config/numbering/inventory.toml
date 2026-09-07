@@ -1,0 +1,62 @@
+# Codes and document numbers the `inventory` app generates.
+#
+# Defaults. Installing the app inserts them into `core.number_sequences` with
+# `ON CONFLICT DO NOTHING`; after that the tenant owns them.
+
+[[series]]
+doc_type = "item"
+label    = "inventory.doc_type.item"
+
+# `ITM-#####` renders `ITM-00042`. No year and no reset: an item code is
+# printed on a label, stuck to a shelf and quoted in an email for as long as
+# the item exists, and a reset would hand two items the same code in different
+# years. That is the same argument a department code makes - see
+# `config/numbering/hr.toml` - and the opposite of the one an invoice makes.
+#
+# The item's BARCODE is not here and never will be. A UPC is printed on the
+# packet by whoever made it; generating one would be inventing a fact about the
+# physical world. ADR 0006 section 3.
+mask     = "ITM-#####"
+reset    = "never"
+start_at = 1
+
+[[series]]
+doc_type = "receipt"
+label    = "inventory.doc_type.receipt"
+
+# `IN-{YYYY}-#####`. Goods-in documents reset with the year for the reason
+# invoices do: a receipt number that names its year is one somebody can file a
+# delivery note against without looking anything up.
+mask     = "IN-{YYYY}-#####"
+reset    = "fiscal_year"
+start_at = 1
+
+[[series]]
+doc_type = "delivery"
+label    = "inventory.doc_type.delivery"
+
+mask     = "OUT-{YYYY}-#####"
+reset    = "fiscal_year"
+start_at = 1
+
+[[series]]
+doc_type = "internal_transfer"
+label    = "inventory.doc_type.internal_transfer"
+
+# Its own series rather than sharing the delivery's. A transfer between two of
+# the workspace's own locations is not a despatch to anybody, and mixing them
+# would make "how much did we ship" a question about document types.
+mask     = "INT-{YYYY}-#####"
+reset    = "fiscal_year"
+start_at = 1
+
+[[series]]
+doc_type = "adjustment"
+label    = "inventory.doc_type.adjustment"
+
+# `ADJ-{YYYY}-#####`. The number an auditor asks about by name, which is why it
+# is gapless and why the allocation happens at post rather than at create -
+# a draft adjustment that was abandoned must not leave a hole.
+mask     = "ADJ-{YYYY}-#####"
+reset    = "fiscal_year"
+start_at = 1

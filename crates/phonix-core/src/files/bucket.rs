@@ -175,6 +175,25 @@ pub const BUCKETS: &[BucketPolicy] = &[
         upload_permission: Some(permissions::FILES_UPLOAD),
     },
     BucketPolicy {
+        name: "item-images",
+        label: "Item pictures",
+        description: "The photographs shown on an item, and on a till.",
+        max_bytes: 8 * MB,
+        categories: &[FileCategory::Image],
+        // Rendered inline, in a grid, on a screen somebody uses while a queue
+        // waits. An SVG here would be script running on this origin under the
+        // workspace's own name - the same argument as the logo, and it applies
+        // more strongly because far more people can upload one of these.
+        allow_active_content: false,
+        // Bigger than a logo's ceiling: a product photograph is worth looking
+        // at, and a catalogue print wants the pixels. This bounds what a
+        // decoder is ever asked to open, which is all the limit is for.
+        max_dimensions: Some((6000, 6000)),
+        // Adding a picture of an item is editing the item. Not a separate
+        // power: somebody who may rename it may photograph it.
+        upload_permission: Some(permissions::ITEMS_EDIT),
+    },
+    BucketPolicy {
         name: "imports",
         label: "Imports",
         description: "Spreadsheets and data files staged for loading.",

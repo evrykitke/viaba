@@ -24,7 +24,9 @@ use phonix_core::locale::Currency;
 use phonix_core::money::{Money, Rounding};
 use phonix_db::books::account_role as roles;
 use phonix_db::sqlx::PgPool;
-use phonix_ports::ledger::{AccountRole, JournalRequest, Ledger, LedgerError, PostedRef, Side};
+use phonix_ports::ledger::{
+    AccountRole, JournalRequest, Ledger, LedgerAccount, LedgerError, PostedRef, Side,
+};
 
 use crate::caller::Caller;
 use crate::error::ServiceError;
@@ -79,7 +81,10 @@ impl Ledger for BooksLedger {
         let mut lines = Vec::with_capacity(request.postings.len());
 
         for posting in &request.postings {
-            let account_id = self.account_for(posting.role).await?;
+            let account_id = match posting.account_id {
+                Some(chosen) => self.verify(chosen).await?,
+                None => self.account_for(posting.role).await?,
+            };
 
             let amount = Money::parse(currency, posting.amount.trim())
                 .map_err(|err| LedgerError::Refused(err.message()))?;
@@ -160,9 +165,46 @@ impl Ledger for BooksLedger {
             .map_err(|err| LedgerError::Unavailable(err.to_string()))?
             .is_some())
     }
+
+    async fn postable_accounts(&self) -> Result<Vec<LedgerAccount>, LedgerError> {
+        // Active rather than `is_postable`. That predicate asks whether a
+        // *person* may key an entry to the account, and it excludes the control
+        // accounts - which are exactly the ones a sub-ledger is supposed to
+        // post to. An inventory control account nobody could point stock at
+        // would be an inventory control account for nothing.
+        Ok(phonix_db::books::account::list(&self.pool)
+            .await
+            .map_err(|err| LedgerError::Unavailable(err.to_string()))?
+            .into_iter()
+            .filter(|account| account.is_active)
+            .map(|account| LedgerAccount {
+                id: account.id,
+                number: account.number,
+                name: account.name,
+                class: account.account_type.class().as_str().to_owned(),
+            })
+            .collect())
+    }
 }
 
 impl BooksLedger {
+    /// Check an account a caller named outright.
+    ///
+    /// The reason a bare id is allowed to cross the port at all. An id naming
+    /// nothing, or naming a retired row, is refused here rather than becoming a
+    /// foreign-key violation from four layers down or - worse - a journal
+    /// posted to an account somebody closed last year.
+    async fn verify(&self, account_id: uuid::Uuid) -> Result<uuid::Uuid, LedgerError> {
+        let account = phonix_db::books::account::find(&self.pool, account_id)
+            .await
+            .map_err(|err| LedgerError::Unavailable(err.to_string()))?;
+
+        match account {
+            Some(account) if account.is_active => Ok(account.id),
+            _ => Err(LedgerError::UnpostableAccount(account_id)),
+        }
+    }
+
     /// What a role means here, or a refusal naming the role that has no home.
     async fn account_for(&self, role: AccountRole) -> Result<uuid::Uuid, LedgerError> {
         roles::account_for(&self.pool, role.as_str())

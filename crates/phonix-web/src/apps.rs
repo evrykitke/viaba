@@ -59,6 +59,7 @@ pub fn icon_of(app: &AppDescriptor) -> Icon {
         "boxes" => Icon::Boxes,
         "file-text" => Icon::FileText,
         "building-2" => Icon::Building2,
+        "warehouse" => Icon::Warehouse,
         _ => Icon::Package,
     }
 }

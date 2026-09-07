@@ -160,6 +160,8 @@ pub enum Icon {
     RefreshCw,
     /// Lucide `remove-formatting`.
     RemoveFormatting,
+    /// Lucide `ruler`.
+    Ruler,
     /// Lucide `save`.
     Save,
     /// Lucide `scroll-text`.
@@ -289,6 +291,7 @@ impl Icon {
             Self::Redo2 => "redo-2",
             Self::RefreshCw => "refresh-cw",
             Self::RemoveFormatting => "remove-formatting",
+            Self::Ruler => "ruler",
             Self::Save => "save",
             Self::ScrollText => "scroll-text",
             Self::Search => "search",
@@ -391,6 +394,7 @@ impl Icon {
             Self::Redo2 => r#"<path d="m15 14 5-5-5-5" /> <path d="M20 9H9.5A5.5 5.5 0 0 0 4 14.5A5.5 5.5 0 0 0 9.5 20H13" />"#,
             Self::RefreshCw => r#"<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" /> <path d="M21 3v5h-5" /> <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" /> <path d="M8 16H3v5" />"#,
             Self::RemoveFormatting => r#"<path d="M4 7V4h16v3" /> <path d="M5 20h6" /> <path d="M13 4 8 20" /> <path d="m15 15 5 5" /> <path d="m20 15-5 5" />"#,
+            Self::Ruler => r#"<path d="M21.3 15.3a2.4 2.4 0 0 1 0 3.4l-2.6 2.6a2.4 2.4 0 0 1-3.4 0L2.7 8.7a2.41 2.41 0 0 1 0-3.4l2.6-2.6a2.41 2.41 0 0 1 3.4 0Z" /> <path d="m14.5 12.5 2-2" /> <path d="m11.5 9.5 2-2" /> <path d="m8.5 6.5 2-2" /> <path d="m17.5 15.5 2-2" />"#,
             Self::Save => r#"<path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z" /> <path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7" /> <path d="M7 3v4a1 1 0 0 0 1 1h7" />"#,
             Self::ScrollText => r#"<path d="M15 12h-5" /> <path d="M15 8h-5" /> <path d="M19 17V5a2 2 0 0 0-2-2H4" /> <path d="M8 21h12a2 2 0 0 0 2-2v-1a1 1 0 0 0-1-1H11a1 1 0 0 0-1 1v1a2 2 0 1 1-4 0V5a2 2 0 1 0-4 0v2a1 1 0 0 0 1 1h3" />"#,
             Self::Search => r#"<path d="m21 21-4.34-4.34" /> <circle cx="11" cy="11" r="8" />"#,
@@ -492,6 +496,7 @@ impl Icon {
         Icon::Redo2,
         Icon::RefreshCw,
         Icon::RemoveFormatting,
+        Icon::Ruler,
         Icon::Save,
         Icon::ScrollText,
         Icon::Search,
@@ -600,6 +605,7 @@ impl core::str::FromStr for Icon {
             "redo-2" => Ok(Self::Redo2),
             "refresh-cw" => Ok(Self::RefreshCw),
             "remove-formatting" => Ok(Self::RemoveFormatting),
+            "ruler" => Ok(Self::Ruler),
             "save" => Ok(Self::Save),
             "scroll-text" => Ok(Self::ScrollText),
             "search" => Ok(Self::Search),

@@ -1,0 +1,341 @@
+# What an inventory starts with.
+#
+# Defaults, not settings — the same rule as `config/numbering/`. Enabling the
+# app inserts these rows; from that moment the workspace owns them. Every
+# insert is ON CONFLICT DO NOTHING, so a redeploy can neither put back a row
+# somebody deleted nor overwrite one they edited.
+#
+# WHY THERE IS ANYTHING HERE AT ALL
+#
+# An inventory app whose first screen is "you have no warehouse, no units and
+# no locations, create them" has shipped a blank page and called it
+# flexibility. Almost nobody wants to design a location tree, and the people
+# who do are the ones who will redraw it anyway.
+#
+# THE PART A WORKSPACE COULD NOT KNOW IT NEEDED
+#
+# The `[[location]]` block below is the important half of this file, and it is
+# the half nobody would think to create. Stock is never created or destroyed;
+# it only moves between locations. A receipt is a move FROM the vendor
+# location. A count difference is a move TO inventory loss. Without these five
+# rows there is no such thing as a receipt — not "receipts are awkward", but
+# no other end for the move to have.
+#
+# See `app_inventory::location` for the seven kinds and
+# `migrations/apps/inventory/0001_master_data.sql` for the tables.
+
+
+# ---------------------------------------------------------------------------
+# Units of measure
+# ---------------------------------------------------------------------------
+#
+# A unit belongs to a CLASS and carries a factor to that class's base unit —
+# the unit whose factor is 1. Kilograms convert to grams because both measure
+# weight; kilograms do not convert to litres, and the class is what makes that
+# refusal possible rather than a rule somebody has to remember.
+#
+# The base of each class is chosen to be the SMALLEST unit in common use, so
+# every other factor is a whole number and nothing rounds. Grams rather than
+# kilograms, millilitres rather than litres. A workspace weighing things in
+# tonnes still gets exact arithmetic; one weighing in micrograms will want to
+# add a unit, which is a row rather than a migration.
+
+# -- Count ------------------------------------------------------------------
+
+[[unit]]
+code = "EA"
+name = "Each"
+class = "count"
+factor = "1"
+
+[[unit]]
+code = "PR"
+name = "Pair"
+class = "count"
+factor = "2"
+
+[[unit]]
+code = "DZ"
+name = "Dozen"
+class = "count"
+factor = "12"
+
+# A case is twelve here and it is a different number for half the items a
+# workspace stocks. That is the point of the note in `app_inventory::unit`: a
+# case of twelve is a fact about THAT item's packaging, and item packaging
+# belongs on the item. This row is the ordinary retail case, offered because
+# most workspaces mean twelve and can change it.
+[[unit]]
+code = "CS"
+name = "Case of 12"
+class = "count"
+factor = "12"
+
+[[unit]]
+code = "HD"
+name = "Hundred"
+class = "count"
+factor = "100"
+
+[[unit]]
+code = "TH"
+name = "Thousand"
+class = "count"
+factor = "1000"
+
+# -- Weight -----------------------------------------------------------------
+
+[[unit]]
+code = "G"
+name = "Gram"
+class = "weight"
+factor = "1"
+
+[[unit]]
+code = "KG"
+name = "Kilogram"
+class = "weight"
+factor = "1000"
+
+[[unit]]
+code = "T"
+name = "Tonne"
+class = "weight"
+factor = "1000000"
+
+# 0.453592 kg, to the six places the column holds. Written out rather than
+# rounded to 0.45 because a pallet of a thousand is where that difference stops
+# being academic.
+[[unit]]
+code = "LB"
+name = "Pound"
+class = "weight"
+factor = "453.59237"
+
+[[unit]]
+code = "OZ"
+name = "Ounce"
+class = "weight"
+factor = "28.349523"
+
+# -- Volume -----------------------------------------------------------------
+
+[[unit]]
+code = "ML"
+name = "Millilitre"
+class = "volume"
+factor = "1"
+
+[[unit]]
+code = "L"
+name = "Litre"
+class = "volume"
+factor = "1000"
+
+[[unit]]
+code = "M3"
+name = "Cubic metre"
+class = "volume"
+factor = "1000000"
+
+[[unit]]
+code = "GAL"
+name = "US gallon"
+class = "volume"
+factor = "3785.411784"
+
+# -- Length -----------------------------------------------------------------
+
+[[unit]]
+code = "MM"
+name = "Millimetre"
+class = "length"
+factor = "1"
+
+[[unit]]
+code = "CM"
+name = "Centimetre"
+class = "length"
+factor = "10"
+
+[[unit]]
+code = "M"
+name = "Metre"
+class = "length"
+factor = "1000"
+
+[[unit]]
+code = "KM"
+name = "Kilometre"
+class = "length"
+factor = "1000000"
+
+[[unit]]
+code = "IN"
+name = "Inch"
+class = "length"
+factor = "25.4"
+
+[[unit]]
+code = "FT"
+name = "Foot"
+class = "length"
+factor = "304.8"
+
+# -- Area -------------------------------------------------------------------
+
+[[unit]]
+code = "CM2"
+name = "Square centimetre"
+class = "area"
+factor = "1"
+
+[[unit]]
+code = "M2"
+name = "Square metre"
+class = "area"
+factor = "10000"
+
+# -- Time -------------------------------------------------------------------
+#
+# For a service item on a purchase order or a bill. A service has no stock and
+# still has to be quantified, and "8" with no unit beside it is how a
+# consultancy bills eight of something nobody can name.
+
+[[unit]]
+code = "MIN"
+name = "Minute"
+class = "time"
+factor = "1"
+
+[[unit]]
+code = "HR"
+name = "Hour"
+class = "time"
+factor = "60"
+
+[[unit]]
+code = "DAY"
+name = "Day"
+class = "time"
+factor = "480"
+
+
+# ---------------------------------------------------------------------------
+# The locations that are not places
+# ---------------------------------------------------------------------------
+#
+# Only the counterparts are here. A warehouse's own locations are derived from
+# how many steps it receives and ships in — see
+# `app_inventory::warehouse::required_sublocations` — because a file that
+# listed them could disagree with the warehouse it belongs to.
+#
+# Each of these is the other side of a kind of entry, exactly as a revenue
+# account is the other side of a receivable.
+
+[[location]]
+name = "Vendors"
+kind = "vendor"
+
+[[location]]
+name = "Customers"
+kind = "customer"
+
+# Where a count difference, a scrap or a write-off goes. Not a loss of stock
+# from the system — a move of it somewhere that is not the warehouse, which is
+# how the discrepancy stays visible and countable instead of being subtracted
+# into nothing.
+[[location]]
+name = "Inventory loss"
+kind = "inventory_loss"
+
+# Present although manufacturing is not built. Adding a location kind later
+# means restating every historic move, and this one costs a row.
+[[location]]
+name = "Production"
+kind = "production"
+
+# Gone from one warehouse, not yet arrived at the next. Ours, on the balance
+# sheet, and in neither building. The third state a transfer needs and the one
+# "subtract here, add there" cannot express.
+[[location]]
+name = "Transit"
+kind = "transit"
+
+
+# ---------------------------------------------------------------------------
+# A warehouse
+# ---------------------------------------------------------------------------
+#
+# One, receiving and shipping in one step, which is what almost every workspace
+# wants and all of them can grow out of. Enabling the app creates the `WH` view
+# node and `WH/Stock` beneath it, so a box can be received on the first
+# morning.
+
+[[warehouse]]
+code = "WH"
+name = "Main warehouse"
+
+
+# ---------------------------------------------------------------------------
+# Item categories
+# ---------------------------------------------------------------------------
+#
+# Where costing, valuation and picking policy are decided. Weighted average and
+# automated valuation throughout, because those are the answers a workspace
+# that never opens this screen should end up with:
+#
+#   average    what most distributors are already doing in a spreadsheet, and
+#              the only one of the three that needs neither a standard somebody
+#              maintains nor a layer per receipt.
+#   automated  every move that changes what is held posts its own journal as it
+#              happens, so the stock account agrees with the stock report at
+#              every moment rather than for one afternoon a month.
+#
+# Raw materials is FIFO because that is what an auditor asks for on anything
+# that ages, and it is the clearest example of why the policy is per category.
+
+[[category]]
+name = "All"
+costing_method = "average"
+valuation = "automated"
+removal_strategy = "fifo"
+
+[[category]]
+name = "Goods for resale"
+parent = "All"
+costing_method = "average"
+valuation = "automated"
+removal_strategy = "fifo"
+
+[[category]]
+name = "Raw materials"
+parent = "All"
+costing_method = "fifo"
+valuation = "automated"
+removal_strategy = "fifo"
+
+[[category]]
+name = "Consumables"
+parent = "All"
+costing_method = "average"
+valuation = "automated"
+removal_strategy = "fifo"
+
+# Perishables pick by expiry rather than by age received, which is a different
+# question and the one that matters when a recall happens.
+[[category]]
+name = "Perishables"
+parent = "All"
+costing_method = "fifo"
+valuation = "automated"
+removal_strategy = "fefo"
+
+# Services have no stock, so costing and removal mean nothing for them. The
+# row exists so a service item has somewhere to be filed.
+[[category]]
+name = "Services"
+parent = "All"
+costing_method = "standard"
+valuation = "manual"
+removal_strategy = "fifo"

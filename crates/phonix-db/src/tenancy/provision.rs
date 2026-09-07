@@ -494,11 +494,22 @@ async fn install_app_defaults(
     database: &str,
     app_id: &str,
 ) -> Result<(), DbError> {
-    if app_id != crate::tenancy::apps::BOOKS_APP_ID {
-        // Most apps have nothing to seed yet.
-        return Ok(());
+    match app_id {
+        crate::tenancy::apps::BOOKS_APP_ID => install_books_defaults(pool, database, app_id).await,
+        crate::tenancy::apps::INVENTORY_APP_ID => {
+            install_inventory_defaults(pool, database, app_id).await
+        }
+        // Most apps have nothing to seed.
+        _ => Ok(()),
     }
+}
 
+/// The chart of accounts, and the calendar to post it in.
+async fn install_books_defaults(
+    pool: &sqlx::PgPool,
+    database: &str,
+    app_id: &str,
+) -> Result<(), DbError> {
     let chart: app_books::account::DefaultChart = phonix_config::defaults::load_for(app_id)
         .map_err(|err| DbError::CorruptCatalogRow {
             slug: app_id.to_owned(),
@@ -524,6 +535,43 @@ async fn install_app_defaults(
     );
 
     open_first_periods(pool, database).await
+}
+
+/// Units, the counterpart locations, a warehouse and a category tree.
+///
+/// The counterpart locations are the half of this a workspace could not know it
+/// needed. Stock only ever moves between two locations, so without a vendor
+/// location there is no such thing as a receipt - not "receipts are awkward",
+/// but no other end for the move to have.
+async fn install_inventory_defaults(
+    pool: &sqlx::PgPool,
+    database: &str,
+    app_id: &str,
+) -> Result<(), DbError> {
+    let defaults: app_inventory::defaults::Defaults = phonix_config::defaults::load_for(app_id)
+        .map_err(|err| DbError::CorruptCatalogRow {
+            slug: app_id.to_owned(),
+            reason: format!("inventory defaults are unusable: {err}"),
+        })?;
+
+    defaults.check().map_err(|err| DbError::CorruptCatalogRow {
+        slug: app_id.to_owned(),
+        reason: format!("inventory defaults are unusable: {err}"),
+    })?;
+
+    let seeded = crate::inventory::defaults::install(pool, &defaults).await?;
+
+    tracing::info!(
+        database,
+        app = app_id,
+        units = seeded.units,
+        locations = seeded.locations,
+        warehouses = seeded.warehouses,
+        categories = seeded.categories,
+        "inventory defaults installed"
+    );
+
+    Ok(())
 }
 
 /// Open the accounting calendar a workspace starts with.

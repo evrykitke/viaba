@@ -1,0 +1,27 @@
+[package]
+name = "app-inventory"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+# The `inventory` app: what the workspace stocks, where it is, and how it moved.
+#
+# A sub-ledger. Every quantity here has a value behind it, and every change to
+# that value is a journal posted through `phonix-ports::Ledger` - never a
+# reference to `app-books`, which this crate must build without. See
+# docs/adr/0006-apps-ports-and-defaults.md sections 2 and 7.
+#
+# Compiled for BOTH the server and the wasm client, so it may not depend on
+# tokio, sqlx, redis or lapin. The item form validates in the browser with this
+# code and on the server with the same code.
+[dependencies]
+phonix-core = { workspace = true }
+phonix-ports = { workspace = true }
+
+serde = { workspace = true }
+thiserror = { workspace = true }
+uuid = { workspace = true }
+
+[dev-dependencies]
+serde_json = { workspace = true }

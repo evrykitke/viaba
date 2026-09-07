@@ -193,6 +193,12 @@ number = "1260"
 name = "Allowance for obsolete inventory"
 type = "contra_asset"
 
+[[account]]
+number = "1270"
+name = "Goods delivered not invoiced"
+type = "other_current_asset"
+description = "The mirror of 2010 on the way out. Stock has left, the customer has not been invoiced, and the value sits here rather than in cost of sales - so a delivery in one period and its invoice in the next do not both land in the second. Most charts leave this out and post cost of sales at delivery, which is why their margin by month is wrong for every month with a delivery near the end of it."
+
 # ---------------------------------------------------------------------------
 # 1300-1399  Prepayments and deposits
 # ---------------------------------------------------------------------------

@@ -38,6 +38,7 @@ chart-column
 layout-dashboard
 package
 receipt
+ruler
 shopping-cart
 truck
 warehouse

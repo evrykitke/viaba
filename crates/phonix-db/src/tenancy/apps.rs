@@ -70,6 +70,14 @@ pub const BOOKS_APP_ID: &str = "books";
 /// out of `core.number_sequences`.
 pub const HR_APP_ID: &str = "hr";
 
+/// Inventory: what the workspace stocks, where it is, and how it got there.
+///
+/// A sub-ledger. It posts a journal for every receipt and every write-off, and
+/// it does it through `phonix_ports::Ledger` rather than by naming `app-books`
+/// - which is why this schema holds no key into `books` and why a workspace
+/// with Inventory and no accounting still receives goods.
+pub const INVENTORY_APP_ID: &str = "inventory";
+
 /// One installable app's migration stream.
 #[derive(Debug)]
 pub struct AppMigrations {
@@ -133,6 +141,12 @@ pub static APPS: &[AppMigrations] = &[
     AppMigrations {
         app_id: HR_APP_ID,
         migrator: &crate::HR_MIGRATIONS,
+    },
+    // Before books, matching the catalog's order for the reason HR's comment
+    // above gives: two orders that are allowed to disagree eventually do.
+    AppMigrations {
+        app_id: INVENTORY_APP_ID,
+        migrator: &crate::INVENTORY_MIGRATIONS,
     },
     // After master, because an invoice references a party and a tax group. The
     // order here is install order, and nothing enforces the dependency beyond

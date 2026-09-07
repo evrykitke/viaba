@@ -63,6 +63,12 @@ pub enum AccountRole {
     InventoryInTransit,
     /// What stock cost when it was sold.
     CostOfSales,
+    /// Goods delivered and not yet invoiced. The mirror of
+    /// [`Self::GoodsReceivedNotInvoiced`] on the way out, so a delivery in one
+    /// period and its invoice in the next do not both land in the second.
+    GoodsDeliveredNotInvoiced,
+    /// What the workspace sells for, before tax.
+    Revenue,
 }
 
 impl AccountRole {
@@ -75,6 +81,8 @@ impl AccountRole {
         Self::InventoryAdjustment,
         Self::InventoryInTransit,
         Self::CostOfSales,
+        Self::GoodsDeliveredNotInvoiced,
+        Self::Revenue,
     ];
 
     pub const fn as_str(self) -> &'static str {
@@ -87,6 +95,8 @@ impl AccountRole {
             Self::InventoryAdjustment => "inventory_adjustment",
             Self::InventoryInTransit => "inventory_in_transit",
             Self::CostOfSales => "cost_of_sales",
+            Self::GoodsDeliveredNotInvoiced => "goods_delivered_not_invoiced",
+            Self::Revenue => "revenue",
         }
     }
 
@@ -114,7 +124,23 @@ pub enum Side {
 /// in between would not be. Always positive - the side says which way.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Posting {
+    /// What this line is *for*. Always present, even where
+    /// [`Self::account_id`] overrides where it lands: the role is what a
+    /// reader and a report understand, and the override is a workspace saying
+    /// "not that one, this one".
     pub role: AccountRole,
+
+    /// An account chosen for this line in particular, overriding the role.
+    ///
+    /// This is what an item's or a category's account mapping resolves to.
+    /// Carried as a bare id with no foreign key behind it, exactly as
+    /// `books.invoices` carries a party's - an app may never hold a key into
+    /// another app's schema, and this is the seam that would otherwise be one.
+    ///
+    /// The ledger verifies it: an id naming no account, a retired account or
+    /// one that is not postable is refused rather than posted to. That check is
+    /// the whole reason this is allowed to be an unconstrained id.
+    pub account_id: Option<Uuid>,
     pub side: Side,
     /// Decimal digits, in the currency named on the entry.
     pub amount: String,
@@ -145,6 +171,23 @@ pub struct JournalRequest {
     /// has no rate on file for the date.
     pub currency: String,
     pub postings: Vec<Posting>,
+}
+
+/// One account a caller may point a posting at.
+///
+/// The whole of what crosses this boundary: an id, what it is called, and
+/// enough of its shape for a picker to group by. Not the chart - a caller that
+/// could read the chart would be reaching into Books rather than through the
+/// port.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct LedgerAccount {
+    pub id: Uuid,
+    pub number: String,
+    pub name: String,
+    /// `asset`, `liability`, `equity`, `income`, `expense`. A string rather
+    /// than an enum because the five classes belong to Books' chart and naming
+    /// them here would make this port know its implementation.
+    pub class: String,
 }
 
 /// Where the ledger filed it.
@@ -184,6 +227,11 @@ pub enum LedgerError {
     #[error("{0}")]
     PeriodClosed(String),
 
+    /// A posting named an account outright and the ledger will not post to it:
+    /// no such account, retired, or a header rather than a leaf.
+    #[error("that account cannot be posted to")]
+    UnpostableAccount(Uuid),
+
     /// Everything else the ledger refused, in its own words.
     #[error("{0}")]
     Refused(phonix_core::Message),
@@ -214,6 +262,17 @@ pub trait Ledger: Send + Sync {
     /// Advisory only. [`Self::post`] checks again, because between the two calls
     /// somebody may have retired the account.
     async fn is_mapped(&self, role: AccountRole) -> Result<bool, LedgerError>;
+
+    /// Every account a posting may name, for a screen offering an override.
+    ///
+    /// Here rather than "let the caller read the chart" because a caller that
+    /// could read the chart would be depending on Books. What comes back is a
+    /// list of ids and labels, which is the least this can be and still let
+    /// somebody choose an account for an item.
+    ///
+    /// Empty where there is no ledger, so a picker renders as "the default for
+    /// this role" and the screen still works.
+    async fn postable_accounts(&self) -> Result<Vec<LedgerAccount>, LedgerError>;
 }
 
 /// A port with nobody behind it: Books is not compiled in, or the workspace has
@@ -233,6 +292,10 @@ impl Ledger for NoLedger {
 
     async fn is_mapped(&self, _role: AccountRole) -> Result<bool, LedgerError> {
         Ok(false)
+    }
+
+    async fn postable_accounts(&self) -> Result<Vec<LedgerAccount>, LedgerError> {
+        Ok(Vec::new())
     }
 }
 
@@ -269,5 +332,7 @@ mod tests {
 
         assert_eq!(port.post(request).await, Err(LedgerError::NoLedger));
         assert_eq!(port.is_mapped(AccountRole::Inventory).await, Ok(false));
+        // A picker with nothing in it, rather than a screen that cannot draw.
+        assert_eq!(port.postable_accounts().await, Ok(Vec::new()));
     }
 }

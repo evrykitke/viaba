@@ -83,6 +83,7 @@
 pub mod audit;
 pub mod authorization;
 pub mod books;
+pub mod inventory;
 pub mod connect;
 pub mod currency;
 /// Phonix Desk's own tables. Catalog-only - see `docs/adr/0005-phonix-desk.md`.
@@ -145,3 +146,14 @@ pub static BOOKS_MIGRATIONS: sqlx::migrate::Migrator =
 /// ledger's shape from that ledger's first migration - see
 /// `docs/adr/0006-apps-ports-and-defaults.md` section 9.
 pub static HR_MIGRATIONS: sqlx::migrate::Migrator = sqlx::migrate!("../../migrations/apps/hr");
+
+/// Migrations for the `inventory` schema: what the workspace stocks, where it
+/// is, and how it moved.
+///
+/// The first stream built on the idea that stock is **double entry** - every
+/// change is a move between two locations, and the locations include the
+/// supplier, the customer and inventory loss. See
+/// `migrations/apps/inventory/0001_master_data.sql` for why that is not two
+/// kinds of place with a sign between them.
+pub static INVENTORY_MIGRATIONS: sqlx::migrate::Migrator =
+    sqlx::migrate!("../../migrations/apps/inventory");

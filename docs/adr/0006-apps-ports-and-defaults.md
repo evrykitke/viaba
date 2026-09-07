@@ -1,17 +1,40 @@
 # ADR 0006 — Apps, ports, and the data a workspace starts with
 
 Status: proposed; built so far — section 1 (the enablement filter), section 2
-(`phonix-ports` and `CostCentres`), section 3 (generated codes, for HR),
-section 4 in full (sensible defaults, the exhaustive chart of accounts, and the
-setup checklist), section 5 in full (the general ledger: double entry enforced
-by the type, append-only posting, sourced journals, period locks, dimensions on
-the line, and the six-column currency snapshot), and section 9 (the HR app).
-Still specified only — Inventory in section 7.
+in full (`phonix-ports`, `CostCentres`, and now `Ledger`), section 3 (generated
+codes, for HR and for item codes), section 4 in full (sensible defaults, the
+exhaustive chart of accounts, and the setup checklist), section 5 in full (the
+general ledger: double entry enforced by the type, append-only posting, sourced
+journals, period locks, dimensions on the line, and the six-column currency
+snapshot), section 9 (the HR app), and the first half of section 7 — the
+Inventory app's vocabulary: items, variants, categories, units, locations and
+warehouses.
 
-The `Ledger` port of section 2 is deliberately still unwritten. Books posts
-through its own service; the trait waits for Inventory, which is its first
-caller from outside — a trait extracted for one caller is that caller's service
-with a `dyn` in front of it.
+Still specified only — the document chain of section 7. Requisition,
+consolidated requisition, purchase order, receipt, bill, transfer and
+adjustment, and the stock moves and quants beneath them.
+
+## Section 7 follows Odoo
+
+Asked for by name, and taken seriously. The seven **location types**, stock as
+**double entry between two locations**, warehouses owning a view node and a
+stock location, 1/2/3-step receipts and deliveries, UoM categories, costing and
+valuation on the item **category**, goods-versus-service with a tracking flag,
+lots and serials with expiry, and **variants** with stock held against the
+variant rather than the item — all of it is Odoo's model, because that model is
+what makes stock reconcile by arithmetic rather than by a nightly job.
+
+Two departures, both deliberate:
+
+* **Item codes are generated.** Odoo lets somebody type one; section 3 of this
+  record says a code that a person invents is a code that collides. The
+  *barcode* stays hand-typed, for the reason section 3 gives.
+* **Account overrides do not name an account across the app boundary.** Odoo
+  hangs six accounts off a product category. So does this — as a bare
+  `account_id` with **no foreign key**, resolved through the `Ledger` port and
+  verified by it on every posting, exactly as `books.invoices` carries a
+  `master.parties` id. Section 2's rule is not negotiable for a convenience.
+
 Date: 2026-09-04
 
 ADR 0001 drew the line between infrastructure and an app, and proved it with

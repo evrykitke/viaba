@@ -171,6 +171,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "app-inventory"
+version = "0.1.0"
+dependencies = [
+ "phonix-core",
+ "phonix-ports",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.20",
+ "uuid",
+]
+
+[[package]]
 name = "arc-swap"
 version = "1.9.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2916,6 +2928,7 @@ version = "0.1.0"
 dependencies = [
  "app-books",
  "app-hr",
+ "app-inventory",
  "chrono",
  "moka",
  "phonix-config",

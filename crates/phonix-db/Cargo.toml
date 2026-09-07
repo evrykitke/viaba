@@ -10,6 +10,7 @@ phonix-core = { workspace = true }
 phonix-config = { workspace = true }
 phonix-master = { workspace = true }
 app-books = { workspace = true }
+app-inventory = { workspace = true }
 app-hr = { workspace = true }
 phonix-ports = { workspace = true }
 phonix-tax = { workspace = true }

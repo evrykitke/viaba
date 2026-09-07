@@ -19,6 +19,17 @@
 //!  |   |   +- .Manage
 //!  |   +- Pages.Sales.Invoices
 //!  |       +- .Create  .Edit  .Post  .Void
+//!  +- Pages.Inventory
+//!  |   +- Pages.Inventory.Items
+//!  |   |   +- .Create  .Edit  .Delete
+//!  |   +- Pages.Inventory.Categories
+//!  |   |   +- .Manage
+//!  |   +- Pages.Inventory.Warehouses
+//!  |   |   +- .Manage
+//!  |   +- Pages.Inventory.Locations
+//!  |   |   +- .Manage
+//!  |   +- Pages.Inventory.Units
+//!  |       +- .Manage
 //!  +- Pages.Master
 //!  |   +- Pages.Master.Parties
 //!  |   |   +- .Create  .Edit  .Delete
@@ -78,6 +89,25 @@ pub mod names {
     pub const DEPARTMENTS_CREATE: &str = "Pages.People.Departments.Create";
     pub const DEPARTMENTS_EDIT: &str = "Pages.People.Departments.Edit";
     pub const DEPARTMENTS_DELETE: &str = "Pages.People.Departments.Delete";
+
+    pub const INVENTORY: &str = "Pages.Inventory";
+
+    pub const ITEMS: &str = "Pages.Inventory.Items";
+    pub const ITEMS_CREATE: &str = "Pages.Inventory.Items.Create";
+    pub const ITEMS_EDIT: &str = "Pages.Inventory.Items.Edit";
+    pub const ITEMS_DELETE: &str = "Pages.Inventory.Items.Delete";
+
+    pub const ITEM_CATEGORIES: &str = "Pages.Inventory.Categories";
+    pub const ITEM_CATEGORIES_MANAGE: &str = "Pages.Inventory.Categories.Manage";
+
+    pub const WAREHOUSES: &str = "Pages.Inventory.Warehouses";
+    pub const WAREHOUSES_MANAGE: &str = "Pages.Inventory.Warehouses.Manage";
+
+    pub const STOCK_LOCATIONS: &str = "Pages.Inventory.Locations";
+    pub const STOCK_LOCATIONS_MANAGE: &str = "Pages.Inventory.Locations.Manage";
+
+    pub const UNITS: &str = "Pages.Inventory.Units";
+    pub const UNITS_MANAGE: &str = "Pages.Inventory.Units.Manage";
 
     pub const MASTER: &str = "Pages.Master";
 
@@ -373,6 +403,119 @@ pub const DEFINITIONS: &[PermissionDefinition] = &[
         // can reach.
         description: Some("Change a tax code, its rates, or the groups it belongs to."),
         parent: Some(names::TAXES),
+        default_for_user: false,
+    },
+    // -- Inventory --------------------------------------------------------
+    //
+    // Five screens under one root, and the split between them is who does the
+    // work rather than how dangerous it is. Everybody who picks an item off a
+    // list needs `Items`; the four `Manage` powers belong to whoever set the
+    // warehouse up, and in most workspaces that is one person who did it once.
+    //
+    // Items keep the four-way Create/Edit/Delete shape because an item list is
+    // edited daily by people who must not be able to redraw the warehouse.
+    // The rest take a single `Manage`: splitting "add a unit of measure" from
+    // "edit a unit of measure" would be a distinction nobody has ever wanted to
+    // grant across.
+    //
+    // Nothing here gates a *movement*. Receiving goods, transferring and
+    // adjusting are their own permissions and arrive with the documents that
+    // need them - a permission nothing checks is decoration, and these are the
+    // screens that exist.
+    PermissionDefinition {
+        name: names::INVENTORY,
+        display_name: "Inventory",
+        description: Some("Reach the inventory area."),
+        parent: Some(names::PAGES),
+        default_for_user: false,
+    },
+    PermissionDefinition {
+        name: names::ITEMS,
+        display_name: "Items",
+        description: Some("View the items this workspace stocks, buys and sells."),
+        parent: Some(names::INVENTORY),
+        default_for_user: false,
+    },
+    PermissionDefinition {
+        name: names::ITEMS_CREATE,
+        display_name: "Create",
+        description: Some("Add an item."),
+        parent: Some(names::ITEMS),
+        default_for_user: false,
+    },
+    PermissionDefinition {
+        name: names::ITEMS_EDIT,
+        display_name: "Edit",
+        description: Some("Change an item's details, units, costs and account mapping."),
+        parent: Some(names::ITEMS),
+        default_for_user: false,
+    },
+    PermissionDefinition {
+        name: names::ITEMS_DELETE,
+        display_name: "Delete",
+        description: Some("Remove an item that has never been stocked or moved."),
+        parent: Some(names::ITEMS),
+        default_for_user: false,
+    },
+    PermissionDefinition {
+        name: names::ITEM_CATEGORIES,
+        display_name: "Categories",
+        description: Some("View the item categories and how each one is costed."),
+        parent: Some(names::INVENTORY),
+        default_for_user: false,
+    },
+    PermissionDefinition {
+        name: names::ITEM_CATEGORIES_MANAGE,
+        display_name: "Manage",
+        // The costing method is here, and it is the strongest thing on this
+        // screen: changing it restates what the workspace says its stock is
+        // worth. That is an accountant's decision wearing an inventory screen.
+        description: Some(
+            "Add categories, and set how stock in them is costed, valued and picked.",
+        ),
+        parent: Some(names::ITEM_CATEGORIES),
+        default_for_user: false,
+    },
+    PermissionDefinition {
+        name: names::WAREHOUSES,
+        display_name: "Warehouses",
+        description: Some("View the workspace's warehouses."),
+        parent: Some(names::INVENTORY),
+        default_for_user: false,
+    },
+    PermissionDefinition {
+        name: names::WAREHOUSES_MANAGE,
+        display_name: "Manage",
+        description: Some("Add a warehouse and set how many steps it receives and ships in."),
+        parent: Some(names::WAREHOUSES),
+        default_for_user: false,
+    },
+    PermissionDefinition {
+        name: names::STOCK_LOCATIONS,
+        display_name: "Locations",
+        description: Some("View the locations stock is held in."),
+        parent: Some(names::INVENTORY),
+        default_for_user: false,
+    },
+    PermissionDefinition {
+        name: names::STOCK_LOCATIONS_MANAGE,
+        display_name: "Manage",
+        description: Some("Add and rearrange the locations inside a warehouse."),
+        parent: Some(names::STOCK_LOCATIONS),
+        default_for_user: false,
+    },
+    PermissionDefinition {
+        name: names::UNITS,
+        display_name: "Units of measure",
+        description: Some("View the units stock is counted in."),
+        parent: Some(names::INVENTORY),
+        default_for_user: false,
+    },
+    PermissionDefinition {
+        name: names::UNITS_MANAGE,
+        display_name: "Manage",
+        description: Some("Add units of measure and set what they convert to."),
+        parent: Some(names::UNITS),
         default_for_user: false,
     },
     // -- People -----------------------------------------------------------
