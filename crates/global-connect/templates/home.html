@@ -1,0 +1,151 @@
+{#
+  The front page.
+
+  Five bands, and each answers the question the band above it raises: the
+  promise, what it is made of, why it is built this way, what a screen actually
+  looks like, and the way in.
+
+  The screenshot band is drawn rather than photographed - a block of markup
+  styled with the product's own tokens, so it cannot go stale the way a PNG of a
+  screen does the week after the screen changes. It is `aria-hidden` because it
+  is a picture of software, not software, and its labels are left in English on
+  purpose: it is standing in for a screenshot, and a screenshot of the product is
+  in whatever language the workspace is.
+#}
+{% extends "base.html" %}
+
+{% block title %}{{ t.home.title }}{% endblock %}
+{% block description %}{{ t.home.description }}{% endblock %}
+
+{% block main %}
+
+{# ---------------------------------------------------------------- hero -- #}
+<section class="hero">
+  <div class="site-width relative py-24 sm:py-32 lg:py-40">
+    <p class="eyebrow">
+      <span class="size-1.5 rounded-full bg-brand" aria-hidden="true"></span>
+      {{ t.home.eyebrow }}
+    </p>
+
+    <h1 class="mt-6 max-w-4xl text-balance text-display font-black leading-[0.95] tracking-tight">
+      {{ t.home.headline_lead }}
+      <span class="text-gradient">{{ t.home.headline_accent }}</span>
+    </h1>
+
+    <p class="mt-7 max-w-xl text-lead text-content-muted">{{ t.home.lede }}</p>
+
+    <div class="mt-10 flex flex-col gap-3 sm:flex-row sm:items-center">
+      <a href="{{ frame.links.signup }}" class="btn-brand btn-lg">
+        {{ t.common.start_free }}
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="size-4 rtl:-scale-x-100" aria-hidden="true">
+          <path d="M5 12h14m-6-6 6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </a>
+      <a href="{{ frame.prefix }}/product" class="btn-ghost btn-lg">{{ t.common.see_inside }}</a>
+    </div>
+
+    <p class="mt-6 text-sm text-content-subtle">{{ trial_note }}</p>
+  </div>
+</section>
+
+{# ------------------------------------------------------------ the apps -- #}
+<section class="border-t border-edge">
+  <div class="site-width py-20 sm:py-24">
+    <div class="band-head">
+      <h2 class="band-title">{{ t.home.apps_title }}</h2>
+      <p class="band-lede">{{ t.home.apps_lede }}</p>
+    </div>
+
+    <div class="mt-12 grid gap-4 md:grid-cols-3">
+      {% for app in t.apps %}
+      <article class="tile">
+        <div class="tile-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" class="size-6">
+            <path d="{{ icons[loop.index0] }}" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+
+        <h3 class="mt-5 flex items-center gap-2 text-lg font-semibold tracking-tight">
+          {{ app.name }}
+          {% if let Some(status) = app.status %}
+          <span class="pill-soft">{{ status }}</span>
+          {% endif %}
+        </h3>
+        <p class="mt-2 text-sm leading-relaxed text-content-muted">{{ app.tagline }}</p>
+      </article>
+      {% endfor %}
+    </div>
+
+    <p class="mt-6 text-sm text-content-subtle">{{ t.home.apps_more }}</p>
+  </div>
+</section>
+
+{# --------------------------------------------------------- the picture -- #}
+<section class="border-t border-edge bg-surface-shell">
+  <div class="site-width py-20 sm:py-24">
+    <div class="band-head">
+      <h2 class="band-title">{{ t.home.dense_title }}</h2>
+      <p class="band-lede">{{ t.home.dense_lede }}</p>
+    </div>
+
+    <div class="mt-12 mock" aria-hidden="true" lang="en">
+      <div class="mock-bar">
+        <span class="mock-dot"></span><span class="mock-dot"></span><span class="mock-dot"></span>
+        <span class="ms-3 text-2xs text-content-subtle">acme · Inventory · Items</span>
+      </div>
+      <div class="mock-body">
+        <div class="mock-side">
+          <span class="mock-side-on">Items</span>
+          <span>Categories</span>
+          <span>Warehouses</span>
+          <span>Locations</span>
+          <span>Units</span>
+        </div>
+        <div class="mock-grid">
+          <div class="mock-row mock-head"><span>Code</span><span>Name</span><span>Category</span><span class="text-end">On hand</span></div>
+          <div class="mock-row"><span>ITM-0001</span><span>Steel bracket, 40mm</span><span>Hardware</span><span class="text-end">1,240</span></div>
+          <div class="mock-row"><span>ITM-0002</span><span>Hex bolt M8</span><span>Fasteners</span><span class="text-end">18,900</span></div>
+          <div class="mock-row mock-row-on"><span>ITM-0003</span><span>Bearing 6204-2RS</span><span>Bearings</span><span class="text-end">312</span></div>
+          <div class="mock-row"><span>ITM-0004</span><span>Drive belt A38</span><span>Belts</span><span class="text-end">64</span></div>
+          <div class="mock-row"><span>ITM-0005</span><span>Hydraulic hose 1/2"</span><span>Hose</span><span class="text-end">7</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+{# --------------------------------------------------------- the reasons -- #}
+<section class="border-t border-edge">
+  <div class="site-width py-20 sm:py-24">
+    <div class="band-head">
+      <h2 class="band-title">{{ t.home.reasons_title }}</h2>
+    </div>
+
+    <div class="mt-12 grid gap-x-10 gap-y-12 sm:grid-cols-2">
+      {% for pillar in t.pillars %}
+      <div class="reason">
+        <h3 class="text-lg font-semibold tracking-tight">{{ pillar.heading }}</h3>
+        <p class="mt-2 text-sm leading-relaxed text-content-muted">{{ pillar.body }}</p>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+{# ------------------------------------------------------------ the way in -- #}
+<section class="border-t border-edge">
+  <div class="site-width py-20 sm:py-28">
+    <div class="cta">
+      <h2 class="text-balance text-3xl font-black tracking-tight sm:text-4xl">{{ t.home.cta_title }}</h2>
+      <p class="mt-4 max-w-lg text-content-muted">{{ t.home.cta_body }}</p>
+      <div class="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
+        <a href="{{ frame.links.signup }}" class="btn-brand btn-lg">{{ t.common.start_free }}</a>
+        {% if let Some(contact) = frame.links.contact %}
+        <a href="{{ contact }}" class="btn-ghost btn-lg">{{ t.common.talk_to_us }}</a>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</section>
+
+{% endblock %}

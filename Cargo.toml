@@ -38,6 +38,9 @@ app-hr = { path = "crates/app-hr" }
 # posts through the `Ledger` port and never names `app-books`.
 app-inventory = { path = "crates/app-inventory" }
 phonix-config = { path = "crates/phonix-config" }
+# Fixed-window counting, and nothing else. Depended on by both the server and
+# the public site, so anonymous traffic is bounded by one implementation.
+phonix-limit = { path = "crates/phonix-limit" }
 phonix-telemetry = { path = "crates/phonix-telemetry" }
 # Development only, and gated twice over - see
 # docs/adr/0004-development-profiler.md section 8.
@@ -52,6 +55,11 @@ phonix-web = { path = "crates/phonix-web" }
 # server. Depends on nothing above `phonix-services` - see
 # docs/adr/0005-phonix-desk.md section 3.
 phonix-desk = { path = "crates/phonix-desk" }
+# The public site. A third binary, and the only crate here that is neither
+# infrastructure nor a product app - which is why it does not wear either
+# prefix. It depends on no database, no cache and no broker, so it is up on the
+# day the product is not. See docs/adr/0007-global-connect.md.
+global-connect = { path = "crates/global-connect" }
 
 # --- leptos ---
 leptos = { version = "0.8.20" }

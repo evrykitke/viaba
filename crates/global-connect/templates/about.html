@@ -1,0 +1,55 @@
+{#
+  Why the thing exists.
+
+  Short on purpose. The tagline is a claim, and this is the page that has to
+  make it mean something specific rather than repeat it louder.
+#}
+{% extends "base.html" %}
+
+{% block title %}{{ t.about.title }}{% endblock %}
+{% block description %}{{ t.about.description }}{% endblock %}
+
+{% block main %}
+
+<section class="hero hero-short">
+  <div class="site-width relative py-20 sm:py-24">
+    <p class="eyebrow"><span class="size-1.5 rounded-full bg-brand" aria-hidden="true"></span> {{ t.about.eyebrow }}</p>
+    <h1 class="mt-6 max-w-3xl text-balance text-title font-black leading-[1.02] tracking-tight">{{ t.about.headline }}</h1>
+  </div>
+</section>
+
+<section class="border-t border-edge">
+  <div class="site-width py-16 sm:py-20">
+    <div class="prose-narrow">
+      {% for paragraph in t.about.body %}
+      <p>{{ paragraph }}</p>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<section class="border-t border-edge bg-surface-shell">
+  <div class="site-width py-16 sm:py-20">
+    <h2 class="band-title">{{ t.about.values_title }}</h2>
+    <div class="mt-10 grid gap-x-10 gap-y-12 sm:grid-cols-2">
+      {% for pillar in t.pillars %}
+      <div class="reason">
+        <h3 class="text-lg font-semibold tracking-tight">{{ pillar.heading }}</h3>
+        <p class="mt-2 text-sm leading-relaxed text-content-muted">{{ pillar.body }}</p>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<section class="border-t border-edge">
+  <div class="site-width py-20">
+    <div class="cta">
+      <h2 class="text-balance text-3xl font-black tracking-tight">{{ t.about.cta_title }}</h2>
+      <p class="mt-4 max-w-lg text-content-muted">{{ t.about.cta_body }}</p>
+      <div class="mt-8"><a href="{{ frame.links.signup }}" class="btn-brand btn-lg">{{ t.common.start_free }}</a></div>
+    </div>
+  </div>
+</section>
+
+{% endblock %}

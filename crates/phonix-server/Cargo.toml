@@ -23,6 +23,9 @@ phonix-db = { workspace = true }
 phonix-services = { workspace = true }
 secrecy = { workspace = true }
 phonix-cache = { workspace = true }
+# The fixed-window counter, shared with the public site so there is one
+# implementation of it rather than two that drift.
+phonix-limit = { workspace = true }
 phonix-messaging = { workspace = true }
 phonix-storage = { workspace = true }
 # The Leptos app, compiled for the server.

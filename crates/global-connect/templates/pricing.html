@@ -1,0 +1,103 @@
+{#
+  Pricing.
+
+  The shape is real and the numbers are not, and the page says so at the bottom
+  where a visitor can read it rather than only in a Rust comment. See
+  `pages::PRICES_ARE_PROVISIONAL` and ADR 0007 section 8: nothing here has been
+  priced, and a made-up number on a pricing page is the one lie a customer
+  remembers.
+
+  The last plan is the one that opens a conversation rather than a workspace,
+  and it is found with `loop.last` rather than by matching its name. A name is
+  translated; a position is not. Comparing against "Enterprise" would have
+  quietly sent every Chinese visitor to the signup form instead.
+#}
+{% extends "base.html" %}
+
+{% block title %}{{ t.pricing.title }}{% endblock %}
+{% block description %}{{ t.pricing.description }}{% endblock %}
+
+{% block main %}
+
+<section class="hero hero-short">
+  <div class="site-width relative py-20 sm:py-24">
+    <p class="eyebrow"><span class="size-1.5 rounded-full bg-brand" aria-hidden="true"></span> {{ t.pricing.eyebrow }}</p>
+    <h1 class="mt-6 max-w-3xl text-balance text-title font-black leading-[1.02] tracking-tight">{{ t.pricing.headline }}</h1>
+    <p class="mt-6 max-w-xl text-lead text-content-muted">{{ t.pricing.lede }}</p>
+  </div>
+</section>
+
+<section class="border-t border-edge">
+  <div class="site-width py-16 sm:py-20">
+    <div class="grid gap-4 lg:grid-cols-3">
+      {% for plan in t.plans %}
+      <article class="plan{% if featured[loop.index0] %} plan-on{% endif %}">
+        {% if featured[loop.index0] %}
+        <span class="pill-brand">{{ t.pricing.most }}</span>
+        {% endif %}
+
+        <h2 class="mt-1 text-lg font-semibold tracking-tight">{{ plan.name }}</h2>
+        <p class="mt-1 text-sm text-content-muted">{{ plan.who }}</p>
+
+        <p class="mt-6 flex items-baseline gap-2">
+          <span class="text-4xl font-black tracking-tight">{{ plan.price }}</span>
+          {% if !plan.cadence.is_empty() %}
+          <span class="text-sm text-content-subtle">{{ plan.cadence }}</span>
+          {% endif %}
+        </p>
+
+        <ul class="mt-7 flex flex-1 flex-col gap-3 text-sm">
+          {% for point in plan.points %}
+          <li class="flex items-start gap-2.5">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" class="mt-0.5 size-4 shrink-0 text-brand" aria-hidden="true">
+              <path d="m4 12.5 5.5 5.5L20 7" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <span class="text-content-muted">{{ point }}</span>
+          </li>
+          {% endfor %}
+        </ul>
+
+        <div class="mt-8">
+          {% if loop.last %}
+            {% if let Some(contact) = frame.links.contact %}
+            <a href="{{ contact }}" class="btn-ghost w-full justify-center">{{ plan.action }}</a>
+            {% else %}
+            <a href="{{ frame.links.signup }}" class="btn-ghost w-full justify-center">{{ t.common.get_started }}</a>
+            {% endif %}
+          {% else if featured[loop.index0] %}
+            <a href="{{ frame.links.signup }}" class="btn-brand w-full justify-center">{{ plan.action }}</a>
+          {% else %}
+            <a href="{{ frame.links.signup }}" class="btn-ghost w-full justify-center">{{ plan.action }}</a>
+          {% endif %}
+        </div>
+      </article>
+      {% endfor %}
+    </div>
+
+    <p class="mt-8 text-sm text-content-subtle">{{ trial_note }}</p>
+
+    {% if provisional %}
+    {# Removed the moment a real number lands - see `PRICES_ARE_PROVISIONAL`. #}
+    <p class="mt-4 max-w-2xl rounded-card border border-edge bg-surface-shell px-4 py-3 text-sm text-content-muted">
+      <strong class="font-semibold text-content">{{ t.pricing.provisional_lead }}</strong>
+      {{ t.pricing.provisional_body }}
+    </p>
+    {% endif %}
+  </div>
+</section>
+
+<section class="border-t border-edge bg-surface-shell">
+  <div class="site-width py-16 sm:py-20">
+    <h2 class="band-title">{{ t.pricing.faq_title }}</h2>
+    <div class="mt-10 grid gap-x-12 gap-y-8 md:grid-cols-2">
+      {% for question in t.pricing.faq %}
+      <div>
+        <h3 class="font-semibold">{{ question.heading }}</h3>
+        <p class="mt-2 text-sm leading-relaxed text-content-muted">{{ question.body }}</p>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+{% endblock %}

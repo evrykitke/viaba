@@ -1,0 +1,36 @@
+[package]
+name = "global-connect"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+# Global Connect: the public site. See docs/adr/0007-global-connect.md.
+#
+# The dependency list is the design, and it is short on purpose. There is no
+# phonix-db, no phonix-services, no phonix-cache and no phonix-messaging - the
+# site holds nothing and asks nobody anything, so the day Postgres is down is a
+# day this is still serving. That is also the day people come looking at it.
+#
+# No phonix-web either, for the reason Desk has: that crate is the product and
+# it compiles to WebAssembly. A marketing page must be the cheapest thing the
+# estate serves, and a multi-megabyte bundle in front of a headline is the
+# opposite of cheap.
+[dependencies]
+phonix-config = { workspace = true }
+# For `i18n::Language` and nothing else: the codes, the native names and the
+# direction, so the site cannot disagree with the application about what `zh`
+# means. `phonix-core` is compiled for wasm as well as the server, so it drags
+# in no runtime - see its own manifest.
+phonix-core = { workspace = true }
+phonix-limit = { workspace = true }
+phonix-telemetry = { workspace = true }
+
+axum = { workspace = true }
+tokio = { workspace = true }
+http = { workspace = true }
+
+askama = { workspace = true }
+
+anyhow = { workspace = true }
+tracing = { workspace = true }

@@ -31,21 +31,13 @@
 //!
 //! # Fixed windows, in memory
 //!
-//! A counter and an expiry per key, and the counter resets when the window
-//! does. Not a sliding window and not a token bucket: both are better shaped,
-//! and neither is worth the arithmetic against an attacker whose actual budget
-//! is "one workspace an hour instead of thousands".
-//!
-//! In memory rather than Redis, and that is a choice with a consequence. Redis
-//! would survive a restart and be shared between nodes; there is one node, and
-//! [`phonix_cache`] is documented as fail-open - which for a limiter means it
-//! disappears exactly when something is going wrong. A process restart resets
-//! every window, which is a real hole. It is a smaller one than "the limiter
-//! stops existing when Redis hiccups".
+//! The counting itself is [`phonix_limit`], because the public site limits
+//! anonymous traffic too and a second implementation of it would drift. What
+//! stays here is the part that is about *this* application: which requests are
+//! counted at all, what each of them is keyed on, and how much each tier gets.
 
-use std::collections::HashMap;
 use std::net::{IpAddr, SocketAddr};
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use axum::extract::{ConnectInfo, Request, State};
@@ -53,6 +45,7 @@ use axum::http::{HeaderMap, Method, StatusCode, header};
 use axum::middleware::Next;
 use axum::response::{IntoResponse, Response};
 use phonix_config::{AppConfig, RateLimitConfig};
+pub use phonix_limit::Decision;
 
 /// How expensive the thing behind a request is.
 ///
@@ -204,36 +197,15 @@ fn looks_like_a_file(path: &str) -> bool {
         .is_some_and(|last| last.contains('.'))
 }
 
-/// One key's counter and when it resets.
-#[derive(Debug, Clone, Copy)]
-struct Window {
-    count: u32,
-    resets_at: Instant,
-}
-
-/// The counters.
+/// This application's tiers over a shared counter.
 ///
-/// A single `Mutex<HashMap>`, held for the few instructions it takes to bump an
-/// integer. Sharding it would matter under contention a limiter this coarse
-/// will not see, and an uncontended mutex costs a couple of nanoseconds.
+/// A wrapper rather than a re-export: [`phonix_limit::Limiter`] counts keys and
+/// knows nothing about tiers, and the tier has to reach the key or two
+/// allowances would spend each other. Putting the tier into the key here is
+/// also what keeps `Tier` - which is entirely about this application's routes -
+/// out of a crate the public site depends on.
 pub struct Limiter {
-    windows: Mutex<HashMap<(Tier, String), Window>>,
-    /// Number of entries past which a sweep runs on the next decision.
-    ///
-    /// Without this the map grows for as long as the process lives, one entry
-    /// per address that ever arrived - a slow memory leak with an
-    /// attacker-controlled rate.
-    sweep_above: usize,
-}
-
-/// What a decision came to.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Decision {
-    Allow,
-    /// Refused, with how long until the window resets.
-    Refuse {
-        retry_after_secs: u64,
-    },
+    inner: phonix_limit::Limiter,
 }
 
 impl Default for Limiter {
@@ -245,8 +217,7 @@ impl Default for Limiter {
 impl Limiter {
     pub fn new() -> Self {
         Self {
-            windows: Mutex::new(HashMap::new()),
-            sweep_above: 4_096,
+            inner: phonix_limit::Limiter::new(),
         }
     }
 
@@ -262,50 +233,8 @@ impl Limiter {
     ) -> Decision {
         let (limit, window) = tier.allowance(config);
 
-        // A limit of zero would refuse everybody for ever, including whoever is
-        // trying to reach the screen that fixes it. Read as "not limited",
-        // which is what somebody typing 0 into a config file meant.
-        if limit == 0 {
-            return Decision::Allow;
-        }
-
-        let mut windows = match self.windows.lock() {
-            Ok(guard) => guard,
-            // A panic while another thread held the lock. The counts are just
-            // integers - nothing is half-written - so the sane answer is to
-            // keep limiting rather than to fail open or to panic in turn.
-            Err(poisoned) => poisoned.into_inner(),
-        };
-
-        if windows.len() > self.sweep_above {
-            windows.retain(|_, entry| entry.resets_at > now);
-        }
-
-        let entry = windows.entry((tier, key.to_owned())).or_insert(Window {
-            count: 0,
-            resets_at: now + window,
-        });
-
-        // Expired: this is the first request of a new window, not the next of
-        // an old one.
-        if entry.resets_at <= now {
-            *entry = Window {
-                count: 0,
-                resets_at: now + window,
-            };
-        }
-
-        if entry.count >= limit {
-            let remaining = entry.resets_at.saturating_duration_since(now);
-            return Decision::Refuse {
-                // Never zero: `Retry-After: 0` invites an immediate retry that
-                // is certain to be refused again.
-                retry_after_secs: remaining.as_secs().max(1),
-            };
-        }
-
-        entry.count += 1;
-        Decision::Allow
+        self.inner
+            .check_at(&format!("{}/{key}", tier.name()), limit, window, now)
     }
 
     /// [`Self::check_at`] against the clock.
@@ -815,29 +744,5 @@ mod tests {
         let two: SocketAddr = "1.2.3.4:51001".parse().unwrap();
 
         assert_eq!(peer_key(one.ip()), peer_key(two.ip()));
-    }
-
-    #[test]
-    fn the_map_does_not_grow_without_bound() {
-        let limiter = Limiter {
-            windows: Mutex::new(HashMap::new()),
-            sweep_above: 8,
-        };
-        let config = config();
-        let now = Instant::now();
-
-        for n in 0..40 {
-            limiter.check_at(Tier::Page, &format!("10.0.0.{n}"), &config, now);
-        }
-
-        // Everything is still live, so nothing is swept yet.
-        assert!(limiter.windows.lock().unwrap().len() > 8);
-
-        // An hour later every window has expired, and the next decision clears
-        // them out rather than keeping one entry per address for ever.
-        let later = now + Duration::from_secs(3_600);
-        limiter.check_at(Tier::Page, "10.0.0.99", &config, later);
-
-        assert_eq!(limiter.windows.lock().unwrap().len(), 1);
     }
 }

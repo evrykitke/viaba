@@ -1,0 +1,60 @@
+{#
+  The foot of every page.
+
+  Privacy and Terms come from `[app.links]`, the same two values the product's
+  own signed-out screens read, and an empty one renders nothing at all. That is
+  the rule written where those fields are defined: the alternative to leaving a
+  link out is a link to a 404, and a legal page that 404s is worse than an
+  absent one.
+
+  Those two are *not* translated, and that is deliberate rather than an
+  oversight - they are absolute URLs to pages this application does not serve,
+  so whichever language they are written in is the language they exist in.
+#}
+<footer class="border-t border-edge bg-surface-shell">
+  <div class="site-width py-12">
+    <div class="flex flex-col gap-10 md:flex-row md:items-start md:justify-between">
+      <div class="max-w-sm">
+        <div class="flex items-center gap-2.5">
+          <span class="grid size-7 place-items-center rounded-[0.55rem] bg-brand text-sm font-black text-on-brand" aria-hidden="true">V</span>
+          <span class="text-[0.95rem] font-semibold tracking-tight">{{ frame.product_name }}</span>
+        </div>
+        <p class="mt-3 text-sm leading-relaxed text-content-muted">{{ t.common.tagline }}</p>
+      </div>
+
+      <div class="grid grid-cols-2 gap-8 sm:grid-cols-3">
+        <div>
+          <h2 class="text-xs font-semibold uppercase tracking-wider text-content-subtle">{{ t.footer.product }}</h2>
+          <ul class="mt-3 flex flex-col gap-2 text-sm">
+            <li><a href="{{ frame.prefix }}/product" class="text-content-muted hover:text-content">{{ t.footer.whats_inside }}</a></li>
+            <li><a href="{{ frame.prefix }}/pricing" class="text-content-muted hover:text-content">{{ t.nav.pricing }}</a></li>
+            <li><a href="{{ frame.links.signup }}" class="text-content-muted hover:text-content">{{ t.common.get_started }}</a></li>
+          </ul>
+        </div>
+        <div>
+          <h2 class="text-xs font-semibold uppercase tracking-wider text-content-subtle">{{ t.footer.company }}</h2>
+          <ul class="mt-3 flex flex-col gap-2 text-sm">
+            <li><a href="{{ frame.prefix }}/about" class="text-content-muted hover:text-content">{{ t.nav.about }}</a></li>
+            <li><a href="{{ frame.prefix }}/contact" class="text-content-muted hover:text-content">{{ t.nav.contact }}</a></li>
+          </ul>
+        </div>
+        <div>
+          <h2 class="text-xs font-semibold uppercase tracking-wider text-content-subtle">{{ t.footer.account }}</h2>
+          <ul class="mt-3 flex flex-col gap-2 text-sm">
+            <li><a href="{{ frame.links.sign_in }}" class="text-content-muted hover:text-content">{{ t.common.sign_in }}</a></li>
+            {% if let Some(privacy) = frame.links.privacy %}
+            <li><a href="{{ privacy }}" class="text-content-muted hover:text-content">{{ t.footer.privacy }}</a></li>
+            {% endif %}
+            {% if let Some(terms) = frame.links.terms %}
+            <li><a href="{{ terms }}" class="text-content-muted hover:text-content">{{ t.footer.terms }}</a></li>
+            {% endif %}
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <p class="mt-10 border-t border-edge pt-6 text-xs text-content-subtle">
+      © {{ frame.product_name }}. {{ t.footer.rights }}
+    </p>
+  </div>
+</footer>

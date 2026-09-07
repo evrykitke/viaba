@@ -1,0 +1,24 @@
+{#
+  A page that only has something to say: a 404, a 500.
+
+  It keeps the frame. Desk's equivalent deliberately drops the navigation,
+  because a Desk page reached before there is anywhere to go must not offer
+  links that only redirect back. Here the opposite holds: somebody who mistyped
+  an address is exactly the person who wants the menu.
+#}
+{% extends "base.html" %}
+
+{% block title %}{{ t.not_found.title }}{% endblock %}
+{% block description %}{{ t.not_found.detail }}{% endblock %}
+
+{% block main %}
+<section class="site-width py-24 sm:py-32">
+  <p class="eyebrow"><span class="size-1.5 rounded-full bg-brand" aria-hidden="true"></span> {{ t.not_found.title }}</p>
+  <h1 class="mt-6 max-w-2xl text-balance text-title font-black leading-[1.02] tracking-tight">{{ heading }}</h1>
+  <p class="mt-6 max-w-xl text-lead text-content-muted">{{ detail }}</p>
+  <div class="mt-10 flex flex-col gap-3 sm:flex-row sm:items-center">
+    <a href="{% if frame.prefix.is_empty() %}/{% else %}{{ frame.prefix }}{% endif %}" class="btn-brand btn-lg">{{ frame.product_name }}</a>
+    <a href="{{ frame.prefix }}/product" class="btn-ghost btn-lg">{{ t.common.see_inside }}</a>
+  </div>
+</section>
+{% endblock %}

@@ -1595,6 +1595,22 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e4eba85ea1d0a966a983acd07deee566e67395d2d96b6fb39e62b5a833f1eb0b"
 
 [[package]]
+name = "global-connect"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "askama",
+ "axum",
+ "http",
+ "phonix-config",
+ "phonix-core",
+ "phonix-limit",
+ "phonix-telemetry",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
 name = "gloo-net"
 version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2971,6 +2987,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "phonix-limit"
+version = "0.1.0"
+
+[[package]]
 name = "phonix-master"
 version = "0.1.0"
 dependencies = [
@@ -3050,6 +3070,7 @@ dependencies = [
  "phonix-config",
  "phonix-core",
  "phonix-db",
+ "phonix-limit",
  "phonix-messaging",
  "phonix-profiler",
  "phonix-services",

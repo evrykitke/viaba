@@ -1,0 +1,82 @@
+{#
+  What is actually in it.
+
+  Every bullet on this page is a screen that exists. That is a rule and not a
+  boast: a marketing page that quietly invents a feature is a support ticket
+  with a delay on it, and the applications that are not finished say so in a pill
+  rather than by being described in the future tense.
+#}
+{% extends "base.html" %}
+
+{% block title %}{{ t.product.title }}{% endblock %}
+{% block description %}{{ t.product.description }}{% endblock %}
+
+{% block main %}
+
+<section class="hero hero-short">
+  <div class="site-width relative py-20 sm:py-24">
+    <p class="eyebrow"><span class="size-1.5 rounded-full bg-brand" aria-hidden="true"></span> {{ t.product.eyebrow }}</p>
+    <h1 class="mt-6 max-w-3xl text-balance text-title font-black leading-[1.02] tracking-tight">{{ t.product.headline }}</h1>
+    <p class="mt-6 max-w-xl text-lead text-content-muted">{{ t.product.lede }}</p>
+  </div>
+</section>
+
+{% for app in t.apps %}
+<section class="border-t border-edge{% if !loop.first %} bg-surface-shell{% endif %}">
+  <div class="site-width py-16 sm:py-20">
+    <div class="grid gap-10 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)] lg:gap-16">
+      <div>
+        <div class="tile-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" class="size-6">
+            <path d="{{ icons[loop.index0] }}" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <h2 class="mt-5 flex items-center gap-2.5 text-2xl font-black tracking-tight">
+          {{ app.name }}
+          {% if let Some(status) = app.status %}
+          <span class="pill-soft">{{ status }}</span>
+          {% endif %}
+        </h2>
+        <p class="mt-3 text-content-muted">{{ app.tagline }}</p>
+      </div>
+
+      <ul class="flex flex-col gap-px overflow-hidden rounded-card border border-edge bg-edge">
+        {% for point in app.points %}
+        <li class="flex items-start gap-3 bg-surface px-5 py-4 text-sm leading-relaxed">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" class="mt-0.5 size-4 shrink-0 text-brand" aria-hidden="true">
+            <path d="m4 12.5 5.5 5.5L20 7" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <span>{{ point }}</span>
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+</section>
+{% endfor %}
+
+<section class="border-t border-edge">
+  <div class="site-width py-16 sm:py-20">
+    <h2 class="band-title">{{ t.product.underneath }}</h2>
+    <div class="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      {% for item in t.product.beneath %}
+      <div class="tile">
+        <h3 class="text-base font-semibold">{{ item.heading }}</h3>
+        <p class="mt-2 text-sm leading-relaxed text-content-muted">{{ item.body }}</p>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<section class="border-t border-edge">
+  <div class="site-width py-20">
+    <div class="cta">
+      <h2 class="text-balance text-3xl font-black tracking-tight">{{ t.product.cta_title }}</h2>
+      <p class="mt-4 max-w-lg text-content-muted">{{ t.product.cta_body }}</p>
+      <div class="mt-8"><a href="{{ frame.links.signup }}" class="btn-brand btn-lg">{{ t.common.start_free }}</a></div>
+    </div>
+  </div>
+</section>
+
+{% endblock %}

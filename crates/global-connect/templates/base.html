@@ -1,0 +1,58 @@
+{#
+  The document. Everything the site serves is this file with a body in it.
+
+  `data-theme="dark"` is written here rather than left off, and that is the one
+  place this crate deliberately disagrees with Desk. Desk omits the attribute so
+  a visitor's operating system decides, because Desk is a tool somebody keeps
+  open all day beside other windows. This is a front page: it is one composition
+  with artwork in it, and a composition that renders two ways is two
+  compositions to keep good. Dark is the one it is designed as.
+
+  `data-accent="violet"` for the same reason - the product lets a workspace pick
+  an accent and there is nobody here to pick one, so the site wears the default.
+
+  `lang` and `dir` come from the language in the address, not from a header. A
+  wrong `lang` is what makes a screen reader pronounce Chinese as English, and
+  `dir` is carried even though both languages here run left to right - the
+  product's own reasoning, which is that retrofitting it after the markup exists
+  is the expensive version.
+
+  The `hreflang` links declare one address per language, which is how a search
+  engine is told these are translations of each other rather than duplicates.
+  `x-default` points at English, which is what a crawler with no preference
+  should be sent to.
+
+  Two requests make a page: one stylesheet and one script, both with a content
+  hash in the name, so both are cached forever and neither can be stale. The
+  script is `defer`red because nothing waits for it - see `script/site.js`. The
+  policy in `routes::html_response` is `script-src 'self'` with no
+  `unsafe-inline`, so the only code that runs here is code this binary served.
+
+  The favicon is a data URI, not a file. This crate ships no image at all: the
+  artwork is inline SVG, which is markup rather than a request.
+#}
+<!doctype html>
+<html lang="{{ frame.lang }}" dir="{{ frame.dir }}" data-theme="dark" data-accent="violet">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}{% endblock %} — {{ frame.product_name }}</title>
+<meta name="description" content="{% block description %}{% endblock %}">
+<meta name="theme-color" content="#141118">
+{% for alternate in frame.languages %}
+<link rel="alternate" hreflang="{{ alternate.code }}" href="{{ alternate.href }}">
+{% endfor %}
+<link rel="alternate" hreflang="x-default" href="/">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%237c5cff'/%3E%3Cpath d='M9 9h5.5l3 9 3-9H26l-6.5 16h-4L9 9Z' fill='white'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="{{ crate::assets::STYLESHEET }}">
+<script src="{{ crate::assets::SCRIPT }}" defer></script>
+</head>
+<body class="bg-surface text-content">
+<a href="#main" class="skip-link">{{ t.common.skip_to_content }}</a>
+{% include "_nav.html" %}
+<main id="main">
+{% block main %}{% endblock %}
+</main>
+{% include "_footer.html" %}
+</body>
+</html>

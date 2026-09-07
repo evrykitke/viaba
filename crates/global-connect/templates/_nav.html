@@ -1,0 +1,94 @@
+{#
+  The top bar.
+
+  Below `md` the links are inside a `<details>`, which is the whole of the
+  mobile menu: it opens and closes with no script at all. `script/site.js` only
+  closes it again when the viewport grows, which is a tidy-up rather than a
+  feature - the rule is ADR 0007 section 3's, unchanged from Desk's.
+
+  The links are written once as a macro and called twice. Two copies of a
+  navigation is two navigations, and the second one is always a page behind.
+
+  Every href carries `frame.prefix`, which is empty for English and `/zh` for
+  Chinese. A link that drops the prefix is how a translated site loses somebody
+  on their second click.
+
+  The language switcher is a `<details>` for the same reason as the menu, and
+  each entry points at *this* page in that language rather than at the front
+  page - see `pages::Frame::new`.
+#}
+{% macro nav_links(prefix, current, layout) %}
+  <a href="{{ prefix }}/product" class="nav-link {{ layout }}{% if current == "product" %} nav-link-on{% endif %}"
+     {% if current == "product" %}aria-current="page"{% endif %}>{{ t.nav.product }}</a>
+  <a href="{{ prefix }}/pricing" class="nav-link {{ layout }}{% if current == "pricing" %} nav-link-on{% endif %}"
+     {% if current == "pricing" %}aria-current="page"{% endif %}>{{ t.nav.pricing }}</a>
+  <a href="{{ prefix }}/about" class="nav-link {{ layout }}{% if current == "about" %} nav-link-on{% endif %}"
+     {% if current == "about" %}aria-current="page"{% endif %}>{{ t.nav.about }}</a>
+  <a href="{{ prefix }}/contact" class="nav-link {{ layout }}{% if current == "contact" %} nav-link-on{% endif %}"
+     {% if current == "contact" %}aria-current="page"{% endif %}>{{ t.nav.contact }}</a>
+{% endmacro %}
+
+{% macro language_menu(align) %}
+  <details class="relative" data-menu>
+    <summary class="nav-link flex cursor-pointer items-center gap-1.5 px-2.5 py-1.5 marker:content-none" aria-label="{{ t.common.language }}">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" class="size-4" aria-hidden="true">
+        <circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18"/>
+      </svg>
+      {% for alternate in frame.languages %}{% if alternate.current %}{{ alternate.native_name }}{% endif %}{% endfor %}
+    </summary>
+    <ul class="absolute {{ align }} top-full z-10 mt-1 min-w-36 rounded-card border border-edge bg-surface-raised p-1 shadow-pop">
+      {% for alternate in frame.languages %}
+      <li>
+        <a href="{{ alternate.href }}" lang="{{ alternate.code }}"
+           class="block rounded-control px-2.5 py-1.5 text-sm hover:bg-surface-hover {% if alternate.current %}font-medium text-content{% else %}text-content-muted{% endif %}"
+           {% if alternate.current %}aria-current="true"{% endif %}>{{ alternate.native_name }}</a>
+      </li>
+      {% endfor %}
+    </ul>
+  </details>
+{% endmacro %}
+
+<header class="sticky top-0 z-50 border-b border-white/5 bg-surface/80 backdrop-blur">
+  <div class="site-width flex h-14 items-center gap-6">
+    <a href="{% if frame.prefix.is_empty() %}/{% else %}{{ frame.prefix }}{% endif %}"
+       class="flex shrink-0 items-center gap-2.5"
+       aria-label="{{ frame.product_name }} {{ t.common.home_of }}">
+      <span class="grid size-7 place-items-center rounded-[0.55rem] bg-brand text-sm font-black text-on-brand" aria-hidden="true">V</span>
+      <span class="text-[0.95rem] font-semibold tracking-tight">{{ frame.product_name }}</span>
+      {% if let Some(badge) = frame.badge %}
+      <span class="rounded-full border border-edge px-1.5 py-px text-2xs uppercase tracking-wider text-content-subtle">{{ badge }}</span>
+      {% endif %}
+    </a>
+
+    <nav class="hidden flex-1 items-center gap-1 md:flex" aria-label="{{ t.nav.main }}">
+      {% call nav_links(frame.prefix, frame.current, "px-3 py-1.5") %}{% endcall %}
+    </nav>
+
+    <div class="ml-auto hidden items-center gap-2 md:flex">
+      {% call language_menu("right-0") %}{% endcall %}
+      <a href="{{ frame.links.sign_in }}" class="nav-link px-3 py-1.5">{{ t.common.sign_in }}</a>
+      <a href="{{ frame.links.signup }}" class="btn-brand">{{ t.common.get_started }}</a>
+    </div>
+
+    {# The mobile menu. A disclosure, so it is complete with the script switched
+       off - and `md:hidden` on the wrapper rather than on the panel, so a wide
+       viewport never has two navigations in the accessibility tree. #}
+    <details class="ml-auto md:hidden" data-nav>
+      <summary class="grid size-9 cursor-pointer place-items-center rounded-control border border-edge text-content-muted marker:content-none" aria-label="{{ t.common.menu }}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" class="size-5" aria-hidden="true">
+          <path d="M4 7h16M4 12h16M4 17h16" stroke-linecap="round"/>
+        </svg>
+      </summary>
+      <div class="absolute inset-x-0 top-14 border-b border-edge bg-surface-raised p-3 shadow-pop">
+        <nav class="flex flex-col gap-0.5" aria-label="{{ t.nav.main }}">
+          {% call nav_links(frame.prefix, frame.current, "px-3 py-2.5") %}{% endcall %}
+        </nav>
+        <div class="mt-3 flex flex-col gap-2 border-t border-edge pt-3">
+          {% call language_menu("left-0") %}{% endcall %}
+          <a href="{{ frame.links.sign_in }}" class="nav-link px-3 py-2.5">{{ t.common.sign_in }}</a>
+          <a href="{{ frame.links.signup }}" class="btn-brand justify-center">{{ t.common.get_started }}</a>
+        </div>
+      </div>
+    </details>
+  </div>
+</header>

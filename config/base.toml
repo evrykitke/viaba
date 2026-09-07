@@ -678,3 +678,44 @@ setup_link_hours = 48
 # end date - ADR 0005 section 7 - so this is the only number that says what one
 # is.
 trial_days = 30
+
+# ---------------------------------------------------------------------------
+# Global Connect - the public site.
+#
+# A third binary (`global-connect`) reading this same file. It is the front
+# door: what the product is, what it costs, and a way through to /signup. The
+# server and Desk load this section and ignore it.
+#
+# It holds nothing. No database, no cache, no mail server, no form that posts -
+# so everything below is either an address it must be able to name or a ceiling
+# on anonymous traffic. See docs/adr/0007-global-connect.md.
+# ---------------------------------------------------------------------------
+[site]
+# Loopback, with nginx in front on www.<base_domain> and the apex. Same rule as
+# [desk]: a socket on 0.0.0.0 answers whatever Host header it is sent and can be
+# reached by address, which skips server_name matching altogether - and on this
+# box that would be the marketing site answering for a workspace.
+listen = "127.0.0.1:3200"
+# Say so deliberately to bind anywhere else under production. Refused otherwise.
+allow_public = false
+# The wordmark, and the tail of every page title.
+product_name = "Viaba"
+# Where the calls to action point. Blank derives them from [server] - the bare
+# domain is where signing in and signing up live, so a development box and a
+# production box are both right without either being written down. Set these
+# only when the site and the application are not one label apart.
+signup_url = ""
+sign_in_url = ""
+# Behind "Talk to us". A mailto: address, because this site posts nothing.
+# Empty renders no link at all rather than a button addressed to nobody.
+contact_email = ""
+
+# One allowance, because every request here is a page. Deliberately generous:
+# this bounds a crawler that has stopped being polite, not a reader. Which
+# header carries the visitor's address is NOT repeated here - it is
+# [security.rate_limit] client_ip_header, one fact about this deployment behind
+# this proxy.
+[site.rate_limit]
+enabled = true
+requests = 120
+window_secs = 60

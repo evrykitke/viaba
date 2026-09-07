@@ -149,3 +149,17 @@ encryption = "start_tls"
 # it whatever this says - see docs/adr/0004-development-profiler.md section 8.
 [profiler]
 enabled = true
+
+# The public site. Reachable at http://localhost:3200 with no proxy in front,
+# which is why allow_public stays false - loopback is exactly right here.
+#
+# The calls to action are left blank and derive from [server], so "Get started"
+# on the development site goes to http://localhost:3000/signup and actually
+# works. That is the whole reason they are derived rather than written down.
+[site]
+contact_email = "hello@phonix.local"
+
+# Off locally. A limiter that refuses page 121 while somebody is clicking around
+# their own site teaches them nothing except to turn it off.
+[site.rate_limit]
+enabled = false

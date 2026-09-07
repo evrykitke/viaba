@@ -62,6 +62,7 @@ pub fn check(cfg: &AppConfig, mode: RunMode) -> Result<(), ConfigError> {
     check_storage(&cfg.storage)?;
     check_profiler(&cfg.profiler)?;
     check_desk(&cfg.desk)?;
+    check_site(&cfg.site)?;
 
     if mode.is_production() {
         check_production_secrets(cfg)?;
@@ -493,6 +494,56 @@ fn check_desk(desk: &DeskConfig) -> Result<(), ConfigError> {
     Ok(())
 }
 
+/// The public site's own section.
+///
+/// Read by every process for the same reason `[desk]` is: a value that would
+/// refuse to serve is better reported by whichever binary comes up first.
+fn check_site(site: &SiteConfig) -> Result<(), ConfigError> {
+    if site.listen.trim().is_empty() {
+        return Err(ConfigError::invalid("site.listen must not be empty"));
+    }
+    if site.listen.parse::<std::net::SocketAddr>().is_err() {
+        return Err(ConfigError::invalid(format!(
+            "site.listen must be an address and port, got '{}' - for example \
+             127.0.0.1:3200",
+            site.listen
+        )));
+    }
+
+    if site.product_name.trim().is_empty() {
+        return Err(ConfigError::invalid(
+            "site.product_name must not be empty - it is the wordmark, and every \
+             page title is built from it",
+        ));
+    }
+
+    // Blank is legal for both and means "derive from [server]". Present but not
+    // absolute is not: it would render as a link relative to the marketing
+    // site, sending a visitor to a page there that does not exist.
+    for (name, value) in [
+        ("site.signup_url", &site.signup_url),
+        ("site.sign_in_url", &site.sign_in_url),
+    ] {
+        let value = value.trim();
+        if !value.is_empty() && !value.starts_with("http://") && !value.starts_with("https://") {
+            return Err(ConfigError::invalid(format!(
+                "{name} must be an absolute URL, or empty to derive it from \
+                 [server]. Got '{value}'"
+            )));
+        }
+    }
+
+    if site.rate_limit.enabled && site.rate_limit.window_secs == 0 {
+        return Err(ConfigError::invalid(
+            "site.rate_limit.window_secs must be greater than 0 - a window of no \
+             length never resets, so the first visitor to spend the allowance \
+             keeps it spent",
+        ));
+    }
+
+    Ok(())
+}
+
 fn check_tenancy(tenancy: &TenancyConfig) -> Result<(), ConfigError> {
     if tenancy.base_domain.trim().is_empty() {
         return Err(ConfigError::invalid(
@@ -844,6 +895,20 @@ fn check_production_hardening(cfg: &AppConfig) -> Result<(), ConfigError> {
              bind 127.0.0.1, or set desk.allow_public = true to say this is \
              deliberate",
             cfg.desk.listen
+        )));
+    }
+
+    // The site suspends nothing, but the argument has the same shape: behind
+    // nginx it is reachable from any browser, so a socket bound anywhere but
+    // loopback is reachable *without* nginx too - by address and port, skipping
+    // server_name matching. On a box that also serves workspaces, that is the
+    // marketing site answering for a tenant host.
+    if !cfg.site.listens_on_loopback() && !cfg.site.allow_public {
+        return Err(ConfigError::invalid(format!(
+            "site.listen is '{}', which is not loopback. Put nginx in front and \
+             bind 127.0.0.1, or set site.allow_public = true to say this is \
+             deliberate",
+            cfg.site.listen
         )));
     }
 

@@ -1,0 +1,66 @@
+{#
+  Contact.
+
+  There is no form here, and that is ADR 0007 section 5 rather than a page not
+  finished. A form needs somewhere to put what it receives - SMTP, or the
+  catalog - and either one hands back the dependency this site exists without,
+  on the page most likely to be linked from somewhere busy.
+
+  So: an address, and the two things most people arriving here actually wanted,
+  which are to sign in or to start. The three cards are one list in the catalog
+  and three hrefs here, because the words translate and the addresses do not.
+#}
+{% extends "base.html" %}
+
+{% block title %}{{ t.contact.title }}{% endblock %}
+{% block description %}{{ t.contact.description }}{% endblock %}
+
+{% block main %}
+
+<section class="hero hero-short">
+  <div class="site-width relative py-20 sm:py-24">
+    <p class="eyebrow"><span class="size-1.5 rounded-full bg-brand" aria-hidden="true"></span> {{ t.contact.eyebrow }}</p>
+    <h1 class="mt-6 max-w-3xl text-balance text-title font-black leading-[1.02] tracking-tight">{{ t.contact.headline }}</h1>
+    <p class="mt-6 max-w-xl text-lead text-content-muted">{{ t.contact.lede }}</p>
+  </div>
+</section>
+
+<section class="border-t border-edge">
+  <div class="site-width py-16 sm:py-20">
+    <div class="grid gap-4 md:grid-cols-3">
+      {% if let Some(contact) = frame.links.contact %}
+      <a href="{{ contact }}" class="tile tile-link">
+        <div class="tile-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" class="size-6">
+            <path d="M3 7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Zm0 .5 9 6 9-6" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <h2 class="mt-5 text-lg font-semibold tracking-tight">{{ t.contact.cards[0].heading }}</h2>
+        <p class="mt-2 text-sm leading-relaxed text-content-muted">{{ t.contact.cards[0].body }}</p>
+      </a>
+      {% endif %}
+
+      <a href="{{ frame.links.signup }}" class="tile tile-link">
+        <div class="tile-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" class="size-6">
+            <path d="M12 5v14M5 12h14" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <h2 class="mt-5 text-lg font-semibold tracking-tight">{{ t.contact.cards[1].heading }}</h2>
+        <p class="mt-2 text-sm leading-relaxed text-content-muted">{{ t.contact.cards[1].body }}</p>
+      </a>
+
+      <a href="{{ frame.links.sign_in }}" class="tile tile-link">
+        <div class="tile-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" class="size-6 rtl:-scale-x-100">
+            <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M15 12H3" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <h2 class="mt-5 text-lg font-semibold tracking-tight">{{ t.contact.cards[2].heading }}</h2>
+        <p class="mt-2 text-sm leading-relaxed text-content-muted">{{ t.contact.cards[2].body }}</p>
+      </a>
+    </div>
+  </div>
+</section>
+
+{% endblock %}

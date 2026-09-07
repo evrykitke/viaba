@@ -1,0 +1,12 @@
+[package]
+name = "phonix-limit"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+# Counting, and nothing else. No dependencies at all - not axum, not the
+# configuration crate, not even a clock helper. Two applications limit
+# anonymous traffic and they disagree about everything except how a fixed
+# window is counted, so that is the whole of what lives here.
+[dependencies]

@@ -27,6 +27,10 @@ pub struct AppConfig {
     /// binary; the server loads it and ignores it.
     #[serde(default)]
     pub desk: DeskConfig,
+    /// The public site. Read by the `global-connect` binary; the server and
+    /// Desk load it and ignore it.
+    #[serde(default)]
+    pub site: SiteConfig,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -189,6 +193,23 @@ impl ServerConfig {
             format!(".{}", self.base_domain)
         } else {
             format!(".{}:{}", self.base_domain, self.port)
+        }
+    }
+
+    /// Absolute origin of the bare domain, e.g. `http://phonix.local:3000`.
+    ///
+    /// Where signing in and signing up live: [`crate::SiteConfig`] builds its
+    /// calls to action from this, so the public site cannot promise a visitor
+    /// an address this deployment does not serve.
+    pub fn origin(&self) -> String {
+        let default_port = match self.scheme.as_str() {
+            "https" => 443,
+            _ => 80,
+        };
+        if self.port == default_port {
+            format!("{}://{}", self.scheme, self.base_domain)
+        } else {
+            format!("{}://{}:{}", self.scheme, self.base_domain, self.port)
         }
     }
 
@@ -1503,5 +1524,143 @@ impl DeskConfig {
             .parse::<SocketAddr>()
             .map(|addr| addr.ip().is_loopback())
             .unwrap_or(false)
+    }
+}
+
+// ---------------------------------------------------------------------------
+// The public site
+// ---------------------------------------------------------------------------
+
+/// Global Connect: the site the product is reached through.
+///
+/// A third binary reading this same file. It is deliberately the smallest
+/// section here, because the site holds nothing: no database, no cache, no mail
+/// server, no form that posts. Everything below is either an address it must be
+/// able to name or a ceiling on anonymous traffic.
+///
+/// See `docs/adr/0007-global-connect.md`.
+#[derive(Debug, Clone, Deserialize)]
+pub struct SiteConfig {
+    /// Where the site process listens.
+    ///
+    /// Loopback with nginx in front, on `www.<base_domain>` and the apex, for
+    /// the same reason Desk binds this way: a socket on `0.0.0.0` answers
+    /// whatever `Host` header it is sent and can be reached by address, which
+    /// skips `server_name` matching altogether.
+    pub listen: String,
+    /// Deliberate escape hatch for binding somewhere other than loopback under
+    /// production, refused by `validate::check` unless it is set.
+    pub allow_public: bool,
+    /// The name the site wears.
+    ///
+    /// Configuration rather than a literal in ten templates, because it appears
+    /// in the wordmark, the page titles and half the sentences, and a rename
+    /// should not be a search across a directory of HTML.
+    pub product_name: String,
+    /// Where every call to action points, and empty means "work it out".
+    ///
+    /// Derived from `[server]` when blank - the bare domain is where signup
+    /// lives, and deriving it means a development box and a production box are
+    /// both right without either being written down. Set it when the site and
+    /// the application are on hosts that are not one label apart.
+    pub signup_url: String,
+    /// Where "Sign in" points. Blank derives from `[server]`, as above.
+    pub sign_in_url: String,
+    /// Where "Talk to us" points. A `mailto:` address, because the site posts
+    /// nothing - see [`SiteConfig`].
+    pub contact_email: String,
+    pub rate_limit: SiteRateLimitConfig,
+}
+
+/// What one visitor may ask the site for.
+///
+/// Its own numbers rather than `[security.rate_limit]`'s, and that is the one
+/// place the site does not reuse the server's settings. The shapes genuinely
+/// differ: the server's tiers are about a password being guessed at and a
+/// database being created, and the site has neither. Every request here is a
+/// page, so there is one allowance and it is generous.
+///
+/// Which header carries the client's address *is* reused, from
+/// `[security.rate_limit] client_ip_header`. That is a fact about this
+/// deployment behind this proxy, and a second copy of it is a second thing to
+/// get wrong.
+#[derive(Debug, Clone, Deserialize)]
+pub struct SiteRateLimitConfig {
+    pub enabled: bool,
+    /// Requests per window. Zero is read as "not limited".
+    pub requests: u32,
+    pub window_secs: u64,
+}
+
+impl Default for SiteConfig {
+    fn default() -> Self {
+        Self {
+            listen: "127.0.0.1:3200".to_owned(),
+            allow_public: false,
+            product_name: "Viaba".to_owned(),
+            signup_url: String::new(),
+            sign_in_url: String::new(),
+            contact_email: String::new(),
+            rate_limit: SiteRateLimitConfig::default(),
+        }
+    }
+}
+
+impl Default for SiteRateLimitConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            // A visit is a page and the two assets under it, and a person
+            // reading the site clicks through several. Generous on purpose:
+            // this is here to bound a crawler that has stopped being polite,
+            // not to meter a reader.
+            requests: 120,
+            window_secs: 60,
+        }
+    }
+}
+
+impl SiteConfig {
+    /// Whether [`Self::listen`] is a loopback address.
+    ///
+    /// Parsed rather than string-matched, and an address this cannot parse is
+    /// reported as *not* loopback - the safe answer for a value that is about
+    /// to be refused under production anyway.
+    pub fn listens_on_loopback(&self) -> bool {
+        use std::net::SocketAddr;
+
+        self.listen
+            .parse::<SocketAddr>()
+            .map(|addr| addr.ip().is_loopback())
+            .unwrap_or(false)
+    }
+
+    /// Where "Get started" goes.
+    pub fn signup_url(&self, server: &ServerConfig) -> String {
+        if self.signup_url.trim().is_empty() {
+            format!("{}/signup", server.origin())
+        } else {
+            self.signup_url.trim().to_owned()
+        }
+    }
+
+    /// Where "Sign in" goes.
+    pub fn sign_in_url(&self, server: &ServerConfig) -> String {
+        if self.sign_in_url.trim().is_empty() {
+            server.origin()
+        } else {
+            self.sign_in_url.trim().to_owned()
+        }
+    }
+
+    /// The `mailto:` behind "Talk to us", or `None` to render no link at all.
+    ///
+    /// `None` rather than a placeholder: a button that opens a mail client
+    /// addressed to nobody is worse than no button, and this is the same rule
+    /// `[app.links]` already follows.
+    pub fn contact_mailto(&self) -> Option<String> {
+        let address = self.contact_email.trim();
+
+        (!address.is_empty()).then(|| format!("mailto:{address}"))
     }
 }
