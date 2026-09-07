@@ -100,25 +100,25 @@ fn item_editor(draft: ItemInput) -> impl IntoView {
 
     let details_tab = Tab::new("details", "Details", move || {
         view! {
-            <div class="max-w-3xl">
-                <Panel>
-                    <Transition fallback=|| {
-                        view! { <p class="text-sm text-content-subtle">{l!("common.loading")}</p> }
-                    }>
-                        {move || Suspend::new(async move {
-                            let categories = categories.await.unwrap_or_default();
-                            let units = units.await.unwrap_or_default();
+            // No measure of its own: the form asks for the whole width, and a
+            // wrapper here would take back what it asked for.
+            <Panel>
+                <Transition fallback=|| {
+                    view! { <p class="text-sm text-content-subtle">{l!("common.loading")}</p> }
+                }>
+                    {move || Suspend::new(async move {
+                        let categories = categories.await.unwrap_or_default();
+                        let units = units.await.unwrap_or_default();
 
-                            view! {
-                                <EntityForm
-                                    config=item_form(categories, units)
-                                    value=value.get_untracked()
-                                />
-                            }
-                        })}
-                    </Transition>
-                </Panel>
-            </div>
+                        view! {
+                            <EntityForm
+                                config=item_form(categories, units)
+                                value=value.get_untracked()
+                            />
+                        }
+                    })}
+                </Transition>
+            </Panel>
         }
         .into_any()
     })

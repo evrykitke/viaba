@@ -175,6 +175,39 @@ pub async fn current_year(pool: &PgPool) -> ServiceResult<i32> {
     })
 }
 
+/// The year the "open a financial year" button should offer.
+///
+/// The year the workspace is in, unless the calendar already reaches into it -
+/// then the one after the last year it reaches.
+///
+/// The distinction is the whole point. A workspace whose calendar has never
+/// been opened cannot post anything today, and offering it *next* year is the
+/// wrong answer to the only question it has. Once this year is open, the
+/// button's job changes: what runs out is the far end of the calendar, and it
+/// is discovered by somebody trying to post into January.
+pub async fn next_year_to_open(pool: &PgPool) -> ServiceResult<i32> {
+    let current = current_year(pool).await?;
+
+    // The last day rather than a count: a workspace that opened half of this
+    // year has periods and still needs the rest of it, and the far end is what
+    // says which year that is.
+    let Some(last_day) = store::last_day(pool).await? else {
+        return Ok(current);
+    };
+
+    // Which financial year that day belongs to, by the same rule
+    // `current_year` uses for today.
+    let profile = crate::workspace::profile::current(pool).await?;
+    let month = u32::from(profile.fiscal_year_start_month).clamp(1, 12);
+    let reached = if last_day.month() >= month {
+        last_day.year()
+    } else {
+        last_day.year() - 1
+    };
+
+    Ok(if reached >= current { reached + 1 } else { current })
+}
+
 fn rejected(err: &PeriodError) -> ServiceError {
     ServiceError::rejected("entry_date", err.message())
 }

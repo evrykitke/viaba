@@ -55,12 +55,7 @@ pub fn warehouse_new_page() -> impl IntoView {
         />
 
         <div class="max-w-3xl">
-            <CollapsibleCard
-                title=l!("warehouses.new")
-                detail=l!("warehouses.new.subtitle")
-                icon=Icon::Warehouse
-                open=true
-            >
+            <CollapsibleCard open=true>
                 <EntityForm config=warehouse_form() value=WarehouseInput::blank() />
             </CollapsibleCard>
         </div>
@@ -122,7 +117,7 @@ fn warehouse_editor(draft: WarehouseInput) -> impl IntoView {
     let details_tab = Tab::new("details", "Details", move || {
         view! {
             <div class="max-w-3xl">
-                <CollapsibleCard title=l!("warehouses.edit") icon=Icon::Warehouse open=true>
+                <CollapsibleCard open=true>
                     <EntityForm config=warehouse_form() value=value.get_untracked() />
                 </CollapsibleCard>
             </div>

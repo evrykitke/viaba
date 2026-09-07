@@ -41,6 +41,7 @@ use phonix_core::identity::AuthUser;
 
 use super::kind::FieldKind;
 use super::value::FieldValue;
+use crate::icons::Icon;
 use crate::ui::lookup::{Choices, QuickAdd};
 
 /// How a draft is read for one field.
@@ -101,6 +102,10 @@ pub struct FieldGroup {
     /// Stable, and what the tab strip keys on.
     pub key: &'static str,
     pub label: String,
+    /// Beside the label. Optional, and only worth having where the icon says
+    /// something the word does not - a tab strip of five generic glyphs is
+    /// five things to decode before reading the five words beside them.
+    pub icon: Option<Icon>,
 }
 
 impl<T: 'static> Clone for Field<T> {
@@ -406,6 +411,26 @@ impl<T: 'static> Field<T> {
         self.group = Some(FieldGroup {
             key,
             label: label.into(),
+            icon: None,
+        });
+        self
+    }
+
+    /// The same, with an icon on the tab.
+    ///
+    /// The icon is the tab's, not the field's: the first field to name a tab is
+    /// the one whose icon it wears, and the rest may leave it off.
+    #[must_use]
+    pub fn on_tab_with(
+        mut self,
+        key: &'static str,
+        label: impl Into<String>,
+        icon: Icon,
+    ) -> Self {
+        self.group = Some(FieldGroup {
+            key,
+            label: label.into(),
+            icon: Some(icon),
         });
         self
     }

@@ -48,13 +48,10 @@ pub fn item_new_page() -> impl IntoView {
             back=("/inventory/items", l!("items.title"))
         />
 
-        <div class="max-w-3xl">
-            <CollapsibleCard
-                title=l!("items.new")
-                detail=l!("items.new.subtitle")
-                icon=Icon::Package
-                open=true
-            >
+        // Headless, and no measure: the heading above already says what this
+        // is, and the form asks for the whole width.
+        <div>
+            <CollapsibleCard open=true>
                 <Transition fallback=|| {
                     view! { <p class="text-sm text-content-subtle">{l!("common.loading")}</p> }
                 }>

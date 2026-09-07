@@ -58,12 +58,7 @@ pub fn stock_location_new_page() -> impl IntoView {
         />
 
         <div class="max-w-3xl">
-            <CollapsibleCard
-                title=l!("locations.new")
-                detail=l!("locations.new.subtitle")
-                icon=Icon::Boxes
-                open=true
-            >
+            <CollapsibleCard open=true>
                 <Transition fallback=|| {
                     view! { <p class="text-sm text-content-subtle">{l!("common.loading")}</p> }
                 }>
@@ -147,7 +142,7 @@ fn stock_location_editor(draft: LocationInput) -> impl IntoView {
     let details_tab = Tab::new("details", "Details", move || {
         view! {
             <div class="max-w-3xl">
-                <CollapsibleCard title=l!("locations.edit") icon=Icon::Boxes open=true>
+                <CollapsibleCard open=true>
                     <Transition fallback=|| {
                         view! { <p class="text-sm text-content-subtle">{l!("common.loading")}</p> }
                     }>

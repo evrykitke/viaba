@@ -94,6 +94,9 @@ pub struct FormConfig<T: 'static> {
     /// Two columns above `sm`, or one all the way up. One column suits a short
     /// form and a modal; two suit an edit page with a dozen fields.
     pub(crate) columns: u8,
+    /// Whether the form takes the width it is given rather than the reading
+    /// measure. See [`FormConfig::full_width`].
+    pub(crate) full_width: bool,
     /// Where this form's outcomes are shown - both what a save reports and
     /// what the server said when one failed.
     pub(crate) reports: Channel,
@@ -108,6 +111,7 @@ impl<T: 'static> Clone for FormConfig<T> {
             submit: Arc::clone(&self.submit),
             note: self.note.clone(),
             columns: self.columns,
+            full_width: self.full_width,
             reports: self.reports,
         }
     }
@@ -137,6 +141,7 @@ impl<T: 'static> FormConfig<T> {
             }),
             note: None,
             columns: 2,
+            full_width: false,
             reports: Channel::default(),
         }
     }
@@ -168,6 +173,20 @@ impl<T: 'static> FormConfig<T> {
     #[must_use]
     pub const fn single_column(mut self) -> Self {
         self.columns = 1;
+        self
+    }
+
+    /// Take the whole width rather than the reading measure.
+    ///
+    /// The measure is the default and stays the default: a control stretched
+    /// across 700px of a wide monitor is not answering a question anybody
+    /// asked. This is for the form that is a *workbench* rather than a
+    /// questionnaire - one dealt into tabs, where each tab is a handful of
+    /// fields and the ceiling would leave two thirds of the screen empty while
+    /// the person scrolls the third that is not.
+    #[must_use]
+    pub const fn full_width(mut self) -> Self {
+        self.full_width = true;
         self
     }
 

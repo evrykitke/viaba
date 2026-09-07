@@ -55,12 +55,7 @@ pub fn item_category_new_page() -> impl IntoView {
         />
 
         <div class="max-w-3xl">
-            <CollapsibleCard
-                title=l!("categories.new")
-                detail=l!("categories.new.subtitle")
-                icon=Icon::ListTree
-                open=true
-            >
+            <CollapsibleCard open=true>
                 <Transition fallback=|| {
                     view! { <p class="text-sm text-content-subtle">{l!("common.loading")}</p> }
                 }>
@@ -137,7 +132,7 @@ fn item_category_editor(draft: CategoryInput) -> impl IntoView {
     let details_tab = Tab::new("details", "Details", move || {
         view! {
             <div class="max-w-3xl">
-                <CollapsibleCard title=l!("categories.edit") icon=Icon::ListTree open=true>
+                <CollapsibleCard open=true>
                     <Transition fallback=|| {
                         view! { <p class="text-sm text-content-subtle">{l!("common.loading")}</p> }
                     }>

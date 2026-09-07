@@ -16,7 +16,7 @@ use crate::components::page::{Badge, PageHeader, Tone};
 use crate::icons::{Icon, IconSize};
 use crate::l;
 use crate::server_fns::books_fns::{
-    current_financial_year, list_periods, open_financial_year, set_period_closed,
+    list_periods, next_year_to_open, open_financial_year, set_period_closed,
 };
 use crate::ui::alert::{Alert, Alerts, Confirm};
 use crate::ui::viewer::Viewer;
@@ -172,19 +172,22 @@ fn period_row(period: Period, refresh: Callback<()>) -> impl IntoView {
     }
 }
 
-/// Opening the next financial year.
+/// Opening a financial year.
 ///
-/// Offers the year the workspace is in, then the one after it, because the
-/// calendar running out is discovered by somebody trying to post into January.
+/// Offers the year the workspace is in until that year is open, and the one
+/// after the calendar's far end afterwards. Those are two different questions
+/// and the button answers whichever the workspace actually has: a calendar that
+/// has never been opened is discovered by somebody who cannot post today, and
+/// one running out is discovered by somebody trying to post into January.
 #[component]
 fn open_year_button(refresh: Callback<()>) -> impl IntoView {
     let viewer = Viewer::get();
     let alerts = Alerts::get();
 
-    let current = Resource::new(
+    let offered = Resource::new(
         || (),
         |()| async move {
-            current_financial_year()
+            next_year_to_open()
                 .await
                 .unwrap_or_else(|_| Utc::now().date_naive().year())
         },
@@ -200,7 +203,7 @@ fn open_year_button(refresh: Callback<()>) -> impl IntoView {
         <Show when=may_manage fallback=|| ()>
             <Suspense fallback=|| ()>
                 {move || Suspend::new(async move {
-                    let next = current.await + 1;
+                    let next = offered.await;
 
                     let open = move |_| {
                         leptos::task::spawn_local(async move {

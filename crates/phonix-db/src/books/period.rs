@@ -30,6 +30,20 @@ where
     .collect())
 }
 
+/// The last day the calendar reaches, or `None` where it has never been opened.
+///
+/// What decides which year the "open a year" button offers. A workspace with no
+/// periods should be offered the one it is in, not the one after it.
+pub async fn last_day<'e, E>(executor: E) -> Result<Option<NaiveDate>, DbError>
+where
+    E: PgExecutor<'e>,
+{
+    sqlx::query_scalar("SELECT max(ends_on) FROM books.periods")
+        .fetch_one(executor)
+        .await
+        .map_err(DbError::Query)
+}
+
 /// The period a date falls in, if the calendar has been opened that far.
 pub async fn covering<'e, E>(executor: E, date: NaiveDate) -> Result<Option<Period>, DbError>
 where

@@ -69,13 +69,17 @@ pub fn item_form(categories: Vec<Category>, units: Vec<Unit>) -> FormConfig<Item
     let named = categories.clone();
 
     FormConfig::new("item", |draft: ItemInput| async move { save_item(draft).await })
+        // A workbench rather than a questionnaire: five tabs of a handful of
+        // fields each, where the reading measure would leave two thirds of a
+        // wide screen empty and the person scrolling the third that is not.
+        .full_width()
         .field(
             Field::text("name", l!("field.name"), |m: &ItemInput| {
                 FieldValue::text(&m.name)
             })
             .writing(|m, value| m.name = value.as_input())
             .placeholder("Widget, 12mm")
-            .on_tab(GENERAL, l!("items.tab.general"))
+            .on_tab_with(GENERAL, l!("items.tab.general"), Icon::Package)
             .require(permissions::ITEMS_EDIT)
             .required(),
         )
@@ -165,7 +169,7 @@ pub fn item_form(categories: Vec<Category>, units: Vec<Unit>) -> FormConfig<Item
             .help(l!("items.tracked_help"))
             // A service has no quantity, ever.
             .when(|m: &ItemInput| m.kind.can_be_stocked())
-            .on_tab(STOCK, l!("items.tab.stock"))
+            .on_tab_with(STOCK, l!("items.tab.stock"), Icon::Boxes)
             .require(permissions::ITEMS_EDIT),
         )
         .field(
@@ -246,7 +250,7 @@ pub fn item_form(categories: Vec<Category>, units: Vec<Unit>) -> FormConfig<Item
                 |m: &ItemInput| FieldValue::Bool(m.can_be_purchased),
             )
             .writing(|m, value| m.can_be_purchased = value.as_bool())
-            .on_tab(BUYING, l!("items.tab.buying"))
+            .on_tab_with(BUYING, l!("items.tab.buying"), Icon::Truck)
             .require(permissions::ITEMS_EDIT),
         )
         .field(
@@ -308,7 +312,7 @@ pub fn item_form(categories: Vec<Category>, units: Vec<Unit>) -> FormConfig<Item
                 FieldValue::Bool(m.can_be_sold)
             })
             .writing(|m, value| m.can_be_sold = value.as_bool())
-            .on_tab(SELLING, l!("items.tab.selling"))
+            .on_tab_with(SELLING, l!("items.tab.selling"), Icon::ShoppingCart)
             .require(permissions::ITEMS_EDIT),
         )
         .field(
@@ -331,7 +335,7 @@ pub fn item_form(categories: Vec<Category>, units: Vec<Unit>) -> FormConfig<Item
                 FieldValue::text(&m.description)
             })
             .writing(|m, value| m.description = value.as_input())
-            .on_tab(NOTES, l!("items.tab.notes"))
+            .on_tab_with(NOTES, l!("items.tab.notes"), Icon::FileText)
             .require(permissions::ITEMS_EDIT),
         )
         .action(

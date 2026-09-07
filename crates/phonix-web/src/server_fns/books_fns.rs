@@ -251,15 +251,20 @@ pub async fn set_period_closed(period_id: Uuid, closed: bool) -> Result<Period, 
     result.map_err(service_error)
 }
 
-/// The financial year this workspace is currently in - what the calendar screen
-/// offers to open when it runs out.
-#[server(name = CurrentFinancialYear, prefix = "/api", endpoint = "books/periods/current-year")]
-pub async fn current_financial_year() -> Result<i32, ServerFnError> {
+/// The year the "open a financial year" button should offer.
+///
+/// Not the current year plus one. A workspace whose calendar has never been
+/// opened is offered the year it is *in* - offering it next year is the wrong
+/// answer to the only question it has, which is why nothing can be posted
+/// today. Once this year is open the question changes to the far end of the
+/// calendar, and so does the answer.
+#[server(name = NextYearToOpen, prefix = "/api", endpoint = "books/periods/next-year")]
+pub async fn next_year_to_open() -> Result<i32, ServerFnError> {
     use crate::state::{service_error, tenant_pool};
 
     let pool = tenant_pool().await?;
 
-    phonix_services::books::period::current_year(&pool)
+    phonix_services::books::period::next_year_to_open(&pool)
         .await
         .map_err(service_error)
 }

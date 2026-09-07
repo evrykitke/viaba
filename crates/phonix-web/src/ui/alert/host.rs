@@ -62,6 +62,12 @@ pub fn alert_layer() -> impl IntoView {
 }
 
 /// The cards in the corner.
+///
+/// Top right, under the top bar. A toast reports what just happened, and what
+/// just happened was a click - which was at the top of the screen, on a
+/// toolbar button or a form's save. The bottom of the window is the furthest
+/// point on the page from wherever the person was looking, and on a long screen
+/// it is off the bottom of their attention entirely.
 #[component]
 fn toast_stack(alerts: Alerts) -> impl IntoView {
     let toasts = alerts.toasts;
@@ -72,7 +78,9 @@ fn toast_stack(alerts: Alerts) -> impl IntoView {
         // end, and without this it would swallow every click along the bottom
         // of the page whether or not a toast was showing.
         <div
-            class="pointer-events-none fixed inset-x-0 bottom-0 z-[60] flex flex-col items-end gap-2 p-3"
+            // `top-topbar` rather than `top-0`: the chrome is 44px of buttons
+            // and a toast painted over them hides the control that raised it.
+            class="pointer-events-none fixed inset-x-0 top-topbar z-[60] flex flex-col items-end gap-2 p-3"
             aria-live="polite"
             aria-atomic="false"
         >

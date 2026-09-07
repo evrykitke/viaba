@@ -140,6 +140,7 @@ pub fn entity_form<T: Draft>(
     let buttons = config.buttons();
     let note = config.note.clone();
     let columns = config.columns;
+    let unbounded = config.full_width;
     let form_id = config.id();
     let reports = config.reports;
     let config = StoredValue::new(config);
@@ -160,7 +161,11 @@ pub fn entity_form<T: Draft>(
     //
     // Two columns need room for two; one column carries the multiline fields,
     // which want a comfortable line rather than a comfortable name.
-    let measure = if columns > 1 {
+    let measure = if unbounded {
+        // Asked for explicitly, and only by a form that is a workbench rather
+        // than a questionnaire. See `FormConfig::full_width`.
+        "space-y-4"
+    } else if columns > 1 {
         "max-w-5xl space-y-4"
     } else {
         "max-w-3xl space-y-4"
@@ -374,6 +379,7 @@ fn form_tabs(
                 .map(|tab| {
                     let key = tab.key;
                     let label = tab.label.clone();
+                    let icon = tab.icon;
                     let on = move || showing.get() == Some(key);
 
                     view! {
@@ -393,6 +399,10 @@ fn form_tabs(
                             }
                             on:click=move |_| showing.set(Some(key))
                         >
+                            {icon
+                                .map(|icon| {
+                                    view! { <Icon icon=icon size=IconSize::Xs /> }
+                                })}
                             {label}
                             {move || {
                                 faulty

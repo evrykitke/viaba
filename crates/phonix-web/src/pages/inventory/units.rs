@@ -61,12 +61,7 @@ pub fn unit_new_page() -> impl IntoView {
         // A single-column form, so the card ends where it ends rather than
         // stretching four short fields across a wide monitor.
         <div class="max-w-3xl">
-            <CollapsibleCard
-                title=l!("units.new")
-                detail=l!("units.new.subtitle")
-                icon=Icon::Ruler
-                open=true
-            >
+            <CollapsibleCard open=true>
                 <Transition fallback=|| {
                     view! { <p class="text-sm text-content-subtle">{l!("common.loading")}</p> }
                 }>
@@ -144,7 +139,7 @@ fn unit_editor(draft: UnitInput) -> impl IntoView {
     let details_tab = Tab::new("details", "Details", move || {
         view! {
             <div class="max-w-3xl">
-                <CollapsibleCard title=l!("units.edit") icon=Icon::Ruler open=true>
+                <CollapsibleCard open=true>
                     <Transition fallback=|| {
                         view! { <p class="text-sm text-content-subtle">{l!("common.loading")}</p> }
                     }>

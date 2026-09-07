@@ -40,6 +40,22 @@
 //!     <p>"Whatever the card is hiding."</p>
 //! </CollapsibleCard>
 //! ```
+//!
+//! # Leaving the title off
+//!
+//! A card with no `title` is *headless*: a slim strip with the chevron on it
+//! and nothing else, and the contents directly beneath.
+//!
+//! That is the right shape for the single card that is the whole page. The page
+//! already has a heading, an icon and a line of explanation at the top, and a
+//! card underneath repeating all three says the same thing twice and pushes the
+//! first field further down for the privilege. What is still worth having is
+//! the collapse - a long form somebody wants out of the way while they read
+//! what is under it - so that is what is kept.
+//!
+//! It is not the shape for a card in a stack. There the header is how somebody
+//! decides which one to open, and a stack of identical strips is a stack of
+//! things nobody can choose between.
 
 use leptos::prelude::*;
 
@@ -52,7 +68,10 @@ use crate::icons::{Icon, IconSize};
 /// rather than a signal, and why there is no way to open it from outside.
 #[component]
 pub fn collapsible_card(
-    #[prop(into)] title: String,
+    /// Left off for a headless card: a strip with the chevron and no header.
+    /// See the module documentation for when that is right.
+    #[prop(optional, into)]
+    title: Option<String>,
     /// The line under the title. A sentence, not a label - this is the part
     /// somebody reads to decide whether to open it.
     #[prop(optional, into)]
@@ -77,6 +96,11 @@ pub fn collapsible_card(
     problems: Signal<u32>,
     children: Children,
 ) -> impl IntoView {
+    // No title is the whole of what makes a card headless: there is nothing for
+    // the icon to sit beside and nothing for the detail to explain, so both are
+    // dropped rather than drawn on their own.
+    let headless = title.is_none();
+
     view! {
         // `group` so the chevron and the icon tile can answer to the card's
         // own `[open]` rather than each carrying state.
@@ -91,8 +115,13 @@ pub fn collapsible_card(
             }
             open=open
         >
-            <summary class="flex cursor-pointer items-start gap-3 rounded-card p-4 hover:bg-surface-hover group-open:rounded-b-none">
+            <summary class=if headless {
+                "flex cursor-pointer items-center justify-end gap-2 rounded-card px-3 py-1.5 hover:bg-surface-hover group-open:rounded-b-none"
+            } else {
+                "flex cursor-pointer items-start gap-3 rounded-card p-4 hover:bg-surface-hover group-open:rounded-b-none"
+            }>
                 {icon
+                    .filter(|_| !headless)
                     .map(|icon| {
                         view! {
                             <span class="grid size-9 shrink-0 place-items-center rounded-control bg-surface-sunken text-content-muted transition-colors group-open:bg-brand-subtle group-open:text-brand">
@@ -101,17 +130,22 @@ pub fn collapsible_card(
                         }
                     })}
 
-                <span class="min-w-0 flex-1">
-                    <span class="block text-sm font-medium text-content">{title}</span>
-                    {detail
-                        .map(|detail| {
-                            view! {
-                                <span class="mt-0.5 block text-xs leading-relaxed text-content-muted">
-                                    {detail}
-                                </span>
-                            }
-                        })}
-                </span>
+                {title
+                    .map(|title| {
+                        view! {
+                            <span class="min-w-0 flex-1">
+                                <span class="block text-sm font-medium text-content">{title}</span>
+                                {detail
+                                    .map(|detail| {
+                                        view! {
+                                            <span class="mt-0.5 block text-xs leading-relaxed text-content-muted">
+                                                {detail}
+                                            </span>
+                                        }
+                                    })}
+                            </span>
+                        }
+                    })}
 
                 {move || {
                     let count = problems.get();
@@ -141,7 +175,11 @@ pub fn collapsible_card(
                 // Decoration: the summary is already announced as a disclosure
                 // and already says whether it is expanded.
                 <span
-                    class="mt-0.5 shrink-0 text-content-subtle transition-transform duration-150 group-open:rotate-180"
+                    class=if headless {
+                        "shrink-0 text-content-subtle transition-transform duration-150 group-open:rotate-180"
+                    } else {
+                        "mt-0.5 shrink-0 text-content-subtle transition-transform duration-150 group-open:rotate-180"
+                    }
                     aria-hidden="true"
                 >
                     <Icon icon=Icon::ChevronDown size=IconSize::Xs />
@@ -149,8 +187,12 @@ pub fn collapsible_card(
             </summary>
 
             // Divided from the header rather than floated below it: the border
-            // is what stops an open card reading as two cards.
-            <div class="border-t border-edge px-4 py-4">{children()}</div>
+            // is what stops an open card reading as two cards. A headless card
+            // has no header to be divided from, and a rule under a strip of
+            // nothing would draw the eye to the one part with nothing in it.
+            <div class=if headless { "px-4 pb-4" } else { "border-t border-edge px-4 py-4" }>
+                {children()}
+            </div>
         </details>
     }
 }
