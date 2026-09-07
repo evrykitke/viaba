@@ -264,7 +264,10 @@ pub fn tax_group_form(codes: Vec<TaxCode>) -> FormConfig<TaxGroupInput> {
 }
 
 fn country_choices() -> Vec<Choice> {
-    std::iter::once(Choice::new(NOT_SET, l!("common.not_set")))
+    // No empty entry here: the renderer adds one to every select that is not
+    // required, and a second would read as two answers that both mean nothing.
+    // What it is called is `Field::none_label`.
+    std::iter::empty()
         .chain(
             Country::all_by_name()
                 .into_iter()

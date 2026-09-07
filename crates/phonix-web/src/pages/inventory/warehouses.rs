@@ -116,6 +116,7 @@ fn warehouse_editor(draft: WarehouseInput) -> impl IntoView {
     let warehouse_id = draft.id.unwrap_or_else(Uuid::nil);
     let title = format!("{} · {}", draft.code, draft.name);
     let is_active = draft.is_active;
+    let is_default = draft.is_default;
     let value = RwSignal::new(draft);
 
     let details_tab = Tab::new("details", "Details", move || {
@@ -144,6 +145,10 @@ fn warehouse_editor(draft: WarehouseInput) -> impl IntoView {
             back=("/inventory/warehouses", l!("warehouses.title"))
         >
             <div class="flex flex-wrap items-center gap-1.5">
+                {is_default
+                    .then(|| {
+                        view! { <Badge label=l!("warehouses.default") tone=Tone::Brand /> }
+                    })}
                 {(!is_active).then(|| view! { <Badge label=l!("common.inactive") /> })}
             </div>
         </PageHeader>

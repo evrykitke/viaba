@@ -49,6 +49,7 @@ use super::kind::FieldKind;
 use super::state::FormState;
 use super::value::FieldValue;
 use crate::l;
+use crate::ui::editor::RichText;
 use crate::ui::lookup::{LookupField, SelectField};
 
 /// One field, drawn.
@@ -316,16 +317,63 @@ where
         }
             .into_any(),
 
+        FieldKind::RichText => {
+            // The editor owns a signal rather than reading and writing through
+            // the draft on every keystroke. It is a contenteditable built by a
+            // bundle that lands after this renders: setting its value from
+            // outside replaces what is on screen, so a round trip through the
+            // draft on each input would move the caret to the end of the
+            // document on every character.
+            //
+            // Seeded from the draft, written back on change, and never read
+            // back the other way. `held` rather than `current`, for the reason
+            // the lookup below gives: a control that writes the draft from
+            // inside an effect must not also track it, or the effect re-runs
+            // itself for ever.
+            let document = RwSignal::new(held().as_input());
+
+            Effect::new(move |previous: Option<String>| {
+                let html = document.get();
+
+                // The first run is the seed, and the seed is not an edit: a
+                // form that marked itself dirty the moment it drew would offer
+                // to discard changes nobody made.
+                if previous.is_some() {
+                    set(html.clone());
+                }
+
+                html
+            });
+
+            view! {
+                <RichText
+                    value=document
+                    disabled=!editable
+                    label=field.with_value(|field| field.label.clone())
+                />
+            }
+            .into_any()
+        }
+
         FieldKind::Select { choices } => {
             // An unset field needs somewhere to sit, or it silently reads as
             // its first option - a value nobody chose. Where the field is not
             // required that place is also an answer, so it is an entry in the
             // list; where it is required it is only a prompt, and the way out
             // of a chosen value is to choose another one.
+            //
+            // Named by the field where it means something - "Top level" rather
+            // than "None". Pushing that into the list as a second empty choice
+            // is what gives a reader two entries that both mean nothing and
+            // both read as chosen.
+            let nothing = field
+                .with_value(|field| field.none_label.clone())
+                .unwrap_or_else(|| l!("form.none"));
+
             let options = if required {
                 choices
             } else {
-                let mut options = vec![Choice::new(String::new(), l!("form.none"))];
+                let mut options = vec![Choice::new(String::new(), nothing.clone())];
                 options.extend(choices);
                 options
             };
@@ -336,7 +384,7 @@ where
                     value=Signal::derive(move || current().as_input())
                     on_change=Callback::new(move |value: String| set(value))
                     options=options
-                    placeholder=if required { l!("form.choose_one") } else { l!("form.none") }
+                    placeholder=if required { l!("form.choose_one") } else { nothing }
                     disabled=!editable
                     invalid=Signal::derive(move || invalid.get().is_some())
                     required=required

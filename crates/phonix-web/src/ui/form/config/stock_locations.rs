@@ -89,6 +89,7 @@ pub fn stock_location_form(
         // A transit location stands outside the warehouse tree, so the field
         // has nothing to offer it.
         .when(|m: &LocationInput| m.kind != LocationKind::Transit)
+        .none_label(l!("locations.parent.none"))
         .require(permissions::STOCK_LOCATIONS_MANAGE),
     )
     .field(
@@ -111,6 +112,7 @@ pub fn stock_location_form(
                 .and_then(|raw| Uuid::parse_str(raw).ok());
         })
         .when(|m: &LocationInput| m.kind != LocationKind::Transit)
+        .none_label(l!("locations.warehouse.none"))
         .require(permissions::STOCK_LOCATIONS_MANAGE),
     )
     .field(
@@ -146,10 +148,11 @@ pub fn stock_location_form(
         .require(permissions::STOCK_LOCATIONS_MANAGE),
     )
     .field(
-        Field::toggle("is_active", l!("field.status"), |m: &LocationInput| {
+        Field::toggle("is_active", l!("field.in_use"), |m: &LocationInput| {
             FieldValue::Bool(m.is_active)
         })
         .writing(|m, value| m.is_active = value.as_bool())
+        .help(l!("locations.active_help"))
         .require(permissions::STOCK_LOCATIONS_MANAGE),
     )
     .action(
@@ -176,7 +179,7 @@ fn kind_choices() -> Vec<Choice> {
 /// those against the tree, and a picker that half-enforced the rule would be
 /// trusted.
 fn parent_choices(editing: Option<Uuid>, locations: &[LocationSummary]) -> Vec<Choice> {
-    let mut choices = vec![Choice::new(NOT_SET, l!("locations.parent.none"))];
+    let mut choices = Vec::new();
 
     choices.extend(
         locations
@@ -194,7 +197,7 @@ fn parent_choices(editing: Option<Uuid>, locations: &[LocationSummary]) -> Vec<C
 }
 
 fn warehouse_choices(warehouses: &[Warehouse]) -> Vec<Choice> {
-    let mut choices = vec![Choice::new(NOT_SET, l!("locations.warehouse.none"))];
+    let mut choices = Vec::new();
 
     choices.extend(
         warehouses

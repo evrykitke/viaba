@@ -170,7 +170,8 @@ CREATE INDEX variant_values_value ON variant_values (value_id);
 -- An image belongs to an item, and optionally to one variant of it: the red
 -- shirt gets its own photograph, and everything else falls back to the item's.
 --
--- `file_id` points into `core.files`, which is core rather than another app, so
+-- `file_id` points into `core.file_uploads`, which is core rather than another
+-- app, so
 -- this one IS a real foreign key. RESTRICT rather than CASCADE: deleting a
 -- stored file out from under a product image would leave a tile that renders
 -- nothing, and the file screen should say what is using it instead.
@@ -182,7 +183,7 @@ CREATE TABLE item_images (
     -- NULL means "the item's own picture", used by every variant that has none.
     variant_id  UUID REFERENCES item_variants (id) ON DELETE CASCADE,
 
-    file_id     UUID NOT NULL REFERENCES core.files (id) ON DELETE RESTRICT,
+    file_id     UUID NOT NULL REFERENCES core.file_uploads (id) ON DELETE RESTRICT,
 
     -- What a screen reader says, and what a printed catalogue captions.
     alt_text    TEXT,

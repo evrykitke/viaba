@@ -41,6 +41,14 @@ pub enum FieldKind {
     Multiline {
         rows: u8,
     },
+    /// A formatted document, drawn by [`crate::ui::editor`].
+    ///
+    /// Its own kind rather than a flag on `Multiline`, because what it holds is
+    /// different: a textarea holds text and this holds HTML. A description that
+    /// is a paragraph, a bulleted list and a table is what a catalogue prints
+    /// and what a quotation pastes, and a textarea can only hold that as a wall
+    /// of characters somebody has to reformat by hand.
+    RichText,
     Number {
         min: Option<f64>,
         max: Option<f64>,
@@ -84,6 +92,7 @@ impl FieldKind {
             Self::Password => Some("password"),
             Self::Number { .. } => Some("number"),
             Self::Multiline { .. }
+            | Self::RichText
             | Self::Toggle
             | Self::Select { .. }
             | Self::MultiSelect { .. }

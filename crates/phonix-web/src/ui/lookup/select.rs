@@ -133,6 +133,18 @@ pub fn select_field(
     /// toolbar, the page size under a table.
     #[prop(optional, into)]
     label: Option<String>,
+    /// Draws the label *inside* the field, above the value.
+    ///
+    /// For a control that has nowhere to put a label beside it. A row of
+    /// dropdowns in a toolbar reading "All", "All", "Counted" says nothing
+    /// about what each one narrows, and the alternative - a `<label>` in front
+    /// of each - is a bar that is mostly words. This keeps the caption with the
+    /// value it belongs to and costs a line of height.
+    ///
+    /// Implies [`label`](Self) for the accessible name, so a caller passing
+    /// this alone still announces the field.
+    #[prop(optional, into)]
+    caption: Option<String>,
     /// Sizing and nothing else: `h-8 w-auto` for a toolbar, the default inside
     /// a form. The border, fill and radius come from `.lookup-shell` in the
     /// stylesheet - see the note on the `--control-*` tokens there.
@@ -317,6 +329,16 @@ pub fn select_field(
 
     let empty = placeholder.unwrap_or_else(|| l!("lookup.nothing_chosen"));
 
+    // The caption stands in for the accessible name where no separate label
+    // was given: a field announced as nothing is worse than one announced
+    // twice.
+    let announced = label.or_else(|| caption.clone());
+    let caption = caption.map(|caption| {
+        view! {
+            <span class="block truncate text-2xs leading-none text-content-subtle">{caption}</span>
+        }
+    });
+
     view! {
         <div node_ref=anchor class="relative">
             <button
@@ -330,17 +352,23 @@ pub fn select_field(
                 aria-invalid=move || invalid.try_get().unwrap_or(false).then_some("true")
                 aria-required=required.then_some("true")
                 aria-describedby=move || described_by.try_get().flatten()
-                aria-label=label
+                aria-label=announced
                 on:click=move |_| toggle()
                 on:keydown=on_key
             >
                 <span class="min-w-0 flex-1 truncate text-left">
+                    {caption}
                     {move || match chosen() {
                         Some(label) => {
-                            view! { <span class="text-content">{label}</span> }.into_any()
+                            view! { <span class="block truncate text-content">{label}</span> }
+                                .into_any()
                         }
                         None => {
-                            view! { <span class="text-content-subtle">{empty.clone()}</span> }
+                            view! {
+                                <span class="block truncate text-content-subtle">
+                                    {empty.clone()}
+                                </span>
+                            }
                                 .into_any()
                         }
                     }}

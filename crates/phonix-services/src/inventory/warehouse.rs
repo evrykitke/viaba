@@ -81,6 +81,7 @@ pub async fn save(
 
             let stored = WarehouseInput {
                 id: Some(id),
+                is_default: false,
                 ..checked
             };
 
@@ -98,6 +99,25 @@ pub async fn save(
         }
         Some(id) => {
             let before = detail(pool, caller, id).await?;
+
+            // The default warehouse keeps its code, its step counts and its
+            // active flag. All three are load-bearing for rows the workspace
+            // did not create - the code is the first segment of every location
+            // path in the building, the steps decide which of those locations
+            // exist, and a workspace with its only warehouse retired has
+            // nowhere for stock to be. The name is its own and changes freely.
+            //
+            // Refused rather than silently ignored: a save that appears to work
+            // and does not is worse than one that says why.
+            if before.is_default
+                && (before.code != checked.code
+                    || before.receipt_steps != checked.receipt_steps
+                    || before.delivery_steps != checked.delivery_steps
+                    || !checked.is_active)
+            {
+                let refusal = app_inventory::warehouse::WarehouseError::DefaultIsFixed;
+                return Ok(Submission::rejected(refusal.field(), refusal.message()));
+            }
 
             let mut tx = pool.begin().await.map_err(DbError::Query)?;
 
@@ -162,6 +182,9 @@ pub async fn save(
 
             let stored = WarehouseInput {
                 id: Some(id),
+                // Read-only, and answered from the row rather than from the
+                // draft: nothing makes a warehouse the default by sending this.
+                is_default: before.is_default,
                 ..checked
             };
 

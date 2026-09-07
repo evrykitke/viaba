@@ -8,7 +8,7 @@
 //!
 //! # This schema points at `core`, and at nothing else
 //!
-//! `core.users` and `core.files` are proper foreign keys. A supplier is a
+//! `core.users` and `core.file_uploads` are proper foreign keys. A supplier is a
 //! `master.parties` id **without one**, and an account is a `books.accounts` id
 //! without one either - which is what makes an app uninstallable, and why the
 //! columns beside those ids are a snapshot rather than a join.

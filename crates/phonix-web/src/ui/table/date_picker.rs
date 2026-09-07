@@ -214,7 +214,7 @@ pub fn date_range_picker(state: GridState, control: DateControl) -> impl IntoVie
                 type="button"
                 node_ref=trigger
                 class=move || {
-                    let base = "inline-flex h-8 max-w-[13rem] shrink-0 items-center gap-1.5 \
+                    let base = "inline-flex h-10 max-w-[13rem] shrink-0 items-center gap-1.5 \
                                 rounded-control border px-2.5 text-sm";
                     if narrowed.get() {
                         format!("{base} border-brand bg-brand-subtle text-content")
@@ -245,7 +245,14 @@ pub fn date_range_picker(state: GridState, control: DateControl) -> impl IntoVie
                 }
             >
                 <Icon icon=Icon::Calendar size=IconSize::Xs class="shrink-0" />
-                <span class="truncate-fade">
+                <span class="min-w-0 text-left">
+                    // The name of the span, inside the control, for the reason
+                    // the filter dropdowns beside it carry one: "Last 30 days"
+                    // does not say what was in the last thirty days.
+                    <span class="block truncate text-2xs leading-none text-content-subtle">
+                        {label.clone()}
+                    </span>
+                    <span class="truncate-fade block">
                     // The clock is read only once there is a span to describe,
                     // and a grid opens with none. That ordering is the whole
                     // reason this button is safe to render on the server:
@@ -267,6 +274,7 @@ pub fn date_range_picker(state: GridState, control: DateControl) -> impl IntoVie
                             }
                         }
                     }
+                    </span>
                 </span>
             </button>
 

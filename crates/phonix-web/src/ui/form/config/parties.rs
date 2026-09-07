@@ -410,7 +410,10 @@ fn optional(raw: String) -> Option<String> {
 /// By name rather than by code, because that is the order somebody scanning a
 /// dropdown expects.
 fn country_choices() -> Vec<Choice> {
-    std::iter::once(Choice::new(NOT_SET, l!("common.not_set")))
+    // No empty entry here: the renderer adds one to every select that is not
+    // required, and a second would read as two answers that both mean nothing.
+    // What it is called is `Field::none_label`.
+    std::iter::empty()
         .chain(
             Country::all_by_name()
                 .into_iter()
@@ -426,7 +429,10 @@ fn country_choices() -> Vec<Choice> {
 /// what the workspace has switched on. Offering a currency with no rate on file
 /// is offering a document that cannot be converted.
 fn currency_choices(currencies: &[Currency]) -> Vec<Choice> {
-    std::iter::once(Choice::new(NOT_SET, l!("common.not_set")))
+    // No empty entry here: the renderer adds one to every select that is not
+    // required, and a second would read as two answers that both mean nothing.
+    // What it is called is `Field::none_label`.
+    std::iter::empty()
         .chain(
             currencies
                 .iter()
@@ -440,7 +446,10 @@ fn currency_choices(currencies: &[Currency]) -> Vec<Choice> {
 /// A disabled group cannot be used on a new document, so offering one here
 /// would be offering a default that is refused the moment somebody uses it.
 fn tax_group_choices(groups: &[TaxGroup]) -> Vec<Choice> {
-    std::iter::once(Choice::new(NOT_SET, l!("common.not_set")))
+    // No empty entry here: the renderer adds one to every select that is not
+    // required, and a second would read as two answers that both mean nothing.
+    // What it is called is `Field::none_label`.
+    std::iter::empty()
         .chain(
             groups
                 .iter()

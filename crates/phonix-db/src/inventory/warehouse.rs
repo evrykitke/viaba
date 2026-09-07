@@ -61,6 +61,7 @@ impl<'r> FromRow<'r, sqlx::postgres::PgRow> for RowOf<Warehouse> {
             receipt_steps,
             delivery_steps,
             is_active: row.try_get("is_active")?,
+            is_default: row.try_get("is_default")?,
         }))
     }
 }
@@ -76,6 +77,7 @@ impl<'r> FromRow<'r, sqlx::postgres::PgRow> for RowOf<WarehouseSummary> {
             receipt_steps,
             delivery_steps,
             is_active: row.try_get("is_active")?,
+            is_default: row.try_get("is_default")?,
             location_count: row.try_get("location_count")?,
         }))
     }
@@ -88,11 +90,12 @@ where
 {
     let rows = sqlx::query_as::<_, RowOf<WarehouseSummary>>(
         "SELECT w.id, w.code, w.name, w.receipt_steps, w.delivery_steps, w.is_active,
+                w.is_default,
                 (SELECT count(*) FROM inventory.locations l
                   WHERE l.warehouse_id = w.id AND l.kind = 'internal')
                     AS location_count
            FROM inventory.warehouses w
-          ORDER BY w.code",
+          ORDER BY w.is_default DESC, w.code",
     )
     .fetch_all(executor)
     .await
@@ -108,10 +111,10 @@ where
 {
     let rows = sqlx::query_as::<_, RowOf<Warehouse>>(
         "SELECT id, code, name, view_location_id, stock_location_id,
-                receipt_steps, delivery_steps, is_active
+                receipt_steps, delivery_steps, is_active, is_default
            FROM inventory.warehouses
           WHERE is_active
-          ORDER BY code",
+          ORDER BY is_default DESC, code",
     )
     .fetch_all(executor)
     .await
@@ -126,7 +129,7 @@ where
 {
     Ok(sqlx::query_as::<_, RowOf<Warehouse>>(
         "SELECT id, code, name, view_location_id, stock_location_id,
-                receipt_steps, delivery_steps, is_active
+                receipt_steps, delivery_steps, is_active, is_default
            FROM inventory.warehouses
           WHERE id = $1",
     )
@@ -238,13 +241,17 @@ pub async fn update<'e, E>(
 where
     E: PgExecutor<'e>,
 {
+    // The default warehouse keeps its own code, step counts and active flag
+    // whatever the draft carries. The service refuses a draft that tries to
+    // change them, and this is the floor under that: a request assembled by
+    // hand does not get past it either.
     let result = sqlx::query(
         "UPDATE inventory.warehouses
-            SET code           = $2,
+            SET code           = CASE WHEN is_default THEN code           ELSE $2 END,
                 name           = $3,
-                receipt_steps  = $4,
-                delivery_steps = $5,
-                is_active      = $6,
+                receipt_steps  = CASE WHEN is_default THEN receipt_steps  ELSE $4 END,
+                delivery_steps = CASE WHEN is_default THEN delivery_steps ELSE $5 END,
+                is_active      = CASE WHEN is_default THEN TRUE           ELSE $6 END,
                 updated_at     = now(),
                 updated_by     = $7
           WHERE id = $1",

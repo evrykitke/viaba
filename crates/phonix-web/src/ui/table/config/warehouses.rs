@@ -43,7 +43,11 @@ pub fn warehouses_grid() -> GridConfig<WarehouseSummary> {
                 Cell::text(&row.name)
             })
             .findable()
-            .essential(),
+            .essential()
+            // The default is marked here rather than only on its own screen:
+            // it is the one a receipt assumes, and knowing which that is from
+            // the list is the whole reason the flag exists.
+            .render(|row| name_cell(row).into_any()),
         )
         .column(
             Column::new(
@@ -111,6 +115,19 @@ pub fn warehouses_grid() -> GridConfig<WarehouseSummary> {
             })
             .require(permissions::WAREHOUSES_MANAGE),
         )
+}
+
+fn name_cell(row: &WarehouseSummary) -> impl IntoView {
+    let name = row.name.clone();
+    let is_default = row.is_default;
+
+    view! {
+        <div class="flex flex-wrap items-center gap-1.5">
+            <span>{name}</span>
+            {is_default
+                .then(|| view! { <Badge tone=Tone::Brand label=l!("warehouses.default") /> })}
+        </div>
+    }
 }
 
 fn status_cell(row: &WarehouseSummary) -> impl IntoView {

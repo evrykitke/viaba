@@ -72,10 +72,11 @@ pub fn unit_form(existing: Vec<Unit>) -> FormConfig<UnitInput> {
             .required(),
         )
         .field(
-            Field::toggle("is_active", l!("field.status"), |m: &UnitInput| {
+            Field::toggle("is_active", l!("field.in_use"), |m: &UnitInput| {
                 FieldValue::Bool(m.is_active)
             })
             .writing(|m, value| m.is_active = value.as_bool())
+            .help(l!("units.active_help"))
             .require(permissions::UNITS_MANAGE),
         )
         .action(

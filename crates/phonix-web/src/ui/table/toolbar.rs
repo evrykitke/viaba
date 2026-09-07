@@ -207,7 +207,11 @@ fn filter_select(state: GridState, filter: FilterControl) -> impl IntoView {
             value=Signal::derive(move || state.filter(key))
             on_change=Callback::new(move |value: String| state.set_filter(key, value))
             options=options
-            label=filter.label.clone()
+            // Inside the field rather than in front of it. A bar of dropdowns
+            // reading "All", "All", "Counted" says nothing about what each one
+            // narrows, and a `<label>` per filter is a toolbar that is mostly
+            // words. The caption is also the accessible name.
+            caption=filter.label.clone()
             // Only the size. The `all` choice carries the empty value, so an
             // unnarrowed table already reads as "All" without this having to
             // say what nothing means.
@@ -215,8 +219,9 @@ fn filter_select(state: GridState, filter: FilterControl) -> impl IntoView {
             // `min-w` because the panel is drawn at the field's width, and an
             // option row spends about 42px on padding and the tick before any
             // label - so a field sized to the short choice that happens to be
-            // in force opens a panel the longer ones truncate inside.
-            class="h-8 w-auto min-w-[9rem] shrink-0"
+            // in force opens a panel the longer ones truncate inside. `h-10`
+            // rather than `h-8`: the caption is the extra line.
+            class="h-10 w-auto min-w-[9rem] shrink-0"
         />
     }
 }

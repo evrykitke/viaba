@@ -23,7 +23,7 @@ use phonix_core::msg;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-/// The `core.files` bucket item pictures are stored in.
+/// The `core.file_uploads` bucket item pictures are stored in.
 ///
 /// Its own rather than `attachments`, because the rules differ in the way that
 /// matters: these are rendered **inline**, so the bucket refuses active content

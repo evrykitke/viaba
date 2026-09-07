@@ -55,6 +55,7 @@ pub fn item_category_form(
                 .filter(|raw| !raw.is_empty())
                 .and_then(|raw| Uuid::parse_str(raw).ok());
         })
+        .none_label(l!("categories.parent.none"))
         .require(permissions::ITEM_CATEGORIES_MANAGE),
     )
     .field(
@@ -111,10 +112,11 @@ pub fn item_category_form(
         .require(permissions::ITEM_CATEGORIES_MANAGE),
     )
     .field(
-        Field::toggle("is_active", l!("field.status"), |m: &CategoryInput| {
+        Field::toggle("is_active", l!("field.in_use"), |m: &CategoryInput| {
             FieldValue::Bool(m.is_active)
         })
         .writing(|m, value| m.is_active = value.as_bool())
+        .help(l!("categories.active_help"))
         .require(permissions::ITEM_CATEGORIES_MANAGE),
     )
     .action(
@@ -147,7 +149,7 @@ fn removal_choices() -> Vec<Choice> {
 }
 
 fn parent_choices(editing: Option<Uuid>, categories: &[CategorySummary]) -> Vec<Choice> {
-    let mut choices = vec![Choice::new(NOT_SET, l!("categories.parent.none"))];
+    let mut choices = Vec::new();
 
     choices.extend(
         categories

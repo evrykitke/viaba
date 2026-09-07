@@ -53,7 +53,7 @@ use leptos_router::hooks::use_navigate;
 
 pub use action::{FormAction, Then};
 pub use config::FormConfig;
-pub use field::{Choice, Field};
+pub use field::{Choice, Field, FieldGroup};
 pub use kind::FieldKind;
 pub use state::FormState;
 pub use value::FieldValue;
@@ -118,6 +118,24 @@ pub fn entity_form<T: Draft>(
     let alerts = Alerts::get();
 
     let fields = config.fields().to_vec();
+    let tabs = config.tabs();
+    // Which tab each field is on, so a rejected save can mark the tab holding
+    // the complaint. Without it a form can refuse and show nothing, because
+    // the field it is refusing over is three tabs away.
+    let fields_by_tab = StoredValue::new(
+        tabs.iter()
+            .map(|tab| {
+                let names: Vec<&'static str> = fields
+                    .iter()
+                    .filter(|field| field.on_tab_named(Some(tab.key)))
+                    .map(|field| field.name())
+                    .collect();
+
+                (tab.key, names)
+            })
+            .collect::<Vec<_>>(),
+    );
+    let showing = RwSignal::new(tabs.first().map(|tab| tab.key));
     let names = config.field_names();
     let buttons = config.buttons();
     let note = config.note.clone();
@@ -241,17 +259,41 @@ pub fn entity_form<T: Draft>(
                     })
             }}
 
+            {(!tabs.is_empty())
+                .then(|| {
+                    view! {
+                        <FormTabs
+                            tabs=tabs.clone()
+                            showing=showing
+                            faulty=Signal::derive(move || {
+                                let held = state.errors.get();
+                                let named = fields_by_tab.get_value();
+
+                                named
+                                    .iter()
+                                    .filter(|(_, names)| {
+                                        held.iter().any(|error| names.contains(&error.field.as_str()))
+                                    })
+                                    .map(|(key, _)| *key)
+                                    .collect::<Vec<_>>()
+                            })
+                        />
+                    }
+                })}
+
             <div class=layout>
                 {move || {
                     let user = viewer.get();
                     let draft = state.draft.get();
+                    let on = showing.get();
 
                     fields
                         .iter()
+                        .filter(|field| field.on_tab_named(on))
                         .filter(|field| field.applies_to(&draft))
                         .cloned()
                         .map(|field| {
-                            let editable = field.editable_by(user.as_ref());
+                            let editable = field.editable_in(&draft, user.as_ref());
 
                             view! {
                                 <FormField
@@ -304,6 +346,72 @@ pub fn entity_form<T: Draft>(
                 </Suspense>
             </div>
         </form>
+    }
+}
+
+/// The strip that deals a long form into tabs.
+///
+/// Not [`crate::ui::tabs::TabbedPanel`], and the difference is the point: that
+/// one owns a panel per tab and renders whichever is in view, which is right
+/// when the tabs are separate screens over separate data. These are one form -
+/// one draft, one save, one set of errors - so what switches is which fields
+/// are drawn, and everything else stays exactly where it was.
+///
+/// A tab holding a field the server complained about is marked. A form that
+/// refused over a field three tabs away and said nothing about where is a form
+/// with a dead save button.
+#[component]
+fn form_tabs(
+    tabs: Vec<FieldGroup>,
+    showing: RwSignal<Option<&'static str>>,
+    /// The keys of the tabs holding something that was rejected.
+    faulty: Signal<Vec<&'static str>>,
+) -> impl IntoView {
+    view! {
+        <div class="flex flex-wrap items-center gap-1 border-b border-edge" role="tablist">
+            {tabs
+                .into_iter()
+                .map(|tab| {
+                    let key = tab.key;
+                    let label = tab.label.clone();
+                    let on = move || showing.get() == Some(key);
+
+                    view! {
+                        <button
+                            type="button"
+                            role="tab"
+                            aria-selected=move || on().to_string()
+                            class=move || {
+                                format!(
+                                    "-mb-px inline-flex items-center gap-1.5 border-b-2 px-3 py-2 text-sm {}",
+                                    if on() {
+                                        "border-brand font-medium text-content"
+                                    } else {
+                                        "border-transparent text-content-muted hover:text-content"
+                                    },
+                                )
+                            }
+                            on:click=move |_| showing.set(Some(key))
+                        >
+                            {label}
+                            {move || {
+                                faulty
+                                    .get()
+                                    .contains(&key)
+                                    .then(|| {
+                                        view! {
+                                            <span
+                                                class="size-1.5 rounded-full bg-danger"
+                                                aria-hidden="true"
+                                            ></span>
+                                        }
+                                    })
+                            }}
+                        </button>
+                    }
+                })
+                .collect::<Vec<_>>()}
+        </div>
     }
 }
 

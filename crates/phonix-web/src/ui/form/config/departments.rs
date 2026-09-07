@@ -76,6 +76,7 @@ pub fn department_form(
                 .filter(|raw| !raw.is_empty())
                 .and_then(|raw| Uuid::parse_str(raw).ok());
         })
+        .none_label(l!("departments.parent.none"))
         .require(permissions::DEPARTMENTS_EDIT),
     )
     .field(
@@ -109,6 +110,7 @@ pub fn department_form(
                 .and_then(|raw| Uuid::parse_str(raw).ok())
                 .map(UserId::from);
         })
+        .none_label(l!("departments.manager.none"))
         .require(permissions::DEPARTMENTS_EDIT),
     )
     .field(
@@ -129,7 +131,7 @@ pub fn department_form(
 /// Everywhere a department could sit, indented by depth. Inactive rows are
 /// kept: a live department under a retired division is an ordinary state.
 fn parent_choices(editing: Option<Uuid>, departments: &[DepartmentSummary]) -> Vec<Choice> {
-    let mut choices = vec![Choice::new(NOT_SET, l!("departments.parent.none"))];
+    let mut choices = Vec::new();
 
     // Its descendants are not left out — the service checks those against the
     // tree, and a picker that half-enforced the rule would be trusted.
@@ -149,7 +151,7 @@ fn parent_choices(editing: Option<Uuid>, departments: &[DepartmentSummary]) -> V
 
 /// Who could run it.
 fn manager_choices(managers: &[(UserId, String)]) -> Vec<Choice> {
-    let mut choices = vec![Choice::new(NOT_SET, l!("departments.manager.none"))];
+    let mut choices = Vec::new();
 
     choices.extend(
         managers

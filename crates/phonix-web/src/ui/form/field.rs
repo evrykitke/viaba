@@ -61,6 +61,15 @@ pub struct Field<T: 'static> {
     /// label - "they sign in with this", "leave empty for no limit".
     pub(crate) help: Option<String>,
     pub(crate) placeholder: Option<String>,
+    /// What the empty option of a select is called. `None` uses `form.none`.
+    ///
+    /// A select that is not required grows an empty entry so an unset field
+    /// has somewhere to sit, and "None" is rarely what that means: a category
+    /// with no parent is *top level*, and a purchase unit with none is *the
+    /// same as the stock unit*. Naming it here rather than pushing an empty
+    /// choice into the list is what stops a form offering the reader two
+    /// entries that both mean nothing.
+    pub(crate) none_label: Option<String>,
     pub(crate) required: bool,
     /// Read-only whatever the viewer holds - a generated code, an email that
     /// cannot change once an account exists.
@@ -70,7 +79,11 @@ pub struct Field<T: 'static> {
     pub(crate) permission: Option<&'static str>,
     /// Takes the full width of the form rather than one column.
     pub(crate) wide: bool,
+    /// Which tab of the form it belongs on. `None` is the first one.
+    pub(crate) group: Option<FieldGroup>,
     pub(crate) available: Option<Applies<T>>,
+    /// Read-only while the draft says so. See [`Field::locked_when`].
+    pub(crate) locked: Option<Applies<T>>,
     /// A value the form can work out for itself, offered rather than imposed.
     /// The label and the closure that computes one from the draft as it
     /// stands; `None` back means there is nothing to offer right now.
@@ -82,6 +95,14 @@ pub struct Field<T: 'static> {
 /// Works a value out from the rest of the draft. See [`Field::suggest`].
 type Suggest<T> = Arc<dyn Fn(&T) -> Option<String> + Send + Sync>;
 
+/// One tab of a form. See [`Field::on_tab`].
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FieldGroup {
+    /// Stable, and what the tab strip keys on.
+    pub key: &'static str,
+    pub label: String,
+}
+
 impl<T: 'static> Clone for Field<T> {
     fn clone(&self) -> Self {
         Self {
@@ -90,11 +111,14 @@ impl<T: 'static> Clone for Field<T> {
             kind: self.kind.clone(),
             help: self.help.clone(),
             placeholder: self.placeholder.clone(),
+            none_label: self.none_label.clone(),
             required: self.required,
             fixed: self.fixed,
             permission: self.permission,
             wide: self.wide,
+            group: self.group.clone(),
             available: self.available.clone(),
+            locked: self.locked.clone(),
             suggest: self.suggest.clone(),
             read: Arc::clone(&self.read),
             write: self.write.clone(),
@@ -116,11 +140,14 @@ impl<T: 'static> Field<T> {
             kind,
             help: None,
             placeholder: None,
+            none_label: None,
             required: false,
             fixed: false,
             permission: None,
             wide: false,
+            group: None,
             available: None,
+            locked: None,
             suggest: None,
             read: Arc::new(read),
             write: None,
@@ -153,6 +180,19 @@ impl<T: 'static> Field<T> {
         read: impl Fn(&T) -> FieldValue + Send + Sync + 'static,
     ) -> Self {
         Self::new(field, label, FieldKind::Multiline { rows }, read).full_width()
+    }
+
+    /// A formatted document: headings, lists, links, a table.
+    ///
+    /// Full width, because that is what it is for. What it holds is HTML, so
+    /// the draft field behind it is one a service stores and a catalogue
+    /// prints - not a caption.
+    pub fn rich_text(
+        field: &'static str,
+        label: impl Into<String>,
+        read: impl Fn(&T) -> FieldValue + Send + Sync + 'static,
+    ) -> Self {
+        Self::new(field, label, FieldKind::RichText, read).full_width()
     }
 
     /// A number.
@@ -342,6 +382,34 @@ impl<T: 'static> Field<T> {
         self
     }
 
+    /// What the empty entry of a select is called.
+    ///
+    /// Only means anything on a select that is not required: that is the one
+    /// that grows an empty entry, and this names it. "Top level", "Same as the
+    /// stock unit", "No warehouse" - each of those is an answer rather than an
+    /// absence, and the reader should be told which.
+    #[must_use]
+    pub fn none_label(mut self, label: impl Into<String>) -> Self {
+        self.none_label = Some(label.into());
+        self
+    }
+
+    /// Put this field on a named tab of the form.
+    ///
+    /// A form with no groups is one column of fields, which is right up to
+    /// about a dozen. Past that the person filling it in is scrolling past
+    /// three quarters of it to reach the part they came for, so the fields are
+    /// dealt into tabs - one draft, one save, one set of errors, and only the
+    /// presentation split.
+    #[must_use]
+    pub fn on_tab(mut self, key: &'static str, label: impl Into<String>) -> Self {
+        self.group = Some(FieldGroup {
+            key,
+            label: label.into(),
+        });
+        self
+    }
+
     /// Never editable, by anybody.
     #[must_use]
     pub const fn fixed(mut self) -> Self {
@@ -375,6 +443,23 @@ impl<T: 'static> Field<T> {
         self
     }
 
+    /// Read-only while the draft says so, rather than always.
+    ///
+    /// [`fixed`](Self::fixed) is the whole field's answer for every row;
+    /// this one is a property of the record in front of somebody. The
+    /// workspace's default warehouse is the case it exists for: its code and
+    /// its step counts are load-bearing for locations the workspace did not
+    /// create, while every other warehouse's are its own.
+    ///
+    /// Locked, not hidden - the same rule the permission gate follows. A field
+    /// somebody may see and not change keeps its value on screen, because the
+    /// value is the answer to "why can I not edit this".
+    #[must_use]
+    pub fn locked_when(mut self, locked: impl Fn(&T) -> bool + Send + Sync + 'static) -> Self {
+        self.locked = Some(Arc::new(locked));
+        self
+    }
+
     pub const fn name(&self) -> &'static str {
         self.field
     }
@@ -403,6 +488,23 @@ impl<T: 'static> Field<T> {
         }
     }
 
+    /// Whether this field is drawn while `showing` is the tab in view.
+    ///
+    /// `None` is a form with no tabs, where everything is drawn. A field with
+    /// no group of its own on a form that has tabs belongs to the first one,
+    /// which is what makes adding a tab to an existing form a matter of naming
+    /// the fields that move rather than every field that does not.
+    pub fn on_tab_named(&self, showing: Option<&'static str>) -> bool {
+        let Some(showing) = showing else {
+            return true;
+        };
+
+        match &self.group {
+            Some(group) => group.key == showing,
+            None => true,
+        }
+    }
+
     pub fn applies_to(&self, draft: &T) -> bool {
         self.available
             .as_ref()
@@ -414,6 +516,22 @@ impl<T: 'static> Field<T> {
     /// Nobody is nobody: while the session is still resolving, `user` is `None`
     /// and a gated field stays locked. Enabling it for the moment before the
     /// answer arrives would be the wrong way round to be wrong.
+    /// Whether this viewer may change it, given the draft as it stands.
+    ///
+    /// What every screen should ask. [`editable_by`](Self::editable_by) is the
+    /// half of the answer that does not depend on the record.
+    pub fn editable_in(&self, draft: &T, user: Option<&AuthUser>) -> bool {
+        if self
+            .locked
+            .as_ref()
+            .is_some_and(|locked| locked(draft))
+        {
+            return false;
+        }
+
+        self.editable_by(user)
+    }
+
     pub fn editable_by(&self, user: Option<&AuthUser>) -> bool {
         if self.fixed || self.write.is_none() {
             return false;

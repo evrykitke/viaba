@@ -66,7 +66,7 @@ use phonix_core::identity::AuthUser;
 use phonix_core::identity::validation::FieldError;
 
 use super::action::FormAction;
-use super::field::Field;
+use super::field::{Field, FieldGroup};
 use crate::ui::alert::Channel;
 
 /// A submission in flight. `String` is the error, for the same reason the grid
@@ -216,6 +216,24 @@ impl<T: 'static> FormConfig<T> {
     }
 
     /// The names of every field, for matching a rejection against them.
+    /// The tabs the fields ask for, in the order they were declared.
+    ///
+    /// Empty for a form whose fields name none, which is most of them: a tab
+    /// strip over eight fields is furniture. See [`Field::on_tab`].
+    ///
+    /// [`Field::on_tab`]: super::Field::on_tab
+    pub fn tabs(&self) -> Vec<FieldGroup> {
+        let mut named: Vec<FieldGroup> = Vec::new();
+
+        for group in self.fields.iter().filter_map(|field| field.group.as_ref()) {
+            if !named.iter().any(|held| held.key == group.key) {
+                named.push(group.clone());
+            }
+        }
+
+        named
+    }
+
     pub fn field_names(&self) -> Vec<&'static str> {
         self.fields.iter().map(Field::name).collect()
     }
@@ -238,7 +256,7 @@ impl<T: 'static> FormConfig<T> {
         self.fields
             .iter()
             .filter(|field| field.required && field.applies_to(draft))
-            .filter(|field| field.editable_by(user))
+            .filter(|field| field.editable_in(draft, user))
             .filter(|field| !field.value(draft).is_present())
             // The label is still English: `Field::label` is a `&'static str`
             // on the form's config, and keying those is the next sweep. Until

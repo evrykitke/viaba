@@ -16,6 +16,13 @@
 //!
 //! Categories are last and are inserted parent-first, which is why
 //! `Defaults::check` insists a parent is declared before it is used.
+//!
+//! # One warehouse is marked as the default
+//!
+//! The first one seeded into a workspace that has none. It is the building a
+//! receipt assumes, its code and step counts are fixed afterwards, and it
+//! cannot be retired - see migration 0003 for why each of those follows from
+//! rows the workspace did not create.
 
 use app_inventory::defaults::Defaults;
 use app_inventory::unit;
@@ -199,10 +206,15 @@ async fn install_warehouses(pool: &PgPool, defaults: &Defaults) -> Result<u64, D
             });
         };
 
+        // `is_default` where nothing is yet, which on a fresh workspace is the
+        // first entry in the file. A workspace that already marked one keeps
+        // it: the partial unique index would refuse a second anyway, and this
+        // says so before the database has to.
         sqlx::query(
             "INSERT INTO inventory.warehouses
-                    (code, name, view_location_id, stock_location_id)
-             VALUES ($1, $2, $3, $4)",
+                    (code, name, view_location_id, stock_location_id, is_default)
+             VALUES ($1, $2, $3, $4,
+                     NOT EXISTS (SELECT 1 FROM inventory.warehouses WHERE is_default))",
         )
         .bind(&code)
         .bind(entry.name.trim())

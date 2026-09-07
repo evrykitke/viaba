@@ -169,6 +169,13 @@ pub struct Warehouse {
     pub receipt_steps: ReceiptSteps,
     pub delivery_steps: DeliverySteps,
     pub is_active: bool,
+    /// The building a document assumes, and the one a workspace always has.
+    ///
+    /// At most one. Its code and its step counts are fixed and it cannot be
+    /// retired - see [`WarehouseInput::locked`] and migration 0003. The name is
+    /// not: "Main warehouse" is ours, and a workspace should be able to call
+    /// its building whatever it calls it.
+    pub is_default: bool,
 }
 
 /// One row of the warehouse grid.
@@ -180,6 +187,7 @@ pub struct WarehouseSummary {
     pub receipt_steps: ReceiptSteps,
     pub delivery_steps: DeliverySteps,
     pub is_active: bool,
+    pub is_default: bool,
     /// Internal locations beneath it, so a screen can say how divided up it is.
     pub location_count: i64,
 }
@@ -193,6 +201,10 @@ pub struct WarehouseInput {
     pub receipt_steps: ReceiptSteps,
     pub delivery_steps: DeliverySteps,
     pub is_active: bool,
+    /// Carried so the form can lock what may not be edited, and so the service
+    /// can refuse the change without a second query. Read-only: nothing makes
+    /// a warehouse the default by sending this true.
+    pub is_default: bool,
 }
 
 impl WarehouseInput {
@@ -204,6 +216,7 @@ impl WarehouseInput {
             receipt_steps: ReceiptSteps::One,
             delivery_steps: DeliverySteps::One,
             is_active: true,
+            is_default: false,
         }
     }
 
@@ -215,6 +228,7 @@ impl WarehouseInput {
             receipt_steps: warehouse.receipt_steps,
             delivery_steps: warehouse.delivery_steps,
             is_active: warehouse.is_active,
+            is_default: warehouse.is_default,
         }
     }
 
@@ -248,7 +262,22 @@ impl WarehouseInput {
             receipt_steps: self.receipt_steps,
             delivery_steps: self.delivery_steps,
             is_active: self.is_active,
+            is_default: self.is_default,
         })
+    }
+
+    /// Whether this warehouse's shape is fixed.
+    ///
+    /// True for the default one. Its code is the first segment of every
+    /// location path in the building and its step counts decide which of those
+    /// locations exist - both were chosen by the seed and both are load-bearing
+    /// for rows the workspace did not create. Retiring it would leave a
+    /// workspace with nowhere for stock to be.
+    ///
+    /// The name is deliberately not locked. One function so the form and the
+    /// service cannot disagree about what "locked" covers.
+    pub const fn locked(&self) -> bool {
+        self.is_default
     }
 }
 
@@ -266,6 +295,10 @@ pub enum WarehouseError {
     NameTooLong,
     #[error("stock is still held in this warehouse")]
     HoldsStock,
+    /// The code and the step counts of the default warehouse are fixed, and it
+    /// cannot be retired. Its name can be changed.
+    #[error("that cannot be changed on the workspace's default warehouse")]
+    DefaultIsFixed,
 }
 
 impl WarehouseError {
@@ -274,6 +307,9 @@ impl WarehouseError {
             Self::CodeRequired | Self::CodeTooLong | Self::CodeShape => "code",
             Self::NameRequired | Self::NameTooLong => "name",
             Self::HoldsStock => "is_active",
+            // Named on the code: it is the field somebody is most likely to
+            // have been editing, and it is the one the lock is really about.
+            Self::DefaultIsFixed => "code",
         }
     }
 
@@ -284,6 +320,7 @@ impl WarehouseError {
             Self::CodeShape => msg!("warehouses.error.code_shape"),
             Self::NameRequired => msg!("warehouses.error.name_required"),
             Self::NameTooLong => msg!("warehouses.error.name_too_long"),
+            Self::DefaultIsFixed => msg!("warehouses.error.default_is_fixed"),
             Self::HoldsStock => msg!("warehouses.error.holds_stock"),
         }
     }

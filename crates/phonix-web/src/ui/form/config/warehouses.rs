@@ -9,6 +9,19 @@
 //!
 //! Switching back to one step does not remove the location. Stock may be
 //! sitting in it, and a location that disappears takes its history with it.
+//!
+//! # The default warehouse can be renamed and nothing else
+//!
+//! A workspace always has one - the app seeds it, because a receipt with no
+//! building to receive into is not an awkward screen but a document that
+//! cannot exist. Its code is the first segment of every location path inside
+//! it, its step counts decide which of those locations exist, and retiring it
+//! would leave nowhere for stock to be. So those three are locked and the name
+//! is not: "Main warehouse" is our word for it, and a workspace should call its
+//! building whatever it calls it.
+//!
+//! Locked rather than hidden, which is the rule the permission gate follows
+//! too: the value on screen is the answer to "why can I not edit this".
 
 use app_inventory::warehouse::{DeliverySteps, ReceiptSteps, WarehouseInput};
 use phonix_core::permissions;
@@ -34,6 +47,7 @@ pub fn warehouse_form() -> FormConfig<WarehouseInput> {
         // which is why it takes no punctuation and why renaming it is a bigger
         // act than it looks.
         .help(l!("warehouses.code_help"))
+        .locked_when(WarehouseInput::locked)
         .require(permissions::WAREHOUSES_MANAGE)
         .required(),
     )
@@ -43,6 +57,7 @@ pub fn warehouse_form() -> FormConfig<WarehouseInput> {
         })
         .writing(|m, value| m.name = value.as_input())
         .placeholder("Main warehouse")
+        .help(l!("warehouses.name_help"))
         .require(permissions::WAREHOUSES_MANAGE)
         .required(),
     )
@@ -60,6 +75,7 @@ pub fn warehouse_form() -> FormConfig<WarehouseInput> {
                 .unwrap_or(ReceiptSteps::One);
         })
         .help(l!("warehouses.receiving_help"))
+        .locked_when(WarehouseInput::locked)
         .require(permissions::WAREHOUSES_MANAGE),
     )
     .field(
@@ -76,16 +92,18 @@ pub fn warehouse_form() -> FormConfig<WarehouseInput> {
                 .unwrap_or(DeliverySteps::One);
         })
         .help(l!("warehouses.shipping_help"))
+        .locked_when(WarehouseInput::locked)
         .require(permissions::WAREHOUSES_MANAGE),
     )
     .field(
-        Field::toggle("is_active", l!("field.status"), |m: &WarehouseInput| {
+        Field::toggle("is_active", l!("field.in_use"), |m: &WarehouseInput| {
             FieldValue::Bool(m.is_active)
         })
         .writing(|m, value| m.is_active = value.as_bool())
         // There is no delete: a warehouse owns the locations that carry every
         // movement that ever crossed them.
         .help(l!("warehouses.active_help"))
+        .locked_when(WarehouseInput::locked)
         .require(permissions::WAREHOUSES_MANAGE),
     )
     .action(
