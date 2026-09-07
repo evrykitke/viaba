@@ -256,6 +256,12 @@ pub async fn delete(pool: &PgPool, caller: &Caller, id: Uuid) -> ServiceResult<D
         return Ok(DeleteOutcome::HasStock);
     }
 
+    // Nothing on hand and something in the history: an item that was received
+    // and sold. The moves name it, so retiring it is the answer.
+    if phonix_db::inventory::movement::item_has_movements(pool, id).await? {
+        return Ok(DeleteOutcome::HasMovements);
+    }
+
     let mut tx = pool.begin().await.map_err(DbError::Query)?;
     let removed = store::delete(&mut tx, id).await?;
     tx.commit().await.map_err(DbError::Query)?;
@@ -290,10 +296,17 @@ pub async fn variants_of(
 
     let rows = variants::of_item(pool, item_id).await?;
     let gallery = images::gallery(pool, item_id).await?;
+    let on_hand = phonix_db::inventory::quant::on_hand_by_variant(pool, item_id).await?;
 
-    Ok(variants::summarise(&rows, |variant_id| {
-        gallery.tile_for_variant(variant_id).map(|image| image.file_id)
-    }))
+    Ok(variants::summarise(
+        &rows,
+        |variant_id| {
+            gallery
+                .tile_for_variant(variant_id)
+                .map(|image| image.file_id)
+        },
+        |variant_id| on_hand.get(&variant_id).copied(),
+    ))
 }
 
 /// Which values this item is offered in, for the variants tab to open on.
@@ -557,11 +570,12 @@ pub async fn set_account(
 
 /// Whether any stock exists for this item.
 ///
-/// Always false until the stock tables exist. One function so the two frozen
-/// fields and the delete cannot disagree about what "has stock" means, and so
-/// there is one place to change when the movements arrive.
-async fn has_stock(_pool: &PgPool, _item_id: Uuid) -> ServiceResult<bool> {
-    Ok(false)
+/// One function so the two frozen fields and the delete cannot disagree about
+/// what "has stock" means. Any quantity anywhere counts, including at a
+/// counterpart location: an item that was received and returned has still been
+/// counted in its stock unit, and restating that unit would restate the pair.
+async fn has_stock(pool: &PgPool, item_id: Uuid) -> ServiceResult<bool> {
+    Ok(phonix_db::inventory::quant::item_has_stock(pool, item_id).await?)
 }
 
 /// The purchase unit has to measure the same thing as the stock unit, or a

@@ -167,6 +167,30 @@ impl LocationKind {
         matches!(self, Self::Internal)
     }
 
+    /// The account role stock sitting here belongs to.
+    ///
+    /// This is what makes a movement's journal fall out of its two ends rather
+    /// than out of a document type. A move debits where the value arrived and
+    /// credits where it left, and the two roles being equal is exactly the case
+    /// where no value moved and no journal is needed - which is why an internal
+    /// rearrangement needs no rule of its own.
+    ///
+    /// `None` for the two that have no role: a grouping holds nothing, and
+    /// production is waiting on works orders. See
+    /// [`movement::posting_roles`](crate::movement::posting_roles).
+    pub const fn account_role(self) -> Option<phonix_ports::ledger::AccountRole> {
+        use phonix_ports::ledger::AccountRole as Role;
+
+        match self {
+            Self::Internal => Some(Role::Inventory),
+            Self::Transit => Some(Role::InventoryInTransit),
+            Self::Vendor => Some(Role::GoodsReceivedNotInvoiced),
+            Self::Customer => Some(Role::CostOfSales),
+            Self::InventoryLoss => Some(Role::InventoryAdjustment),
+            Self::View | Self::Production => None,
+        }
+    }
+
     /// Whether a workspace may create these by hand.
     ///
     /// The counterpart kinds are seeded once and then left alone: a second

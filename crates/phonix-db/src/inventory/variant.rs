@@ -184,7 +184,15 @@ where
 }
 
 /// The rows a variants tab draws.
-pub fn summarise(variants: &[Variant], tile: impl Fn(Uuid) -> Option<Uuid>) -> Vec<VariantSummary> {
+///
+/// `tile` and `on_hand` are looked up by the caller rather than joined here,
+/// because both are one query for the whole tab and a join would make them one
+/// per row.
+pub fn summarise(
+    variants: &[Variant],
+    tile: impl Fn(Uuid) -> Option<Uuid>,
+    on_hand: impl Fn(Uuid) -> Option<app_inventory::quantity::Quantity>,
+) -> Vec<VariantSummary> {
     variants
         .iter()
         .map(|variant| VariantSummary {
@@ -194,8 +202,7 @@ pub fn summarise(variants: &[Variant], tile: impl Fn(Uuid) -> Option<Uuid>) -> V
             combination: variant.combination_label(),
             is_default: variant.is_default,
             is_active: variant.is_active,
-            // Filled once the stock tables exist. `None` is not zero.
-            on_hand: None,
+            on_hand: on_hand(variant.id),
             image_file_id: tile(variant.id),
         })
         .collect()

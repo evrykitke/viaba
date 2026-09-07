@@ -23,5 +23,6 @@
 pub mod category;
 pub mod item;
 pub mod location;
+pub mod stock;
 pub mod unit;
 pub mod warehouse;

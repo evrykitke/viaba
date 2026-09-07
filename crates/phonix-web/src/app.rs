@@ -31,6 +31,7 @@ use crate::pages::inventory::item_categories::{
     ItemCategoriesPage, ItemCategoryNewPage, ItemCategoryPage,
 };
 use crate::pages::inventory::items::{ItemNewPage, ItemsPage};
+use crate::pages::inventory::stock::{StockMovesPage, StockPage};
 use crate::pages::inventory::stock_locations::{
     StockLocationNewPage, StockLocationPage, StockLocationsPage,
 };
@@ -254,6 +255,8 @@ pub fn app() -> impl IntoView {
                     <Route path=path!("/inventory/locations") view=StockLocationsPage />
                     <Route path=path!("/inventory/locations/new") view=StockLocationNewPage />
                     <Route path=path!("/inventory/locations/:id") view=StockLocationPage />
+                    <Route path=path!("/inventory/stock") view=StockPage />
+                    <Route path=path!("/inventory/moves") view=StockMovesPage />
                     <Route path=path!("/inventory/units") view=UnitsPage />
                     <Route path=path!("/inventory/units/new") view=UnitNewPage />
                     <Route path=path!("/inventory/units/:id") view=UnitPage />

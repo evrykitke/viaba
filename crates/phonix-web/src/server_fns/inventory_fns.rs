@@ -11,6 +11,10 @@ use app_inventory::category::{Category, CategoryInput, CategorySummary};
 use app_inventory::image::{Gallery, ImageInput};
 use app_inventory::item::{Item, ItemInput, ItemSummary};
 use app_inventory::location::{Location, LocationInput, LocationSummary};
+use app_inventory::lot::LotSummary;
+use app_inventory::movement::{MoveFilter, MoveSummary, StockMove};
+use app_inventory::quant::{OnHandFilter, OnHandRow};
+use app_inventory::quantity::Quantity;
 use app_inventory::unit::{Unit, UnitInput};
 use app_inventory::variant::{Attribute, Plan, Selection, VariantSummary};
 use app_inventory::warehouse::{Warehouse, WarehouseInput, WarehouseSummary};
@@ -534,6 +538,100 @@ pub async fn set_item_account(
     phonix_services::inventory::item::set_account(&pool, &caller, owner, owner_id, role, chosen)
         .await
         .map_err(service_error)
+}
+
+
+// --- Stock ---------------------------------------------------------------
+//
+// Every one of these goes through the `Ledger` port for its accounting side.
+// The browser never names an account and this module never queries `books` -
+// see the header, and ADR 0006 section 2.
+
+/// What is on hand, wherever it is.
+#[server(name = StockOnHand, prefix = "/api", endpoint = "inventory/stock")]
+pub async fn stock_on_hand(filter: OnHandFilter) -> Result<Vec<OnHandRow>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::stock::on_hand(&pool, &caller, filter)
+        .await
+        .map_err(service_error)
+}
+
+/// The movement history: every change to every quantity, newest first.
+#[server(name = StockMoves, prefix = "/api", endpoint = "inventory/stock/moves")]
+pub async fn stock_moves(filter: MoveFilter) -> Result<Vec<MoveSummary>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::stock::moves(&pool, &caller, filter)
+        .await
+        .map_err(service_error)
+}
+
+/// What the workspace holds in stock, at cost. The figure a stock account is
+/// reconciled against.
+#[server(name = StockValue, prefix = "/api", endpoint = "inventory/stock/value")]
+pub async fn stock_value() -> Result<String, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::stock::total_value(&pool, &caller)
+        .await
+        .map(|value| value.to_storage_string())
+        .map_err(service_error)
+}
+
+/// The lots of one variant, in the order a pick reaches for them.
+#[server(name = VariantLots, prefix = "/api", endpoint = "inventory/stock/lots")]
+pub async fn variant_lots(variant_id: Uuid) -> Result<Vec<LotSummary>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::stock::lots_of(&pool, &caller, variant_id)
+        .await
+        .map_err(service_error)
+}
+
+/// Write stock off, scrap it, or book in a count difference.
+///
+/// `found` says which way: true books stock in from inventory loss, false
+/// writes it out to it. Both post through the `Ledger` port, and both refuse
+/// outright if the ledger refuses - a shelf that changed while the stock
+/// account did not is the thing this whole design exists to prevent.
+#[server(name = AdjustStock, prefix = "/api", endpoint = "inventory/stock/adjust")]
+pub async fn adjust_stock(
+    location_id: Uuid,
+    variant_id: Uuid,
+    lot_id: Option<Uuid>,
+    quantity: Quantity,
+    found: bool,
+    moved_on: chrono::NaiveDate,
+    reason: Option<String>,
+) -> Result<Submission<StockMove>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+    let ledger = phonix_services::books::BooksLedger::new(pool.clone(), caller.clone());
+
+    phonix_services::inventory::stock::adjust(
+        &pool,
+        &caller,
+        &ledger,
+        location_id,
+        variant_id,
+        lot_id,
+        quantity,
+        found,
+        moved_on,
+        reason,
+    )
+    .await
+    .map_err(service_error)
 }
 
 // --- The home page -------------------------------------------------------

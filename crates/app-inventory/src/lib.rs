@@ -33,6 +33,10 @@
 //!   image        pictures, which a point-of-sale screen is made of.
 //!   accounts     which account a posting lands on: item, then category, then
 //!                the role Books resolves.
+//!   lot          which particular units these are, and when they expire.
+//!   movement     the stock ledger. One row per move, and nothing is edited.
+//!   quant        how much is in one place. A cache the moves can prove.
+//!   valuation    what it cost, and what leaves the stock account.
 //! ```
 //!
 //! Compiled to wasm, so this crate may not panic.
@@ -59,8 +63,12 @@ pub mod defaults;
 pub mod image;
 pub mod item;
 pub mod location;
+pub mod lot;
+pub mod movement;
+pub mod quant;
 pub mod quantity;
 pub mod unit;
+pub mod valuation;
 pub mod variant;
 pub mod warehouse;
 
@@ -116,7 +124,11 @@ pub use category::{Category, CategoryInput, CategorySummary, CostingMethod, Remo
 pub use image::{Gallery, Image};
 pub use item::{Item, ItemInput, ItemKind, ItemSummary, Tracking};
 pub use location::{Location, LocationInput, LocationKind, LocationSummary, MoveKind};
+pub use lot::{Lot, LotInput, LotSummary};
+pub use movement::{JournalOutcome, MoveRequest, MoveState, MoveSummary, StockMove};
+pub use quant::{OnHandRow, Quant};
 pub use quantity::Quantity;
 pub use unit::{Conversion, Unit, UnitClass, UnitInput};
+pub use valuation::{Consumed, Issue, Layer};
 pub use variant::{Attribute, AttributeValue, Selection, Variant, VariantSummary};
 pub use warehouse::{DeliverySteps, ReceiptSteps, Warehouse, WarehouseInput, WarehouseSummary};

@@ -106,6 +106,9 @@ pub mod names {
     pub const STOCK_LOCATIONS: &str = "Pages.Inventory.Locations";
     pub const STOCK_LOCATIONS_MANAGE: &str = "Pages.Inventory.Locations.Manage";
 
+    pub const STOCK: &str = "Pages.Inventory.Stock";
+    pub const STOCK_ADJUST: &str = "Pages.Inventory.Stock.Adjust";
+
     pub const UNITS: &str = "Pages.Inventory.Units";
     pub const UNITS_MANAGE: &str = "Pages.Inventory.Units.Manage";
 
@@ -418,10 +421,11 @@ pub const DEFINITIONS: &[PermissionDefinition] = &[
     // "edit a unit of measure" would be a distinction nobody has ever wanted to
     // grant across.
     //
-    // Nothing here gates a *movement*. Receiving goods, transferring and
-    // adjusting are their own permissions and arrive with the documents that
-    // need them - a permission nothing checks is decoration, and these are the
-    // screens that exist.
+    // One permission here gates a *movement* rather than a screen, and that is
+    // `STOCK_ADJUST`. Receiving and transferring arrive with the documents that
+    // need them, because a receipt is authorised by the purchase behind it -
+    // but an adjustment is authorised by nothing else, so it is authorised
+    // here.
     PermissionDefinition {
         name: names::INVENTORY,
         display_name: "Inventory",
@@ -502,6 +506,26 @@ pub const DEFINITIONS: &[PermissionDefinition] = &[
         display_name: "Manage",
         description: Some("Add and rearrange the locations inside a warehouse."),
         parent: Some(names::STOCK_LOCATIONS),
+        default_for_user: false,
+    },
+    PermissionDefinition {
+        name: names::STOCK,
+        display_name: "Stock",
+        description: Some("See what is on hand, where it is, and how it got there."),
+        parent: Some(names::INVENTORY),
+        default_for_user: false,
+    },
+    PermissionDefinition {
+        name: names::STOCK_ADJUST,
+        display_name: "Adjust",
+        // The first permission in this app that gates a MOVEMENT rather than a
+        // screen, and it is here because an adjustment is the one movement
+        // nothing else authorises: a receipt is a purchase somebody approved
+        // and a delivery is a sale, but a write-off is a person saying the
+        // shelf disagrees with the system, and the offsetting entry lands in
+        // the profit and loss.
+        description: Some("Write stock off, scrap it, or book in a count difference."),
+        parent: Some(names::STOCK),
         default_for_user: false,
     },
     PermissionDefinition {

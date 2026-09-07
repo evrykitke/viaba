@@ -188,8 +188,12 @@ pub async fn delete(pool: &PgPool, caller: &Caller, id: Uuid) -> ServiceResult<D
         });
     }
 
-    // Once the stock tables exist this asks them. Until then there are no
-    // movements to find, and the answer is the same either way.
+    // A location with a movement against it is half of an entry in the audit
+    // trail. Postgres would refuse the delete on the foreign key; asking first
+    // lets the screen say why rather than showing a constraint's name.
+    if phonix_db::inventory::movement::location_has_movements(pool, id).await? {
+        return Ok(DeleteOutcome::HasMovements);
+    }
 
     if !store::delete(pool, id).await? {
         return Ok(DeleteOutcome::Deleted);

@@ -19,6 +19,7 @@ license.workspace = true
 phonix-core = { workspace = true }
 phonix-ports = { workspace = true }
 
+chrono = { workspace = true }
 serde = { workspace = true }
 thiserror = { workspace = true }
 uuid = { workspace = true }

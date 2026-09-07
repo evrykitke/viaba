@@ -92,8 +92,9 @@ fn read_item(row: &sqlx::postgres::PgRow, currency: Currency) -> Result<Item, sq
 
 /// Every item, with the names a grid draws without a join per row.
 ///
-/// `on_hand` is `None` throughout until the stock tables exist - which is
-/// different from zero, and says so.
+/// `on_hand` is what is at every *internal* location: what somebody could walk
+/// up to and pick. `None` for an item nobody counts, which is different from
+/// zero and says so.
 pub async fn list<'e, E>(executor: E, currency: Currency) -> Result<Vec<ItemSummary>, DbError>
 where
     E: PgExecutor<'e>,
@@ -102,7 +103,14 @@ where
         "SELECT i.id, i.code, i.name, i.barcode, i.kind, i.is_tracked, i.tracking,
                 i.cost::text AS cost, i.is_active,
                 c.name AS category_name,
-                u.code AS stock_unit_code
+                u.code AS stock_unit_code,
+                COALESCE((
+                    SELECT sum(q.quantity)
+                      FROM inventory.stock_quants q
+                      JOIN inventory.item_variants v ON v.id = q.variant_id
+                      JOIN inventory.locations l ON l.id = q.location_id
+                     WHERE v.item_id = i.id AND l.kind = 'internal'
+                ), 0)::text AS on_hand
            FROM inventory.items i
            JOIN inventory.categories c ON c.id = i.category_id
            JOIN inventory.units u ON u.id = i.stock_unit_id
@@ -117,6 +125,8 @@ where
             let kind: String = row.try_get("kind").map_err(DbError::Query)?;
             let tracking: String = row.try_get("tracking").map_err(DbError::Query)?;
             let cost: String = row.try_get("cost").map_err(DbError::Query)?;
+            let is_tracked: bool = row.try_get("is_tracked").map_err(DbError::Query)?;
+            let on_hand: String = row.try_get("on_hand").map_err(DbError::Query)?;
 
             Ok(ItemSummary {
                 id: row.try_get("id").map_err(DbError::Query)?,
@@ -125,7 +135,7 @@ where
                 barcode: row.try_get("barcode").map_err(DbError::Query)?,
                 kind: ItemKind::parse(&kind)
                     .ok_or_else(|| DbError::Query(unknown("kind", &kind)))?,
-                is_tracked: row.try_get("is_tracked").map_err(DbError::Query)?,
+                is_tracked,
                 tracking: Tracking::parse(&tracking)
                     .ok_or_else(|| DbError::Query(unknown("tracking", &tracking)))?,
                 category_name: row.try_get("category_name").map_err(DbError::Query)?,
@@ -133,9 +143,12 @@ where
                 cost: Money::parse(currency, &cost)
                     .map_err(|err| DbError::Query(unknown("cost", &err.to_string())))?,
                 is_active: row.try_get("is_active").map_err(DbError::Query)?,
-                // Different from zero, and it says so. Filled once the stock
-                // tables exist.
-                on_hand: None,
+                on_hand: is_tracked
+                    .then(|| {
+                        app_inventory::quantity::Quantity::parse(&on_hand)
+                            .map_err(|err| DbError::Query(unknown("on_hand", &err.to_string())))
+                    })
+                    .transpose()?,
             })
         })
         .collect()
@@ -372,6 +385,23 @@ pub async fn update(
     .map_err(|err| as_conflict(err, &draft.code, draft.barcode.as_deref()))?;
 
     Ok(true)
+}
+
+/// Write a new standing cost, without touching anything else.
+///
+/// What a receipt does under average costing, in the same transaction as the
+/// movement that caused it. Not [`update`]: that takes a whole `Checked` item
+/// and would need a form's worth of fields to change one number the machine
+/// worked out, and it would stamp `updated_by` with a person who typed nothing.
+pub async fn set_cost(conn: &mut PgConnection, id: Uuid, cost: Money) -> Result<(), DbError> {
+    sqlx::query("UPDATE inventory.items SET cost = $2::numeric WHERE id = $1")
+        .bind(id)
+        .bind(cost.to_storage_string())
+        .execute(conn)
+        .await
+        .map_err(DbError::Query)?;
+
+    Ok(())
 }
 
 /// Remove one. Its variants, images and account mappings go with it -

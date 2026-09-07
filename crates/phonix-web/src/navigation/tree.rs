@@ -171,6 +171,19 @@ pub static MENU: &[NavNode] = &[
             )
             .require(names::WAREHOUSES)
             .keywords(&["depot", "site", "building", "receiving", "shipping", "steps"]),
+            // Stock sits above the setup screens: what is on the shelf is
+            // what somebody opens this app to find out, and the location tree
+            // is what they arranged once in March.
+            NavNode::leaf("stock", "nav.stock", Icon::Boxes, "/inventory/stock")
+                .require(names::STOCK)
+                .keywords(&[
+                    "on hand", "quantity", "availability", "quants", "count", "lots",
+                ]),
+            NavNode::leaf("stock-moves", "nav.stock_moves", Icon::ArrowRight, "/inventory/moves")
+                .require(names::STOCK)
+                .keywords(&[
+                    "movements", "history", "receipts", "deliveries", "adjustments", "stock card",
+                ]),
             NavNode::leaf(
                 "stock-locations",
                 "nav.stock_locations",

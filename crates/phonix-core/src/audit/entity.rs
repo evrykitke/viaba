@@ -323,6 +323,20 @@ pub mod kinds {
         singleton: false,
     };
 
+    /// A stock movement.
+    ///
+    /// Recorded even though the moves are themselves an append-only trail, and
+    /// for a different question: the move says what happened to the stock, and
+    /// this says who keyed it and when. A count difference somebody entered at
+    /// half past six is a fact about a person, not about a shelf.
+    pub const STOCK_MOVE: EntityKind = EntityKind {
+        name: "stock_move",
+        singular_key: "entity.stock_move.singular",
+        plural_key: "entity.stock_move.plural",
+        href: Some("/inventory/moves?id={id}"),
+        singleton: false,
+    };
+
     /// A unit of measure.
     ///
     /// The factor is the fact worth keeping. Every quantity ever recorded in
@@ -399,6 +413,7 @@ pub const ENTITY_KINDS: &[EntityKind] = &[
     kinds::ITEM_CATEGORY,
     kinds::WAREHOUSE,
     kinds::STOCK_LOCATION,
+    kinds::STOCK_MOVE,
     kinds::UNIT_OF_MEASURE,
 ];
 

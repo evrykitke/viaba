@@ -30,7 +30,9 @@ use serde::{Deserialize, Serialize};
 /// Decimal places every quantity is stored at.
 pub const SCALE: u32 = 6;
 
-const SCALE_FACTOR: i128 = 1_000_000;
+/// `10^SCALE`. Public because valuation multiplies a money amount by a
+/// quantity, and doing that exactly means knowing the quantity's scale.
+pub const SCALE_FACTOR: i128 = 1_000_000;
 
 /// The largest scaled value `NUMERIC(19, 6)` holds: 9999999999999.999999.
 pub const MAX_SCALED: i128 = 9_999_999_999_999_999_999;

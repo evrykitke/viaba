@@ -6,14 +6,24 @@ codes, for HR and for item codes), section 4 in full (sensible defaults, the
 exhaustive chart of accounts, and the setup checklist), section 5 in full (the
 general ledger: double entry enforced by the type, append-only posting, sourced
 journals, period locks, dimensions on the line, and the six-column currency
-snapshot), section 9 (the HR app), and the first half of section 7 — the
-Inventory app's vocabulary: items, variants, categories, units, locations and
-warehouses, each with its screens, and the item's account mapping resolved
-through the `Ledger` port.
+snapshot), section 9 (the HR app), the first half of section 7 — the Inventory
+app's vocabulary: items, variants, categories, units, locations and warehouses,
+each with its screens, and the item's account mapping resolved through the
+`Ledger` port — and now **the stock ledger beneath the documents**: lots and
+serials, stock moves, quants, valuation layers, the on-hand and movement
+screens, and the adjustment. With it, 6.1 (valuation posts as stock moves), 6.6
+(negative stock refused) and 6.7 (sub-ledger to general ledger by `GROUP BY`)
+hold in code rather than on paper. See *The stock ledger, as built* under
+section 7.
 
-Still specified only — the document chain of section 7. Requisition,
-consolidated requisition, purchase order, receipt, bill, transfer and
-adjustment, and the stock moves and quants beneath them.
+Still specified only — the **documents** of section 7. Requisition, consolidated
+requisition, purchase order, receipt, bill and transfer. Each of them is now a
+form and a header over `stock::apply`, which is the whole reason the ledger came
+first.
+
+`Stock` is still not declared, as section 2 says it should not be: Books does
+not yet put cost of goods sold on an invoice, and that is the caller the port
+waits for.
 
 ## Section 7 follows Odoo
 
@@ -532,6 +542,53 @@ of the journal goes to, and whether the adjustment needs approval. A workspace
 that posts every discrepancy to one "inventory adjustment" account has a number
 that grows and tells nobody anything. Types are seeded as defaults per §4, each
 naming its account, and the workspace can add their own.
+
+### The stock ledger, as built
+
+The documents above are the interesting half of the brief and the easy half of
+the work. Everything they do, they do by moving stock, and five decisions had to
+be made to build that underneath them.
+
+**A movement's journal falls out of its two ends.** Each location *kind* stands
+for an account role — internal is `Inventory`, transit is `InventoryInTransit`,
+a vendor is `GoodsReceivedNotInvoiced`, a customer is `CostOfSales`, inventory
+loss is `InventoryAdjustment`. A move then debits the role of where the value
+arrived and credits the role of where it left, and the case where those are the
+same role is exactly the case where no value moved and no journal is wanted.
+
+That one rule produces the receipt, the delivery, the write-off, the supplier
+return, the customer return and the despatch into transit, correctly and without
+a document type having an opinion about accounting. It is the reason a return is
+not a seventh code path: it is the sixth run backwards.
+
+**A refused journal takes the movement with it.** `NoLedger` is not a refusal —
+it is a workspace that never bought the accounting module, and its goods still
+arrive; the move is stored with `journal_state = 'no_ledger'` against it. Every
+other answer from the port — a closed period, an unmapped role, an account
+somebody retired — rolls back the whole transaction. Under automated valuation
+there is no state in which a shelf changed and the stock account did not, which
+is 6.1 stated as a transaction boundary rather than as an intention.
+
+**Quants are a cache, and the schema can prove it.** What is on hand is stored
+per (variant, location, lot) because it is asked on every screen. The *truth* is
+`stock_moves`, and the view `stock_quants_reconcile` is the two sides beside
+each other: empty is correct, and a row is a bug. This is the practical payoff
+of modelling stock as double entry, and without it the cache would be a second
+set of books nobody could check.
+
+**Negative stock is refused, and it is not a setting.** A shelf below zero holds
+units that were never received, which have no cost, which makes every valuation
+after that moment guesswork — 6.6. The floor applies to locations that are ours;
+the counterpart locations have none, because a vendor location at −4,000 is a
+true statement that four thousand units have been bought.
+
+**A layer per receipt, whatever the costing method.** `remaining` is a
+*quantity* and is kept accurate under all three methods, so a workspace can
+change costing method without its history already being nonsense. What differs
+is how the quantity is *valued*: FIFO uses each layer's own cost, and standard
+and average use the item's one number. The average is recomputed on receipt and
+never on issue, so the order two pickers happened to work in cannot change what
+the month cost.
 
 ---
 

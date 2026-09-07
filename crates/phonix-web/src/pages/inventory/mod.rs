@@ -11,6 +11,8 @@
 //! /inventory/warehouses           the list
 //! /inventory/warehouses/new       a form
 //! /inventory/warehouses/:id       Details | History
+//! /inventory/stock                what is on hand, and where
+//! /inventory/moves                every change to every quantity
 //! /inventory/locations            the list, drawn as a tree
 //! /inventory/locations/new        a form
 //! /inventory/locations/:id        Details | History
@@ -29,6 +31,7 @@ pub mod item;
 pub mod item_categories;
 pub mod items;
 pub mod pictures;
+pub mod stock;
 pub mod stock_locations;
 pub mod units;
 pub mod variants;
