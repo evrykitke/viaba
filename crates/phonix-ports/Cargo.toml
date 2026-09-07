@@ -33,6 +33,9 @@ license.workspace = true
 phonix-core = { workspace = true }
 
 async-trait = { workspace = true }
+# A journal has a date on it. `NaiveDate` only - a port never deals in an
+# instant, because the document's date is the accounting fact.
+chrono = { workspace = true }
 serde = { workspace = true }
 thiserror = { workspace = true }
 uuid = { workspace = true }

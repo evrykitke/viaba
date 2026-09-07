@@ -2994,6 +2994,7 @@ name = "phonix-ports"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "chrono",
  "phonix-core",
  "serde",
  "thiserror 2.0.20",

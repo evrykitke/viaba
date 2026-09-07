@@ -21,4 +21,7 @@
 pub mod account;
 pub mod invoice;
 pub mod journal;
+pub mod ledger;
 pub mod period;
+
+pub use ledger::BooksLedger;

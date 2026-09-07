@@ -22,6 +22,7 @@
 //! post then *returns* the number rather than burning it.
 
 pub mod account;
+pub mod account_role;
 pub mod invoice;
 pub mod journal;
 pub mod period;
