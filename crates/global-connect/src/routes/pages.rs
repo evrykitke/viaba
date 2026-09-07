@@ -354,7 +354,14 @@ pub struct Picture {
 
 impl Picture {
     /// Every screenshot for one application.
-    fn of(app: &str, name: &str, product: &str, pattern: &str) -> Vec<Self> {
+    ///
+    /// `english` and `name` are the same application in two languages, and the
+    /// two strings here want different ones. The caption is the window chrome
+    /// over a picture of an English workspace, so it is English on every page -
+    /// it is describing what is *in* the image, and the template marks it
+    /// `lang="en"` accordingly. The alternative text describes that image to
+    /// somebody who cannot see it, so it is in their language.
+    fn of(app: &str, english: &str, name: &str, product: &str, pattern: &str) -> Vec<Self> {
         Shot::of(app)
             .map(|shot| {
                 // `inventory-item-form` reads as "item form" once the
@@ -365,7 +372,7 @@ impl Picture {
                     url: shot.url,
                     width: shot.width,
                     height: shot.height,
-                    caption: format!("acme \u{b7} {name} \u{b7} {screen}"),
+                    caption: format!("acme \u{b7} {english} \u{b7} {screen}"),
                     alt: pattern
                         .replace("{app}", name)
                         .replace("{product}", product)
@@ -387,6 +394,9 @@ pub struct AppView {
 }
 
 fn app_views(t: &'static Strings, product: &str) -> Vec<AppView> {
+    // The English names, for the captions. See [`Picture::of`].
+    let english = i18n::strings(Language::ENGLISH);
+
     APP_SLUGS
         .iter()
         .enumerate()
@@ -395,6 +405,7 @@ fn app_views(t: &'static Strings, product: &str) -> Vec<AppView> {
             mark: &APP_MARKS[index],
             pictures: Picture::of(
                 slug,
+                english.apps[index].name,
                 t.apps[index].name,
                 product,
                 t.common.shot_alt,

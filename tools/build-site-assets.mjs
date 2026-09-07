@@ -103,10 +103,30 @@ function publish(bytes, extension, stem = "site") {
  * are written afterwards.
  */
 function sweep() {
+    // `name.<12 hex>.ext` is the shape this script writes. Anything else in
+    // here was put there by hand.
+    const generated = /^.+\.[0-9a-f]{12}\.[a-z0-9]+$/;
+
     for (const existing of readdirSync(outDir)) {
-        if (!published.has(existing)) {
-            rmSync(join(outDir, existing));
+        if (published.has(existing)) {
+            continue;
+        }
+
+        rmSync(join(outDir, existing));
+
+        if (generated.test(existing)) {
             console.log(`  removed ${existing}`);
+        } else {
+            // Deleting it is right - assets/ is output - but somebody who put a
+            // screenshot here meant to add one, and a bare "removed" teaches
+            // them nothing about where it should have gone.
+            console.log(
+                `  removed ${existing} - assets/ is generated output and is swept ` +
+                `on every build.
+` +
+                `    A screenshot belongs in crates/global-connect/artifacts/ ` +
+                `(see its README).`,
+            );
         }
     }
 }

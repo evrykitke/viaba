@@ -27,7 +27,15 @@ pub struct Shot {
 
 /// Every screenshot, sorted by filename.
 pub static SHOTS: &[Shot] = &[
-
+    Shot {
+        app: "inventory",
+        screen: "items",
+        url: "/assets/inventory-items.6b4f167182bd.png",
+        bytes: include_bytes!("../assets/inventory-items.6b4f167182bd.png"),
+        mime: "image/png",
+        width: 2878,
+        height: 940,
+    },
 ];
 
 /// The 1200x630 card, when `artifacts/og-image` exists.
