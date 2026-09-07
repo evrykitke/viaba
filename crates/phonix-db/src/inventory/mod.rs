@@ -20,4 +20,12 @@
 //! path for "an item without variants" - see
 //! `migrations/apps/inventory/0002_variants_and_images.sql`.
 
+pub mod account_mapping;
+pub mod category;
 pub mod defaults;
+pub mod image;
+pub mod item;
+pub mod location;
+pub mod unit;
+pub mod variant;
+pub mod warehouse;

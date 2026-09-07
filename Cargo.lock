@@ -3077,6 +3077,7 @@ version = "0.1.0"
 dependencies = [
  "app-books",
  "app-hr",
+ "app-inventory",
  "argon2",
  "async-trait",
  "base32",

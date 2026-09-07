@@ -71,6 +71,7 @@ pub mod error;
 pub mod files;
 pub mod hr;
 pub mod identity;
+pub mod inventory;
 pub mod mail;
 pub mod master;
 pub mod numbering;

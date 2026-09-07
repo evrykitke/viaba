@@ -274,6 +274,68 @@ pub mod kinds {
         singleton: false,
     };
 
+    /// An item: what the workspace stocks, buys and sells.
+    ///
+    /// Its `tracking` and its stock unit are the fields worth a trail. Both are
+    /// refused once stock exists, so a change to either is a change made while
+    /// the item was still empty - and "when did this stop being empty" is what
+    /// somebody asks when a count comes out wrong.
+    pub const ITEM: EntityKind = EntityKind {
+        name: "item",
+        singular_key: "entity.item.singular",
+        plural_key: "entity.item.plural",
+        href: Some("/inventory/items/{id}"),
+        singleton: false,
+    };
+
+    /// An item category, and therefore a costing method.
+    ///
+    /// Changing `costing_method` restates what the workspace says its stock is
+    /// worth. That is an accountant's decision made on an inventory screen, and
+    /// it is the single strongest reason this kind exists.
+    pub const ITEM_CATEGORY: EntityKind = EntityKind {
+        name: "item_category",
+        singular_key: "entity.item_category.singular",
+        plural_key: "entity.item_category.plural",
+        href: Some("/inventory/categories/{id}"),
+        singleton: false,
+    };
+
+    /// A warehouse, and how many steps it receives and ships in.
+    pub const WAREHOUSE: EntityKind = EntityKind {
+        name: "warehouse",
+        singular_key: "entity.warehouse.singular",
+        plural_key: "entity.warehouse.plural",
+        href: Some("/inventory/warehouses/{id}"),
+        singleton: false,
+    };
+
+    /// A stock location.
+    ///
+    /// Recorded because a location's *kind* decides what a move across it
+    /// means: turning one into a transit location changes whether stock in it
+    /// is on hand, and the stock report changes shape without any stock moving.
+    pub const STOCK_LOCATION: EntityKind = EntityKind {
+        name: "stock_location",
+        singular_key: "entity.stock_location.singular",
+        plural_key: "entity.stock_location.plural",
+        href: Some("/inventory/locations/{id}"),
+        singleton: false,
+    };
+
+    /// A unit of measure.
+    ///
+    /// The factor is the fact worth keeping. Every quantity ever recorded in
+    /// this unit was recorded against the factor of the day, and changing it
+    /// silently restates all of them.
+    pub const UNIT_OF_MEASURE: EntityKind = EntityKind {
+        name: "unit_of_measure",
+        singular_key: "entity.unit_of_measure.singular",
+        plural_key: "entity.unit_of_measure.plural",
+        href: Some("/inventory/units"),
+        singleton: false,
+    };
+
     /// A document number series: its format, its reset period, where it starts.
     ///
     /// The one settings change that can make two documents share a number, so
@@ -333,6 +395,11 @@ pub const ENTITY_KINDS: &[EntityKind] = &[
     kinds::JOURNAL,
     kinds::PERIOD,
     kinds::DEPARTMENT,
+    kinds::ITEM,
+    kinds::ITEM_CATEGORY,
+    kinds::WAREHOUSE,
+    kinds::STOCK_LOCATION,
+    kinds::UNIT_OF_MEASURE,
 ];
 
 /// The kind with this stored name, if this build knows it.
