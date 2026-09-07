@@ -8,7 +8,8 @@ general ledger: double entry enforced by the type, append-only posting, sourced
 journals, period locks, dimensions on the line, and the six-column currency
 snapshot), section 9 (the HR app), and the first half of section 7 — the
 Inventory app's vocabulary: items, variants, categories, units, locations and
-warehouses.
+warehouses, each with its screens, and the item's account mapping resolved
+through the `Ledger` port.
 
 Still specified only — the document chain of section 7. Requisition,
 consolidated requisition, purchase order, receipt, bill, transfer and
