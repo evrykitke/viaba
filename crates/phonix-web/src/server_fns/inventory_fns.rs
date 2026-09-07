@@ -1,0 +1,556 @@
+//! Inventory: what the workspace stocks, where it is, and how it got there.
+//!
+//! There is deliberately no endpoint here that reads the chart of accounts.
+//! The account picker on an item goes through `phonix_ports::Ledger`, so the
+//! browser never crosses the app boundary either - see ADR 0006 section 2 and
+//! [`postable_accounts`] below, which is the port's own answer rather than a
+//! query against `books`.
+
+use app_inventory::accounts::{AccountOverrides, AccountRef};
+use app_inventory::category::{Category, CategoryInput, CategorySummary};
+use app_inventory::image::{Gallery, ImageInput};
+use app_inventory::item::{Item, ItemInput, ItemSummary};
+use app_inventory::location::{Location, LocationInput, LocationSummary};
+use app_inventory::unit::{Unit, UnitInput};
+use app_inventory::variant::{Attribute, Plan, Selection, VariantSummary};
+use app_inventory::warehouse::{Warehouse, WarehouseInput, WarehouseSummary};
+use leptos::prelude::*;
+use phonix_core::form::Submission;
+use uuid::Uuid;
+
+// --- Units ---------------------------------------------------------------
+
+#[server(name = ListUnits, prefix = "/api", endpoint = "inventory/units")]
+pub async fn list_units() -> Result<Vec<Unit>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::unit::list(&pool, &caller)
+        .await
+        .map_err(service_error)
+}
+
+/// The units a picker offers. Gated on items rather than units: choosing what
+/// an item is counted in is not the same power as redrawing the unit list.
+#[server(name = SelectableUnits, prefix = "/api", endpoint = "inventory/units/selectable")]
+pub async fn selectable_units() -> Result<Vec<Unit>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::unit::selectable(&pool, &caller)
+        .await
+        .map_err(service_error)
+}
+
+#[server(name = UnitEdit, prefix = "/api", endpoint = "inventory/units/edit")]
+pub async fn unit_edit(unit_id: Uuid) -> Result<UnitInput, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::unit::edit(&pool, &caller, unit_id)
+        .await
+        .map_err(service_error)
+}
+
+#[server(name = SaveUnit, prefix = "/api", endpoint = "inventory/units/save")]
+pub async fn save_unit(draft: UnitInput) -> Result<Submission<UnitInput>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::unit::save(&pool, &caller, draft)
+        .await
+        .map_err(service_error)
+}
+
+#[server(name = DeleteUnit, prefix = "/api", endpoint = "inventory/units/delete")]
+pub async fn delete_unit(
+    unit_id: Uuid,
+) -> Result<app_inventory::unit::DeleteOutcome, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::unit::delete(&pool, &caller, unit_id)
+        .await
+        .map_err(service_error)
+}
+
+// --- Locations -----------------------------------------------------------
+
+#[server(name = ListStockLocations, prefix = "/api", endpoint = "inventory/locations")]
+pub async fn list_stock_locations() -> Result<Vec<LocationSummary>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::location::list(&pool, &caller)
+        .await
+        .map_err(service_error)
+}
+
+#[server(name = SelectableLocations, prefix = "/api", endpoint = "inventory/locations/selectable")]
+pub async fn selectable_locations() -> Result<Vec<Location>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::location::selectable(&pool, &caller)
+        .await
+        .map_err(service_error)
+}
+
+#[server(name = StockLocationEdit, prefix = "/api", endpoint = "inventory/locations/edit")]
+pub async fn stock_location_edit(location_id: Uuid) -> Result<LocationInput, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::location::edit(&pool, &caller, location_id)
+        .await
+        .map_err(service_error)
+}
+
+#[server(name = SaveStockLocation, prefix = "/api", endpoint = "inventory/locations/save")]
+pub async fn save_stock_location(
+    draft: LocationInput,
+) -> Result<Submission<LocationInput>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::location::save(&pool, &caller, draft)
+        .await
+        .map_err(service_error)
+}
+
+#[server(name = DeleteStockLocation, prefix = "/api", endpoint = "inventory/locations/delete")]
+pub async fn delete_stock_location(
+    location_id: Uuid,
+) -> Result<app_inventory::location::DeleteOutcome, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::location::delete(&pool, &caller, location_id)
+        .await
+        .map_err(service_error)
+}
+
+// --- Warehouses ----------------------------------------------------------
+
+#[server(name = ListWarehouses, prefix = "/api", endpoint = "inventory/warehouses")]
+pub async fn list_warehouses() -> Result<Vec<WarehouseSummary>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::warehouse::list(&pool, &caller)
+        .await
+        .map_err(service_error)
+}
+
+#[server(name = SelectableWarehouses, prefix = "/api", endpoint = "inventory/warehouses/selectable")]
+pub async fn selectable_warehouses() -> Result<Vec<Warehouse>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::warehouse::selectable(&pool, &caller)
+        .await
+        .map_err(service_error)
+}
+
+#[server(name = WarehouseEdit, prefix = "/api", endpoint = "inventory/warehouses/edit")]
+pub async fn warehouse_edit(warehouse_id: Uuid) -> Result<WarehouseInput, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::warehouse::edit(&pool, &caller, warehouse_id)
+        .await
+        .map_err(service_error)
+}
+
+#[server(name = SaveWarehouse, prefix = "/api", endpoint = "inventory/warehouses/save")]
+pub async fn save_warehouse(
+    draft: WarehouseInput,
+) -> Result<Submission<WarehouseInput>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::warehouse::save(&pool, &caller, draft)
+        .await
+        .map_err(service_error)
+}
+
+/// Switch a warehouse off, or back on.
+///
+/// There is no delete: a warehouse owns the locations that carry every movement
+/// that ever crossed them, so the honest operation is the one offered.
+#[server(name = SetWarehouseActive, prefix = "/api", endpoint = "inventory/warehouses/active")]
+pub async fn set_warehouse_active(
+    warehouse_id: Uuid,
+    active: bool,
+) -> Result<Submission<WarehouseInput>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::warehouse::set_active(&pool, &caller, warehouse_id, active)
+        .await
+        .map_err(service_error)
+}
+
+// --- Categories ----------------------------------------------------------
+
+#[server(name = ListItemCategories, prefix = "/api", endpoint = "inventory/categories")]
+pub async fn list_item_categories() -> Result<Vec<CategorySummary>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::category::list(&pool, &caller)
+        .await
+        .map_err(service_error)
+}
+
+#[server(name = SelectableCategories, prefix = "/api", endpoint = "inventory/categories/selectable")]
+pub async fn selectable_categories() -> Result<Vec<Category>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::category::selectable(&pool, &caller)
+        .await
+        .map_err(service_error)
+}
+
+#[server(name = ItemCategoryEdit, prefix = "/api", endpoint = "inventory/categories/edit")]
+pub async fn item_category_edit(category_id: Uuid) -> Result<CategoryInput, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::category::edit(&pool, &caller, category_id)
+        .await
+        .map_err(service_error)
+}
+
+#[server(name = SaveItemCategory, prefix = "/api", endpoint = "inventory/categories/save")]
+pub async fn save_item_category(
+    draft: CategoryInput,
+) -> Result<Submission<CategoryInput>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::category::save(&pool, &caller, draft)
+        .await
+        .map_err(service_error)
+}
+
+#[server(name = DeleteItemCategory, prefix = "/api", endpoint = "inventory/categories/delete")]
+pub async fn delete_item_category(
+    category_id: Uuid,
+) -> Result<app_inventory::category::DeleteOutcome, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::category::delete(&pool, &caller, category_id)
+        .await
+        .map_err(service_error)
+}
+
+// --- Items ---------------------------------------------------------------
+
+#[server(name = ListItems, prefix = "/api", endpoint = "inventory/items")]
+pub async fn list_items() -> Result<Vec<ItemSummary>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::item::list(&pool, &caller)
+        .await
+        .map_err(service_error)
+}
+
+#[server(name = ItemDetail, prefix = "/api", endpoint = "inventory/items/detail")]
+pub async fn item_detail(item_id: Uuid) -> Result<Item, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::item::detail(&pool, &caller, item_id)
+        .await
+        .map_err(service_error)
+}
+
+#[server(name = ItemEdit, prefix = "/api", endpoint = "inventory/items/edit")]
+pub async fn item_edit(item_id: Uuid) -> Result<ItemInput, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::item::edit(&pool, &caller, item_id)
+        .await
+        .map_err(service_error)
+}
+
+#[server(name = SaveItem, prefix = "/api", endpoint = "inventory/items/save")]
+pub async fn save_item(draft: ItemInput) -> Result<Submission<ItemInput>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::item::save(&pool, &caller, draft)
+        .await
+        .map_err(service_error)
+}
+
+#[server(name = DeleteItem, prefix = "/api", endpoint = "inventory/items/delete")]
+pub async fn delete_item(
+    item_id: Uuid,
+) -> Result<app_inventory::item::DeleteOutcome, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::item::delete(&pool, &caller, item_id)
+        .await
+        .map_err(service_error)
+}
+
+/// What a scanner produces: the item, and the variant if the code was one of
+/// those. One call, because the person holding the scanner does not know which
+/// of the two the string is in.
+#[server(name = ItemByBarcode, prefix = "/api", endpoint = "inventory/items/scan")]
+pub async fn item_by_barcode(
+    barcode: String,
+) -> Result<Option<(Item, Option<Uuid>)>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::item::by_barcode(&pool, &caller, &barcode)
+        .await
+        .map_err(service_error)
+}
+
+// --- Variants ------------------------------------------------------------
+
+#[server(name = ItemVariants, prefix = "/api", endpoint = "inventory/items/variants")]
+pub async fn item_variants(item_id: Uuid) -> Result<Vec<VariantSummary>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::item::variants_of(&pool, &caller, item_id)
+        .await
+        .map_err(service_error)
+}
+
+#[server(name = ItemSelection, prefix = "/api", endpoint = "inventory/items/selection")]
+pub async fn item_selection(item_id: Uuid) -> Result<Selection, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::item::selection(&pool, &caller, item_id)
+        .await
+        .map_err(service_error)
+}
+
+/// What changing the selection would do, without doing it.
+///
+/// Six colours, five sizes and three materials is ninety variants, and a
+/// workspace that meant to add one colour should see that number first.
+#[server(name = PlanVariants, prefix = "/api", endpoint = "inventory/items/variants/plan")]
+pub async fn plan_variants(item_id: Uuid, selection: Selection) -> Result<Plan, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::item::plan_variants(&pool, &caller, item_id, selection)
+        .await
+        .map_err(service_error)
+}
+
+#[server(name = SetVariants, prefix = "/api", endpoint = "inventory/items/variants/apply")]
+pub async fn set_variants(item_id: Uuid, selection: Selection) -> Result<Plan, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::item::set_variants(&pool, &caller, item_id, selection)
+        .await
+        .map_err(service_error)
+}
+
+#[server(name = SaveVariant, prefix = "/api", endpoint = "inventory/items/variants/save")]
+pub async fn save_variant(
+    variant_id: Uuid,
+    barcode: Option<String>,
+    price_extra: String,
+    cost_extra: String,
+) -> Result<bool, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::item::save_variant(
+        &pool,
+        &caller,
+        variant_id,
+        barcode,
+        price_extra,
+        cost_extra,
+    )
+    .await
+    .map_err(service_error)
+}
+
+#[server(name = ListAttributes, prefix = "/api", endpoint = "inventory/attributes")]
+pub async fn list_attributes() -> Result<Vec<Attribute>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::item::attributes(&pool, &caller)
+        .await
+        .map_err(service_error)
+}
+
+// --- Pictures ------------------------------------------------------------
+
+#[server(name = ItemGallery, prefix = "/api", endpoint = "inventory/items/images")]
+pub async fn item_gallery(item_id: Uuid) -> Result<Gallery, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::item::gallery(&pool, &caller, item_id)
+        .await
+        .map_err(service_error)
+}
+
+/// File an already-uploaded picture against an item, or one of its variants.
+///
+/// The upload itself went through the files endpoint, which is what checked the
+/// bucket, the size and that it really is an image.
+#[server(name = AttachItemImage, prefix = "/api", endpoint = "inventory/items/images/attach")]
+pub async fn attach_item_image(draft: ImageInput) -> Result<Uuid, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::item::attach_image(&pool, &caller, draft)
+        .await
+        .map_err(service_error)
+}
+
+#[server(name = DetachItemImage, prefix = "/api", endpoint = "inventory/items/images/detach")]
+pub async fn detach_item_image(image_id: Uuid) -> Result<bool, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::item::detach_image(&pool, &caller, image_id)
+        .await
+        .map_err(service_error)
+}
+
+// --- Account mapping -----------------------------------------------------
+
+/// What the item overrides, and what its category does, so a screen can say
+/// which of the two an account came from.
+#[server(name = ItemAccounts, prefix = "/api", endpoint = "inventory/items/accounts")]
+pub async fn item_accounts(
+    item_id: Uuid,
+) -> Result<(AccountOverrides, AccountOverrides), ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::item::account_overrides(&pool, &caller, item_id)
+        .await
+        .map_err(service_error)
+}
+
+/// The accounts an override may name.
+///
+/// Through the `Ledger` port, not a query against `books`. That is the whole
+/// point: the browser gets a list of ids and labels, and Inventory still does
+/// not depend on the accounting app. Empty where there is no ledger, so the
+/// picker renders as "the default for this role" and the screen still works.
+#[server(name = PostableAccounts, prefix = "/api", endpoint = "inventory/accounts")]
+pub async fn postable_accounts()
+-> Result<Vec<phonix_ports::ledger::LedgerAccount>, ServerFnError> {
+    use phonix_ports::Ledger;
+
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::item::list(&pool, &caller)
+        .await
+        .map_err(service_error)?;
+
+    phonix_services::books::BooksLedger::new(pool, caller)
+        .postable_accounts()
+        .await
+        .map_err(|err| ServerFnError::new(err.to_string()))
+}
+
+/// Point one of an item's or a category's roles at an account, or stop
+/// overriding it. `chosen` absent clears the override.
+#[server(name = SetItemAccount, prefix = "/api", endpoint = "inventory/items/accounts/set")]
+pub async fn set_item_account(
+    owner_kind: String,
+    owner_id: Uuid,
+    role: String,
+    chosen: Option<AccountRef>,
+) -> Result<(), ServerFnError> {
+    use phonix_db::inventory::account_mapping::Owner;
+    use phonix_ports::ledger::AccountRole;
+
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    let owner = match owner_kind.as_str() {
+        "category" => Owner::Category,
+        "item" => Owner::Item,
+        _ => return Err(ServerFnError::new("unknown owner")),
+    };
+
+    let role = AccountRole::parse(&role).ok_or_else(|| ServerFnError::new("unknown role"))?;
+
+    phonix_services::inventory::item::set_account(&pool, &caller, owner, owner_id, role, chosen)
+        .await
+        .map_err(service_error)
+}
+
+// --- The home page -------------------------------------------------------
+
+/// Items, and how many of them are counted. The gap between the two is the
+/// interesting one.
+#[server(name = InventoryCounts, prefix = "/api", endpoint = "inventory/counts")]
+pub async fn inventory_counts() -> Result<(i64, i64), ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    let items = phonix_services::inventory::item::list(&pool, &caller)
+        .await
+        .map_err(service_error)?;
+
+    let tracked = items.iter().filter(|item| item.is_tracked).count() as i64;
+
+    Ok((items.len() as i64, tracked))
+}

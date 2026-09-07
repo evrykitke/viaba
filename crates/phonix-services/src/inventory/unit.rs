@@ -10,7 +10,7 @@
 //! the honest line, because a workspace that typed 100 instead of 1000 this
 //! morning has to be able to fix it.
 
-use app_inventory::unit::{Unit, UnitInput};
+use app_inventory::unit::{DeleteOutcome, Unit, UnitInput};
 use phonix_core::form::Submission;
 use phonix_core::msg;
 use phonix_core::permissions;
@@ -183,17 +183,6 @@ pub async fn delete(pool: &PgPool, caller: &Caller, id: Uuid) -> ServiceResult<D
     .await;
 
     Ok(DeleteOutcome::Deleted)
-}
-
-/// What a delete answered. Two of the three are things a screen renders beside
-/// the button rather than faults.
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub enum DeleteOutcome {
-    Deleted,
-    /// Items are counted in it.
-    InUse { count: i64 },
-    /// It is what its class's other units are measured against.
-    IsTheReference,
 }
 
 /// A duplicate, on whichever field it was actually about. Two constraints reach

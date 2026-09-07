@@ -25,6 +25,17 @@ use crate::pages::admin::users::UsersPage;
 use crate::pages::auth::{
     AcceptInvitationPage, ChallengePage, ForgotPasswordPage, SignInPage, SignUpPage,
 };
+use crate::pages::inventory::home::InventoryHomePage;
+use crate::pages::inventory::item::ItemPage;
+use crate::pages::inventory::item_categories::{
+    ItemCategoriesPage, ItemCategoryNewPage, ItemCategoryPage,
+};
+use crate::pages::inventory::items::{ItemNewPage, ItemsPage};
+use crate::pages::inventory::stock_locations::{
+    StockLocationNewPage, StockLocationPage, StockLocationsPage,
+};
+use crate::pages::inventory::units::{UnitNewPage, UnitPage, UnitsPage};
+use crate::pages::inventory::warehouses::{WarehouseNewPage, WarehousePage, WarehousesPage};
 use crate::pages::master::home::MasterHomePage;
 use crate::pages::master::parties::{PartiesPage, PartyNewPage};
 use crate::pages::master::party::PartyPage;
@@ -227,6 +238,25 @@ pub fn app() -> impl IntoView {
                     // department id that fails to parse.
                     <Route path=path!("/people/departments/new") view=DepartmentNewPage />
                     <Route path=path!("/people/departments/:id") view=DepartmentPage />
+
+                    // Inventory. Every "new" sits before its parameter, so the
+                    // word is a screen rather than an id that fails to parse.
+                    <Route path=path!("/inventory") view=InventoryHomePage />
+                    <Route path=path!("/inventory/items") view=ItemsPage />
+                    <Route path=path!("/inventory/items/new") view=ItemNewPage />
+                    <Route path=path!("/inventory/items/:id") view=ItemPage />
+                    <Route path=path!("/inventory/categories") view=ItemCategoriesPage />
+                    <Route path=path!("/inventory/categories/new") view=ItemCategoryNewPage />
+                    <Route path=path!("/inventory/categories/:id") view=ItemCategoryPage />
+                    <Route path=path!("/inventory/warehouses") view=WarehousesPage />
+                    <Route path=path!("/inventory/warehouses/new") view=WarehouseNewPage />
+                    <Route path=path!("/inventory/warehouses/:id") view=WarehousePage />
+                    <Route path=path!("/inventory/locations") view=StockLocationsPage />
+                    <Route path=path!("/inventory/locations/new") view=StockLocationNewPage />
+                    <Route path=path!("/inventory/locations/:id") view=StockLocationPage />
+                    <Route path=path!("/inventory/units") view=UnitsPage />
+                    <Route path=path!("/inventory/units/new") view=UnitNewPage />
+                    <Route path=path!("/inventory/units/:id") view=UnitPage />
 
                     <Route path=path!("/master/taxes") view=TaxesPage />
                     <Route path=path!("/master/taxes/new") view=TaxNewPage />

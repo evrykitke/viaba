@@ -3152,6 +3152,7 @@ version = "0.1.0"
 dependencies = [
  "app-books",
  "app-hr",
+ "app-inventory",
  "axum",
  "chrono",
  "console_error_panic_hook",

@@ -3,6 +3,7 @@ pub mod admin;
 pub mod auth;
 pub mod dashboard;
 pub mod home;
+pub mod inventory;
 pub mod master;
 pub mod not_found;
 pub mod people;

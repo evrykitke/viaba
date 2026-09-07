@@ -42,6 +42,7 @@ pub mod books_fns;
 pub mod currency_fns;
 pub mod file_fns;
 pub mod hr_fns;
+pub mod inventory_fns;
 pub mod master_fns;
 pub mod numbering_fns;
 pub mod onboarding_fns;

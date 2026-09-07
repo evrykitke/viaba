@@ -44,13 +44,18 @@
 pub mod accounts;
 pub mod api_keys;
 pub mod departments;
+pub mod item_categories;
+pub mod items;
 pub mod invitations;
 pub mod mail;
 pub mod organization;
 pub mod parties;
 pub mod roles;
+pub mod stock_locations;
 pub mod taxes;
+pub mod units;
 pub mod users;
+pub mod warehouses;
 
 use std::future::Future;
 use std::pin::Pin;

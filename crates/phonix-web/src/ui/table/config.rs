@@ -40,12 +40,17 @@ pub mod changes;
 pub mod currencies;
 pub mod departments;
 pub mod invoices;
+pub mod item_categories;
+pub mod items;
 pub mod journals;
 pub mod numbering;
 pub mod parties;
 pub mod roles;
+pub mod stock_locations;
 pub mod taxes;
+pub mod units;
 pub mod users;
+pub mod warehouses;
 
 use leptos::prelude::Callback;
 use phonix_core::query::{PageRequest, Sort};

@@ -276,6 +276,17 @@ pub fn factor_to_string(factor_scaled: i128) -> String {
         .unwrap_or_else(|_| "1".to_owned())
 }
 
+/// What a delete answered. Two of the three are things a screen renders beside
+/// the button rather than faults.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum DeleteOutcome {
+    Deleted,
+    /// Items are counted in it.
+    InUse { count: i64 },
+    /// It is what its class's other units are measured against.
+    IsTheReference,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
 pub enum UnitError {
     #[error("a unit needs a code")]

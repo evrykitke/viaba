@@ -128,6 +128,63 @@ pub static MENU: &[NavNode] = &[
         ],
     )
     .require(names::MASTER),
+    // Inventory, between master data and people: an item list is read by more
+    // of a workspace than a department list is, and by fewer people than the
+    // customer list.
+    NavNode::group(
+        "inventory",
+        "nav.inventory",
+        Icon::Warehouse,
+        &[
+            NavNode::leaf(
+                "inventory-overview",
+                "nav.overview",
+                Icon::LayoutGrid,
+                "/inventory",
+            )
+            .require(names::INVENTORY)
+            .keywords(&["stock", "home", "start"]),
+            NavNode::leaf("items", "nav.items", Icon::Package, "/inventory/items")
+                .require(names::ITEMS)
+                // "Product" and "SKU" are what half the world calls these, and
+                // "barcode" is what somebody holding a scanner searches for.
+                .keywords(&[
+                    "products", "sku", "goods", "stock", "barcode", "upc", "variants",
+                ]),
+            NavNode::leaf(
+                "item-categories",
+                "nav.item_categories",
+                Icon::ListTree,
+                "/inventory/categories",
+            )
+            .require(names::ITEM_CATEGORIES)
+            // The costing method lives on the category, and somebody looking
+            // for "FIFO" is looking for this screen without knowing its name.
+            .keywords(&[
+                "costing", "valuation", "fifo", "average", "standard cost", "removal",
+            ]),
+            NavNode::leaf(
+                "warehouses",
+                "nav.warehouses",
+                Icon::Warehouse,
+                "/inventory/warehouses",
+            )
+            .require(names::WAREHOUSES)
+            .keywords(&["depot", "site", "building", "receiving", "shipping", "steps"]),
+            NavNode::leaf(
+                "stock-locations",
+                "nav.stock_locations",
+                Icon::Boxes,
+                "/inventory/locations",
+            )
+            .require(names::STOCK_LOCATIONS)
+            .keywords(&["bin", "shelf", "zone", "aisle", "transit", "inventory loss"]),
+            NavNode::leaf("units", "nav.units", Icon::Ruler, "/inventory/units")
+                .require(names::UNITS)
+                .keywords(&["uom", "measure", "kilogram", "litre", "each", "conversion"]),
+        ],
+    )
+    .require(names::INVENTORY),
     // People, after master data and before administration: arranging the
     // company is closer to keeping the customer list tidy than it is to
     // managing user accounts, and somebody looking for departments looks in
