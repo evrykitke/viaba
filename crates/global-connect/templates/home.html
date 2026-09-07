@@ -14,9 +14,6 @@
 #}
 {% extends "base.html" %}
 
-{% block title %}{{ t.home.title }}{% endblock %}
-{% block description %}{{ t.home.description }}{% endblock %}
-
 {% block main %}
 
 {# ---------------------------------------------------------------- hero -- #}
@@ -29,7 +26,15 @@
 
     <h1 class="mt-6 max-w-4xl text-balance text-display font-black leading-[0.95] tracking-tight">
       {{ t.home.headline_lead }}
-      <span class="text-gradient">{{ t.home.headline_accent }}</span>
+      <span class="marked">
+        <span class="text-gradient">{{ t.home.headline_accent }}</span>
+        {# A mark, not a font: it is the same stroke in every language, which is
+           why it is safe on a Chinese headline where the handwriting face is
+           not. #}
+        <svg class="mark" viewBox="0 0 300 18" preserveAspectRatio="none" aria-hidden="true">
+          <path d="M4 12c48-7 108-9 148-7 38 2 92 5 144 2"/>
+        </svg>
+      </span>
     </h1>
 
     <p class="mt-7 max-w-xl text-lead text-content-muted">{{ t.home.lede }}</p>
@@ -58,10 +63,15 @@
 
     <div class="mt-12 grid gap-4 md:grid-cols-3">
       {% for app in t.apps %}
-      <article class="tile">
-        <div class="tile-icon" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" class="size-6">
-            <path d="{{ icons[loop.index0] }}" stroke-linecap="round" stroke-linejoin="round"/>
+      <article class="tile {{ apps[loop.index0].mark.class }}">
+        {# Flat shapes with `fill` on them, not one stroked path. `fill` is a
+           presentation attribute, which is the only reason a multi-colour icon
+           is possible under a policy that forbids `style=`. #}
+        <div class="mark-tile" aria-hidden="true">
+          <svg viewBox="0 0 48 48" class="size-7">
+            {% for layer in apps[loop.index0].mark.layers %}
+            <path d="{{ layer.d }}" fill="{{ layer.fill }}"/>
+            {% endfor %}
           </svg>
         </div>
 
@@ -88,6 +98,24 @@
       <p class="band-lede">{{ t.home.dense_lede }}</p>
     </div>
 
+    {% if let Some(shot) = lead %}
+    {# A real screenshot, wearing the same window chrome as the drawing below
+       it would have. That shared frame is the whole trick to a photograph and
+       an illustration sitting on one page without looking like two sites. #}
+    <div class="mt-12 shot shot-lit">
+      <div class="mock-bar">
+        <span class="mock-dot"></span><span class="mock-dot"></span><span class="mock-dot"></span>
+        <span class="ms-3 text-2xs text-content-subtle" lang="en">{{ shot.caption }}</span>
+      </div>
+      <img src="{{ shot.url }}" width="{{ shot.width }}" height="{{ shot.height }}"
+           alt="{{ shot.alt }}" loading="lazy" decoding="async">
+    </div>
+    {% else %}
+    {# No screenshot in `artifacts/` yet, so the page draws one. Markup rather
+       than a picture, styled with the product's own tokens - it cannot go stale
+       the way a PNG does the week after the screen changes. `aria-hidden`
+       because it is a picture of software, not software, and its labels stay in
+       English because it stands in for a screenshot of a workspace. #}
     <div class="mt-12 mock" aria-hidden="true" lang="en">
       <div class="mock-bar">
         <span class="mock-dot"></span><span class="mock-dot"></span><span class="mock-dot"></span>
@@ -111,6 +139,7 @@
         </div>
       </div>
     </div>
+    {% endif %}
   </div>
 </section>
 
@@ -144,6 +173,10 @@
         <a href="{{ contact }}" class="btn-ghost btn-lg">{{ t.common.talk_to_us }}</a>
         {% endif %}
       </div>
+
+      {# A remark in the margin, and nothing depends on it being read - which is
+         the rule for anything set in the handwriting face. See `site.css`. #}
+      <p class="mt-6 handwritten aside-hand">{{ t.home.hand_note }}</p>
     </div>
   </div>
 </section>

@@ -60,6 +60,7 @@ pub struct Strings {
     pub pricing: Pricing,
     pub about: About,
     pub contact: Contact,
+    pub solutions: Solutions,
     pub not_found: NotFound,
     /// Fixed-length, so a language that describes two applications where
     /// English describes three does not compile. The same for the pillars and
@@ -81,9 +82,17 @@ pub struct Common {
     /// Names the language switcher for a screen reader.
     pub language: &'static str,
     pub home_of: &'static str,
+    /// How a screenshot describes itself to somebody who cannot see it.
+    ///
+    /// One pattern with `{app}` and `{screen}` in it rather than a sentence per
+    /// picture. A caption per screenshot would be a translation job every time
+    /// somebody took one, which is the surest way to end up with a folder of
+    /// images described in English on a Chinese page.
+    pub shot_alt: &'static str,
 }
 
 pub struct Nav {
+    pub solutions: &'static str,
     pub product: &'static str,
     pub pricing: &'static str,
     pub about: &'static str,
@@ -119,6 +128,12 @@ pub struct Home {
     pub dense_title: &'static str,
     pub dense_lede: &'static str,
     pub reasons_title: &'static str,
+    /// The remark in the margin, set in the handwriting face.
+    ///
+    /// Deliberately not load-bearing: it is the one string on the site a reader
+    /// may see in a fallback face, or - on a Chinese page - in their system's
+    /// brush rather than ours. Nothing is lost if it reads as plain italic.
+    pub hand_note: &'static str,
     pub cta_title: &'static str,
     pub cta_body: &'static str,
 }
@@ -153,6 +168,8 @@ pub struct Pricing {
     pub provisional_body: &'static str,
     pub faq_title: &'static str,
     pub faq: [Beneath; 4],
+    /// See [`Home::hand_note`].
+    pub hand_note: &'static str,
 }
 
 pub struct About {
@@ -173,6 +190,40 @@ pub struct Contact {
     pub headline: &'static str,
     pub lede: &'static str,
     pub cards: [Beneath; 3],
+}
+
+/// The Solutions section: who the product is for, arranged by industry.
+///
+/// The mega menu and the page it opens onto read the same list, so a menu entry
+/// cannot point at a section that does not exist.
+pub struct Solutions {
+    pub title: &'static str,
+    pub description: &'static str,
+    pub eyebrow: &'static str,
+    pub headline: &'static str,
+    pub lede: &'static str,
+    /// The two column headings inside the menu panel.
+    pub by_industry: &'static str,
+    pub by_need: &'static str,
+    /// The strip at the foot of the panel.
+    pub menu_foot: &'static str,
+    pub industries: [Industry; 6],
+    pub cta_title: &'static str,
+    pub cta_body: &'static str,
+}
+
+/// One industry, in one language.
+///
+/// The slug is not here - it is the anchor a menu entry links to and it appears
+/// in a URL, so it is the same in every language. See
+/// [`crate::routes::pages::INDUSTRY_SLUGS`].
+pub struct Industry {
+    pub name: &'static str,
+    /// One line, for the menu panel.
+    pub note: &'static str,
+    /// A paragraph, for the page.
+    pub body: &'static str,
+    pub points: &'static [&'static str],
 }
 
 pub struct NotFound {
@@ -312,7 +363,7 @@ mod tests {
 
     /// Two, today, and deliberately fewer than the product's four. This is the
     /// line that has to be edited when a translation lands, which is the point
-    /// of it - see ADR 0007 section 8.
+    /// of it - see ADR 0007 section 12.
     #[test]
     fn english_and_chinese_are_what_is_written() {
         let codes: Vec<_> = offered().iter().map(|l| l.code()).collect();

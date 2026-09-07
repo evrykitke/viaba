@@ -32,6 +32,9 @@ pub struct Links {
 pub struct SiteState {
     pub config: Arc<AppConfig>,
     links: Links,
+    /// The site's own origin, with no trailing slash. Every absolute URL the
+    /// site emits about itself hangs off it.
+    origin: String,
     /// The languages the switcher offers, resolved once.
     ///
     /// A `Vec` built at startup rather than on each request: it is derived by
@@ -52,11 +55,16 @@ impl SiteState {
         };
 
         Self {
+            origin: config.site.public_origin(),
             config,
             links,
             languages: Arc::new(crate::i18n::offered()),
             limiter: Arc::new(phonix_limit::Limiter::new()),
         }
+    }
+
+    pub fn origin(&self) -> &str {
+        &self.origin
     }
 
     pub fn languages(&self) -> &[Language] {

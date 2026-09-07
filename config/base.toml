@@ -710,6 +710,13 @@ sign_in_url = ""
 # Empty renders no link at all rather than a button addressed to nobody.
 contact_email = ""
 
+# The site's own public origin - what a canonical link, an og:url and every
+# sitemap entry is built from. NOT derivable from [server]: that is where the
+# application lives, and this is deliberately a different host. Blank falls back
+# to http://localhost:<listen port>, which is right on a developer's machine and
+# refused under production.
+public_url = ""
+
 # One allowance, because every request here is a page. Deliberately generous:
 # this bounds a crawler that has stopped being polite, not a reader. Which
 # header carries the visitor's address is NOT repeated here - it is

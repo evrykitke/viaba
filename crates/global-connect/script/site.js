@@ -19,10 +19,24 @@
 (() => {
     "use strict";
 
-    /** Close every open disclosure except one. */
-    const closeOthers = (except) => {
-        for (const menu of document.querySelectorAll("details[data-menu], details[data-nav]")) {
-            if (menu !== except) {
+    const MENUS = "details[data-menu], details[data-nav]";
+
+    /**
+     * Close every open disclosure that does not contain `keep`.
+     *
+     * `contains` and not `!==`, and that distinction is the whole of it: on a
+     * phone the language menu sits *inside* the navigation panel, so both are
+     * open at once and legitimately so. Comparing identity closed the panel the
+     * moment the menu inside it was opened, which made the language switcher
+     * impossible to reach on a narrow screen - it vanished on the tap that was
+     * supposed to open it.
+     *
+     * An ancestor of the click is never "another menu". The same now holds for
+     * the solutions panel, which is nested the same way.
+     */
+    const closeOthers = (keep) => {
+        for (const menu of document.querySelectorAll(MENUS)) {
+            if (!keep || !menu.contains(keep)) {
                 menu.open = false;
             }
         }
@@ -33,11 +47,7 @@
     // expects of a dropdown - and is the single thing that makes a `<details>`
     // feel like a menu rather than an accordion.
     document.addEventListener("click", (event) => {
-        const inside = event.target instanceof Element
-            ? event.target.closest("details[data-menu], details[data-nav]")
-            : null;
-
-        closeOthers(inside);
+        closeOthers(event.target instanceof Element ? event.target : null);
     });
 
     document.addEventListener("keydown", (event) => {

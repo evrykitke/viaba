@@ -1,21 +1,24 @@
 {#
   The top bar.
 
-  Below `md` the links are inside a `<details>`, which is the whole of the
-  mobile menu: it opens and closes with no script at all. `script/site.js` only
-  closes it again when the viewport grows, which is a tidy-up rather than a
-  feature - the rule is ADR 0007 section 3's, unchanged from Desk's.
+  Every disclosure here is a `<details>`, so all of it opens and closes with the
+  script switched off - the mobile menu, the solutions panel and the language
+  list alike. `script/site.js` only ever *closes* one, which is why a browser
+  that never runs it shows the same site with a menu occasionally left open.
 
-  The links are written once as a macro and called twice. Two copies of a
-  navigation is two navigations, and the second one is always a page behind.
+  # The mobile language list is not a menu
+
+  It used to be the same `<details>` dropdown as the desktop one, nested inside
+  the navigation panel. That made it unreachable on a phone: the script closed
+  "every other menu" on a click, and the panel *containing* the language list
+  counted as another menu, so the whole thing collapsed on the tap meant to open
+  it. The script now spares an ancestor of the click, and this template stopped
+  nesting one menu in another regardless - with two languages a dropdown was
+  never worth a tap, so on a narrow screen they are simply two links in a row.
 
   Every href carries `frame.prefix`, which is empty for English and `/zh` for
   Chinese. A link that drops the prefix is how a translated site loses somebody
   on their second click.
-
-  The language switcher is a `<details>` for the same reason as the menu, and
-  each entry points at *this* page in that language rather than at the front
-  page - see `pages::Frame::new`.
 #}
 {% macro nav_links(prefix, current, layout) %}
   <a href="{{ prefix }}/product" class="nav-link {{ layout }}{% if current == "product" %} nav-link-on{% endif %}"
@@ -28,24 +31,48 @@
      {% if current == "contact" %}aria-current="page"{% endif %}>{{ t.nav.contact }}</a>
 {% endmacro %}
 
-{% macro language_menu(align) %}
-  <details class="relative" data-menu>
-    <summary class="nav-link flex cursor-pointer items-center gap-1.5 px-2.5 py-1.5 marker:content-none" aria-label="{{ t.common.language }}">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" class="size-4" aria-hidden="true">
-        <circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18"/>
-      </svg>
-      {% for alternate in frame.languages %}{% if alternate.current %}{{ alternate.native_name }}{% endif %}{% endfor %}
-    </summary>
-    <ul class="absolute {{ align }} top-full z-10 mt-1 min-w-36 rounded-card border border-edge bg-surface-raised p-1 shadow-pop">
-      {% for alternate in frame.languages %}
-      <li>
-        <a href="{{ alternate.href }}" lang="{{ alternate.code }}"
-           class="block rounded-control px-2.5 py-1.5 text-sm hover:bg-surface-hover {% if alternate.current %}font-medium text-content{% else %}text-content-muted{% endif %}"
-           {% if alternate.current %}aria-current="true"{% endif %}>{{ alternate.native_name }}</a>
-      </li>
-      {% endfor %}
-    </ul>
-  </details>
+{# The industries, and the applications, side by side. One list in the catalog
+   feeds both this and the page it opens onto, so a menu entry cannot point at a
+   section that is not there. #}
+{% macro solutions_panel(prefix) %}
+  <div class="mega-grid">
+    <div>
+      <h2 class="mega-head">{{ t.solutions.by_industry }}</h2>
+      <div class="mt-3 grid gap-0.5 sm:grid-cols-2 lg:grid-cols-1">
+        {% for industry in t.solutions.industries %}
+        <a href="{{ prefix }}/solutions#{{ frame.industry_slugs[loop.index0] }}" class="mega-link">
+          <span class="mega-dot" aria-hidden="true"></span>
+          <span>
+            <span class="mega-name">{{ industry.name }}</span>
+            <span class="mega-note block">{{ industry.note }}</span>
+          </span>
+        </a>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="lg:col-span-2">
+      <h2 class="mega-head">{{ t.solutions.by_need }}</h2>
+      <div class="mt-3 grid gap-0.5 sm:grid-cols-2">
+        {% for app in t.apps %}
+        <a href="{{ prefix }}/product" class="mega-link {{ frame.app_classes[loop.index0] }}">
+          <span class="mega-dot" aria-hidden="true"></span>
+          <span>
+            <span class="mega-name">{{ app.name }}</span>
+            <span class="mega-note block">{{ app.tagline }}</span>
+          </span>
+        </a>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <div class="mega-foot">
+    <span>{{ t.solutions.menu_foot }}</span>
+    <a href="{{ prefix }}/solutions" class="ms-auto font-medium text-brand hover:underline">
+      {{ t.nav.solutions }} →
+    </a>
+  </div>
 {% endmacro %}
 
 <header class="sticky top-0 z-50 border-b border-white/5 bg-surface/80 backdrop-blur">
@@ -55,36 +82,71 @@
        aria-label="{{ frame.product_name }} {{ t.common.home_of }}">
       <span class="grid size-7 place-items-center rounded-[0.55rem] bg-brand text-sm font-black text-on-brand" aria-hidden="true">V</span>
       <span class="text-[0.95rem] font-semibold tracking-tight">{{ frame.product_name }}</span>
-      {% if let Some(badge) = frame.badge %}
-      <span class="rounded-full border border-edge px-1.5 py-px text-2xs uppercase tracking-wider text-content-subtle">{{ badge }}</span>
-      {% endif %}
     </a>
 
     <nav class="hidden flex-1 items-center gap-1 md:flex" aria-label="{{ t.nav.main }}">
+      <details class="relative" data-menu>
+        <summary class="nav-link flex cursor-pointer items-center gap-1 px-3 py-1.5 marker:content-none{% if frame.current == "solutions" %} nav-link-on{% endif %}">
+          {{ t.nav.solutions }}
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="size-3.5" aria-hidden="true">
+            <path d="m6 9 6 6 6-6" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </summary>
+        <div class="mega">{% call solutions_panel(frame.prefix) %}{% endcall %}</div>
+      </details>
+
       {% call nav_links(frame.prefix, frame.current, "px-3 py-1.5") %}{% endcall %}
     </nav>
 
     <div class="ml-auto hidden items-center gap-2 md:flex">
-      {% call language_menu("right-0") %}{% endcall %}
+      <details class="relative" data-menu>
+        <summary class="nav-link flex cursor-pointer items-center gap-1.5 px-2.5 py-1.5 marker:content-none" aria-label="{{ t.common.language }}">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" class="size-4" aria-hidden="true">
+            <circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18"/>
+          </svg>
+          {% for alternate in frame.languages %}{% if alternate.current %}{{ alternate.native_name }}{% endif %}{% endfor %}
+        </summary>
+        <ul class="absolute right-0 top-full z-10 mt-1 min-w-36 rounded-card border border-edge bg-surface-raised p-1 shadow-pop">
+          {% for alternate in frame.languages %}
+          <li>
+            <a href="{{ alternate.href }}" lang="{{ alternate.code }}"
+               class="block rounded-control px-2.5 py-1.5 text-sm hover:bg-surface-hover {% if alternate.current %}font-medium text-content{% else %}text-content-muted{% endif %}"
+               {% if alternate.current %}aria-current="true"{% endif %}>{{ alternate.native_name }}</a>
+          </li>
+          {% endfor %}
+        </ul>
+      </details>
+
       <a href="{{ frame.links.sign_in }}" class="nav-link px-3 py-1.5">{{ t.common.sign_in }}</a>
       <a href="{{ frame.links.signup }}" class="btn-brand">{{ t.common.get_started }}</a>
     </div>
 
-    {# The mobile menu. A disclosure, so it is complete with the script switched
-       off - and `md:hidden` on the wrapper rather than on the panel, so a wide
-       viewport never has two navigations in the accessibility tree. #}
     <details class="ml-auto md:hidden" data-nav>
       <summary class="grid size-9 cursor-pointer place-items-center rounded-control border border-edge text-content-muted marker:content-none" aria-label="{{ t.common.menu }}">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" class="size-5" aria-hidden="true">
           <path d="M4 7h16M4 12h16M4 17h16" stroke-linecap="round"/>
         </svg>
       </summary>
-      <div class="absolute inset-x-0 top-14 border-b border-edge bg-surface-raised p-3 shadow-pop">
+      <div class="absolute inset-x-0 top-14 max-h-[calc(100dvh-3.5rem)] overflow-y-auto border-b border-edge bg-surface-raised p-3 shadow-pop">
         <nav class="flex flex-col gap-0.5" aria-label="{{ t.nav.main }}">
+          <a href="{{ frame.prefix }}/solutions"
+             class="nav-link px-3 py-2.5{% if frame.current == "solutions" %} nav-link-on{% endif %}">{{ t.nav.solutions }}</a>
           {% call nav_links(frame.prefix, frame.current, "px-3 py-2.5") %}{% endcall %}
         </nav>
+
+        {# Two links in a row, not a menu inside a menu. See this file's header. #}
+        <div class="mt-3 border-t border-edge pt-3">
+          <p class="px-3 text-xs font-semibold uppercase tracking-wider text-content-subtle">{{ t.common.language }}</p>
+          <div class="mt-1.5 flex flex-wrap gap-1.5 px-1">
+            {% for alternate in frame.languages %}
+            <a href="{{ alternate.href }}" lang="{{ alternate.code }}"
+               class="rounded-control border px-3 py-1.5 text-sm {% if alternate.current %}border-brand font-medium text-content{% else %}border-edge text-content-muted{% endif %}"
+               {% if alternate.current %}aria-current="true"{% endif %}>{{ alternate.native_name }}</a>
+            {% endfor %}
+          </div>
+        </div>
+
         <div class="mt-3 flex flex-col gap-2 border-t border-edge pt-3">
-          {% call language_menu("left-0") %}{% endcall %}
           <a href="{{ frame.links.sign_in }}" class="nav-link px-3 py-2.5">{{ t.common.sign_in }}</a>
           <a href="{{ frame.links.signup }}" class="btn-brand justify-center">{{ t.common.get_started }}</a>
         </div>

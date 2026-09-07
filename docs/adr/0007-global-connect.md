@@ -1,6 +1,6 @@
 # ADR 0007 — Global Connect: the public site
 
-Status: accepted; sections 1-8 built, section 9 (the meat) deliberately open
+Status: accepted; sections 1-11 built, section 12 (the meat) deliberately open
 Date: 2026-09-07
 
 Every page this estate serves today is behind a sign-in box. `phonix-server`
@@ -119,7 +119,7 @@ application are not one label apart.
 `site.product_name` is configuration for the same reason: the name is in the
 wordmark, every page title and half the sentences, and a rename should not be a
 search across a directory of HTML. It is `Viaba` here while the crates continue
-to say Phonix; that split is deliberate and §9 does not promise to close it.
+to say Phonix; that split is deliberate and §12 does not promise to close it.
 
 ## 5. It collects nothing
 
@@ -221,7 +221,7 @@ translation workflow and this is a five-page site.
 A page that varies by header is a page a shared cache holds one arbitrary
 version of, and these pages are cacheable precisely because they hold nothing
 about anybody. A search engine needs one address per language to index. And this
-site sets no cookie at all (§10), so there is nowhere to keep a preference even
+site sets no cookie at all (§13), so there is nowhere to keep a preference even
 if one were wanted. The trade is real: a visitor arrives in English and switches,
 rather than arriving in their own language.
 
@@ -233,17 +233,135 @@ the address — they agree today, and the difference is the entire value of the
 attribute, since a fallback would otherwise serve English while telling a screen
 reader to pronounce it as Chinese.
 
-## 8. What is built
+## 8. Pictures, and the one place bytes are allowed in
+
+§3 says the site's whole payload is one stylesheet and one script. Screenshots
+break that, and are worth it: nothing else on the page proves the product exists.
+
+So there is a budget rather than a prohibition, and the build enforces it.
+`crates/global-connect/artifacts/` holds them, `tools/site-artifacts.mjs` scans
+it, and a file is **refused** — not warned about — if it is over 250 KB or under
+1600px wide. The folder's README is the contract and also the list of which
+screenshots are worth taking.
+
+**They are compiled in, like the stylesheet.** The site stays one artefact, and
+a route table built from known names has no path to traverse — which a
+`ServeDir` over a directory does. The honest cost is that the binary grows by
+the weight of the folder, which is exactly why the ceiling refuses.
+
+**The filename is the wiring.** `inventory-items.webp` belongs to Inventory
+because of its first segment, and a first segment naming no application fails
+the build with the name printed. The alternative is a picture that silently
+never appears, and nobody notices a missing image the way they notice a broken
+build. The application list therefore exists twice — in `pages::APP_SLUGS` and
+in the build script — and a test fails if they disagree.
+
+**Dimensions are read out of the file at build time** and reach the `<img>`.
+Both of them, always: one without the other is a page that reflows when the
+picture lands, and the reflow is worst on the slow connection this site exists
+to be kind to.
+
+**The frame is the illustration's frame.** A real screenshot wears the same
+window chrome the drawn mock already had — three dots, one caption. That shared
+frame is the whole trick to a photograph and a drawing appearing on one page
+without looking like two different sites. It is also why the home page's
+illustration is a *fallback*: the first screenshot that exists replaces it, and
+until then the page is complete without one.
+
+Alternative text is one pattern per language with `{app}` and `{screen}` in it,
+not a sentence per picture. A caption per screenshot would be a translation job
+every time somebody took one, which is the surest way to end up with a folder of
+images described in English on a Chinese page.
+
+## 9. What a search engine is told
+
+The site is the only surface in the estate that wants to be found — Desk is
+`noindex` on every page — so this is not decoration.
+
+* **A canonical link on every page.** Not because a page answers at several
+  addresses; each answers at exactly one. Because a shared link acquires
+  tracking parameters, and without this each variant competes with the original.
+* **`hreflang` in absolute form**, plus `x-default` on English. A relative
+  `hreflang` is legal and useless: the tag exists to tell a crawler two
+  *addresses* are one page.
+* **`sitemap.xml`**, generated from `pages::PATHS` × the offered languages, with
+  the alternates spelled out on every entry. One list feeds the router and the
+  sitemap, so a page that exists cannot be missing from it and an entry cannot
+  404. `robots.txt` names it, absolutely — which is one more reason
+  `site.public_url` is refused blank under production.
+* **Open Graph and a Twitter card**, and `og:image` only when
+  `artifacts/og-image` exists at exactly 1200×630. A card promising a picture it
+  does not have renders worse than no card.
+* **JSON-LD**: an `Organization` and a `WebSite`, which is the honest amount.
+  Deliberately **no** `Product` with an `offers` price, because the prices are
+  placeholders (§12) and marking up a made-up number is how a search engine ends
+  up quoting it back.
+
+**This is the one place a template writes `|safe`,** and it is safe by
+construction rather than by judgement. Askama's `json` filter is documented to
+emit no chevrons, apostrophes or ampersands, so `</script>` cannot appear in its
+output; `|safe` only stops the HTML escaper turning valid JSON into `&#34;`,
+which a script data block would not decode. The rule §3 inherited from Desk —
+"no template writes `|safe`" — is now "one does, and here is why it cannot be
+the hole the rule was guarding".
+
+`site.public_url` is new configuration and is **required under production**,
+because none of the above can be derived from `[server]`: that is where the
+application lives, and this crate exists precisely because the two are different
+hosts. Blank falls back to `http://localhost:<listen port>`, which is right on a
+developer's machine and is refused everywhere else — a canonical link pointing
+at localhost tells a crawler the real page is somewhere it cannot reach.
+
+## 10. Solutions, and why it is one page
+
+A mega menu of industries, opening onto `/solutions`.
+
+The menu is a `<details>` like every other menu here, so it works with the
+script switched off. Its entries and the page's sections come from **one list in
+the catalog**, so a menu entry cannot point at a section that does not exist.
+
+**Six anchors on one page, not six pages.** A panel of links has to lead
+somewhere, and six links to six pages that have not been written is six 404s.
+One page with anchored sections is the version that is true today, and splitting
+a section out later keeps every link somebody has already shared —
+`/solutions#health` can redirect. The anchors are in `pages::INDUSTRY_SLUGS`
+rather than in the catalogs, because a slug appears in a URL: a link sent to a
+colleague who reads the site in Chinese has to land in the same place.
+
+### Two things that only showed up here
+
+The application marks became **flat multi-colour icons** — the Google-catalogue
+idea in this site's own hues, drawn on a 48 grid because an isometric box on a
+24 grid lands its vertices on half pixels. They are possible at all only because
+`fill` is a presentation attribute rather than a `style` rule; the policy is
+`style-src 'self'` with no `unsafe-inline`, and Desk hit the same wall and
+reached the same answer for its colour swatches. The colour reaches the tile
+behind the mark through a class per application, for the same reason.
+
+And **the handwriting is deliberately not load-bearing.** `.handwritten` is used
+for asides only. A Latin hand has no CJK glyphs, so `_generated-fonts.css`
+declares a `unicode-range` and a Chinese page falls through — glyph by glyph —
+to a system brush face. With no font dropped into `fonts/` at all it degrades to
+the browser's `cursive`, which is worse and is not broken. The hand-drawn
+*marks* — the underline under the headline — are SVG rather than type, which is
+why they are safe on a Chinese headline where the font is not.
+
+## 11. What is built
 
 * The crate, the binary, `[site]` in the configuration, and the checks on it.
 * `phonix-limit`, with `phonix-server` moved onto it.
 * The frame: base template, header, footer, 404, the two assets and the build
   script that hashes them (`tools/build-site-assets.mjs`, output committed —
   ADR 0005 §3's arrangement, and for the same reason).
-* Five pages: home, product, pricing, about, contact.
+* Six pages: home, solutions, product, pricing, about, contact.
 * Two languages, the switcher, and the `hreflang` links — §7.
+* The screenshot pipeline and its rules — §8. The folder is empty, and
+  every page renders without a picture in it.
+* Canonical links, sitemap, Open Graph and JSON-LD — §9.
+* The Solutions menu and page, six industries — §10.
+* Coloured application marks, and the handwriting for asides — §10.
 
-## 9. What is deliberately not built yet
+## 12. What is deliberately not built yet
 
 The meat. This is a skeleton with a real home page on it, and the following are
 named here so that adding them is a decision rather than a drift:
@@ -263,7 +381,7 @@ named here so that adding them is a decision rather than a drift:
 * **Anything that collects.** See §5. If a form is ever wanted, it is a
   reversal of that section and should be argued there rather than added quietly.
 
-## 10. What it will not do
+## 13. What it will not do
 
 It will not sign anybody in, hold a session, or set a cookie. It has no
 identity, no `Caller`, no equivalent of `DeskCaller`, and nothing to

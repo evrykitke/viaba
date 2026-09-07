@@ -15,18 +15,18 @@
 /// [`crate::routes::stylesheet`]. The hash means a browser may keep it
 /// forever, and that a changed stylesheet is a different address rather than a
 /// stale copy.
-pub const STYLESHEET: &str = "/assets/site.66710b0aa9b6.css";
+pub const STYLESHEET: &str = "/assets/site.2d664dd5ceba.css";
 
 /// The bytes themselves, compiled into the binary.
 ///
 /// One artefact: copy the binary, run it. A static directory beside it is a
 /// second thing to deploy and a second thing to get wrong.
-pub const STYLESHEET_CSS: &str = include_str!("../assets/site.66710b0aa9b6.css");
+pub const STYLESHEET_CSS: &str = include_str!("../assets/site.2d664dd5ceba.css");
 
 /// The script's URL, hashed and cached the same way.
 ///
 /// Everything it does is optional - see `script/site.js`. A page is complete
 /// without it, which is what lets it be loaded `defer` and never waited on.
-pub const SCRIPT: &str = "/assets/site.072b4fd48269.js";
+pub const SCRIPT: &str = "/assets/site.29d84c23724d.js";
 
-pub const SCRIPT_JS: &str = include_str!("../assets/site.072b4fd48269.js");
+pub const SCRIPT_JS: &str = include_str!("../assets/site.29d84c23724d.js");

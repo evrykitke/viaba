@@ -24,6 +24,7 @@
 //! global-connect      serve
 //! ```
 
+mod artifacts;
 mod assets;
 mod i18n;
 mod limit;

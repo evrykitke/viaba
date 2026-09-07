@@ -1569,6 +1569,20 @@ pub struct SiteConfig {
     /// Where "Talk to us" points. A `mailto:` address, because the site posts
     /// nothing - see [`SiteConfig`].
     pub contact_email: String,
+    /// The site's own public origin, e.g. `https://www.example.com`.
+    ///
+    /// Every absolute URL the site emits about itself is built from this: the
+    /// canonical link, `og:url`, the `hreflang` alternates and every entry in
+    /// the sitemap. It cannot be derived from `[server]` - that is where the
+    /// *application* lives, and this crate exists precisely because the two are
+    /// different hosts.
+    ///
+    /// Blank falls back to `http://localhost:<port>` off [`Self::listen`],
+    /// which is right on a developer's machine and wrong everywhere else - so
+    /// `validate::check` refuses a blank one under production. A canonical link
+    /// pointing at localhost is worse than none: it tells a crawler the real
+    /// page is somewhere it cannot reach.
+    pub public_url: String,
     pub rate_limit: SiteRateLimitConfig,
 }
 
@@ -1601,6 +1615,7 @@ impl Default for SiteConfig {
             signup_url: String::new(),
             sign_in_url: String::new(),
             contact_email: String::new(),
+            public_url: String::new(),
             rate_limit: SiteRateLimitConfig::default(),
         }
     }
@@ -1651,6 +1666,31 @@ impl SiteConfig {
         } else {
             self.sign_in_url.trim().to_owned()
         }
+    }
+
+    /// The site's own origin, with no trailing slash.
+    ///
+    /// Trimmed of a trailing `/` because every caller appends a path that
+    /// begins with one, and `https://example.com//pricing` is a different URL
+    /// to a crawler than the one being canonicalised.
+    pub fn public_origin(&self) -> String {
+        let configured = self.public_url.trim().trim_end_matches('/');
+
+        if !configured.is_empty() {
+            return configured.to_owned();
+        }
+
+        // The port off the listen address, so a development box gets links that
+        // actually resolve. `listens_on_loopback` has already parsed this
+        // successfully or the process refused to start.
+        let port = self
+            .listen
+            .rsplit(':')
+            .next()
+            .filter(|port| port.parse::<u16>().is_ok())
+            .unwrap_or("3200");
+
+        format!("http://localhost:{port}")
     }
 
     /// The `mailto:` behind "Talk to us", or `None` to render no link at all.

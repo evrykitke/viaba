@@ -15,7 +15,7 @@
 //! cacheable for five minutes precisely because they hold nothing about
 //! anybody. A search engine needs one address per language to index, which is
 //! what the `hreflang` links in `base.html` declare. And this site sets no
-//! cookie at all - see ADR 0007 section 9 - so there is nowhere to keep a
+//! cookie at all - see ADR 0007 section 13 - so there is nowhere to keep a
 //! preference even if one were wanted.
 //!
 //! The consequence is that a visitor arrives in English and switches, rather
@@ -54,6 +54,12 @@ pub fn router(state: SiteState) -> Router {
                 }),
             )
             .route(
+                &format!("{prefix}/solutions"),
+                get(move |State(state): State<SiteState>| async move {
+                    pages::solutions(&state, language).await
+                }),
+            )
+            .route(
                 &format!("{prefix}/product"),
                 get(move |State(state): State<SiteState>| async move {
                     pages::product(&state, language).await
@@ -79,12 +85,27 @@ pub fn router(state: SiteState) -> Router {
             );
     }
 
+    // The pictures, each at its own hashed address. A route per known file and
+    // not a directory: there is no path to traverse when the only addresses
+    // that exist are ones the build put here.
+    for shot in crate::artifacts::SHOTS
+        .iter()
+        .chain(crate::artifacts::SOCIAL.as_ref())
+    {
+        router = router.route(shot.url, get(move || artifact(shot)));
+    }
+
+    if let Some((url, bytes)) = crate::artifacts::HANDWRITING {
+        router = router.route(url, get(move || font(bytes)));
+    }
+
     router
         // The two assets. Each path carries a content hash, which is what lets
         // them be cached forever - see `crate::assets`.
         .route(crate::assets::STYLESHEET, get(stylesheet))
         .route(crate::assets::SCRIPT, get(script))
         .route("/robots.txt", get(robots))
+        .route("/sitemap.xml", get(sitemap))
         // For the systemd unit and nothing else.
         .route("/health", get(health))
         .fallback(not_found)
@@ -107,14 +128,107 @@ async fn health() -> impl IntoResponse {
 /// Desk is `noindex, nofollow` on every page because it suspends workspaces.
 /// This is the one surface in the estate that *wants* to be found, so the only
 /// thing kept out of an index is the health probe.
-async fn robots() -> impl IntoResponse {
+///
+/// The `Sitemap:` line is absolute because the format requires it, which is one
+/// more reason `site.public_url` is refused blank under production.
+async fn robots(State(state): State<SiteState>) -> impl IntoResponse {
+    let body = format!(
+        "User-agent: *\nDisallow: /health\n\nSitemap: {}/sitemap.xml\n",
+        state.origin()
+    );
+
     (
         [
             (header::CONTENT_TYPE, "text/plain; charset=utf-8"),
             (header::CACHE_CONTROL, "public, max-age=3600"),
         ],
-        "User-agent: *\nDisallow: /health\n",
+        body,
     )
+}
+
+/// Every page, in every language, with the alternates spelled out.
+///
+/// Written by hand rather than through an XML crate: it is six paths by two
+/// languages and the shape never varies, so a dependency would be carrying a
+/// parser to emit a document with no user input in it. The only values
+/// interpolated are an origin from configuration and paths from [`pages::PATHS`]
+/// - both `&'static str` or already validated - so there is nothing here that
+/// could need escaping.
+///
+/// `xhtml:link` alternates on every entry, including the entry's own language,
+/// which is what the specification asks for and what a validator complains
+/// about when it is missing.
+async fn sitemap(State(state): State<SiteState>) -> impl IntoResponse {
+    let origin = state.origin();
+    let languages = i18n::offered();
+
+    let mut body = String::from(
+        "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n\
+         <urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\" \
+         xmlns:xhtml=\"http://www.w3.org/1999/xhtml\">\n",
+    );
+
+    for path in pages::PATHS {
+        for language in &languages {
+            body.push_str("  <url>\n");
+            body.push_str(&format!(
+                "    <loc>{origin}{}</loc>\n",
+                pages::address(*language, path)
+            ));
+
+            for alternate in &languages {
+                body.push_str(&format!(
+                    "    <xhtml:link rel=\"alternate\" hreflang=\"{}\" href=\"{origin}{}\"/>\n",
+                    alternate.code(),
+                    pages::address(*alternate, path)
+                ));
+            }
+
+            body.push_str("  </url>\n");
+        }
+    }
+
+    body.push_str("</urlset>\n");
+
+    (
+        [
+            (header::CONTENT_TYPE, "application/xml; charset=utf-8"),
+            (header::CACHE_CONTROL, "public, max-age=3600"),
+        ],
+        body,
+    )
+}
+
+/// A screenshot, or the social card.
+///
+/// `immutable`, like the stylesheet and for the same reason: the name carries a
+/// hash of the bytes, so a changed picture is a different address and there is
+/// nothing here a browser could hold that is wrong.
+async fn artifact(shot: &'static crate::artifacts::Shot) -> Response {
+    (
+        [
+            (header::CONTENT_TYPE, shot.mime),
+            (header::CACHE_CONTROL, "public, max-age=31536000, immutable"),
+        ],
+        shot.bytes,
+    )
+        .into_response()
+}
+
+/// The handwriting face, when one has been dropped in.
+///
+/// `font-src 'self'` in the policy already allows exactly this and nothing
+/// else, so a face fetched from a font CDN would fail visibly rather than
+/// quietly becoming a third-party request on every page.
+async fn font(bytes: &'static [u8]) -> Response {
+    (
+        [
+            (header::CONTENT_TYPE, "font/woff2"),
+            (header::CACHE_CONTROL, "public, max-age=31536000, immutable"),
+        ],
+        bytes,
+    )
+        .into_response()
 }
 
 /// The 404, in the language the address was written in.

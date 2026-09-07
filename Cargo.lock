@@ -1606,6 +1606,7 @@ dependencies = [
  "phonix-core",
  "phonix-limit",
  "phonix-telemetry",
+ "serde_json",
  "tokio",
  "tracing",
 ]

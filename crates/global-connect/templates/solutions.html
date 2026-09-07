@@ -1,0 +1,82 @@
+{#
+  Solutions, by industry.
+
+  What the mega menu opens onto, and the reason the menu can exist at all: a
+  panel of links has to lead somewhere, and six links to six pages that do not
+  exist yet is six 404s. One page with six anchored sections is the honest
+  version, and splitting a section into its own page later is a move that keeps
+  every link somebody has already shared - `/solutions#health` can redirect.
+
+  Each section is anchored on `INDUSTRY_SLUGS`, which is not in the catalogs
+  because it appears in a URL. A German colleague following `/solutions#health`
+  has to land in the same place a Chinese one does.
+#}
+{% extends "base.html" %}
+
+{% block main %}
+
+<section class="hero hero-short">
+  <div class="site-width relative py-20 sm:py-24">
+    <p class="eyebrow"><span class="size-1.5 rounded-full bg-brand" aria-hidden="true"></span> {{ t.solutions.eyebrow }}</p>
+    <h1 class="mt-6 max-w-3xl text-balance text-title font-black leading-[1.02] tracking-tight">{{ t.solutions.headline }}</h1>
+    <p class="mt-6 max-w-2xl text-lead text-content-muted">{{ t.solutions.lede }}</p>
+
+    {# A table of contents, because the page is six long sections and the menu
+       above may not be how somebody arrived. #}
+    <nav class="mt-10 flex flex-wrap gap-2" aria-label="{{ t.solutions.by_industry }}">
+      {% for industry in t.solutions.industries %}
+      <a href="#{{ frame.industry_slugs[loop.index0] }}"
+         class="rounded-full border border-edge px-3.5 py-1.5 text-sm text-content-muted hover:border-edge-strong hover:text-content">
+        {{ industry.name }}
+      </a>
+      {% endfor %}
+    </nav>
+  </div>
+</section>
+
+{% for industry in t.solutions.industries %}
+<section id="{{ frame.industry_slugs[loop.index0] }}"
+         class="border-t border-edge{% if loop.index0 % 2 == 1 %} bg-surface-shell{% endif %}">
+  <div class="site-width py-16 sm:py-20">
+    <div class="grid gap-10 lg:grid-cols-[minmax(0,24rem)_minmax(0,1fr)] lg:gap-16">
+      <div>
+        <p class="text-xs font-semibold uppercase tracking-wider text-content-subtle">
+          {{ t.solutions.by_industry }}
+        </p>
+        <h2 class="mt-3 text-balance text-2xl font-black tracking-tight sm:text-3xl">{{ industry.name }}</h2>
+        <p class="mt-3 text-content-muted">{{ industry.note }}</p>
+      </div>
+
+      <div>
+        <p class="max-w-prose text-lead leading-relaxed text-content-muted">{{ industry.body }}</p>
+
+        <ul class="mt-8 grid gap-3 sm:grid-cols-2">
+          {% for point in industry.points %}
+          <li class="flex items-start gap-3 rounded-card border border-edge bg-surface-raised px-4 py-3 text-sm leading-relaxed">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" class="mt-0.5 size-4 shrink-0 text-brand" aria-hidden="true">
+              <path d="m4 12.5 5.5 5.5L20 7" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <span>{{ point }}</span>
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+{% endfor %}
+
+<section class="border-t border-edge">
+  <div class="site-width py-20">
+    <div class="cta">
+      <h2 class="text-balance text-3xl font-black tracking-tight">{{ t.solutions.cta_title }}</h2>
+      <p class="mt-4 max-w-lg text-content-muted">{{ t.solutions.cta_body }}</p>
+      <div class="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
+        <a href="{{ frame.links.signup }}" class="btn-brand btn-lg">{{ t.common.start_free }}</a>
+        <a href="{{ frame.prefix }}/product" class="btn-ghost btn-lg">{{ t.common.see_inside }}</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+{% endblock %}

@@ -30,7 +30,12 @@ axum = { workspace = true }
 tokio = { workspace = true }
 http = { workspace = true }
 
-askama = { workspace = true }
+# `serde_json` for the `json` filter, which is how the structured data in
+# `base.html` reaches the page. The filter is documented to emit no chevrons,
+# so `</script>` cannot appear in its output - which is what makes it the one
+# place here that pairs with `|safe`.
+askama = { workspace = true, features = ["serde_json"] }
+serde_json = { workspace = true }
 
 anyhow = { workspace = true }
 tracing = { workspace = true }

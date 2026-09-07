@@ -523,6 +523,7 @@ fn check_site(site: &SiteConfig) -> Result<(), ConfigError> {
     for (name, value) in [
         ("site.signup_url", &site.signup_url),
         ("site.sign_in_url", &site.sign_in_url),
+        ("site.public_url", &site.public_url),
     ] {
         let value = value.trim();
         if !value.is_empty() && !value.starts_with("http://") && !value.starts_with("https://") {
@@ -910,6 +911,19 @@ fn check_production_hardening(cfg: &AppConfig) -> Result<(), ConfigError> {
              deliberate",
             cfg.site.listen
         )));
+    }
+
+    // A canonical link, an og:url and every entry in the sitemap are absolute,
+    // and blank derives them from the listen port - which is localhost. Telling
+    // a crawler that the real version of a page is on a host it cannot reach is
+    // worse than telling it nothing at all.
+    if cfg.site.public_url.trim().is_empty() {
+        return Err(ConfigError::invalid(
+            "site.public_url must be set under production - it is the origin every \
+             canonical link, social card and sitemap entry is built from, and it \
+             cannot be derived from [server] because the site is a different host. \
+             For example https://www.example.com",
+        ));
     }
 
     // A rate limiter keyed on the peer address is keyed on nginx behind a

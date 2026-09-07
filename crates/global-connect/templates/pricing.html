@@ -3,7 +3,7 @@
 
   The shape is real and the numbers are not, and the page says so at the bottom
   where a visitor can read it rather than only in a Rust comment. See
-  `pages::PRICES_ARE_PROVISIONAL` and ADR 0007 section 8: nothing here has been
+  `pages::PRICES_ARE_PROVISIONAL` and ADR 0007 section 12: nothing here has been
   priced, and a made-up number on a pricing page is the one lie a customer
   remembers.
 
@@ -13,9 +13,6 @@
   quietly sent every Chinese visitor to the signup form instead.
 #}
 {% extends "base.html" %}
-
-{% block title %}{{ t.pricing.title }}{% endblock %}
-{% block description %}{{ t.pricing.description }}{% endblock %}
 
 {% block main %}
 
@@ -75,6 +72,7 @@
     </div>
 
     <p class="mt-8 text-sm text-content-subtle">{{ trial_note }}</p>
+    <p class="mt-3 handwritten aside-hand">{{ t.pricing.hand_note }}</p>
 
     {% if provisional %}
     {# Removed the moment a real number lands - see `PRICES_ARE_PROVISIONAL`. #}

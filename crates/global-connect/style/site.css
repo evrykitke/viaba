@@ -27,6 +27,10 @@
 
 @import "tailwindcss" source(none);
 @import "../../../style/theme.css";
+/* Written by `tools/build-site-assets.mjs` immediately before Tailwind runs,
+   because the `@font-face` in it carries a content hash nothing else knows
+   yet. Committed, like every other generated asset here. */
+@import "./_generated-fonts.css";
 
 @source "../templates";
 
@@ -510,4 +514,276 @@
         background-color: var(--surface-active);
         color: var(--content);
     }
+    /* ----------------------------------------------------------------------
+       THE HANDWRITING
+
+       Used for asides - a remark in the margin of the page, not a heading.
+       Anything load-bearing stays in the interface font, because this is the
+       one face on the site whose glyphs a reader may not have.
+
+       Three deliberate properties:
+
+       Latin only. `_generated-fonts.css` declares a `unicode-range` covering
+       Latin and a little punctuation, so a Chinese page falls through - glyph
+       by glyph - to the CJK stack below. That is the correct outcome rather
+       than a compromise: a Latin hand has no Chinese glyphs, and a browser
+       asked to synthesise them produces something worse than the system's own
+       brush face.
+
+       The CJK fallbacks are real system faces. Kaiti is on macOS and Windows
+       Chinese installs; it is the closest thing to a hand that can be relied
+       on without shipping a second font, and a CJK handwriting face is a
+       multi-megabyte download that this site is not going to make.
+
+       And it degrades to nothing worse than italic: with no font file dropped
+       in at all, `cursive` is whatever the browser has, and the slight rotation
+       and the ink colour still read as an aside.
+       ---------------------------------------------------------------------- */
+    .handwritten {
+        font-family:
+            "Site Hand",
+            /* Chinese, and the reason the Latin face is range-limited. */
+            "Kaiti SC", "STKaiti", KaiTi, "Kaiti TC",
+            /* Japanese and Korean installs, for the same reason. */
+            "Yu Mincho", Batang,
+            ui-rounded, "Segoe Script", "Bradley Hand", cursive;
+        font-weight: 400;
+        letter-spacing: 0.01em;
+        color: color-mix(in oklch, var(--brand) 70%, var(--content));
+    }
+
+    /* An aside in the margin: rotated a degree and a half, which is enough to
+       read as written-on rather than typeset, and little enough that it never
+       looks like a bug. */
+    .aside-hand {
+        display: inline-block;
+        font-size: 1.15rem;
+        line-height: 1.35;
+        transform: rotate(-1.5deg);
+    }
+
+    @media (width >= 64rem) {
+        .aside-hand {
+            font-size: 1.3rem;
+        }
+    }
+
+    /* The marks. Drawn rather than set, so they are the same in every language
+       and need no font at all - which is why the underline is safe to use on a
+       Chinese headline and `.handwritten` is not.
+
+       Absolutely positioned under the word it belongs to; the parent carries
+       `.marked`. `stroke-dasharray` plus `stroke-dashoffset` draws it on when
+       the page loads, and `prefers-reduced-motion` stops that. */
+    .marked {
+        position: relative;
+        display: inline-block;
+        white-space: nowrap;
+    }
+
+    .mark {
+        position: absolute;
+        left: -0.15em;
+        right: -0.15em;
+        top: 100%;
+        width: calc(100% + 0.3em);
+        height: 0.42em;
+        overflow: visible;
+        color: var(--brand);
+        pointer-events: none;
+    }
+
+    .mark path {
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 5;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        stroke-dasharray: 300;
+        stroke-dashoffset: 300;
+        animation: mark-in 900ms cubic-bezier(0.65, 0, 0.35, 1) 350ms forwards;
+    }
+
+    @keyframes mark-in {
+        to {
+            stroke-dashoffset: 0;
+        }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .mark path {
+            animation: none;
+            stroke-dashoffset: 0;
+        }
+    }
+
+    /* ----------------------------------------------------------------------
+       THE APPLICATION MARKS
+
+       Flat, multi-colour, geometric - the Google-catalog idea, in this site's
+       own hues rather than theirs. Each application owns a colour, and that
+       same colour lights the tile it sits in, so the product page reads as a
+       catalogue rather than a list.
+
+       The tile no longer tints itself from `--brand`: with coloured marks in
+       them, six violet tiles would fight every icon. The colour arrives as an
+       inline `--app` custom property, which is a *property* and not a `style`
+       rule - the content security policy forbids `style=` attributes, so it is
+       set through a class per application below.
+       ---------------------------------------------------------------------- */
+    .mark-tile {
+        display: grid;
+        place-items: center;
+        width: 3rem;
+        height: 3rem;
+        border-radius: var(--radius-pop);
+        border: 1px solid color-mix(in oklch, var(--app, var(--brand)) 35%, var(--edge));
+        background-color: color-mix(in oklch, var(--app, var(--brand)) 14%, transparent);
+    }
+
+    .app-books {
+        --app: oklch(0.62 0.19 262);
+    }
+
+    .app-inventory {
+        --app: oklch(0.68 0.15 178);
+    }
+
+    .app-people {
+        --app: oklch(0.66 0.19 12);
+    }
+
+    /* ----------------------------------------------------------------------
+       THE MEGA MENU
+
+       A `<details>` like every other menu here, so it opens with the script
+       switched off. Below `md` it is not a panel at all - it is the same links
+       stacked inside the mobile navigation, which is what a mega menu has to
+       degrade into on a phone whatever it is built with.
+       ---------------------------------------------------------------------- */
+    .mega {
+        position: absolute;
+        left: 50%;
+        top: calc(100% + 0.5rem);
+        z-index: 40;
+        width: min(60rem, calc(100vw - 2rem));
+        transform: translateX(-50%);
+        border-radius: var(--radius-pop);
+        border: 1px solid var(--edge);
+        background-color: var(--surface-raised);
+        box-shadow: var(--elevation-pop);
+        padding: 1.5rem;
+    }
+
+    .mega-grid {
+        display: grid;
+        gap: 1.5rem;
+    }
+
+    @media (width >= 64rem) {
+        .mega-grid {
+            grid-template-columns: 1.15fr 1fr 1fr;
+        }
+    }
+
+    .mega-head {
+        font-size: var(--text-xs);
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--content-subtle);
+    }
+
+    .mega-link {
+        display: flex;
+        gap: 0.75rem;
+        border-radius: var(--radius-control);
+        padding: 0.5rem;
+        transition: background-color 120ms ease;
+    }
+
+    .mega-link:hover {
+        background-color: var(--surface-hover);
+    }
+
+    .mega-dot {
+        margin-top: 0.35rem;
+        width: 0.5rem;
+        height: 0.5rem;
+        flex-shrink: 0;
+        border-radius: 9999px;
+        background-color: var(--app, var(--brand));
+    }
+
+    .mega-name {
+        font-size: var(--text-sm);
+        font-weight: 600;
+        color: var(--content);
+    }
+
+    .mega-note {
+        margin-top: 0.125rem;
+        font-size: var(--text-xs);
+        line-height: 1.45;
+        color: var(--content-muted);
+    }
+
+    /* The panel's own footer strip, on the shell colour so it reads as a
+       different kind of thing from the links above it. */
+    .mega-foot {
+        margin-top: 1.25rem;
+        border-top: 1px solid var(--edge);
+        padding-top: 1rem;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.75rem;
+        font-size: var(--text-sm);
+        color: var(--content-muted);
+    }
+
+    /* ----------------------------------------------------------------------
+       SCREENSHOTS
+
+       The frame is the one the drawn illustration already wears - `.mock-bar`
+       above, the same border, the same radius. That is the whole trick to a
+       real screenshot sitting comfortably on this page: it is presented as the
+       same object as the drawing, so the two can appear on one page without
+       looking like they came from different sites.
+       ---------------------------------------------------------------------- */
+    .shot {
+        overflow: hidden;
+        border-radius: var(--radius-pop);
+        border: 1px solid var(--edge);
+        background-color: var(--surface);
+        box-shadow: var(--elevation-pop);
+    }
+
+    .shot img {
+        display: block;
+        width: 100%;
+        height: auto;
+        /* The picture is dark and the frame is dark, so without this the two
+           merge along the top edge where the chrome bar ends. */
+        border-top: 1px solid var(--edge);
+    }
+
+    /* A wash behind a screenshot that is standing on its own, so it lifts off
+       the band rather than sitting flat on it. */
+    .shot-lit {
+        position: relative;
+    }
+
+    .shot-lit::before {
+        content: "";
+        position: absolute;
+        inset: -12% -6% -18%;
+        z-index: -1;
+        background: radial-gradient(
+            50% 50% at 50% 40%,
+            color-mix(in oklch, var(--brand) 22%, transparent),
+            transparent 70%
+        );
+    }
+
 }

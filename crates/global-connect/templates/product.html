@@ -8,9 +8,6 @@
 #}
 {% extends "base.html" %}
 
-{% block title %}{{ t.product.title }}{% endblock %}
-{% block description %}{{ t.product.description }}{% endblock %}
-
 {% block main %}
 
 <section class="hero hero-short">
@@ -22,13 +19,15 @@
 </section>
 
 {% for app in t.apps %}
-<section class="border-t border-edge{% if !loop.first %} bg-surface-shell{% endif %}">
+<section id="{{ apps[loop.index0].slug }}" class="border-t border-edge{% if !loop.first %} bg-surface-shell{% endif %} {{ apps[loop.index0].mark.class }}">
   <div class="site-width py-16 sm:py-20">
     <div class="grid gap-10 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)] lg:gap-16">
       <div>
-        <div class="tile-icon" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" class="size-6">
-            <path d="{{ icons[loop.index0] }}" stroke-linecap="round" stroke-linejoin="round"/>
+        <div class="mark-tile" aria-hidden="true">
+          <svg viewBox="0 0 48 48" class="size-7">
+            {% for layer in apps[loop.index0].mark.layers %}
+            <path d="{{ layer.d }}" fill="{{ layer.fill }}"/>
+            {% endfor %}
           </svg>
         </div>
         <h2 class="mt-5 flex items-center gap-2.5 text-2xl font-black tracking-tight">
@@ -51,6 +50,23 @@
         {% endfor %}
       </ul>
     </div>
+
+    {# Whatever screenshots exist of this application, in filename order. None
+       is the ordinary case and the section reads perfectly without them. #}
+    {% if !apps[loop.index0].pictures.is_empty() %}
+    <div class="mt-10 grid gap-6 lg:grid-cols-2">
+      {% for shot in apps[loop.index0].pictures %}
+      <figure class="shot">
+        <div class="mock-bar">
+          <span class="mock-dot"></span><span class="mock-dot"></span><span class="mock-dot"></span>
+          <span class="ms-3 text-2xs text-content-subtle" lang="en">{{ shot.caption }}</span>
+        </div>
+        <img src="{{ shot.url }}" width="{{ shot.width }}" height="{{ shot.height }}"
+             alt="{{ shot.alt }}" loading="lazy" decoding="async">
+      </figure>
+      {% endfor %}
+    </div>
+    {% endif %}
   </div>
 </section>
 {% endfor %}

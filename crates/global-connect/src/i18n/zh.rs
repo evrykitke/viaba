@@ -15,8 +15,8 @@
 //! nothing on the site is sized by counting English words.
 
 use super::{
-    About, AppCopy, Beneath, Common, Contact, Footer, Home, Nav, NotFound, PillarCopy, PlanCopy,
-    Pricing, Product, Strings,
+    About, AppCopy, Beneath, Common, Contact, Footer, Home, Industry, Nav, NotFound, PillarCopy,
+    PlanCopy, Pricing, Product, Solutions, Strings,
 };
 
 pub static STRINGS: Strings = Strings {
@@ -33,9 +33,11 @@ pub static STRINGS: Strings = Strings {
         menu: "菜单",
         language: "语言",
         home_of: "首页",
+        shot_alt: "{product} 的{app}：{screen}",
     },
 
     nav: Nav {
+        solutions: "解决方案",
         product: "产品",
         pricing: "价格",
         about: "关于",
@@ -67,6 +69,7 @@ pub static STRINGS: Strings = Strings {
         dense_title: "该密的地方，就要密。",
         dense_lede: "一天的工作是在表格和表单里度过的，不是在落地页上。屏幕就是为此而做：紧凑的行、以键盘为先，任何一个数字都不超过一眼的距离。",
         reasons_title: "照着工作的形状来做。",
+        hand_note: "真的，开一个就这么快",
         cta_title: "开一个工作区，大约一分钟。",
         cta_body: "取个名字，选个地址，它就是你的了 —— 自己的数据库、自己的用户、自己的权限。不与任何人共用。",
     },
@@ -110,6 +113,7 @@ pub static STRINGS: Strings = Strings {
         trial_note: "每个方案都先有 {days} 天完整产品试用，无需信用卡。",
         provisional_lead: "这些数字尚未确定。",
         provisional_body: "方案的结构是我们正在搭建的样子；价格仍在敲定，会在向任何人收费之前先公布在这里。",
+        hand_note: "无需信用卡，也没有什么要取消的",
         faq_title: "大家最先问的几个问题",
         faq: [
             Beneath {
@@ -166,6 +170,81 @@ pub static STRINGS: Strings = Strings {
                 body: "已经有工作区了？它在自己的专属地址上。",
             },
         ],
+    },
+
+    solutions: Solutions {
+        title: "解决方案",
+        description: "同一个产品，贴合你所在行业真正的计数方式。",
+        eyebrow: "解决方案",
+        headline: "同一个产品，你自己的计数方式。",
+        lede: "每家企业都要管钱、管物、管人。不同的是「物」到底指什么，以及它必须如何入账。下面是这个产品目前已经贴合的场景。",
+        by_industry: "按行业",
+        by_need: "按需要",
+        menu_foot: "没列到你这一行？这些应用本身是通用的 —— 多数行业的差别只在于怎么配置。",
+        industries: [
+            Industry {
+                name: "医疗健康",
+                note: "诊所与药房，库存是有有效期的。",
+                body: "药房的库存并不能互相替代：同一种药的两盒，如果其中一盒三月就到期，那它们就是两样东西。库存把批次与有效期作为移动本身的一部分来处理，而不是在旁边记一笔备注；某个批次过期时，总账也会看到这笔损失。",
+                points: &[
+                    "每一次移动都带批次与有效期",
+                    "报废自动过账到总账",
+                    "为调剂室、病区与隔离区分别设库位",
+                ],
+            },
+            Industry {
+                name: "零售与批发",
+                note: "多个地点，一套数字。",
+                body: "三家门店加一个后仓的库存，其实是同一个问题问了四遍。因为这里的移动永远发生在两个地点之间，所以「河畔店还有多少」和「我们一共有多少」是同一个查询换个筛选条件 —— 而不是两份到周五就对不上的报表。",
+                points: &[
+                    "每个点位一个仓库，之间可以调拨",
+                    "计价方式由类别决定，不靠猜",
+                    "有变体，尺码和颜色不必新建物料",
+                ],
+            },
+            Industry {
+                name: "生产制造",
+                note: "投入了什么，产出了什么，成本是多少。",
+                body: "生产本身也是一次移动：材料离开一个库位，成品到达另一个库位，两者的差额是一笔必须落进总账的成本。库存模型本就是照这个形状建的，而不是在旁边另加一块。",
+                points: &[
+                    "单位与单位类别，公斤和克是同一件事",
+                    "估值与出库规则设在物料类别上",
+                    "需要的成品可以用序列号",
+                ],
+            },
+            Industry {
+                name: "专业服务",
+                note: "没有库存。部门就是成本中心。",
+                body: "靠卖工时的公司，仓库里几乎没有东西，所有问题都变成「这笔成本落在业务的哪一块」。这里的成本中心是分录行上的一个维度，所以答案就在总账里，而不在照着总账另做的表格里。",
+                points: &[
+                    "部门，以及其中承担成本的那些",
+                    "可以只用账簿不用库存 —— 应用之间是分开的",
+                    "涉外业务可用多币种计价",
+                ],
+            },
+            Industry {
+                name: "教育",
+                note: "各项经费不能混在一起。",
+                body: "学校的钱进来时往往是带条件的，要紧的是能说清每一笔来自哪里。这需要一份可以自己塑形的科目表，以及每一行上的一个维度 —— 这两样都已经有了。",
+                points: &[
+                    "科目表由你自己塑形",
+                    "会计期间要明确关闭，关了就是关了",
+                    "审计轨迹在事情发生时就写下来",
+                ],
+            },
+            Industry {
+                name: "公益组织",
+                note: "小团队，还有一份别人要审的报告。",
+                body: "难的往往不是记账本身，而是三个人在别的工作之余顺手在记，并且每年总有一位不在这儿上班的人要能看懂它。这两件事都指向同一个结论：软件要把工作老老实实地建模出来。",
+                points: &[
+                    "团队还小的时候一直免费",
+                    "有权限，志愿者只看得到自己那一块",
+                    "每一次改动都记下是谁、在什么时候",
+                ],
+            },
+        ],
+        cta_title: "不确定合不合用？",
+        cta_body: "开一个工作区，把一周的真实数字跑一遍。那比我们怎么说都快。",
     },
 
     not_found: NotFound {

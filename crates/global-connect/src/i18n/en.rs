@@ -6,8 +6,8 @@
 //! sentence, never a stale one.
 
 use super::{
-    About, AppCopy, Beneath, Common, Contact, Footer, Home, Nav, NotFound, PillarCopy, PlanCopy,
-    Pricing, Product, Strings,
+    About, AppCopy, Beneath, Common, Contact, Footer, Home, Industry, Nav, NotFound, PillarCopy,
+    PlanCopy, Pricing, Product, Solutions, Strings,
 };
 
 pub static STRINGS: Strings = Strings {
@@ -24,9 +24,11 @@ pub static STRINGS: Strings = Strings {
         menu: "Menu",
         language: "Language",
         home_of: "home",
+        shot_alt: "{app} in {product}: {screen}",
     },
 
     nav: Nav {
+        solutions: "Solutions",
         product: "Product",
         pricing: "Pricing",
         about: "About",
@@ -58,6 +60,7 @@ pub static STRINGS: Strings = Strings {
         dense_title: "Dense where it should be dense.",
         dense_lede: "A day of work is spent in grids and forms, not on a landing page. The screens are built for that: compact rows, keyboard-first, and a number never more than a glance away.",
         reasons_title: "Built the way the work is shaped.",
+        hand_note: "and yes, it really is this quick to start",
         cta_title: "Your workspace takes about a minute.",
         cta_body: "Pick a name, pick an address, and it is yours \u{2014} its own database, its own users, its own permissions. Nothing shared with anybody else's.",
     },
@@ -101,6 +104,7 @@ pub static STRINGS: Strings = Strings {
         trial_note: "Every plan starts with {days} days of the full product, and no card.",
         provisional_lead: "These figures are not final.",
         provisional_body: "The plans are the shape we are building towards; the prices are still being settled and will be published here before anybody is asked to pay one.",
+        hand_note: "no card, and nothing to cancel",
         faq_title: "The questions people ask first",
         faq: [
             Beneath {
@@ -157,6 +161,106 @@ pub static STRINGS: Strings = Strings {
                 body: "Already have a workspace? It lives at its own address.",
             },
         ],
+    },
+
+    solutions: Solutions {
+        title: "Solutions",
+        description: "One product, shaped to the way your industry actually counts things.",
+        eyebrow: "Solutions",
+        headline: "The same product. Your way of counting.",
+        lede: "Every business tracks money, things and people. What differs is what \
+               a \"thing\" is, and how it has to be accounted for. Here is where the \
+               product already fits.",
+        by_industry: "By industry",
+        by_need: "By what you need",
+        menu_foot: "Not listed? The applications are general \u{2014} most industries are a \
+                    matter of how you set them up.",
+        industries: [
+            Industry {
+                name: "Health",
+                note: "Clinics and pharmacies, where stock has an expiry date.",
+                body: "A pharmacy's stock is not interchangeable: two boxes of the same \
+                       drug are different things if one expires in March. Inventory tracks \
+                       lots and expiry as a first-class part of a move rather than a note \
+                       on the side, and the ledger sees the write-off when a lot passes \
+                       its date.",
+                points: &[
+                    "Lots and expiry on every movement",
+                    "Write-offs that post to the ledger on their own",
+                    "Locations for dispensary, ward and quarantine",
+                ],
+            },
+            Industry {
+                name: "Retail and wholesale",
+                note: "Several locations, one set of numbers.",
+                body: "Stock in three shops and a back warehouse is one question asked \
+                       four ways. Because a movement here is always between two places, \
+                       \"how much is in the Riverside shop\" and \"how much do we own\" \
+                       are the same query with a different filter \u{2014} not two reports \
+                       that disagree by Friday.",
+                points: &[
+                    "A warehouse per site, and transfers between them",
+                    "Costing decided by category, not by guesswork",
+                    "Variants, so a size and a colour is not a new item",
+                ],
+            },
+            Industry {
+                name: "Manufacturing",
+                note: "What went in, what came out, and what it cost.",
+                body: "Making something is a movement too: material leaves a location, \
+                       a finished item arrives in another, and the difference is a cost \
+                       that has to land in the ledger. The stock model is built on that \
+                       shape rather than bolted beside it.",
+                points: &[
+                    "Units and unit categories, so kilos and grams are one thing",
+                    "Valuation and removal set on the item category",
+                    "Serials on finished goods, for the ones that need them",
+                ],
+            },
+            Industry {
+                name: "Professional services",
+                note: "No stock. Departments that are cost centres.",
+                body: "A firm that sells hours has almost nothing in a warehouse, and \
+                       every question is instead \"which part of the business did that \
+                       cost land in\". A cost centre here is a dimension on the journal \
+                       line itself, so the answer is in the ledger rather than in a \
+                       spreadsheet built from it.",
+                points: &[
+                    "Departments, and the ones that carry cost",
+                    "Books without Inventory \u{2014} the applications are separate",
+                    "Multi-currency for work billed abroad",
+                ],
+            },
+            Industry {
+                name: "Education",
+                note: "Funds that must not be mixed up.",
+                body: "A school's money arrives with strings attached, and the thing that \
+                       matters is being able to show which pound came from where. That is \
+                       a chart of accounts you can shape and a dimension on every line, \
+                       which is what is already here.",
+                points: &[
+                    "A chart of accounts you shape yourself",
+                    "Periods that close deliberately, so a year stays closed",
+                    "An audit trail written as it happens",
+                ],
+            },
+            Industry {
+                name: "Non-profit",
+                note: "Small teams, and a report somebody else audits.",
+                body: "The hard part is rarely the bookkeeping \u{2014} it is that three \
+                       people are doing it between other jobs, and once a year somebody \
+                       who does not work there has to be able to follow it. Both of those \
+                       are arguments for software that models the work plainly.",
+                points: &[
+                    "Free while the team is small",
+                    "Permissions, so a volunteer sees only their part",
+                    "Every change attributed, with who and when",
+                ],
+            },
+        ],
+        cta_title: "Not sure it fits?",
+        cta_body: "Open a workspace and put a week of real figures through it. That \
+                   answers the question faster than we can.",
     },
 
     not_found: NotFound {
