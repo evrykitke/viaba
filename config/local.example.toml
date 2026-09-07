@@ -29,3 +29,13 @@
 
 # [tenancy]
 # default_tenant = "acme"
+
+# Two checkouts on one machine each need their own listeners, or the second one
+# to start fails to bind. The server's port is [server] port above; these are
+# the other two processes, which read this same file and default to 3100 and
+# 3200 from base.toml.
+# [desk]
+# listen = "127.0.0.1:3110"
+
+# [site]
+# listen = "127.0.0.1:3210"
