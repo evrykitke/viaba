@@ -60,7 +60,7 @@ pub fn form_field<T>(
     field: Field<T>,
     /// Whether this viewer may change it. Decided by the form, which knows the
     /// viewer, rather than looked up again here.
-    editable: bool,
+    #[prop(into)] editable: Signal<bool>,
 ) -> impl IntoView
 where
     T: Clone + PartialEq + Send + Sync + 'static,
@@ -155,7 +155,11 @@ where
 /// worse than no link. Reactive over the draft, because the suggestion for an
 /// account number changes the moment somebody picks a different account type.
 #[component]
-fn suggestion<T>(field: Field<T>, state: FormState<T>, editable: bool) -> impl IntoView
+fn suggestion<T>(
+    field: Field<T>,
+    state: FormState<T>,
+    #[prop(into)] editable: Signal<bool>,
+) -> impl IntoView
 where
     T: Clone + PartialEq + Send + Sync + 'static,
 {
@@ -164,7 +168,7 @@ where
     let writer = field.clone();
 
     let offer = move || {
-        if !editable {
+        if !editable.get() {
             return None;
         }
 
@@ -232,7 +236,7 @@ fn control<T>(
     id: String,
     state: FormState<T>,
     field: Field<T>,
-    editable: bool,
+    #[prop(into)] editable: Signal<bool>,
     invalid: Signal<Option<String>>,
     described_by: Signal<Option<String>>,
 ) -> impl IntoView
@@ -289,7 +293,7 @@ where
                     type="checkbox"
                     id=id
                     class="size-4 shrink-0 accent-brand disabled:cursor-not-allowed disabled:opacity-60"
-                    disabled=!editable
+                    disabled=move || !editable.get()
                     aria-describedby=move || described_by.get()
                     prop:checked=move || current().as_bool()
                     on:change=move |event| set(
@@ -306,7 +310,7 @@ where
                 id=id
                 rows=rows
                 class=class
-                disabled=!editable
+                disabled=move || !editable.get()
                 placeholder=placeholder
                 aria-required=required.then_some("true")
                 aria-invalid=move || invalid.get().is_some().then_some("true")
@@ -348,7 +352,7 @@ where
             view! {
                 <RichText
                     value=document
-                    disabled=!editable
+                    disabled=move || !editable.get()
                     label=field.with_value(|field| field.label.clone())
                 />
             }
@@ -385,7 +389,7 @@ where
                     on_change=Callback::new(move |value: String| set(value))
                     options=options
                     placeholder=if required { l!("form.choose_one") } else { nothing }
-                    disabled=!editable
+                    disabled=move || !editable.get()
                     invalid=Signal::derive(move || invalid.get().is_some())
                     required=required
                     described_by=described_by
@@ -440,7 +444,7 @@ where
                     multiple=multiple
                     quick_add=quick_add
                     placeholder=placeholder
-                    disabled=Signal::derive(move || !editable)
+                    disabled=Signal::derive(move || !editable.get())
                     invalid=Signal::derive(move || invalid.get().is_some())
                     required=required
                     described_by=described_by
@@ -486,7 +490,7 @@ where
                     type=input_type
                     id=id
                     class=class
-                    disabled=!editable
+                    disabled=move || !editable.get()
                     placeholder=placeholder
                     min=min.map(|n| n.to_string())
                     max=max.map(|n| n.to_string())
@@ -523,7 +527,7 @@ fn same_records(held: &[Choice], chosen: &[Choice]) -> bool {
 #[component]
 fn choice_row(
     choice: Choice,
-    editable: bool,
+    #[prop(into)] editable: Signal<bool>,
     current: Signal<FieldValue>,
     on_toggle: Callback<String>,
 ) -> impl IntoView {
@@ -538,7 +542,7 @@ fn choice_row(
             <input
                 type="checkbox"
                 class="mt-0.5 size-3.5 shrink-0 accent-brand disabled:cursor-not-allowed disabled:opacity-60"
-                disabled=!editable
+                disabled=move || !editable.get()
                 prop:checked=checked
                 on:change={
                     let value = value.clone();

@@ -136,6 +136,33 @@ pub fn entity_form<T: Draft>(
             .collect::<Vec<_>>(),
     );
     let showing = RwSignal::new(tabs.first().map(|tab| tab.key));
+    let held = StoredValue::new(fields.clone());
+
+    // Which fields are on screen, and nothing about what they hold.
+    //
+    // A memo, and this is the point of it: deciding what to draw reads the
+    // draft - a field can appear because another was ticked - and the draft
+    // changes on every keystroke. A plain closure would therefore rebuild every
+    // control on the form for each character typed into any of them. That is
+    // waste for an `<input>` and worse than waste for the rich text editor,
+    // which JavaScript owns: rebuilding it is tearing it out of the page and
+    // putting it back mid-word.
+    //
+    // The memo only fires when the *set* changes, which is what ticking a box
+    // that reveals a field actually does.
+    let on_screen: Memo<Vec<&'static str>> = Memo::new(move |_| {
+        let on = showing.get();
+
+        state.draft.with(|draft| {
+            held.with_value(|held| {
+                held.iter()
+                    .filter(|field| field.on_tab_named(on))
+                    .filter(|field| field.applies_to(draft))
+                    .map(|field| field.name())
+                    .collect()
+            })
+        })
+    });
     let names = config.field_names();
     let buttons = config.buttons();
     let note = config.note.clone();
@@ -288,26 +315,47 @@ pub fn entity_form<T: Draft>(
 
             <div class=layout>
                 {move || {
-                    let user = viewer.get();
-                    let draft = state.draft.get();
-                    let on = showing.get();
+                    on_screen
+                        .get()
+                        .into_iter()
+                        .filter_map(|name| {
+                            let field = held
+                                .with_value(|held| {
+                                    held.iter().find(|field| field.name() == name).cloned()
+                                })?;
 
-                    fields
-                        .iter()
-                        .filter(|field| field.on_tab_named(on))
-                        .filter(|field| field.applies_to(&draft))
-                        .cloned()
-                        .map(|field| {
-                            let editable = field.editable_in(&draft, user.as_ref());
+                            // A signal rather than the answer: the viewer is a
+                            // resource that starts as `None`, so a gated field
+                            // is built disabled and becomes editable a moment
+                            // later. A control that read a `bool` would have to
+                            // be rebuilt to hear about it - which is fine for an
+                            // input and fatal for the editor, whose JavaScript
+                            // reads "editable" once when it mounts.
+                            let editable = Signal::derive(move || {
+                                held.with_value(|held| {
+                                    held.iter()
+                                        .find(|field| field.name() == name)
+                                        .is_some_and(|field| {
+                                            state
+                                                .draft
+                                                .with(|draft| {
+                                                    field
+                                                        .editable_in(draft, viewer.get().as_ref())
+                                                })
+                                        })
+                                })
+                            });
 
-                            view! {
-                                <FormField
-                                    form_id=form_id
-                                    state=state
-                                    field=field
-                                    editable=editable
-                                />
-                            }
+                            Some(
+                                view! {
+                                    <FormField
+                                        form_id=form_id
+                                        state=state
+                                        field=field
+                                        editable=editable
+                                    />
+                                },
+                            )
                         })
                         .collect::<Vec<_>>()
                 }}

@@ -15,7 +15,7 @@ use super::GridConfig;
 use crate::components::page::{Badge, Tone};
 use crate::icons::Icon;
 use crate::l;
-use crate::server_fns::inventory_fns::list_items;
+use crate::server_fns::inventory_fns::{delete_item, list_items};
 use crate::ui::table::{Align, Cell, Column, Filter, FilterChoice, RowAction, Source, ToolbarAction};
 
 /// What this workspace stocks, buys and sells.
@@ -145,6 +145,38 @@ pub fn items_grid() -> GridConfig<ItemSummary> {
                 format!("/inventory/items/{}", row.id)
             })
             .require(permissions::ITEMS),
+        )
+        .action(
+            RowAction::run(
+                l!("common.delete"),
+                Icon::Trash2,
+                |row: ItemSummary, grid| {
+                    leptos::task::spawn_local(async move {
+                        use app_inventory::item::DeleteOutcome;
+
+                        match delete_item(row.id).await {
+                            Ok(DeleteOutcome::Deleted) => {
+                                grid.report(l!("items.deleted", name = row.name));
+                                grid.refresh();
+                            }
+                            // The two answers a workspace has to hear rather
+                            // than a delete that quietly did nothing: an item
+                            // stock has moved against is named on those moves,
+                            // and one with stock on hand carries a value.
+                            Ok(DeleteOutcome::HasMovements) => {
+                                grid.warn(l!("items.delete.has_movements"));
+                            }
+                            Ok(DeleteOutcome::HasStock) => {
+                                grid.warn(l!("items.delete.has_stock"));
+                            }
+                            Err(err) => grid.warn(err.to_string()),
+                        }
+                    });
+                },
+            )
+            .require(permissions::ITEMS_DELETE)
+            .tone(Tone::Danger)
+            .confirm(l!("items.delete.confirm")),
         )
 }
 

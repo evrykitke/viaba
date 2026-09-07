@@ -14,7 +14,7 @@ use super::GridConfig;
 use crate::components::page::{Badge, Tone};
 use crate::icons::Icon;
 use crate::l;
-use crate::server_fns::inventory_fns::list_item_categories;
+use crate::server_fns::inventory_fns::{delete_item_category, list_item_categories};
 use crate::ui::table::{Align, Cell, Column, Filter, FilterChoice, RowAction, Source, ToolbarAction};
 
 /// How each kind of stock is costed, valued and picked.
@@ -114,6 +114,37 @@ pub fn item_categories_grid() -> GridConfig<CategorySummary> {
                 format!("/inventory/categories/{}", row.id)
             })
             .require(permissions::ITEM_CATEGORIES_MANAGE),
+        )
+        .action(
+            RowAction::run(
+                l!("common.delete"),
+                Icon::Trash2,
+                |row: CategorySummary, grid| {
+                    leptos::task::spawn_local(async move {
+                        use app_inventory::category::DeleteOutcome;
+
+                        match delete_item_category(row.id).await {
+                            Ok(DeleteOutcome::Deleted) => {
+                                grid.report(l!("categories.deleted", name = row.name));
+                                grid.refresh();
+                            }
+                            Ok(DeleteOutcome::HasChildren { count }) => {
+                                grid.warn(l!("categories.delete.has_children", count = count));
+                            }
+                            Ok(DeleteOutcome::HasItems { count }) => {
+                                grid.warn(l!("categories.delete.has_items", count = count));
+                            }
+                            Err(err) => grid.warn(err.to_string()),
+                        }
+                    });
+                },
+            )
+            // The counts are on the row already, so the action is offered only
+            // where it would do something rather than refused after a click.
+            .when(|row: &CategorySummary| row.child_count == 0 && row.item_count == 0)
+            .require(permissions::ITEM_CATEGORIES_MANAGE)
+            .tone(Tone::Danger)
+            .confirm(l!("categories.delete.confirm")),
         )
 }
 

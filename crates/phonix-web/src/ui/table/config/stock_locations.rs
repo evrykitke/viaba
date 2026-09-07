@@ -17,7 +17,7 @@ use super::GridConfig;
 use crate::components::page::{Badge, Tone};
 use crate::icons::Icon;
 use crate::l;
-use crate::server_fns::inventory_fns::list_stock_locations;
+use crate::server_fns::inventory_fns::{delete_stock_location, list_stock_locations};
 use crate::ui::table::{Cell, Column, Filter, FilterChoice, RowAction, Source, ToolbarAction};
 
 /// Where stock is, including the places that are not places.
@@ -110,6 +110,38 @@ pub fn stock_locations_grid() -> GridConfig<LocationSummary> {
                 format!("/inventory/locations/{}", row.id)
             })
             .require(permissions::STOCK_LOCATIONS_MANAGE),
+        )
+        .action(
+            RowAction::run(
+                l!("common.delete"),
+                Icon::Trash2,
+                |row: LocationSummary, grid| {
+                    leptos::task::spawn_local(async move {
+                        use app_inventory::location::DeleteOutcome;
+
+                        match delete_stock_location(row.id).await {
+                            Ok(DeleteOutcome::Deleted) => {
+                                grid.report(l!("locations.deleted", name = row.code));
+                                grid.refresh();
+                            }
+                            Ok(DeleteOutcome::HasChildren { count }) => {
+                                grid.warn(l!("locations.delete.has_children", count = count));
+                            }
+                            Ok(DeleteOutcome::HasMovements) => {
+                                grid.warn(l!("locations.delete.has_movements"));
+                            }
+                            Err(err) => grid.warn(err.to_string()),
+                        }
+                    });
+                },
+            )
+            // The counterparts are seeded once and left alone: a second
+            // inventory-loss location would be two places a count difference
+            // could go, with nothing to say which.
+            .when(|row: &LocationSummary| row.kind.is_user_creatable())
+            .require(permissions::STOCK_LOCATIONS_MANAGE)
+            .tone(Tone::Danger)
+            .confirm(l!("locations.delete.confirm")),
         )
 }
 
