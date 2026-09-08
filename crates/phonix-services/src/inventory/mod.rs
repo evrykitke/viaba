@@ -20,6 +20,7 @@
 //!
 //! Neither is discovered during a recall. They are refused here.
 
+pub mod bill;
 pub mod category;
 pub mod item;
 pub mod location;

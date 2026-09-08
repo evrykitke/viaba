@@ -24,6 +24,7 @@ pub mod account_mapping;
 pub mod category;
 pub mod defaults;
 pub mod image;
+pub mod bill;
 pub mod item;
 pub mod location;
 pub mod lot;

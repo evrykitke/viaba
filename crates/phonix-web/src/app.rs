@@ -32,6 +32,7 @@ use crate::pages::inventory::item_categories::{
 };
 use crate::pages::inventory::items::{ItemNewPage, ItemsPage};
 use crate::pages::inventory::procurement::{PurchaseOrdersPage, ReceiptsPage};
+use crate::pages::inventory::bill::{BillNewPage, BillPage, BillsPage, UnbilledPage};
 use crate::pages::inventory::purchase_order::{PurchaseOrderNewPage, PurchaseOrderPage};
 use crate::pages::inventory::receipt::{ReceiptNewPage, ReceiptPage};
 use crate::pages::inventory::stock::{StockMovesPage, StockPage};
@@ -261,6 +262,10 @@ pub fn app() -> impl IntoView {
                     <Route path=path!("/inventory/orders") view=PurchaseOrdersPage />
                     <Route path=path!("/inventory/orders/new") view=PurchaseOrderNewPage />
                     <Route path=path!("/inventory/orders/:id") view=PurchaseOrderPage />
+                    <Route path=path!("/inventory/bills") view=BillsPage />
+                    <Route path=path!("/inventory/bills/new") view=BillNewPage />
+                    <Route path=path!("/inventory/bills/:id") view=BillPage />
+                    <Route path=path!("/inventory/unbilled") view=UnbilledPage />
                     <Route path=path!("/inventory/receipts") view=ReceiptsPage />
                     <Route path=path!("/inventory/receipts/new") view=ReceiptNewPage />
                     <Route path=path!("/inventory/receipts/:id") view=ReceiptPage />

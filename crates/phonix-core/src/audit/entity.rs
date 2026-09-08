@@ -356,6 +356,16 @@ pub mod kinds {
     /// liability before the supplier's invoice has been seen. Who posted it,
     /// and when, is a fact about a person rather than about a shelf - which is
     /// why it is here as well as in the stock moves it created.
+    /// A supplier bill. Recorded because posting one creates a payable, and a
+    /// match that was overridden is a decision somebody made.
+    pub const BILL: EntityKind = EntityKind {
+        name: "bill",
+        singular_key: "entity.bill.singular",
+        plural_key: "entity.bill.plural",
+        href: Some("/inventory/bills/{id}"),
+        singleton: false,
+    };
+
     pub const RECEIPT: EntityKind = EntityKind {
         name: "goods_receipt",
         singular_key: "entity.goods_receipt.singular",
@@ -442,6 +452,7 @@ pub const ENTITY_KINDS: &[EntityKind] = &[
     kinds::STOCK_LOCATION,
     kinds::STOCK_MOVE,
     kinds::PURCHASE_ORDER,
+    kinds::BILL,
     kinds::RECEIPT,
     kinds::UNIT_OF_MEASURE,
 ];

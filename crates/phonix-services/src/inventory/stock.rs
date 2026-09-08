@@ -651,7 +651,7 @@ fn rejected_valuation(err: valuation::ValuationError) -> ServiceError {
 /// Every variant here rolls the movement back with it - see the module header.
 /// The field each one lands on is the field somebody can change: a closed
 /// period is the date, an unmapped role is a setting behind the item.
-fn refused(err: LedgerError) -> ServiceError {
+pub(crate) fn refused(err: LedgerError) -> ServiceError {
     match err {
         LedgerError::Refused(message) => ServiceError::rejected("moved_on", message),
         LedgerError::PeriodClosed(detail) => {

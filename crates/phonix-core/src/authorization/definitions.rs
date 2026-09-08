@@ -34,6 +34,8 @@
 //!  |   |   +- .Create  .Edit  .Confirm  .Cancel
 //!  |   +- Pages.Inventory.Receipts
 //!  |   |   +- .Create  .Post
+//!  |   +- Pages.Inventory.Bills
+//!  |   |   +- .Create  .Edit  .Post  .Override
 //!  |   +- Pages.Inventory.Units
 //!  |       +- .Manage
 //!  +- Pages.Master
@@ -124,6 +126,12 @@ pub mod names {
     pub const RECEIPTS: &str = "Pages.Inventory.Receipts";
     pub const RECEIPTS_CREATE: &str = "Pages.Inventory.Receipts.Create";
     pub const RECEIPTS_POST: &str = "Pages.Inventory.Receipts.Post";
+
+    pub const BILLS: &str = "Pages.Inventory.Bills";
+    pub const BILLS_CREATE: &str = "Pages.Inventory.Bills.Create";
+    pub const BILLS_EDIT: &str = "Pages.Inventory.Bills.Edit";
+    pub const BILLS_POST: &str = "Pages.Inventory.Bills.Post";
+    pub const BILLS_OVERRIDE: &str = "Pages.Inventory.Bills.Override";
 
     pub const UNITS: &str = "Pages.Inventory.Units";
     pub const UNITS_MANAGE: &str = "Pages.Inventory.Units.Manage";
@@ -608,6 +616,48 @@ pub const DEFINITIONS: &[PermissionDefinition] = &[
             "Post a receipt: move the stock, value it, and record what is owed for it.",
         ),
         parent: Some(names::RECEIPTS),
+        default_for_user: false,
+    },
+    PermissionDefinition {
+        name: names::BILLS,
+        display_name: "Bills",
+        description: Some("View supplier invoices and what has been received but not yet billed."),
+        parent: Some(names::INVENTORY),
+        default_for_user: false,
+    },
+    PermissionDefinition {
+        name: names::BILLS_CREATE,
+        display_name: "Create",
+        description: Some("Key a supplier invoice, as a draft."),
+        parent: Some(names::BILLS),
+        default_for_user: false,
+    },
+    PermissionDefinition {
+        name: names::BILLS_EDIT,
+        display_name: "Edit",
+        description: Some("Change a bill that has not been posted."),
+        parent: Some(names::BILLS),
+        default_for_user: false,
+    },
+    PermissionDefinition {
+        name: names::BILLS_POST,
+        display_name: "Post",
+        description: Some(
+            "Post a bill: clear what was accrued, book the price difference, and owe the supplier.",
+        ),
+        parent: Some(names::BILLS),
+        default_for_user: false,
+    },
+    PermissionDefinition {
+        name: names::BILLS_OVERRIDE,
+        display_name: "Override the match",
+        // Separate from Post on purpose. Posting a bill that matches is
+        // ordinary work; posting one that does not is the decision the
+        // three-way match exists to force somebody to make.
+        description: Some(
+            "Post a bill whose match did not clear, giving a reason that stays on the document.",
+        ),
+        parent: Some(names::BILLS),
         default_for_user: false,
     },
     PermissionDefinition {

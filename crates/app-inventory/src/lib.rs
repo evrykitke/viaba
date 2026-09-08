@@ -60,6 +60,7 @@
 )]
 
 pub mod accounts;
+pub mod bill;
 pub mod category;
 pub mod defaults;
 pub mod image;
@@ -87,6 +88,7 @@ pub const APP_ID: &str = "inventory";
 /// allocator would solve it slightly differently. ADR 0006 section 3.
 pub const ITEM: &str = "item";
 pub const PURCHASE_ORDER: &str = "purchase_order";
+pub const BILL: &str = "bill";
 pub const RECEIPT: &str = "receipt";
 pub const DELIVERY: &str = "delivery";
 pub const INTERNAL_TRANSFER: &str = "internal_transfer";
@@ -127,6 +129,7 @@ pub const SETUP: &[phonix_core::SetupItem] = &[
 pub use accounts::{AccountOverrides, AccountRef};
 pub use category::{Category, CategoryInput, CategorySummary, CostingMethod, RemovalStrategy, Valuation};
 pub use image::{Gallery, Image};
+pub use bill::{Bill, BillInput, BillLine, BillState, BillSummary, MatchGrade};
 pub use item::{Item, ItemInput, ItemKind, ItemSummary, Tracking};
 pub use location::{Location, LocationInput, LocationKind, LocationSummary, MoveKind};
 pub use lot::{Lot, LotInput, LotSummary};

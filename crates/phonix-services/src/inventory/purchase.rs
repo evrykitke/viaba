@@ -353,7 +353,7 @@ pub async fn delete(pool: &PgPool, caller: &Caller, id: Uuid) -> ServiceResult<b
 /// an app that can be switched off, and ADR 0006 section 2's table lists
 /// `Parties` as a port over something that always exists - a distinction that
 /// costs nothing to honour here because the read is one function either way.
-async fn supplier_snapshot(
+pub(crate) async fn supplier_snapshot(
     pool: &PgPool,
     party_id: Uuid,
 ) -> ServiceResult<Result<SupplierSnapshot, OrderError>> {

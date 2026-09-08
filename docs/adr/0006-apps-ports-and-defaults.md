@@ -14,13 +14,14 @@ serials, stock moves, quants, valuation layers, the on-hand and movement
 screens, and the adjustment. With it, 6.1 (valuation posts as stock moves), 6.6
 (negative stock refused) and 6.7 (sub-ledger to general ledger by `GROUP BY`)
 hold in code rather than on paper. See *The stock ledger, as built* under
-section 7, and now **the first two documents on the chain**: the purchase order
-and the goods receipt, each with its list, its form and its document view,
-which is where 6.5 (the three-way match) gets its first two legs.
+section 7, and now **the first three documents on the chain**: the purchase
+order, the goods receipt and the supplier bill, each with its list, its form and
+its document view. With the bill, 6.5 (the three-way match) holds in code, and
+6.2's landed cost is the only part of the buying side still on paper.
 
 Still specified only — the rest of the **documents** of section 7. Requisition,
-consolidated requisition, bill and transfer. Each of them is a form and a header
-over `stock::apply`, which is the whole reason the ledger came first.
+consolidated requisition and transfer. Each of them is a form and a header over
+`stock::apply`, which is the whole reason the ledger came first.
 
 `Stock` is still not declared, as section 2 says it should not be: Books does
 not yet put cost of goods sold on an invoice, and that is the caller the port
@@ -632,6 +633,56 @@ of it or none of it" — it is that posting it again is safe.
 of a thousand gloves is one line, one price and one conversion; the stock ledger
 never learns that cases exist.
 
+### Billing, as built
+
+The third document, and the one that turns an accrual into a debt. Posting a
+bill debits goods-received-not-invoiced by what the receipts accrued, books the
+difference to purchase price variance, and credits payables - three postings
+through the `Ledger` port, and the only place Inventory names
+`AccountsPayable`.
+
+**The match is graded, not passed or failed.** A system that refuses everything
+outside tolerance builds an exception queue nobody works; one that accepts
+everything inside it pays for goods that never arrived. So `MatchGrade` is a
+reading of what is true about the documents, and posting is gated on the grade:
+a clean or tolerated match posts, anything else needs a reason in writing and a
+separate permission. **The variance posts either way.** A tolerance decides who
+approves a difference, never whether it is recorded - recording it is 6.1.
+
+**Two failures no tolerance can see.** Both came out of reading how three-way
+match fails in practice rather than how it is specified, and neither is
+arithmetic:
+
+* *The order raised from the invoice.* A buyer keys the PO with the supplier's
+  paperwork in front of them, so price and quantity agree by construction and
+  the match always passes. The literature calls it the most common failure.
+  What catches it is the clock, not the numbers: `purchase_orders.confirmed_at`
+  against `receipts.posted_at` and the bill's own date.
+* *One person ordering and receiving.* Two of the three documents under one
+  hand is a signature, not a control. `confirmed_by` against `posted_by`.
+
+Neither is refused outright - in a small workspace one person genuinely does
+everything, and a rule that called that fraud would be switched off within a
+week. Both demand an override with a reason.
+
+**The override is on the document.** Not only in the audit log. Force-post
+rights granted during an implementation and never withdrawn are a known
+weakness; the rights are one problem and the invisibility is the worse one, so
+`match_note` and `overridden_by` sit on the bill permanently and the list marks
+which bills carry one.
+
+**The same invoice cannot be keyed twice.** A unique index on
+(supplier, lower(reference)), excluding cancelled bills. Duplicate payment
+usually starts as duplicate keying, and this is the cheapest place to stop it -
+which is also why the supplier's own reference is `NOT NULL`.
+
+**GRNI is aged, not just totalled.** `unbilled_receipts` is the balance broken
+down by receipt with a day count on each. Every account of GRNI going wrong is
+the same story: the balance is only ever looked at in total, so an accrual from
+March that nobody will ever bill sits inside it until somebody writes the whole
+figure off. Age is a column so that is visible rather than a calculation
+somebody has to think to do.
+
 **No triggers.** Ordering, receiving and posting are code events. What the
 database enforces is only what is true of a row on its own — a quantity is
 positive, a state is one of three, a number is unique. Everything about *when* a
@@ -774,6 +825,16 @@ database and must never happen.
 ---
 
 ## Sources
+
+The three-way match and GRNI work in §7 draws on:
+
+- [Odoo 19 Inventory documentation](https://www.odoo.com/documentation/19.0/applications/inventory_and_mrp/inventory.html) — the model section 7 follows
+- [NetSuite 3-Way Matching: How It Works and How to Configure It](https://timdietrich.me/blog/netsuite-3way-matching/)
+- [The Three-Way Match: Where Procurement Controls Break](https://www.sethspro.com/post/three-way-match-procurement-internal-audit)
+- [Three-Way Matching for Small Businesses](https://beancount.io/blog/2026/09/01/three-way-match-accounts-payable-controls-duplicate-phantom-payments)
+- [Resolving 3-Way Matching Invoice Exceptions](https://www.datamondial.com/en/resolving-3-way-matching-invoice-exceptions/)
+- [GRNI explained: why balances build up and how to clear them](https://www.openecx.com/news-resources/grni-explained)
+- [Common GRNI Mistakes and How to Avoid Them](https://racklify.com/encyclopedia/common-grni-mistakes-and-how-to-avoid-them/)
 
 The gap analysis in §6 draws on:
 

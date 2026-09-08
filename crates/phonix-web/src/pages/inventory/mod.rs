@@ -14,6 +14,10 @@
 //! /inventory/orders               what has been ordered, and what is owed
 //! /inventory/orders/new           a form
 //! /inventory/orders/:id           the editor while draft, the document after
+//! /inventory/bills                what suppliers charged, and how it matched
+//! /inventory/bills/new            a form. `?order=<id>` bills what one owes
+//! /inventory/bills/:id            the editor while draft, the document after
+//! /inventory/unbilled             received not billed, by age
 //! /inventory/receipts             what arrived, and what it was worth
 //! /inventory/receipts/new         a form. `?order=<id>` opens it against one
 //! /inventory/receipts/:id         the tally while draft, the document after
@@ -32,6 +36,7 @@
 //! is the one somebody has open all day, which is why it is the only screen
 //! here that grew tabs.
 
+pub mod bill;
 pub mod home;
 pub mod item;
 pub mod item_categories;

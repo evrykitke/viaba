@@ -264,7 +264,7 @@ mod tests {
     use phonix_core::locale::Currency;
 
     fn gbp(amount: &str) -> Money {
-        Money::parse(Currency::Gbp, amount).unwrap()
+        Money::parse(Currency::parse("GBP").unwrap(), amount).unwrap()
     }
 
     fn qty(amount: &str) -> Quantity {

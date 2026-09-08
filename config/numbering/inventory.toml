@@ -34,6 +34,16 @@ reset    = "fiscal_year"
 start_at = 1
 
 [[series]]
+doc_type = "bill"
+label    = "inventory.doc_type.bill"
+
+# `BILL-{YYYY}-#####`. Ours, not theirs: the supplier's own number is typed
+# onto the bill and is what a dispute quotes. Allocated at post.
+mask     = "BILL-{YYYY}-#####"
+reset    = "fiscal_year"
+start_at = 1
+
+[[series]]
 doc_type = "receipt"
 label    = "inventory.doc_type.receipt"
 

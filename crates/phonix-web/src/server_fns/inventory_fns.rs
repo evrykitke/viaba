@@ -7,6 +7,7 @@
 //! query against `books`.
 
 use app_inventory::accounts::{AccountOverrides, AccountRef};
+use app_inventory::bill::{Bill, BillInput, BillSummary, MatchGrade, UnbilledReceipt};
 use app_inventory::category::{Category, CategoryInput, CategorySummary};
 use app_inventory::image::{Gallery, ImageInput};
 use app_inventory::item::{Item, ItemInput, ItemSummary};
@@ -855,6 +856,130 @@ pub async fn cancel_receipt(receipt_id: Uuid) -> Result<Submission<()>, ServerFn
     let (pool, caller) = pool_and_caller().await?;
 
     phonix_services::inventory::receipt::cancel(&pool, &caller, receipt_id)
+        .await
+        .map_err(service_error)
+}
+
+// --- Supplier bills ------------------------------------------------------
+//
+// The third document of the three-way match. Posting one clears GRNI, books the
+// price difference and creates the payable - all through the `Ledger` port.
+
+#[server(name = ListBills, prefix = "/api", endpoint = "inventory/bills")]
+pub async fn list_bills() -> Result<Vec<BillSummary>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::bill::list(&pool, &caller)
+        .await
+        .map_err(service_error)
+}
+
+#[server(name = BillDetail, prefix = "/api", endpoint = "inventory/bills/detail")]
+pub async fn bill_detail(bill_id: Uuid) -> Result<Bill, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::bill::detail(&pool, &caller, bill_id)
+        .await
+        .map_err(service_error)
+}
+
+#[server(name = BlankBill, prefix = "/api", endpoint = "inventory/bills/blank")]
+pub async fn blank_bill() -> Result<BillInput, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::bill::blank(&pool, &caller)
+        .await
+        .map_err(service_error)
+}
+
+/// A bill prefilled with everything an order has received and not been billed
+/// for.
+#[server(name = BillAgainstOrder, prefix = "/api", endpoint = "inventory/bills/against")]
+pub async fn bill_against_order(order_id: Uuid) -> Result<Submission<BillInput>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::bill::against_order(&pool, &caller, order_id)
+        .await
+        .map_err(service_error)
+}
+
+#[server(name = SaveBill, prefix = "/api", endpoint = "inventory/bills/save")]
+pub async fn save_bill(draft: BillInput) -> Result<Submission<BillInput>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::bill::save(&pool, &caller, draft)
+        .await
+        .map_err(service_error)
+}
+
+/// How the bill reads against its order and receipts, so the screen can show
+/// the reason box before somebody presses post rather than after.
+#[server(name = BillMatch, prefix = "/api", endpoint = "inventory/bills/match")]
+pub async fn bill_match(bill_id: Uuid) -> Result<MatchGrade, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::bill::grade(&pool, &caller, bill_id)
+        .await
+        .map_err(service_error)
+}
+
+#[server(name = PostBill, prefix = "/api", endpoint = "inventory/bills/post")]
+pub async fn post_bill(
+    bill_id: Uuid,
+    match_note: Option<String>,
+) -> Result<Submission<Bill>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+    let ledger = phonix_services::books::BooksLedger::new(pool.clone(), caller.clone());
+
+    phonix_services::inventory::bill::post(&pool, &caller, &ledger, bill_id, match_note)
+        .await
+        .map_err(service_error)
+}
+
+#[server(name = CancelBill, prefix = "/api", endpoint = "inventory/bills/cancel")]
+pub async fn cancel_bill(bill_id: Uuid) -> Result<Submission<()>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::bill::cancel(&pool, &caller, bill_id)
+        .await
+        .map_err(service_error)
+}
+
+#[server(name = DeleteBill, prefix = "/api", endpoint = "inventory/bills/delete")]
+pub async fn delete_bill(bill_id: Uuid) -> Result<bool, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::bill::delete(&pool, &caller, bill_id)
+        .await
+        .map_err(service_error)
+}
+
+/// Goods received and not yet billed: the aged GRNI balance.
+#[server(name = UnbilledReceipts, prefix = "/api", endpoint = "inventory/bills/unbilled")]
+pub async fn unbilled_receipts() -> Result<Vec<UnbilledReceipt>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::bill::unbilled(&pool, &caller)
         .await
         .map_err(service_error)
 }
