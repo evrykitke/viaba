@@ -45,6 +45,8 @@ pub mod items;
 pub mod journals;
 pub mod numbering;
 pub mod parties;
+pub mod purchase_orders;
+pub mod receipts;
 pub mod roles;
 pub mod stock;
 pub mod stock_locations;

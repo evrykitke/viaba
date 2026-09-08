@@ -308,6 +308,15 @@ pub fn check_ends(from: LocationKind, to: LocationKind) -> Result<MoveKind, Move
         return Err(MoveError::GroupingHoldsNothing);
     }
 
+    // Production has no account role, because there is no work-in-progress
+    // account until works orders exist. Letting the move through would take
+    // value out of inventory and credit it to nothing, which is the one thing
+    // this sub-ledger may never do - so it is refused here rather than made
+    // silently unbalanced later.
+    if from == LocationKind::Production || to == LocationKind::Production {
+        return Err(MoveError::ManufacturingNotBuilt);
+    }
+
     match MoveKind::between(from, to) {
         MoveKind::Neither => Err(MoveError::NeitherEndIsOurs),
         kind => Ok(kind),
@@ -423,6 +432,9 @@ pub enum MoveError {
     LocationInactive,
     #[error("a quantity of this item is not kept")]
     ItemHoldsNoStock,
+    /// Refused rather than posted unbalanced. See [`check_ends`].
+    #[error("stock cannot move to or from production until works orders exist")]
+    ManufacturingNotBuilt,
 }
 
 impl MoveError {
@@ -436,6 +448,7 @@ impl MoveError {
             Self::ReferenceTooLong => "reference",
             Self::AlreadyDone => "state",
             Self::ItemHoldsNoStock => "variant_id",
+            Self::ManufacturingNotBuilt => "to_location_id",
         }
     }
 
@@ -451,6 +464,7 @@ impl MoveError {
             Self::AlreadyDone => msg!("moves.error.already_done"),
             Self::LocationInactive => msg!("moves.error.location_inactive"),
             Self::ItemHoldsNoStock => msg!("moves.error.item_holds_no_stock"),
+            Self::ManufacturingNotBuilt => msg!("moves.error.manufacturing_not_built"),
         }
     }
 }
@@ -614,8 +628,60 @@ mod tests {
     fn moving_a_pallet_across_the_aisle_posts_nothing() {
         // Both ends stand for the same account, so there is nothing to say.
         assert_eq!(posting_roles(K::Internal, K::Internal), None);
-        // And production has no role until works orders exist.
+        // And production has no role until works orders exist, which is why a
+        // move across it is refused rather than posted - see the test below.
         assert_eq!(posting_roles(K::Internal, K::Production), None);
+    }
+
+    #[test]
+    fn no_movement_can_shift_value_without_saying_so_in_the_ledger() {
+        // The invariant the whole sub-ledger rests on: if value changed hands,
+        // a journal is posted, and it has two sides that are different
+        // accounts. The only silence allowed is a move that changed no value -
+        // or one across production, which is refused outright until works
+        // orders exist rather than being allowed through unposted.
+        for &from in K::ALL {
+            for &to in K::ALL {
+                if from == to {
+                    continue;
+                }
+
+                let Ok(kind) = check_ends(from, to) else {
+                    continue;
+                };
+
+                match posting_roles(from, to) {
+                    Some((debit, credit)) => {
+                        // Two sides, never the same account twice. The amounts
+                        // are equal by construction in the service, so this is
+                        // the half a type can check.
+                        assert_ne!(debit, credit, "{from:?} -> {to:?}");
+                    }
+                    None => assert!(
+                        !kind.changes_stock_value()
+                            || from == K::Production
+                            || to == K::Production,
+                        "{from:?} -> {to:?} moves value and posts nothing"
+                    ),
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn a_move_across_production_is_refused_rather_than_left_unposted() {
+        // Stock leaving for a works order changes what the workspace holds,
+        // and there is no account role for work in progress until
+        // manufacturing exists. Allowing the move would credit inventory
+        // against nothing.
+        assert_eq!(
+            check_ends(K::Internal, K::Production),
+            Err(MoveError::ManufacturingNotBuilt)
+        );
+        assert_eq!(
+            check_ends(K::Production, K::Internal),
+            Err(MoveError::ManufacturingNotBuilt)
+        );
     }
 
     #[test]

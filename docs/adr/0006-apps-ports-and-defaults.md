@@ -14,12 +14,13 @@ serials, stock moves, quants, valuation layers, the on-hand and movement
 screens, and the adjustment. With it, 6.1 (valuation posts as stock moves), 6.6
 (negative stock refused) and 6.7 (sub-ledger to general ledger by `GROUP BY`)
 hold in code rather than on paper. See *The stock ledger, as built* under
-section 7.
+section 7, and now **the first two documents on the chain**: the purchase order
+and the goods receipt, each with its list, its form and its document view,
+which is where 6.5 (the three-way match) gets its first two legs.
 
-Still specified only — the **documents** of section 7. Requisition, consolidated
-requisition, purchase order, receipt, bill and transfer. Each of them is now a
-form and a header over `stock::apply`, which is the whole reason the ledger came
-first.
+Still specified only — the rest of the **documents** of section 7. Requisition,
+consolidated requisition, bill and transfer. Each of them is a form and a header
+over `stock::apply`, which is the whole reason the ledger came first.
 
 `Stock` is still not declared, as section 2 says it should not be: Books does
 not yet put cost of goods sold on an invoice, and that is the caller the port
@@ -589,6 +590,54 @@ is how the quantity is *valued*: FIFO uses each layer's own cost, and standard
 and average use the item's one number. The average is recomputed on receipt and
 never on issue, so the order two pickers happened to work in cannot change what
 the month cost.
+
+### Buying, as built
+
+The purchase order and the receipt are the first two documents on the chain, and
+they were built together because separately neither is worth having: an order
+nothing can be received against is a note, and a receipt with no order behind it
+cannot be matched to anything.
+
+**A purchase order posts nothing.** It commits the workspace to buy, and a
+commitment is not a liability: nothing has arrived, nobody is owed, and there is
+no journal. The accounting starts one document later, and this is not a
+simplification — it is what the vendor location already said. A receipt moves
+stock from `Vendor` to `Internal`, so the rule above debits `Inventory` and
+credits `GoodsReceivedNotInvoiced` without the receipt containing a line of
+accounting code. The bill will clear that credit against payables, and the
+balance on it in the meantime is the answer to *what have we had but not yet
+been charged for*.
+
+**Where the goods land is the warehouse's decision, not the receipt's.** A
+one-step warehouse receives into its stock location; a two- or three-step one
+receives into Input and leaves the rest to the internal transfers section 7
+describes. `receiving_location` is the whole of that choice, so making a
+warehouse three-step later changes where tomorrow's receipts land and nothing
+else.
+
+**A short delivery is not an error.** Forty were ordered, thirty came, and both
+documents are correct. How much of an order has arrived is *derived* from its
+lines rather than stored on it, so there is no field that can disagree with the
+receipts underneath it, and the backorder is a reading of the same subtraction
+rather than a second record to keep in step.
+
+**Posting twice moves each line once.** `stock::apply` commits per move, so a
+receipt that fails on its fifth line has already moved four; the move id written
+on the line is what stops the retry moving them again, and it is written in its
+own small transaction immediately after the move it records rather than in a
+final sweep that a crash can skip. The claim this document can make is not "all
+of it or none of it" — it is that posting it again is safe.
+
+**The order is priced in the purchase unit and moved in the stock unit.** A case
+of a thousand gloves is one line, one price and one conversion; the stock ledger
+never learns that cases exist.
+
+**No triggers.** Ordering, receiving and posting are code events. What the
+database enforces is only what is true of a row on its own — a quantity is
+positive, a state is one of three, a number is unique. Everything about *when* a
+row may change is a predicate written into the statement that changes it, so the
+rule is readable in the same file as the operation it governs and cannot fire on
+a path nobody was thinking about.
 
 ---
 

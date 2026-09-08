@@ -11,6 +11,12 @@
 //! /inventory/warehouses           the list
 //! /inventory/warehouses/new       a form
 //! /inventory/warehouses/:id       Details | History
+//! /inventory/orders               what has been ordered, and what is owed
+//! /inventory/orders/new           a form
+//! /inventory/orders/:id           the editor while draft, the document after
+//! /inventory/receipts             what arrived, and what it was worth
+//! /inventory/receipts/new         a form. `?order=<id>` opens it against one
+//! /inventory/receipts/:id         the tally while draft, the document after
 //! /inventory/stock                what is on hand, and where
 //! /inventory/moves                every change to every quantity
 //! /inventory/locations            the list, drawn as a tree
@@ -31,6 +37,9 @@ pub mod item;
 pub mod item_categories;
 pub mod items;
 pub mod pictures;
+pub mod receipt;
+pub mod procurement;
+pub mod purchase_order;
 pub mod stock;
 pub mod stock_locations;
 pub mod units;

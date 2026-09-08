@@ -13,12 +13,15 @@ use app_inventory::item::{Item, ItemInput, ItemSummary};
 use app_inventory::location::{Location, LocationInput, LocationSummary};
 use app_inventory::lot::LotSummary;
 use app_inventory::movement::{MoveFilter, MoveSummary, StockMove};
+use app_inventory::purchase::{OrderInput, OrderSummary, PurchaseOrder};
 use app_inventory::quant::{OnHandFilter, OnHandRow};
+use app_inventory::receipt::{Backorder, Receipt, ReceiptInput, ReceiptSummary};
 use app_inventory::quantity::Quantity;
 use app_inventory::unit::{Unit, UnitInput};
-use app_inventory::variant::{Attribute, Plan, Selection, VariantSummary};
+use app_inventory::variant::{Attribute, Plan, Selection, VariantChoice, VariantSummary};
 use app_inventory::warehouse::{Warehouse, WarehouseInput, WarehouseSummary};
 use leptos::prelude::*;
+use leptos::server_fn::codec::Json;
 use phonix_core::form::Submission;
 use uuid::Uuid;
 
@@ -560,7 +563,10 @@ pub async fn stock_on_hand(filter: OnHandFilter) -> Result<Vec<OnHandRow>, Serve
 }
 
 /// The movement history: every change to every quantity, newest first.
-#[server(name = StockMoves, prefix = "/api", endpoint = "inventory/stock/moves")]
+///
+/// `Json` because every field of [`MoveFilter`] is optional - see the note on
+/// `list_invoices` for what an unfiltered first load posts otherwise.
+#[server(name = StockMoves, prefix = "/api", endpoint = "inventory/stock/moves", input = Json)]
 pub async fn stock_moves(filter: MoveFilter) -> Result<Vec<MoveSummary>, ServerFnError> {
     use crate::state::{pool_and_caller, service_error};
 
@@ -632,6 +638,225 @@ pub async fn adjust_stock(
     )
     .await
     .map_err(service_error)
+}
+
+
+// --- Purchase orders -----------------------------------------------------
+//
+// Nothing here posts. A purchase order commits the workspace to buy something;
+// nothing has arrived, nothing is owed, and the accounting starts at the
+// receipt below.
+
+#[server(name = ListPurchaseOrders, prefix = "/api", endpoint = "inventory/orders")]
+pub async fn list_purchase_orders() -> Result<Vec<OrderSummary>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::purchase::list(&pool, &caller)
+        .await
+        .map_err(service_error)
+}
+
+/// What a document line may name: every variant of every item this workspace
+/// buys.
+#[server(name = PickableVariants, prefix = "/api", endpoint = "inventory/variants/pickable")]
+pub async fn pickable_variants() -> Result<Vec<VariantChoice>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::purchase::pickable_variants(&pool, &caller)
+        .await
+        .map_err(service_error)
+}
+
+/// The confirmed orders with something still to come, for a receipt to open on.
+#[server(name = OrdersAwaitingDelivery, prefix = "/api", endpoint = "inventory/orders/awaiting")]
+pub async fn orders_awaiting_delivery() -> Result<Vec<OrderSummary>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::purchase::awaiting_delivery(&pool, &caller)
+        .await
+        .map_err(service_error)
+}
+
+#[server(name = PurchaseOrderDetail, prefix = "/api", endpoint = "inventory/orders/detail")]
+pub async fn purchase_order_detail(order_id: Uuid) -> Result<PurchaseOrder, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::purchase::detail(&pool, &caller, order_id)
+        .await
+        .map_err(service_error)
+}
+
+#[server(name = PurchaseOrderEdit, prefix = "/api", endpoint = "inventory/orders/edit")]
+pub async fn purchase_order_edit(order_id: Uuid) -> Result<OrderInput, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::purchase::edit(&pool, &caller, order_id)
+        .await
+        .map_err(service_error)
+}
+
+#[server(name = BlankPurchaseOrder, prefix = "/api", endpoint = "inventory/orders/blank")]
+pub async fn blank_purchase_order() -> Result<OrderInput, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::purchase::blank(&pool, &caller)
+        .await
+        .map_err(service_error)
+}
+
+#[server(name = SavePurchaseOrder, prefix = "/api", endpoint = "inventory/orders/save")]
+pub async fn save_purchase_order(
+    draft: OrderInput,
+) -> Result<Submission<OrderInput>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::purchase::save(&pool, &caller, draft)
+        .await
+        .map_err(service_error)
+}
+
+/// Turn a draft into a commitment: allocate its number and freeze the supplier
+/// onto it.
+#[server(name = ConfirmPurchaseOrder, prefix = "/api", endpoint = "inventory/orders/confirm")]
+pub async fn confirm_purchase_order(
+    order_id: Uuid,
+) -> Result<Submission<PurchaseOrder>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::purchase::confirm(&pool, &caller, order_id)
+        .await
+        .map_err(service_error)
+}
+
+#[server(name = CancelPurchaseOrder, prefix = "/api", endpoint = "inventory/orders/cancel")]
+pub async fn cancel_purchase_order(order_id: Uuid) -> Result<Submission<()>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::purchase::cancel(&pool, &caller, order_id)
+        .await
+        .map_err(service_error)
+}
+
+#[server(name = DeletePurchaseOrder, prefix = "/api", endpoint = "inventory/orders/delete")]
+pub async fn delete_purchase_order(order_id: Uuid) -> Result<bool, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::purchase::delete(&pool, &caller, order_id)
+        .await
+        .map_err(service_error)
+}
+
+// --- Goods receipts ------------------------------------------------------
+//
+// `post_receipt` is the one endpoint in this module with an accounting
+// consequence, and it goes through the `Ledger` port like everything else -
+// stock debited, goods-received-not-invoiced credited, per line, in one call
+// into the stock ledger.
+
+#[server(name = ListReceipts, prefix = "/api", endpoint = "inventory/receipts")]
+pub async fn list_receipts() -> Result<Vec<ReceiptSummary>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::receipt::list(&pool, &caller)
+        .await
+        .map_err(service_error)
+}
+
+#[server(name = ReceiptDetail, prefix = "/api", endpoint = "inventory/receipts/detail")]
+pub async fn receipt_detail(receipt_id: Uuid) -> Result<Receipt, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::receipt::detail(&pool, &caller, receipt_id)
+        .await
+        .map_err(service_error)
+}
+
+/// A receipt prefilled with everything an order still owes.
+#[server(name = ReceiptAgainstOrder, prefix = "/api", endpoint = "inventory/receipts/against")]
+pub async fn receipt_against_order(
+    order_id: Uuid,
+) -> Result<Submission<ReceiptInput>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::receipt::against_order(&pool, &caller, order_id)
+        .await
+        .map_err(service_error)
+}
+
+/// What an order still owes. `None` where nothing is outstanding, which is what
+/// a screen draws as complete rather than as an empty list.
+#[server(name = OrderBackorder, prefix = "/api", endpoint = "inventory/orders/backorder")]
+pub async fn order_backorder(order_id: Uuid) -> Result<Option<Backorder>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::receipt::backorder(&pool, &caller, order_id)
+        .await
+        .map_err(service_error)
+}
+
+#[server(name = SaveReceipt, prefix = "/api", endpoint = "inventory/receipts/save")]
+pub async fn save_receipt(
+    draft: ReceiptInput,
+) -> Result<Submission<ReceiptInput>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::receipt::save(&pool, &caller, draft)
+        .await
+        .map_err(service_error)
+}
+
+/// Post a receipt: move the stock, value it, and record what is owed for it.
+#[server(name = PostReceipt, prefix = "/api", endpoint = "inventory/receipts/post")]
+pub async fn post_receipt(receipt_id: Uuid) -> Result<Submission<Receipt>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+    let ledger = phonix_services::books::BooksLedger::new(pool.clone(), caller.clone());
+
+    phonix_services::inventory::receipt::post(&pool, &caller, &ledger, receipt_id)
+        .await
+        .map_err(service_error)
+}
+
+#[server(name = CancelReceipt, prefix = "/api", endpoint = "inventory/receipts/cancel")]
+pub async fn cancel_receipt(receipt_id: Uuid) -> Result<Submission<()>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::receipt::cancel(&pool, &caller, receipt_id)
+        .await
+        .map_err(service_error)
 }
 
 // --- The home page -------------------------------------------------------

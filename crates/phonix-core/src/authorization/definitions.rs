@@ -28,6 +28,12 @@
 //!  |   |   +- .Manage
 //!  |   +- Pages.Inventory.Locations
 //!  |   |   +- .Manage
+//!  |   +- Pages.Inventory.Stock
+//!  |   |   +- .Adjust
+//!  |   +- Pages.Inventory.PurchaseOrders
+//!  |   |   +- .Create  .Edit  .Confirm  .Cancel
+//!  |   +- Pages.Inventory.Receipts
+//!  |   |   +- .Create  .Post
 //!  |   +- Pages.Inventory.Units
 //!  |       +- .Manage
 //!  +- Pages.Master
@@ -108,6 +114,16 @@ pub mod names {
 
     pub const STOCK: &str = "Pages.Inventory.Stock";
     pub const STOCK_ADJUST: &str = "Pages.Inventory.Stock.Adjust";
+
+    pub const PURCHASE_ORDERS: &str = "Pages.Inventory.PurchaseOrders";
+    pub const PURCHASE_ORDERS_CREATE: &str = "Pages.Inventory.PurchaseOrders.Create";
+    pub const PURCHASE_ORDERS_EDIT: &str = "Pages.Inventory.PurchaseOrders.Edit";
+    pub const PURCHASE_ORDERS_CONFIRM: &str = "Pages.Inventory.PurchaseOrders.Confirm";
+    pub const PURCHASE_ORDERS_CANCEL: &str = "Pages.Inventory.PurchaseOrders.Cancel";
+
+    pub const RECEIPTS: &str = "Pages.Inventory.Receipts";
+    pub const RECEIPTS_CREATE: &str = "Pages.Inventory.Receipts.Create";
+    pub const RECEIPTS_POST: &str = "Pages.Inventory.Receipts.Post";
 
     pub const UNITS: &str = "Pages.Inventory.Units";
     pub const UNITS_MANAGE: &str = "Pages.Inventory.Units.Manage";
@@ -526,6 +542,72 @@ pub const DEFINITIONS: &[PermissionDefinition] = &[
         // the profit and loss.
         description: Some("Write stock off, scrap it, or book in a count difference."),
         parent: Some(names::STOCK),
+        default_for_user: false,
+    },
+    PermissionDefinition {
+        name: names::PURCHASE_ORDERS,
+        display_name: "Purchase orders",
+        description: Some("View what has been ordered and what is still to come."),
+        parent: Some(names::INVENTORY),
+        default_for_user: false,
+    },
+    PermissionDefinition {
+        name: names::PURCHASE_ORDERS_CREATE,
+        display_name: "Create",
+        description: Some("Write a purchase order."),
+        parent: Some(names::PURCHASE_ORDERS),
+        default_for_user: false,
+    },
+    PermissionDefinition {
+        name: names::PURCHASE_ORDERS_EDIT,
+        display_name: "Edit",
+        description: Some("Change a purchase order that has not been confirmed."),
+        parent: Some(names::PURCHASE_ORDERS),
+        default_for_user: false,
+    },
+    PermissionDefinition {
+        name: names::PURCHASE_ORDERS_CONFIRM,
+        display_name: "Confirm",
+        // The strongest thing on the screen, and its own permission because it
+        // is where a plan becomes money the workspace has agreed to spend.
+        // Whoever writes an order and whoever commits to it are routinely two
+        // people, and this is the line between them.
+        description: Some("Commit to an order, giving it its number and sending it."),
+        parent: Some(names::PURCHASE_ORDERS),
+        default_for_user: false,
+    },
+    PermissionDefinition {
+        name: names::PURCHASE_ORDERS_CANCEL,
+        display_name: "Cancel",
+        description: Some("Stop an order, or close one that will never be completed."),
+        parent: Some(names::PURCHASE_ORDERS),
+        default_for_user: false,
+    },
+    PermissionDefinition {
+        name: names::RECEIPTS,
+        display_name: "Goods receipts",
+        description: Some("View what has arrived, and from whom."),
+        parent: Some(names::INVENTORY),
+        default_for_user: false,
+    },
+    PermissionDefinition {
+        name: names::RECEIPTS_CREATE,
+        display_name: "Create",
+        description: Some("Key what came off the lorry, as a draft."),
+        parent: Some(names::RECEIPTS),
+        default_for_user: false,
+    },
+    PermissionDefinition {
+        name: names::RECEIPTS_POST,
+        display_name: "Post",
+        // The second permission in this app that gates a movement, and the
+        // stronger of the two: posting a receipt puts stock on the balance
+        // sheet and creates a liability to the supplier before their invoice
+        // has been seen. A storekeeper keys it; somebody decides it is right.
+        description: Some(
+            "Post a receipt: move the stock, value it, and record what is owed for it.",
+        ),
+        parent: Some(names::RECEIPTS),
         default_for_user: false,
     },
     PermissionDefinition {

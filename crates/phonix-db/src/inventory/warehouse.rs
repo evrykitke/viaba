@@ -304,3 +304,40 @@ pub async fn ensure_sublocations(
 
     Ok(created)
 }
+
+/// Where goods land when they arrive at this warehouse.
+///
+/// The `Input` location for a two- or three-step warehouse and the stock
+/// location for a one-step one - Odoo's model, and the reason
+/// `app_inventory::warehouse::required_sublocations` creates `Input` at all.
+/// Until it is put away, stock in `Input` is on hand and on the balance sheet
+/// and has not reached a shelf, which is the distinction a two-step warehouse
+/// exists to make.
+///
+/// Falls back to the stock location where `Input` is missing - a warehouse
+/// switched from one step to two before its locations were provisioned should
+/// still be able to receive, and receiving onto the shelf is the lesser wrong.
+pub async fn receiving_location<'e, E>(
+    executor: E,
+    warehouse: &Warehouse,
+) -> Result<Uuid, DbError>
+where
+    E: PgExecutor<'e>,
+{
+    if warehouse.receipt_steps == ReceiptSteps::One {
+        return Ok(warehouse.stock_location_id);
+    }
+
+    let input: Option<Uuid> = sqlx::query_scalar(
+        "SELECT id FROM inventory.locations
+          WHERE warehouse_id = $1 AND kind = 'internal' AND name = 'Input' AND is_active
+          ORDER BY path
+          LIMIT 1",
+    )
+    .bind(warehouse.id)
+    .fetch_optional(executor)
+    .await
+    .map_err(DbError::Query)?;
+
+    Ok(input.unwrap_or(warehouse.stock_location_id))
+}

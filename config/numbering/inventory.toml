@@ -21,6 +21,19 @@ reset    = "never"
 start_at = 1
 
 [[series]]
+doc_type = "purchase_order"
+label    = "inventory.doc_type.purchase_order"
+
+# `PO-{YYYY}-#####`. Allocated at CONFIRM, not at create, for the reason the
+# adjustment series gives below: a draft somebody abandoned must not leave a
+# hole in a series a supplier and an auditor both read. That is a deliberate
+# departure from Odoo, which numbers a quotation the moment it is opened - see
+# `app_inventory::purchase`.
+mask     = "PO-{YYYY}-#####"
+reset    = "fiscal_year"
+start_at = 1
+
+[[series]]
 doc_type = "receipt"
 label    = "inventory.doc_type.receipt"
 

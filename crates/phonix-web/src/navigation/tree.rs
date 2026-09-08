@@ -171,6 +171,22 @@ pub static MENU: &[NavNode] = &[
             )
             .require(names::WAREHOUSES)
             .keywords(&["depot", "site", "building", "receiving", "shipping", "steps"]),
+            // Buying sits above stock: an order is raised before the goods
+            // it brings can be counted, and a buyer opens these two far more
+            // often than the location tree they arranged once in March.
+            NavNode::leaf(
+                "purchase-orders",
+                "nav.purchase_orders",
+                Icon::ScrollText,
+                "/inventory/orders",
+            )
+            .require(names::PURCHASE_ORDERS)
+            .keywords(&["po", "buying", "procurement", "supplier", "vendor", "order"]),
+            NavNode::leaf("receipts", "nav.receipts", Icon::Package, "/inventory/receipts")
+                .require(names::RECEIPTS)
+                .keywords(&[
+                    "goods in", "grn", "delivery note", "receiving", "incoming", "backorder",
+                ]),
             // Stock sits above the setup screens: what is on the shelf is
             // what somebody opens this app to find out, and the location tree
             // is what they arranged once in March.

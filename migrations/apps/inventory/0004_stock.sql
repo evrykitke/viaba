@@ -27,8 +27,14 @@
 -- A move in state `done` is never updated and never deleted; a mistake is
 -- corrected by a move the other way. Same rule as a posted journal, same
 -- reason: a record that can be edited after the fact is not evidence of
--- anything. The trigger at the foot of this file enforces it rather than
--- trusting every future code path to remember.
+-- anything.
+--
+-- It is enforced in `phonix_db::inventory::movement`, not by a trigger. There
+-- is no statement in this codebase that updates a finished move except the one
+-- that writes back where its journal landed, and that runs in the same
+-- transaction as the move itself; every other write carries `WHERE state =
+-- 'draft'` in its own text, where a reader can see it. A trigger would put the
+-- rule in a place nobody reads while writing the query it governs.
 --
 -- WHY THE QUANTITY CARRIES NO SIGN
 --
@@ -182,52 +188,6 @@ CREATE INDEX stock_moves_journal ON stock_moves (journal_id) WHERE journal_id IS
 CREATE INDEX stock_moves_date ON stock_moves (moved_on DESC);
 
 -- ---------------------------------------------------------------------------
--- Append-only, enforced here rather than remembered
--- ---------------------------------------------------------------------------
---
--- A draft may be edited or cancelled. A move that is `done` is finished: the
--- quants have been changed and a journal may have been posted against it, and
--- rewriting it afterwards would silently restate both.
---
--- The one exception is the journal columns, because posting happens in the same
--- transaction as the move and has to be able to write its result back. Nothing
--- else may change, and the row may never be deleted.
-
-CREATE OR REPLACE FUNCTION stock_moves_are_append_only() RETURNS TRIGGER AS $$
-BEGIN
-    IF TG_OP = 'DELETE' THEN
-        IF OLD.state = 'done' THEN
-            RAISE EXCEPTION 'a stock move that is done cannot be deleted (%)', OLD.id
-                USING ERRCODE = 'restrict_violation';
-        END IF;
-        RETURN OLD;
-    END IF;
-
-    IF OLD.state = 'done' AND (
-           NEW.variant_id       IS DISTINCT FROM OLD.variant_id
-        OR NEW.from_location_id IS DISTINCT FROM OLD.from_location_id
-        OR NEW.to_location_id   IS DISTINCT FROM OLD.to_location_id
-        OR NEW.lot_id           IS DISTINCT FROM OLD.lot_id
-        OR NEW.quantity         IS DISTINCT FROM OLD.quantity
-        OR NEW.unit_id          IS DISTINCT FROM OLD.unit_id
-        OR NEW.state            IS DISTINCT FROM OLD.state
-        OR NEW.moved_on         IS DISTINCT FROM OLD.moved_on
-        OR NEW.unit_cost        IS DISTINCT FROM OLD.unit_cost
-        OR NEW.value            IS DISTINCT FROM OLD.value
-    ) THEN
-        RAISE EXCEPTION 'a stock move that is done cannot be changed (%)', OLD.id
-            USING ERRCODE = 'restrict_violation';
-    END IF;
-
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
-CREATE TRIGGER stock_moves_append_only
-    BEFORE UPDATE OR DELETE ON stock_moves
-    FOR EACH ROW EXECUTE FUNCTION stock_moves_are_append_only();
-
--- ---------------------------------------------------------------------------
 -- Quants
 -- ---------------------------------------------------------------------------
 --
@@ -243,6 +203,12 @@ CREATE TRIGGER stock_moves_append_only
 -- locations have no such floor and go as negative as the business is old: a
 -- vendor location at -4,000 is a statement that four thousand units have been
 -- bought, and that is exactly what it should say.
+--
+-- The floor is enforced in `app_inventory::quant::take`, which every write goes
+-- through, and it cannot be a CHECK here because whether a location is ours is
+-- a fact about another table. It is not a trigger either: the rule needs to say
+-- HOW MANY are short, and a constraint violation cannot. What refuses a short
+-- issue is the same code that tells the person how many they are missing.
 
 CREATE TABLE stock_quants (
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -256,6 +222,8 @@ CREATE TABLE stock_quants (
 
     updated_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
 
+    -- The floor on `quantity` is code, not a constraint: see the note above.
+    -- These two are row-local facts, which is exactly what a CHECK is for.
     CONSTRAINT stock_quants_reserved_not_negative CHECK (reserved >= 0),
     -- The same units may not be promised twice. Written as "nothing reserved,
     -- or no more than is there" rather than `reserved <= quantity`, because a
@@ -274,33 +242,6 @@ CREATE UNIQUE INDEX stock_quants_unlotted
 
 CREATE INDEX stock_quants_location ON stock_quants (location_id);
 CREATE INDEX stock_quants_lot ON stock_quants (lot_id) WHERE lot_id IS NOT NULL;
-
--- The floor, on the rows it applies to. A trigger rather than a CHECK because
--- whether a location is ours is a fact about another table, and a CHECK may not
--- read one.
-CREATE OR REPLACE FUNCTION stock_quants_do_not_go_negative() RETURNS TRIGGER AS $$
-DECLARE
-    kind TEXT;
-BEGIN
-    IF NEW.quantity >= 0 THEN
-        RETURN NEW;
-    END IF;
-
-    SELECT l.kind INTO kind FROM locations l WHERE l.id = NEW.location_id;
-
-    IF kind IN ('internal', 'transit') THEN
-        RAISE EXCEPTION 'stock at % would go to % , which is below nothing',
-            NEW.location_id, NEW.quantity
-            USING ERRCODE = 'check_violation';
-    END IF;
-
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
-CREATE TRIGGER stock_quants_not_negative
-    BEFORE INSERT OR UPDATE ON stock_quants
-    FOR EACH ROW EXECUTE FUNCTION stock_quants_do_not_go_negative();
 
 -- ---------------------------------------------------------------------------
 -- Valuation layers

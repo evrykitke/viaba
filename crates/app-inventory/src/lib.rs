@@ -37,6 +37,8 @@
 //!   movement     the stock ledger. One row per move, and nothing is edited.
 //!   quant        how much is in one place. A cache the moves can prove.
 //!   valuation    what it cost, and what leaves the stock account.
+//!   purchase     the commitment: what was ordered, and what is still owed.
+//!   receipt      goods arriving, which is where value enters the business.
 //! ```
 //!
 //! Compiled to wasm, so this crate may not panic.
@@ -65,8 +67,10 @@ pub mod item;
 pub mod location;
 pub mod lot;
 pub mod movement;
+pub mod purchase;
 pub mod quant;
 pub mod quantity;
+pub mod receipt;
 pub mod unit;
 pub mod valuation;
 pub mod variant;
@@ -82,6 +86,7 @@ pub const APP_ID: &str = "inventory";
 /// reason a department code does: it is the same problem, and a second
 /// allocator would solve it slightly differently. ADR 0006 section 3.
 pub const ITEM: &str = "item";
+pub const PURCHASE_ORDER: &str = "purchase_order";
 pub const RECEIPT: &str = "receipt";
 pub const DELIVERY: &str = "delivery";
 pub const INTERNAL_TRANSFER: &str = "internal_transfer";
@@ -126,9 +131,11 @@ pub use item::{Item, ItemInput, ItemKind, ItemSummary, Tracking};
 pub use location::{Location, LocationInput, LocationKind, LocationSummary, MoveKind};
 pub use lot::{Lot, LotInput, LotSummary};
 pub use movement::{JournalOutcome, MoveRequest, MoveState, MoveSummary, StockMove};
+pub use purchase::{OrderInput, OrderLine, OrderState, OrderSummary, PurchaseOrder};
 pub use quant::{OnHandRow, Quant};
 pub use quantity::Quantity;
+pub use receipt::{Backorder, Receipt, ReceiptInput, ReceiptLine, ReceiptSummary};
 pub use unit::{Conversion, Unit, UnitClass, UnitInput};
 pub use valuation::{Consumed, Issue, Layer};
-pub use variant::{Attribute, AttributeValue, Selection, Variant, VariantSummary};
+pub use variant::{Attribute, AttributeValue, Selection, Variant, VariantChoice, VariantSummary};
 pub use warehouse::{DeliverySteps, ReceiptSteps, Warehouse, WarehouseInput, WarehouseSummary};

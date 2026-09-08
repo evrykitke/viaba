@@ -174,6 +174,31 @@ pub struct VariantSummary {
     pub image_file_id: Option<Uuid>,
 }
 
+/// One variant a document line can name, with the item it belongs to.
+///
+/// Flat rather than nested under its item: a line names a variant, and a picker
+/// that made somebody choose an item and then a variant would be two steps for
+/// the ninety per cent of items that have exactly one.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct VariantChoice {
+    pub id: Uuid,
+    pub code: String,
+    pub item_name: String,
+    pub combination: Option<String>,
+    /// What the item is bought in, which is what a new order line defaults to.
+    pub purchase_unit_id: Uuid,
+    pub purchase_unit_code: String,
+}
+
+impl VariantChoice {
+    pub fn label(&self) -> String {
+        match &self.combination {
+            Some(combination) => format!("{} - {combination}", self.item_name),
+            None => self.item_name.clone(),
+        }
+    }
+}
+
 /// Which values of which attributes an item is offered in.
 ///
 /// Values rather than attributes: a shirt that comes in red and blue but not

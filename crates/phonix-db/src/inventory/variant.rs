@@ -7,8 +7,8 @@
 //! is switched off, and its history stays legible.
 
 use app_inventory::variant::{
-    Attribute, AttributeValue, Display, Selection, SelectionLine, Variant, VariantSummary,
-    VariantValue,
+    Attribute, AttributeValue, Display, Selection, SelectionLine, Variant, VariantChoice,
+    VariantSummary, VariantValue,
 };
 use phonix_core::identity::UserId;
 use sqlx::{PgConnection, PgExecutor, Row};
@@ -114,6 +114,49 @@ where
     }
 
     Ok(Selection { lines })
+}
+
+/// Every variant a purchase order or receipt line may name.
+///
+/// The combination is aggregated in the query rather than fetched as rows and
+/// stitched together here, because this list is read whole by a picker and
+/// never row by row.
+pub async fn purchasable<'e, E>(executor: E) -> Result<Vec<VariantChoice>, DbError>
+where
+    E: PgExecutor<'e>,
+{
+    let rows = sqlx::query(
+        "SELECT v.id, v.code, i.name AS item_name, i.purchase_unit_id,
+                u.code AS purchase_unit_code,
+                (SELECT string_agg(av.name, ' / ' ORDER BY a.position, a.name)
+                   FROM inventory.variant_values vv
+                   JOIN inventory.attributes a ON a.id = vv.attribute_id
+                   JOIN inventory.attribute_values av ON av.id = vv.value_id
+                  WHERE vv.variant_id = v.id) AS combination
+           FROM inventory.item_variants v
+           JOIN inventory.items i ON i.id = v.item_id
+           JOIN inventory.units u ON u.id = i.purchase_unit_id
+          WHERE i.can_be_purchased
+            AND i.is_active
+            AND v.is_active
+          ORDER BY i.name, v.code",
+    )
+    .fetch_all(executor)
+    .await
+    .map_err(DbError::Query)?;
+
+    rows.iter()
+        .map(|row| {
+            Ok(VariantChoice {
+                id: row.try_get("id").map_err(DbError::Query)?,
+                code: row.try_get("code").map_err(DbError::Query)?,
+                item_name: row.try_get("item_name").map_err(DbError::Query)?,
+                combination: row.try_get("combination").map_err(DbError::Query)?,
+                purchase_unit_id: row.try_get("purchase_unit_id").map_err(DbError::Query)?,
+                purchase_unit_code: row.try_get("purchase_unit_code").map_err(DbError::Query)?,
+            })
+        })
+        .collect()
 }
 
 /// Every variant of an item, each with the combination it stands for.

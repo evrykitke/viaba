@@ -337,6 +337,33 @@ pub mod kinds {
         singleton: false,
     };
 
+    /// A purchase order.
+    ///
+    /// Recorded because confirming one is a commitment to spend money, and
+    /// "who agreed to this" is the first question asked about a delivery
+    /// nobody remembers ordering.
+    pub const PURCHASE_ORDER: EntityKind = EntityKind {
+        name: "purchase_order",
+        singular_key: "entity.purchase_order.singular",
+        plural_key: "entity.purchase_order.plural",
+        href: Some("/inventory/orders/{id}"),
+        singleton: false,
+    };
+
+    /// A goods receipt.
+    ///
+    /// The document that puts stock on the balance sheet and creates a
+    /// liability before the supplier's invoice has been seen. Who posted it,
+    /// and when, is a fact about a person rather than about a shelf - which is
+    /// why it is here as well as in the stock moves it created.
+    pub const RECEIPT: EntityKind = EntityKind {
+        name: "goods_receipt",
+        singular_key: "entity.goods_receipt.singular",
+        plural_key: "entity.goods_receipt.plural",
+        href: Some("/inventory/receipts/{id}"),
+        singleton: false,
+    };
+
     /// A unit of measure.
     ///
     /// The factor is the fact worth keeping. Every quantity ever recorded in
@@ -414,6 +441,8 @@ pub const ENTITY_KINDS: &[EntityKind] = &[
     kinds::WAREHOUSE,
     kinds::STOCK_LOCATION,
     kinds::STOCK_MOVE,
+    kinds::PURCHASE_ORDER,
+    kinds::RECEIPT,
     kinds::UNIT_OF_MEASURE,
 ];
 

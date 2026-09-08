@@ -585,8 +585,17 @@ async fn install_inventory_defaults(
 /// not more because opening a year is cheap and guessing five of them is
 /// clutter in a screen somebody has to read.
 async fn open_first_periods(pool: &sqlx::PgPool, database: &str) -> Result<(), DbError> {
-    let start_month = u32::from(crate::organization::load(pool).await?.profile.fiscal_year_start_month)
-        .clamp(1, 12);
+    // Qualified for the same reason `install_number_sequences` is: this runs on
+    // a pool rooted at `books`, where the unqualified name `organization` uses
+    // does not resolve at all.
+    let month: i16 = sqlx::query_scalar(
+        "SELECT fiscal_year_start_month FROM core.organization_profile WHERE id",
+    )
+    .fetch_one(pool)
+    .await
+    .map_err(DbError::Query)?;
+
+    let start_month = u32::try_from(month).unwrap_or(1).clamp(1, 12);
     let this_year = chrono::Utc::now().date_naive().year();
 
     let mut periods = Vec::new();
