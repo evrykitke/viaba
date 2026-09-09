@@ -53,6 +53,9 @@ use crate::pages::master::tax_group::{TaxGroupNewPage, TaxGroupPage};
 use crate::pages::master::taxes::{TaxNewPage, TaxesPage};
 use crate::pages::people::department::DepartmentPage;
 use crate::pages::people::departments::{DepartmentNewPage, DepartmentsPage};
+use crate::pages::people::employee::{EmployeeNewPage, EmployeePage};
+use crate::pages::people::lists::{EmployeesPage, JobPositionsPage, WorkLocationsPage};
+use crate::pages::people::reference::{JobPositionPage, WorkLocationPage};
 use crate::pages::people::home::PeopleHomePage;
 // Aliased: `pages::account` is the viewer's own profile, and both are called
 // AccountPage in their own module.
@@ -247,6 +250,15 @@ pub fn app() -> impl IntoView {
                     // department id that fails to parse.
                     <Route path=path!("/people/departments/new") view=DepartmentNewPage />
                     <Route path=path!("/people/departments/:id") view=DepartmentPage />
+                    <Route path=path!("/people/employees") view=EmployeesPage />
+                    <Route path=path!("/people/employees/new") view=EmployeeNewPage />
+                    <Route path=path!("/people/employees/:id") view=EmployeePage />
+                    <Route path=path!("/people/roles") view=JobPositionsPage />
+                    <Route path=path!("/people/roles/new") view=JobPositionPage />
+                    <Route path=path!("/people/roles/:id") view=JobPositionPage />
+                    <Route path=path!("/people/places") view=WorkLocationsPage />
+                    <Route path=path!("/people/places/new") view=WorkLocationPage />
+                    <Route path=path!("/people/places/:id") view=WorkLocationPage />
 
                     // Inventory. Every "new" sits before its parameter, so the
                     // word is a screen rather than an id that fails to parse.

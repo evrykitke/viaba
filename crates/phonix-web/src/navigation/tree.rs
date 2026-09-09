@@ -264,6 +264,36 @@ pub static MENU: &[NavNode] = &[
             )
             .require(names::PEOPLE)
             .keywords(&["hr", "home", "start"]),
+            // People first: the staff list is what most of a workspace opens
+            // this area for, and the department tree is what somebody arranged
+            // once in March.
+            NavNode::leaf(
+                "employees",
+                "nav.employees",
+                Icon::Users,
+                "/people/employees",
+            )
+            .require(names::EMPLOYEES)
+            .keywords(&[
+                "staff", "employee", "person", "people", "headcount", "hire", "leaver",
+                "starter", "org chart", "who",
+            ]),
+            NavNode::leaf(
+                "job-positions",
+                "nav.job_positions",
+                Icon::ListChecks,
+                "/people/roles",
+            )
+            .require(names::JOB_POSITIONS)
+            .keywords(&["role", "job", "position", "title", "vacancy", "headcount"]),
+            NavNode::leaf(
+                "work-locations",
+                "nav.work_locations",
+                Icon::Warehouse,
+                "/people/places",
+            )
+            .require(names::WORK_LOCATIONS)
+            .keywords(&["place", "site", "office", "home", "remote", "where"]),
             NavNode::leaf(
                 "departments",
                 "nav.departments",

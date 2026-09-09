@@ -34,6 +34,12 @@ with it `requisition_lines.ordered` advances, the chain runs end to end, and the
 cost of a receipt can be split back across the cost centres that asked for it.
 See *Consolidating, as built* under section 7.
 
+And **HR has people in it**, which section 9 said it did not. Employees, with
+roles and places beside them, and the dated chain that is the point of the
+thing: what somebody does is an `assignments` row with dates on it, not a column
+on the person. A login is an optional, per-person act on top — most people who
+work somewhere never sign in. See *People, as built* under section 9.
+
 Still specified only — the **transfer**, which is a form and a header over
 `stock::apply`, and 6.2's landed cost.
 
@@ -933,14 +939,102 @@ Books will call `resolve` when a journal line names a cost centre, and store the
 code and name it gets back on the line. Inventory will call `list` when a
 requisition is raised. Neither depends on `app-hr`.
 
+### People, as built
+
+The growth the schema name was chosen for. Five tables: `employees`,
+`engagements`, `assignments`, `job_positions`, `work_locations`.
+
+**What changes about somebody is dated; what does not is not.** This is the one
+decision the rest follow from, and it is a direct answer to the most commonly
+reported failure in HR systems: teams carry the current state — job title,
+department, manager — as columns on the employee row, and then have no record of
+when any of it changed. Tenure analysis, cost-centre reporting and every "what
+did this team look like last year" question break at once, and they break
+*silently*, because the current answer is still right.
+
+So `employees` holds a name, a way to reach somebody and an identifier — the
+things that survive a promotion — and everything that moves is an `assignments`
+row with `effective_from` and `effective_to`. "Which department was this person
+in last March" is a query rather than a thing nobody kept.
+
+It matters to this codebase specifically. A requisition snapshots the cost
+centre it was charged to (§9 above), which answers the question for documents
+already written — but nothing answered it for a *person*, and "reassign the
+department and re-run the report" is exactly the restatement the snapshot exists
+to prevent.
+
+**An engagement is not an assignment.** An engagement is a period of employment;
+an assignment is what somebody did during part of one. Fusing them is how
+systems get rehires wrong — the identity-management literature calls it the
+duplicate-identity problem: model employment as a flag on the person and
+somebody who leaves and comes back either loses their first stint or becomes a
+second person, which is two national insurance numbers for one human being and a
+tenure figure that restarts at zero. A rehire here is a second engagement.
+
+**"Is this person employed" is a query, not a flag.** An engagement with no end
+date. A flag and a set of dates are two facts about one thing, and the first time
+somebody backdates a leaving date without clearing the flag they disagree for
+ever.
+
+**An outcome carries its reason.** An engagement that has ended must say why,
+from a list rather than free text, because the voluntary/involuntary split is
+what every turnover figure is reported on. "Fifteen leavers and no reason on any
+of them" is a named symptom of an HR system nobody can report from — and it is
+the rule already applied to a requisition's decision.
+
+**A role is a row, so a vacancy exists.** A job title typed onto a person has no
+row for the job nobody is doing, and "what are we recruiting for" then has no
+query. `filled` is counted over the open assignments rather than stored.
+
+**Cycles are walked, not constrained.** A row-local `CHECK` catches A reporting
+to A. A → B → A cannot be seen from one row, so the service walks the chain —
+the same shape `department::check_placement` uses on the tree, and bounded, so a
+ring that predates the check refuses rather than hangs.
+
+### An employee is not a user
+
+Optional in both directions and unique in both.
+
+Most people who work somewhere never sign in — a warehouse, a ward, a cleaning
+round — and some people who sign in do not work there: an outsourced bookkeeper,
+an auditor. A system that makes an employee *be* a user buys a licence for
+somebody who will never use it and cannot represent the accountant at all.
+
+Unique is the half that matters. One login is one person; without the
+constraint a mis-keyed link makes two employees the same human being to every
+permission check in the system.
+
+**Creating an employee creates no account.** A login is a deliberate, per-person
+act — `Employees.Invite` — and it goes through the ordinary invitation flow
+rather than writing a user row: the person sets their own password, so nobody
+including the administrator who invited them ever knows it, and the address is
+proved by the link being opened.
+
+That permission grants nothing on its own. `identity::invitation::invite` checks
+`Users.Create` as well, so adding somebody to the staff list stays an HR act and
+letting them into the accounting system stays a security one. Recording a leaver
+deliberately does *not* close their account either: revoking access is a decision
+under its own permission, not a side effect of somebody typing a leaving date.
+
+**Personal details are their own permission.** Date of birth and national
+identifier sit behind `Employees.Personal`, and the service strips them from the
+payload rather than letting the screen hide them — a field the browser merely
+does not draw is one that was still sent to it. A rota, an org chart and a
+headcount report all name people; none of them needs a date of birth.
+
 ### What HR is not, yet
 
-No employees, no contracts, no leave, no payroll. Departments are what Books and
-Inventory need; the rest is an HR product, and building it now would be building
-it before anything asks for it. `hr` as an `app_id` and a schema is chosen with
-that growth in mind, rather than calling the app `departments` and having to
-rename a schema — which 0001 §2 points out is a primary key in every tenant
-database and must never happen.
+No contracts, no salary, no leave, no payroll.
+
+Compensation is the other half of the effective-dating problem and wants its own
+dated record — the same shape as `assignments`, and a different set of
+permissions, because who may see a salary is not who may see a desk.
+
+Leave wants an accrual model, and the survey of them is a warning rather than a
+specification: accrual rate, carryover cap, expiry, negative balances and
+jurisdiction-specific statutory minimums are five independent axes, and every
+system that guessed at a default before a policy existed ended up with the
+policy encoded in migrations. Not built before somebody has a policy to state.
 
 ---
 
