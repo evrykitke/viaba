@@ -46,8 +46,16 @@ pub struct GridHandle {
 
 impl GridHandle {
     /// Fetch the rows again. Call after anything that changed one.
+    ///
+    /// `try_run`, because every caller is a spawned task that started before a
+    /// server round trip and finishes after it - and the viewer may have left
+    /// the screen in between. `Callback::run` on a disposed callback is a
+    /// panic, and a panic in wasm takes the whole page with it, which is the
+    /// frozen tab rather than the missed refresh. A grid that is gone has
+    /// nothing to refresh anyway; `notice` needs no such guard, because
+    /// `RwSignal::set` on a disposed signal is already a no-op.
     pub fn refresh(self) {
-        self.refetch.run(());
+        self.refetch.try_run(());
     }
 
     /// Say that something worked.

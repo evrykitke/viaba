@@ -58,7 +58,9 @@ pub(super) fn upload(
         busy.set(false);
 
         match outcome {
-            Ok(()) => reload.run(()),
+            Ok(()) => {
+                let _ = reload.try_run(());
+            }
             Err(reason) => message.set(Some(reason)),
         }
     });

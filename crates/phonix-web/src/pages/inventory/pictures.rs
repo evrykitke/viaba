@@ -52,7 +52,9 @@ pub fn pictures_panel(item_id: Uuid) -> impl IntoView {
     let remove = Callback::new(move |image_id: Uuid| {
         leptos::task::spawn_local(async move {
             match detach_item_image(image_id).await {
-                Ok(_) => reload.run(()),
+                Ok(_) => {
+                    let _ = reload.try_run(());
+                }
                 Err(err) => alerts.post(Alert::failure(err.to_string())),
             }
         });

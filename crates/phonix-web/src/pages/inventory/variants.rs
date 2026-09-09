@@ -126,7 +126,7 @@ fn selection_editor(
             match set_variants(item_id, wanted).await {
                 Ok(answer) => {
                     plan.set(Some(answer));
-                    reload.run(());
+                    let _ = reload.try_run(());
                     alerts.post(Alert::success(crate::i18n::t(&Message::new(
                         "variants.applied",
                     ))));
@@ -403,8 +403,8 @@ fn variant_editor(
 
             match saved {
                 Ok(_) => {
-                    reload.run(());
-                    close.run(());
+                    let _ = reload.try_run(());
+                    let _ = close.try_run(());
                 }
                 Err(err) => alerts.post(Alert::failure(err.to_string())),
             }

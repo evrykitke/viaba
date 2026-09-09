@@ -202,7 +202,9 @@ fn accounts_panel(item_id: Uuid) -> impl IntoView {
                     .await;
 
             match saved {
-                Ok(()) => reload.run(()),
+                Ok(()) => {
+                    let _ = reload.try_run(());
+                }
                 Err(err) => alerts.post(Alert::failure(err.to_string())),
             }
         });

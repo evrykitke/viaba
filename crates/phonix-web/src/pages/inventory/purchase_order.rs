@@ -925,7 +925,7 @@ fn order_document(order: PurchaseOrder, reload: Callback<()>) -> impl IntoView {
                     match cancel_purchase_order(id).await {
                         Ok(Submission::Saved(())) => {
                             alerts.post(Alert::success(l!("purchase_orders.cancelled")));
-                            reload.run(());
+                            let _ = reload.try_run(());
                         }
                         Ok(Submission::Rejected(errors)) => {
                             if let Some(error) = errors.first() {
