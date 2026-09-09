@@ -216,6 +216,11 @@ fn check_rabbitmq(mq: &RabbitMqConfig) -> Result<(), ConfigError> {
             "rabbitmq.retry_initial_backoff_ms exceeds retry_max_backoff_ms",
         ));
     }
+    if mq.relay_interval_secs == 0 {
+        return Err(ConfigError::invalid(
+            "rabbitmq.relay_interval_secs must be greater than zero, or the relay would spin",
+        ));
+    }
 
     let mut seen = std::collections::HashSet::new();
     for consumer in &mq.consumers {

@@ -57,8 +57,22 @@ vhost = "phonix"
 username = "phonix"
 prefetch_count = 8
 
+# Two minutes, not five seconds. The relay walks every active tenant on every
+# pass whether or not there is anything to publish, and with `sqlx::query=debug`
+# below that is a page of SQL a minute on a machine nobody is touching - which
+# buries the statements you were actually reading. Nothing local depends on an
+# event reaching a consumer promptly; production keeps the five seconds.
+relay_interval_secs = 120
+
 [rabbitmq.pool]
 max_size = 4
+
+# The upload verifier is the other loop that polls per tenant. It is a safety
+# net rather than a queue - an upload is dispatched the moment its bytes land -
+# so a slower sweep costs nothing locally except for files whose process died
+# mid-write. Must stay below storage.jobs.claim_timeout_secs (300).
+[storage.jobs]
+poll_interval_secs = 120
 
 [telemetry]
 level = "debug"

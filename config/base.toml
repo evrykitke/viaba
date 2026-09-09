@@ -160,6 +160,12 @@ prefetch_count = 32
 max_delivery_attempts = 5
 retry_initial_backoff_ms = 500
 retry_max_backoff_ms = 30000
+# How often the outbox relay looks for events to publish. One query per active
+# tenant per pass, plus one to list them, whether or not anything is waiting -
+# so this is the interval that decides what an idle process costs. Five seconds
+# is the publishing latency somebody notices; a development machine with a log
+# to read wants it far longer, and development.toml sets it there.
+relay_interval_secs = 5
 
 [rabbitmq.pool]
 max_size = 8

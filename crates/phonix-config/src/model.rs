@@ -355,6 +355,14 @@ pub struct RabbitMqConfig {
     pub max_delivery_attempts: u32,
     pub retry_initial_backoff_ms: u64,
     pub retry_max_backoff_ms: u64,
+    /// How often the outbox relay polls, in seconds.
+    ///
+    /// The relay is the one background loop that runs on every deployment with
+    /// a broker, and it costs a query per active tenant per pass whether or not
+    /// there is anything to publish. It is here rather than as a constant
+    /// because that makes it the difference between a quiet development log and
+    /// an unreadable one.
+    pub relay_interval_secs: u64,
     pub pool: AmqpPoolConfig,
     #[serde(default)]
     pub consumers: Vec<ConsumerConfig>,
