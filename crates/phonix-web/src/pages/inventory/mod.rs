@@ -40,6 +40,7 @@
 //! here that grew tabs.
 
 pub mod bill;
+pub mod consolidation;
 pub mod home;
 pub mod item;
 pub mod item_categories;

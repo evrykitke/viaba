@@ -62,6 +62,7 @@
 
 pub mod accounts;
 pub mod bill;
+pub mod consolidation;
 pub mod category;
 pub mod defaults;
 pub mod image;
@@ -96,6 +97,7 @@ pub const DELIVERY: &str = "delivery";
 pub const INTERNAL_TRANSFER: &str = "internal_transfer";
 pub const ADJUSTMENT: &str = "adjustment";
 pub const REQUISITION: &str = "requisition";
+pub const CONSOLIDATION: &str = "consolidation";
 
 /// What this app needs before it is useful, checked on its home page.
 ///

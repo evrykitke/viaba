@@ -26,11 +26,16 @@ screens depend on the HR app being installed — a knowing departure from the
 spirit of section 2, recorded with its argument in *Asking, as built* under
 section 7.
 
-Still specified only — the rest of the **documents** of section 7. Consolidated
-requisition and transfer. The transfer is a form and a header over
-`stock::apply`, which is the whole reason the ledger came first; the
-consolidated requisition is the one document on the chain that moves no stock at
-all, and what it needs is a link table rather than a movement.
+And now **consolidation**, which closes the loop: approved demand is gathered,
+suppliers are chosen per line, and confirming raises one purchase order per
+supplier with `purchase_order_line_sources` recording which requisition lines
+each order line was raised for. That is the link table section 7 asked for, and
+with it `requisition_lines.ordered` advances, the chain runs end to end, and the
+cost of a receipt can be split back across the cost centres that asked for it.
+See *Consolidating, as built* under section 7.
+
+Still specified only — the **transfer**, which is a form and a header over
+`stock::apply`, and 6.2's landed cost.
 
 `Stock` is still not declared, as section 2 says it should not be: Books does
 not yet put cost of goods sold on an invoice, and that is the caller the port
@@ -652,13 +657,81 @@ no control. Overruled: raising one starts work for an approver and a buyer, and
 a queue anybody can add to is a queue nobody can plan. Both permissions are now
 off by default.
 
-Two things are deliberately absent. There is no journal, because a request that
-moved an account would be a commitment under another name. And there is no
-button to raise an order from an approved requisition yet: an order raised from
-one has to remember *which* requisition lines it satisfied, or
-`requisition_lines.ordered` can never be advanced and the request stays
-not-ordered for ever while the goods arrive. That link table is the consolidated
-requisition's, and the button lands with it.
+One thing is deliberately absent: there is no journal, because a request that
+moved an account would be a commitment under another name.
+
+There is also no "raise an order" button on an approved requisition, and that is
+now a decision rather than a gap. An order raised from one request serves one
+department, which is the eleven-deliveries-at-eleven-prices problem this chain
+exists to avoid. Orders are raised from the consolidation screen, which sees all
+of the demand at once — see below.
+
+### Consolidating, as built
+
+Eleven departments wanting printer paper, bought once. The document between the
+requisition and the purchase order, and the one that finally makes the chain of
+section 7 run end to end.
+
+**It is a document, not a button.** Grouping demand by item is supplier-agnostic;
+deciding who to buy each item from is not. Between those two facts sits a
+decision somebody makes, and one consolidation routinely becomes *several*
+purchase orders because no single supplier stocks everything eleven departments
+asked for. A screen that produced one order would either force one supplier or
+silently drop the rest.
+
+**The supplier is chosen per line; the warehouse is fixed for the document.**
+This is the failure the Dynamics 365 literature describes: consolidation that
+merges across vendors and delivery addresses, leaving a buyer to rebuild the
+request by hand late in the process and a receiving end that cannot split what
+arrives. So confirming splits the document into one order per supplier, and
+demand for two buildings is two consolidations — an order gathered across both
+is one that cannot be received in either.
+
+**The buyer may order more than was asked for, and it is visible.** Demand is 47
+reams and a case is 50. Systems that refuse the rounding make the buyer lie;
+systems that quietly attach the excess to the last requisition charge a
+department for something it did not ask for. Here the three extra reams are
+allocated to nobody and shown as such, on the consolidation before the fact and
+in `purchase_order_line_allocation.unallocated` after it. Unallocated is not an
+error.
+
+**The allocation is recomputed at confirm, never remembered from the draft.** A
+consolidation drafted last week and confirmed today must allocate against the
+demand outstanding *now* — requisitions get approved and withdrawn in between,
+and a draft that remembered its inputs would order things nobody is waiting for.
+The `demand` column on a line is therefore a snapshot *for the screen*: it is
+what makes a stale draft visible, and it is never the basis of the write.
+
+**Oldest request first.** The department that has waited longest is the one
+served by the first delivery, and where an order covers only part of the demand
+that is the only ordering that is not arbitrary.
+
+**The orders are raised confirmed, not draft.** A buyer who consolidated and
+chose the suppliers has decided to buy; raising drafts would mean confirming
+each of them again one at a time, which is the work consolidation exists to
+remove. It matters for the allocation too: `ordered` is advanced here, and
+advancing it against orders that might never be confirmed would hide demand that
+is still real.
+
+**The consolidated order names no cost centre.** Every other document on this
+chain carries one. A consolidated order serves several departments by
+construction, so naming one of them on the header would be a charge somebody
+could act on. Which department gets what lives per line in
+`purchase_order_line_sources`, in the quantities actually allocated.
+
+**One permission, not two.** Requisitions split raising from approving because
+they are two people's jobs. Drafting a consolidation and confirming it are the
+same person's — the buyer's — and splitting them would produce a role that can
+gather demand and then not act on it.
+
+**A bug this found in the requisition.** `requisition_demand` summed
+`quantity - ordered` across lines that may be in different units: three boxes
+plus two eaches reported five of nothing. Purchase order lines have carried
+`quantity_stock` since `0005` for exactly this reason, and requisition lines
+needed it for the same one. `0007` was already published, so `0008` adds the
+column by `ALTER`, backfills it, and re-points the view and the
+`ordered <= quantity` constraint at it — the same move `0006` made against
+`0005`.
 
 ### Buying, as built
 
@@ -882,10 +955,11 @@ database and must never happen.
   test for `core` refuses — "the moment `core` knows what an approval is, every
   app bends around `core`'s idea of approval." Each app approves its own
   documents until there is a third.
-- **The consolidated requisition's grouping rule.** By item is obvious; by
-  supplier, by delivery window and by budget period are all defensible and the
-  right answer is probably a choice on the consolidation run. Not decided
-  without a user in front of it.
+- **Grouping consolidation by anything but item.** Settled for item and
+  supplier — see *Consolidating, as built*. By delivery window and by budget
+  period are still defensible and still undecided; both would be a choice on the
+  draw rather than a change to the document, which is why neither blocks
+  anything.
 - **Multi-entity consolidation.** One workspace is one legal entity here. Group
   reporting across entities is a different product and would change the tenancy
   model, not the app model.

@@ -98,3 +98,18 @@ label    = "inventory.doc_type.requisition"
 mask     = "REQ-{YYYY}-#####"
 reset    = "fiscal_year"
 start_at = 1
+
+[[series]]
+doc_type = "consolidation"
+label    = "inventory.doc_type.consolidation"
+
+# `CON-{YYYY}-#####`. Allocated at CONFIRM, when the orders are raised - the
+# same rule as everything else here.
+#
+# One number for the consolidation and one PO number per order it raises. The
+# consolidation number is not a purchase order number and is never quoted to a
+# supplier; it is what a buyer cites internally when asked why eleven requests
+# became three orders.
+mask     = "CON-{YYYY}-#####"
+reset    = "fiscal_year"
+start_at = 1

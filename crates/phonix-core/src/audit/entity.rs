@@ -353,6 +353,20 @@ pub mod kinds {
         singleton: false,
     };
 
+    /// A consolidation.
+    ///
+    /// Recorded because confirming one raises several purchase orders at once
+    /// and decides which department's request each of them serves. The orders
+    /// carry their own trail; this is the record of the single act that made
+    /// them all, and of who chose the suppliers.
+    pub const CONSOLIDATION: EntityKind = EntityKind {
+        name: "consolidation",
+        singular_key: "entity.consolidation.singular",
+        plural_key: "entity.consolidation.plural",
+        href: Some("/inventory/consolidations/{id}"),
+        singleton: false,
+    };
+
     /// A purchase order.
     ///
     /// Recorded because confirming one is a commitment to spend money, and
@@ -468,6 +482,7 @@ pub const ENTITY_KINDS: &[EntityKind] = &[
     kinds::STOCK_LOCATION,
     kinds::STOCK_MOVE,
     kinds::REQUISITION,
+    kinds::CONSOLIDATION,
     kinds::PURCHASE_ORDER,
     kinds::BILL,
     kinds::RECEIPT,

@@ -149,7 +149,7 @@ pub async fn save(
         }
     }
 
-    let lines = match price_lines(&checked, currency) {
+    let lines = match prepare_lines(pool, &checked, currency).await? {
         Ok(lines) => lines,
         Err(err) => return Ok(Submission::rejected(err.field(), err.message())),
     };
@@ -446,31 +446,79 @@ fn from_port(err: phonix_ports::PortError) -> ServiceError {
     }
 }
 
-/// Parse each line's estimate against the workspace's own currency.
+/// The two things `RequisitionInput::check` could not do on its own.
 ///
-/// The one thing `RequisitionInput::check` could not do, for the reason an
-/// order's unit price is left as text: the currency is not the domain's to know.
-fn price_lines<'a>(
+/// The estimate needs the workspace's currency, and the stock-unit quantity
+/// needs the item and the unit table - neither of which the domain may reach.
+/// Both are worked out once, here, and stored beside the line.
+async fn prepare_lines<'a>(
+    pool: &PgPool,
     checked: &'a Checked,
     currency: Currency,
-) -> Result<Vec<phonix_db::inventory::requisition::EstimatedLine<'a>>, RequisitionError> {
-    checked
-        .lines
-        .iter()
-        .map(|line| {
-            let estimate = if line.estimate.is_empty() {
-                None
-            } else {
-                Some(Money::parse(currency, &line.estimate)?)
-            };
+) -> ServiceResult<Result<Vec<phonix_db::inventory::requisition::EstimatedLine<'a>>, RequisitionError>>
+{
+    let units = phonix_db::inventory::unit::list(pool).await?;
+    let mut prepared = Vec::with_capacity(checked.lines.len());
 
-            Ok(phonix_db::inventory::requisition::EstimatedLine {
-                source: line,
-                estimate,
-                description: line.description.as_str(),
-            })
-        })
-        .collect()
+    for line in &checked.lines {
+        let Some(context) =
+            phonix_db::inventory::movement::context(pool, line.variant_id, currency).await?
+        else {
+            return Ok(Err(RequisitionError::ItemRequired));
+        };
+
+        let quantity_stock = match convert(&units, line, context.stock_unit_id) {
+            Ok(quantity) => quantity,
+            Err(err) => return Ok(Err(err)),
+        };
+
+        let estimate = if line.estimate.is_empty() {
+            None
+        } else {
+            match Money::parse(currency, &line.estimate) {
+                Ok(amount) => Some(amount),
+                Err(err) => return Ok(Err(RequisitionError::Money(err))),
+            }
+        };
+
+        prepared.push(phonix_db::inventory::requisition::EstimatedLine {
+            source: line,
+            estimate,
+            quantity_stock,
+            description: line.description.as_str(),
+        });
+    }
+
+    Ok(Ok(prepared))
+}
+
+/// The line's quantity in the item's stock unit.
+///
+/// The two units have to measure the same thing - a case converts to eaches and
+/// does not convert to kilograms - which is the refusal `purchase::convert`
+/// makes about an order line, made again here because demand is summed across
+/// requesters and a wrong conversion is a wrong purchase order.
+fn convert(
+    units: &[app_inventory::unit::Unit],
+    line: &app_inventory::requisition::CheckedLine,
+    stock_unit_id: Uuid,
+) -> Result<app_inventory::quantity::Quantity, RequisitionError> {
+    if line.unit_id == stock_unit_id {
+        return Ok(line.quantity);
+    }
+
+    let from = units
+        .iter()
+        .find(|unit| unit.id == line.unit_id)
+        .ok_or(RequisitionError::UnitRequired)?;
+    let to = units
+        .iter()
+        .find(|unit| unit.id == stock_unit_id)
+        .ok_or(RequisitionError::UnitRequired)?;
+
+    app_inventory::unit::Conversion::between(from, to)
+        .and_then(|conversion| conversion.apply(line.quantity))
+        .map_err(|_| RequisitionError::UnitMismatch)
 }
 
 async fn base_currency(pool: &PgPool) -> ServiceResult<Currency> {

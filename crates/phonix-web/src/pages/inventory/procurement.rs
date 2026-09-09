@@ -11,6 +11,7 @@ use crate::components::page::PageHeader;
 use crate::icons::Icon;
 use crate::l;
 use crate::ui::table::DataGrid;
+use crate::ui::table::config::consolidations::consolidations_grid;
 use crate::ui::table::config::purchase_orders::purchase_orders_grid;
 use crate::ui::table::config::requisitions::requisitions_grid;
 use crate::ui::table::config::receipts::receipts_grid;
@@ -58,5 +59,21 @@ pub fn requisitions_page() -> impl IntoView {
         />
 
         <DataGrid config=requisitions_grid() />
+    }
+}
+
+/// What has been gathered for buying, and how many orders each one became.
+#[component]
+pub fn consolidations_page() -> impl IntoView {
+    view! {
+        <Title text=format!("{} | Phonix", l!("consolidations.title")) />
+
+        <PageHeader
+            title=l!("consolidations.title")
+            subtitle=l!("consolidations.subtitle")
+            icon=Icon::Boxes
+        />
+
+        <DataGrid config=consolidations_grid() />
     }
 }

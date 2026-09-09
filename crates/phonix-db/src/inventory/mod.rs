@@ -22,6 +22,7 @@
 
 pub mod account_mapping;
 pub mod category;
+pub mod consolidation;
 pub mod defaults;
 pub mod image;
 pub mod bill;

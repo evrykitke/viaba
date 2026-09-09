@@ -188,6 +188,19 @@ pub static MENU: &[NavNode] = &[
                 "request", "ask", "pr", "purchase requisition", "approval", "cost centre",
                 "department", "consolidate",
             ]),
+            // Between the two, because that is where it is on the chain: it
+            // reads the requisitions and it writes the orders.
+            NavNode::leaf(
+                "consolidations",
+                "nav.consolidations",
+                Icon::Boxes,
+                "/inventory/consolidations",
+            )
+            .require(names::CONSOLIDATIONS)
+            .keywords(&[
+                "consolidate", "combine", "merge", "group demand", "batch", "aggregate",
+                "buying plan",
+            ]),
             NavNode::leaf(
                 "purchase-orders",
                 "nav.purchase_orders",

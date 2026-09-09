@@ -38,8 +38,8 @@ use crate::icons::Icon;
 use crate::l;
 use crate::server_fns::inventory_fns::{
     blank_purchase_order, cancel_purchase_order, confirm_purchase_order, delete_purchase_order,
-    pickable_variants, purchase_order_detail, save_purchase_order, selectable_units,
-    selectable_warehouses,
+    order_allocation, pickable_variants, purchase_order_detail, save_purchase_order,
+    selectable_units, selectable_warehouses,
 };
 use crate::server_fns::master_fns::list_parties;
 use crate::ui::alert::{Alert, Alerts, Confirm};
@@ -1109,9 +1109,138 @@ fn order_document(order: PurchaseOrder, reload: Callback<()>) -> impl IntoView {
                 </Show>
             </div>
 
+            <OrderAllocationPanel order_id=id />
+
             <Panel title=l!("common.history")>
                 <RecordHistory kind=kinds::PURCHASE_ORDER id=Some(id.to_string()) />
             </Panel>
         </div>
+    }
+}
+
+/// Which requisitions each line of this order was raised for.
+///
+/// Only drawn where there is something to say - an order a buyer wrote directly
+/// has no sources, and an empty panel on every such order would be furniture.
+///
+/// The unallocated figure is not an error. A buyer rounding 47 reams up to a
+/// case of 50 is the ordinary case, and the three extra belong to no
+/// department: they are stock. See `0008_consolidation.sql`.
+#[component]
+fn order_allocation_panel(order_id: Uuid) -> impl IntoView {
+    let allocation = Resource::new(
+        move || order_id,
+        |order_id| async move { order_allocation(order_id).await },
+    );
+
+    view! {
+        <Transition fallback=|| ()>
+            {move || Suspend::new(async move {
+                let lines = allocation.await.unwrap_or_default();
+                let anything = lines
+                    .iter()
+                    .any(|line| !line.sources.is_empty() || line.unallocated.is_positive());
+
+                if !anything {
+                    return ().into_any();
+                }
+
+                view! {
+                    <Panel
+                        title=l!("consolidations.allocation")
+                        description=l!("consolidations.allocation.help")
+                    >
+                        <div class="space-y-3">
+                            {lines
+                                .into_iter()
+                                .filter(|line| {
+                                    !line.sources.is_empty() || line.unallocated.is_positive()
+                                })
+                                .map(|line| {
+                                    let description = line.description.clone();
+                                    let ordered = line.quantity_stock.to_display_string();
+                                    let spare = line.unallocated;
+                                    let spare_text = spare.to_display_string();
+                                    let empty = line.sources.is_empty();
+
+                                    view! {
+                                        <div class="space-y-1">
+                                            <div class="flex items-baseline justify-between gap-4 border-b border-edge pb-1">
+                                                <span class="text-sm text-content">
+                                                    {description}
+                                                </span>
+                                                <span class="text-xs tabular-nums text-content-muted">
+                                                    {ordered}
+                                                </span>
+                                            </div>
+
+                                            {if empty {
+                                                view! {
+                                                    <p class="text-xs text-content-subtle">
+                                                        {l!("consolidations.allocation.none")}
+                                                    </p>
+                                                }
+                                                    .into_any()
+                                            } else {
+                                                view! {
+                                                    <ul class="space-y-0.5 text-sm">
+                                                        {line
+                                                            .sources
+                                                            .into_iter()
+                                                            .map(|source| {
+                                                                let href = format!(
+                                                                    "/inventory/requisitions/{}",
+                                                                    source.requisition_id,
+                                                                );
+                                                                let quantity = source
+                                                                    .quantity
+                                                                    .to_display_string();
+
+                                                                view! {
+                                                                    <li class="flex items-center justify-between gap-4">
+                                                                        <a
+                                                                            href=href
+                                                                            class="font-mono text-xs text-brand hover:underline"
+                                                                        >
+                                                                            {source.requisition_number}
+                                                                        </a>
+                                                                        <span class="flex-1 truncate text-content-muted">
+                                                                            {source.cost_centre_name}
+                                                                        </span>
+                                                                        <span class="tabular-nums text-content">
+                                                                            {quantity}
+                                                                        </span>
+                                                                    </li>
+                                                                }
+                                                            })
+                                                            .collect_view()}
+                                                    </ul>
+                                                }
+                                                    .into_any()
+                                            }}
+
+                                            <Show
+                                                when=move || spare.is_positive()
+                                                fallback=|| ()
+                                            >
+                                                <div class="flex items-center justify-between gap-4 text-sm">
+                                                    <span class="text-content-subtle">
+                                                        {l!("consolidations.allocation.unallocated")}
+                                                    </span>
+                                                    <span class="tabular-nums text-content-muted">
+                                                        {spare_text.clone()}
+                                                    </span>
+                                                </div>
+                                            </Show>
+                                        </div>
+                                    }
+                                })
+                                .collect_view()}
+                        </div>
+                    </Panel>
+                }
+                    .into_any()
+            })}
+        </Transition>
     }
 }

@@ -22,6 +22,7 @@
 
 pub mod bill;
 pub mod category;
+pub mod consolidation;
 pub mod item;
 pub mod location;
 pub mod purchase;

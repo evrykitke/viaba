@@ -92,7 +92,7 @@ const SUMMARY_COLUMNS: &str = "
       WHERE l.requisition_id = r.id) AS line_count,
     COALESCE((
         SELECT CASE
-            WHEN bool_and(l.ordered >= l.quantity) THEN 'everything'
+            WHEN bool_and(l.ordered >= l.quantity_stock) THEN 'everything'
             WHEN bool_or(l.ordered > 0) THEN 'partly'
             ELSE 'nothing' END
           FROM inventory.requisition_lines l
@@ -267,6 +267,7 @@ where
     let rows = sqlx::query(
         "SELECT l.id, l.line_no, l.variant_id, l.description,
                 l.quantity::text AS quantity, l.unit_id,
+                l.quantity_stock::text AS quantity_stock,
                 l.ordered::text AS ordered, l.estimate::text AS estimate, l.note,
                 v.code AS variant_code,
                 u.code AS unit_code
@@ -284,6 +285,7 @@ where
     rows.into_iter()
         .map(|row| {
             let quantity: String = row.try_get("quantity")?;
+            let quantity_stock: String = row.try_get("quantity_stock")?;
             let ordered: String = row.try_get("ordered")?;
             let estimate: Option<String> = row.try_get("estimate")?;
 
@@ -296,6 +298,10 @@ where
                 quantity: read_quantity(&quantity, "requisition_lines.quantity")?,
                 unit_id: row.try_get("unit_id")?,
                 unit_code: row.try_get("unit_code")?,
+                quantity_stock: read_quantity(
+                    &quantity_stock,
+                    "requisition_lines.quantity_stock",
+                )?,
                 ordered: read_quantity(&ordered, "requisition_lines.ordered")?,
                 estimate: estimate
                     .map(|raw| read_money(&raw, currency, "requisition_lines.estimate"))
@@ -374,6 +380,8 @@ pub async fn update(
 pub struct EstimatedLine<'a> {
     pub source: &'a app_inventory::requisition::CheckedLine,
     pub estimate: Option<Money>,
+    /// The line's quantity in the item's stock unit, converted by the service.
+    pub quantity_stock: Quantity,
     /// What the line is called on the request. The item's name where one was
     /// named and the requester typed nothing, and their own words otherwise.
     pub description: &'a str,
@@ -397,8 +405,8 @@ pub async fn save_lines(
         sqlx::query(
             "INSERT INTO inventory.requisition_lines
                  (requisition_id, line_no, variant_id, description, quantity,
-                  unit_id, estimate, note)
-              VALUES ($1, $2, $3, $4, $5::numeric, $6, $7::numeric, $8)",
+                  unit_id, quantity_stock, estimate, note)
+              VALUES ($1, $2, $3, $4, $5::numeric, $6, $7::numeric, $8::numeric, $9)",
         )
         .bind(requisition_id)
         .bind(index as i32 + 1)
@@ -406,6 +414,7 @@ pub async fn save_lines(
         .bind(line.description)
         .bind(line.source.quantity.to_storage_string())
         .bind(line.source.unit_id)
+        .bind(line.quantity_stock.to_storage_string())
         .bind(line.estimate.map(|amount| amount.to_storage_string()))
         .bind(line.source.note.as_deref())
         .execute(&mut *conn)
@@ -595,13 +604,13 @@ where
 {
     let rows = sqlx::query(
         "SELECT l.id, r.id AS requisition_id,
-                (l.quantity - l.ordered)::text AS outstanding
+                (l.quantity_stock - l.ordered)::text AS outstanding
            FROM inventory.requisition_lines l
            JOIN inventory.requisitions r ON r.id = l.requisition_id
           WHERE r.state = 'approved'
             AND r.warehouse_id = $2
             AND l.variant_id = $1
-            AND l.ordered < l.quantity
+            AND l.ordered < l.quantity_stock
           ORDER BY r.raised_on, r.created_at, l.line_no",
     )
     .bind(variant_id)

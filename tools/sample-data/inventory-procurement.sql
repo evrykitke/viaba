@@ -53,6 +53,18 @@
 --                                    and the "still on order" view are not all
 --                                    one state
 --
+-- Then, for the other half of the chain, three departments and four APPROVED
+-- requisitions across two of them, arranged so the consolidation screen has
+-- something real to gather:
+--
+--   Clinic A  wants 30 wipes and 12 gloves
+--   Clinic B  wants 17 wipes
+--   Theatre   wants 8 dozen gloves, asked for in DOZENS rather than eaches
+--
+-- Two departments wanting the same wipes is what consolidation is for; the
+-- third asking in a different unit is what `quantity_stock` is for, and the
+-- demand screen has to add all of it up in one unit or report five of nothing.
+--
 -- Prices are in the workspace's own currency, read from
 -- `core.organization_profile` rather than assumed.
 --
@@ -531,6 +543,92 @@ SELECT r.id, v.line_no, ol.id, var.id, i.name,
      SELECT 1 FROM receipt_lines rl WHERE rl.receipt_id = r.id AND rl.line_no = v.line_no
  );
 
+-- ---------------------------------------------------------------------------
+-- Departments, because a requisition cannot be raised without one
+-- ---------------------------------------------------------------------------
+--
+-- `hr.departments` reached through the `CostCentres` port at runtime, and
+-- written here directly because a seed script is not an app. Three of them, all
+-- cost centres: a requisition names one, and the whole point of consolidation
+-- is that two of them wanting the same thing becomes one order line that
+-- remembers both.
+
+INSERT INTO hr.departments (code, name, is_cost_centre, is_active)
+SELECT v.code, v.name, TRUE, TRUE
+  FROM (VALUES
+        ('CLINIC-A', 'Clinic A'),
+        ('CLINIC-B', 'Clinic B'),
+        ('THEATRE', 'Theatre')
+       ) AS v(code, name)
+ WHERE NOT EXISTS (
+     SELECT 1 FROM hr.departments d WHERE lower(d.code) = lower(v.code)
+ );
+
+-- ---------------------------------------------------------------------------
+-- What the departments have asked for
+-- ---------------------------------------------------------------------------
+--
+-- Approved, and numbered, because that is the only state consolidation can see:
+-- `requisition_demand` reads approved lines with something still outstanding.
+-- The numbers are keyed rather than drawn from the series - a seed script must
+-- not spend numbers a real document will want - so they sit in a SAMPLE- range
+-- that no series will ever produce.
+--
+-- The cost centre is snapshotted beside the id, exactly as the service does it:
+-- a department renamed next year must not rewrite a request somebody approved.
+
+INSERT INTO requisitions (number, state, cost_centre_id, cost_centre_code,
+                          cost_centre_name, warehouse_id, raised_on, needed_by,
+                          justification, decided_at, decision_note)
+SELECT v.number, 'approved', d.id, d.code, d.name, w.id,
+       CURRENT_DATE - v.age, CURRENT_DATE + 14,
+       v.justification, now(), 'Sample data. Approved so it can be consolidated.'
+  FROM (VALUES
+        ('SAMPLE-REQ-0001', 'CLINIC-A', 9, 'Routine stock for the treatment rooms.'),
+        ('SAMPLE-REQ-0002', 'CLINIC-B', 5, 'Wipes are down to the last box.'),
+        ('SAMPLE-REQ-0003', 'THEATRE', 2, 'Gloves for next month''s lists.')
+       ) AS v(number, centre, age, justification)
+  JOIN hr.departments d ON lower(d.code) = lower(v.centre)
+  CROSS JOIN LATERAL (
+      SELECT id FROM warehouses WHERE is_default LIMIT 1
+  ) w
+ WHERE NOT EXISTS (
+     SELECT 1 FROM requisitions r WHERE r.number = v.number
+ );
+
+-- The lines. `quantity_stock` is stated rather than left to a default: it is
+-- what demand is summed in, and the Theatre's line is the one that proves it -
+-- eight DOZEN gloves is ninety-six eaches, and a screen that added eight to
+-- thirty would be adding boxes to eaches.
+--
+-- The conversion is done here by reading the units table rather than by
+-- hard-coding 12, so a workspace whose dozen is not twelve does not get a wrong
+-- seed.
+
+INSERT INTO requisition_lines (requisition_id, line_no, variant_id, description,
+                               quantity, unit_id, quantity_stock, estimate)
+SELECT r.id, v.line_no, var.id, i.name,
+       v.quantity, u.id,
+       round(v.quantity * (u.factor / su.factor), 6),
+       v.estimate
+  FROM (VALUES
+        ('SAMPLE-REQ-0001', 1, 'SAMPLE-WIPE-70', 30, 'EA', 0.4200),
+        ('SAMPLE-REQ-0001', 2, 'SAMPLE-GLOVE-M', 12, 'EA', 0.3800),
+        ('SAMPLE-REQ-0002', 1, 'SAMPLE-WIPE-70', 17, 'EA', 0.4200),
+        ('SAMPLE-REQ-0003', 1, 'SAMPLE-GLOVE-M', 8, 'DZ', 4.5600)
+       ) AS v(number, line_no, code, quantity, unit_code, estimate)
+  JOIN items i ON lower(i.code) = lower(v.code)
+  JOIN item_variants var ON var.item_id = i.id AND var.is_default
+  JOIN units su ON su.id = i.stock_unit_id
+  JOIN units u ON lower(u.code) = lower(v.unit_code) AND u.class = su.class
+  CROSS JOIN LATERAL (
+      SELECT id FROM requisitions WHERE number = v.number LIMIT 1
+  ) r
+ WHERE NOT EXISTS (
+     SELECT 1 FROM requisition_lines l
+      WHERE l.requisition_id = r.id AND l.line_no = v.line_no
+ );
+
 COMMIT;
 
 -- ---------------------------------------------------------------------------
@@ -573,12 +671,39 @@ COMMIT;
 --      arithmetic over the lines, which is why cancelling a receipt cannot
 --      leave them lying.
 --
---   9. Inventory > Unbilled. What has been received and not yet invoiced,
+--   9. Inventory > Consolidation > New consolidation. Pick the warehouse and
+--      the table fills itself from what the three departments asked for:
+--
+--        Alcohol wipes   47   <- Clinic A's 30 plus Clinic B's 17
+--        Gloves         108   <- Clinic A's 12 plus the Theatre's 8 DOZEN
+--
+--      The gloves line is the one worth pausing on. The Theatre asked in
+--      dozens; the demand is summed in the item's stock unit, so eight dozen
+--      arrives here as ninety-six eaches rather than as eight of something.
+--      Two requests in two units are one line.
+--
+--      Round the wipes up to 50 - a case - and give both lines a supplier.
+--      Save, then Raise the orders. Expect:
+--
+--        * one purchase order per supplier, each already CONFIRMED and each
+--          carrying its own PO number, plus a CON- number on the
+--          consolidation itself;
+--        * on the order, a "What this was ordered for" panel: the wipes line
+--          shows 30 to Clinic A and 17 to Clinic B - oldest request first,
+--          which is why Clinic A is served in full - and 3 for stock,
+--          charged to nobody. That last figure is the rounding, and it is
+--          visible rather than quietly attached to somebody's cost centre;
+--        * back on Requisitions, all three now read fully ordered.
+--
+--      Then open Consolidation > New again: the demand is empty, because
+--      nothing is outstanding any more.
+--
+--  10. Inventory > Unbilled. What has been received and not yet invoiced,
 --      aged. This is the goods-received-not-invoiced balance the bill clears,
 --      and the ageing is there because a stale accrual is the one nobody
 --      notices.
 --
---  10. Raise a bill from one of them. Expect the match to grade SAME HAND: a
+--  11. Raise a bill from one of them. Expect the match to grade SAME HAND: a
 --      single account confirmed the order and posted the receipt, so no second
 --      person ever checked the goods against the paperwork. That is the
 --      control working, not the sample data being wrong - and it is the

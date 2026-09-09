@@ -243,7 +243,7 @@ impl Requisition {
             if line.ordered.is_positive() {
                 any = true;
             }
-            if line.ordered.compare(line.quantity).is_lt() {
+            if line.ordered.compare(line.quantity_stock).is_lt() {
                 all = false;
             }
         }
@@ -310,10 +310,21 @@ pub struct RequisitionLine {
     /// because "the 5ml ones, not the 10ml" is worth carrying even when the
     /// variant already says which.
     pub description: String,
+    /// How many, in the unit the requester asked in.
     pub quantity: Quantity,
     pub unit_id: Uuid,
     pub unit_code: String,
-    /// How much of this line has reached a purchase order.
+    /// The same quantity in the item's **stock** unit, converted once when the
+    /// line was written.
+    ///
+    /// Stored rather than converted on read, on the same terms as
+    /// [`crate::purchase::OrderLine::quantity_stock`]: a factor somebody edits
+    /// next year must not restate how much a department asked for. It is also
+    /// the only unit demand can be *summed* in - three boxes plus two eaches is
+    /// five of nothing, which is what `requisition_demand` would have reported
+    /// without it.
+    pub quantity_stock: Quantity,
+    /// How much of this line has reached a purchase order, in stock units.
     pub ordered: Quantity,
     /// What the requester thinks one unit costs, in the workspace's own
     /// currency. Advisory, never posted, and explicitly not what the order is
@@ -323,10 +334,10 @@ pub struct RequisitionLine {
 }
 
 impl RequisitionLine {
-    /// What is still to be ordered. Never negative - the schema will not store
-    /// `ordered` above `quantity`.
+    /// What is still to be ordered, in stock units. Never negative - the schema
+    /// will not store `ordered` above `quantity_stock`.
     pub fn outstanding(&self) -> Quantity {
-        match self.quantity.checked_sub(self.ordered) {
+        match self.quantity_stock.checked_sub(self.ordered) {
             Ok(left) if left.is_positive() => left,
             _ => Quantity::ZERO,
         }
@@ -647,6 +658,8 @@ pub enum RequisitionError {
     ItemRequired,
     #[error("a line needs a unit")]
     UnitRequired,
+    #[error("the unit asked in has to measure what the item is stocked in")]
+    UnitMismatch,
     #[error("a line needs a description")]
     DescriptionRequired,
     #[error("a line needs a quantity above nothing")]
@@ -687,7 +700,7 @@ impl RequisitionError {
             Self::NoLines | Self::ItemRequired | Self::NotPurchasable | Self::NothingOutstanding => {
                 "lines"
             }
-            Self::UnitRequired => "unit_id",
+            Self::UnitRequired | Self::UnitMismatch => "unit_id",
             Self::QuantityRequired | Self::Quantity(_) => "quantity",
             Self::Money(_) => "estimate",
             Self::DescriptionRequired | Self::DescriptionTooLong => "description",
@@ -705,6 +718,7 @@ impl RequisitionError {
             Self::NoLines => msg!("requisitions.error.no_lines"),
             Self::ItemRequired => msg!("requisitions.error.item_required"),
             Self::UnitRequired => msg!("requisitions.error.unit_required"),
+            Self::UnitMismatch => msg!("requisitions.error.unit_mismatch"),
             Self::DescriptionRequired => msg!("requisitions.error.description_required"),
             Self::QuantityRequired => msg!("requisitions.error.quantity_required"),
             Self::DescriptionTooLong => msg!("requisitions.error.description_too_long"),
@@ -750,6 +764,7 @@ mod tests {
             quantity: quantity(quantity_units),
             unit_id: Uuid::from_u128(8),
             unit_code: "EA".to_owned(),
+            quantity_stock: quantity(quantity_units),
             ordered: quantity(ordered_units),
             estimate: None,
             note: None,

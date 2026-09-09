@@ -123,6 +123,9 @@ pub mod names {
     pub const REQUISITIONS_CREATE: &str = "Pages.Inventory.Requisitions.Create";
     pub const REQUISITIONS_DECIDE: &str = "Pages.Inventory.Requisitions.Decide";
 
+    pub const CONSOLIDATIONS: &str = "Pages.Inventory.Consolidations";
+    pub const CONSOLIDATIONS_MANAGE: &str = "Pages.Inventory.Consolidations.Manage";
+
     pub const PURCHASE_ORDERS: &str = "Pages.Inventory.PurchaseOrders";
     pub const PURCHASE_ORDERS_CREATE: &str = "Pages.Inventory.PurchaseOrders.Create";
     pub const PURCHASE_ORDERS_EDIT: &str = "Pages.Inventory.PurchaseOrders.Edit";
@@ -588,6 +591,32 @@ pub const DEFINITIONS: &[PermissionDefinition] = &[
              raised against it.",
         ),
         parent: Some(names::REQUISITIONS),
+        default_for_user: false,
+    },
+    PermissionDefinition {
+        name: names::CONSOLIDATIONS,
+        display_name: "Consolidation",
+        description: Some("See what approved requisitions are waiting to be ordered."),
+        parent: Some(names::INVENTORY),
+        default_for_user: false,
+    },
+    PermissionDefinition {
+        name: names::CONSOLIDATIONS_MANAGE,
+        display_name: "Consolidate and order",
+        // One permission for both halves, unlike the requisition's raise and
+        // approve. Drafting a consolidation and confirming it are the same
+        // person's job - the buyer's - and splitting them would produce a role
+        // that can gather demand and then not act on it.
+        //
+        // It implies PURCHASE_ORDERS_CREATE and CONFIRM in effect, because
+        // confirming raises confirmed orders. That is said out loud here rather
+        // than enforced by also requiring them: a buyer who may consolidate may
+        // buy, and a grant that silently needed two others would be a role
+        // somebody thinks they have given.
+        description: Some(
+            "Gather approved demand into a consolidation and raise the purchase orders it              becomes.",
+        ),
+        parent: Some(names::CONSOLIDATIONS),
         default_for_user: false,
     },
     PermissionDefinition {

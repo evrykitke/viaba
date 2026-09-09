@@ -9,6 +9,9 @@
 use app_inventory::accounts::{AccountOverrides, AccountRef};
 use app_inventory::bill::{Bill, BillInput, BillSummary, MatchGrade, UnbilledReceipt};
 use app_inventory::category::{Category, CategoryInput, CategorySummary};
+use app_inventory::consolidation::{
+    Consolidation, ConsolidationInput, ConsolidationSummary, LineAllocation,
+};
 use app_inventory::image::{Gallery, ImageInput};
 use app_inventory::item::{Item, ItemInput, ItemSummary};
 use app_inventory::location::{Location, LocationInput, LocationSummary};
@@ -806,6 +809,148 @@ pub async fn requisition_demand() -> Result<Vec<Demand>, ServerFnError> {
     let (pool, caller) = pool_and_caller().await?;
 
     phonix_services::inventory::requisition::demand(&pool, &caller)
+        .await
+        .map_err(service_error)
+}
+
+// --- Consolidation -------------------------------------------------------
+//
+// Eleven departments wanting printer paper, bought once. The screens between
+// the requisition and the purchase order: what is waiting, what to buy, and -
+// after the fact - which requisitions each order line was raised for.
+
+#[server(name = ListConsolidations, prefix = "/api", endpoint = "inventory/consolidations")]
+pub async fn list_consolidations() -> Result<Vec<ConsolidationSummary>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::consolidation::list(&pool, &caller)
+        .await
+        .map_err(service_error)
+}
+
+/// What approved requisitions are still waiting for, for the buyer.
+///
+/// The same view the requisition side exposes, gated on the buyer's permission
+/// rather than the requester's - see the service.
+#[server(name = ConsolidationDemand, prefix = "/api", endpoint = "inventory/consolidations/demand")]
+pub async fn consolidation_demand() -> Result<Vec<Demand>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::consolidation::demand(&pool, &caller)
+        .await
+        .map_err(service_error)
+}
+
+#[server(name = ConsolidationDetail, prefix = "/api", endpoint = "inventory/consolidations/detail")]
+pub async fn consolidation_detail(consolidation_id: Uuid) -> Result<Consolidation, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::consolidation::detail(&pool, &caller, consolidation_id)
+        .await
+        .map_err(service_error)
+}
+
+#[server(name = ConsolidationEdit, prefix = "/api", endpoint = "inventory/consolidations/edit")]
+pub async fn consolidation_edit(
+    consolidation_id: Uuid,
+) -> Result<ConsolidationInput, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::consolidation::edit(&pool, &caller, consolidation_id)
+        .await
+        .map_err(service_error)
+}
+
+/// A consolidation already holding everything one warehouse is waiting for.
+///
+/// The ordinary way one is started. A blank form is reachable too - the buyer
+/// picks the warehouse, and this is what the picker's answer produces.
+#[server(name = ConsolidationFromDemand, prefix = "/api", endpoint = "inventory/consolidations/draw")]
+pub async fn consolidation_from_demand(
+    warehouse_id: Option<Uuid>,
+) -> Result<ConsolidationInput, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    match warehouse_id {
+        Some(warehouse_id) => {
+            phonix_services::inventory::consolidation::from_demand(&pool, &caller, warehouse_id)
+                .await
+        }
+        None => phonix_services::inventory::consolidation::blank(&caller),
+    }
+    .map_err(service_error)
+}
+
+#[server(name = SaveConsolidation, prefix = "/api", endpoint = "inventory/consolidations/save")]
+pub async fn save_consolidation(
+    draft: ConsolidationInput,
+) -> Result<Submission<ConsolidationInput>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::consolidation::save(&pool, &caller, draft)
+        .await
+        .map_err(service_error)
+}
+
+/// Raise the orders. One per supplier, each already confirmed.
+#[server(name = ConfirmConsolidation, prefix = "/api", endpoint = "inventory/consolidations/confirm")]
+pub async fn confirm_consolidation(
+    consolidation_id: Uuid,
+) -> Result<Submission<Consolidation>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::consolidation::confirm(&pool, &caller, consolidation_id)
+        .await
+        .map_err(service_error)
+}
+
+#[server(name = CancelConsolidation, prefix = "/api", endpoint = "inventory/consolidations/cancel")]
+pub async fn cancel_consolidation(consolidation_id: Uuid) -> Result<Submission<()>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::consolidation::cancel(&pool, &caller, consolidation_id)
+        .await
+        .map_err(service_error)
+}
+
+#[server(name = DeleteConsolidation, prefix = "/api", endpoint = "inventory/consolidations/delete")]
+pub async fn delete_consolidation(consolidation_id: Uuid) -> Result<bool, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::consolidation::delete(&pool, &caller, consolidation_id)
+        .await
+        .map_err(service_error)
+}
+
+/// What each line of a purchase order was raised for.
+///
+/// A panel on the order screen rather than a screen of its own: the question is
+/// only ever asked about an order somebody is already looking at.
+#[server(name = OrderAllocation, prefix = "/api", endpoint = "inventory/orders/allocation")]
+pub async fn order_allocation(order_id: Uuid) -> Result<Vec<LineAllocation>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::consolidation::allocation(&pool, &caller, order_id)
         .await
         .map_err(service_error)
 }
