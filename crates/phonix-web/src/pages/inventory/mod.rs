@@ -27,6 +27,9 @@
 //! /inventory/receipts             what arrived, and what it was worth
 //! /inventory/receipts/new         a form. `?order=<id>` opens it against one
 //! /inventory/receipts/:id         the tally while draft, the document after
+//! /inventory/transfers            stock moved between our own places
+//! /inventory/transfers/new        a form
+//! /inventory/transfers/:id        the editor while draft, the document after
 //! /inventory/stock                what is on hand, and where
 //! /inventory/moves                every change to every quantity
 //! /inventory/locations            the list, drawn as a tree
@@ -55,6 +58,7 @@ pub mod requisition;
 pub mod procurement;
 pub mod purchase_order;
 pub mod stock;
+pub mod transfer;
 pub mod stock_locations;
 pub mod units;
 pub mod variants;

@@ -433,6 +433,17 @@ pub mod kinds {
         singleton: false,
     };
 
+    /// A stock transfer. Recorded because despatching one takes stock off a
+    /// shelf and receiving it puts it on another, days apart and usually by two
+    /// different people - which is exactly what a trail is for.
+    pub const STOCK_TRANSFER: EntityKind = EntityKind {
+        name: "stock_transfer",
+        singular_key: "entity.stock_transfer.singular",
+        plural_key: "entity.stock_transfer.plural",
+        href: Some("/inventory/transfers/{id}"),
+        singleton: false,
+    };
+
     /// A landed cost. Recorded because posting one changes what stock on the
     /// shelf is worth, and the delivery it names does not say who decided that.
     pub const LANDED_COST: EntityKind = EntityKind {
@@ -537,6 +548,7 @@ pub const ENTITY_KINDS: &[EntityKind] = &[
     kinds::BILL,
     kinds::RECEIPT,
     kinds::LANDED_COST,
+    kinds::STOCK_TRANSFER,
     kinds::UNIT_OF_MEASURE,
 ];
 

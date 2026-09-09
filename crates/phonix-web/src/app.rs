@@ -36,6 +36,7 @@ use crate::pages::inventory::procurement::{
     ConsolidationsPage, PurchaseOrdersPage, ReceiptsPage, RequisitionsPage,
 };
 use crate::pages::inventory::bill::{BillNewPage, BillPage, BillsPage, UnbilledPage};
+use crate::pages::inventory::transfer::{TransferNewPage, TransferPage, TransfersPage};
 use crate::pages::inventory::landed_cost::{
     LandedCostNewPage, LandedCostPage, LandedCostsPage,
 };
@@ -305,6 +306,9 @@ pub fn app() -> impl IntoView {
                     <Route path=path!("/inventory/receipts") view=ReceiptsPage />
                     <Route path=path!("/inventory/receipts/new") view=ReceiptNewPage />
                     <Route path=path!("/inventory/receipts/:id") view=ReceiptPage />
+                    <Route path=path!("/inventory/transfers") view=TransfersPage />
+                    <Route path=path!("/inventory/transfers/new") view=TransferNewPage />
+                    <Route path=path!("/inventory/transfers/:id") view=TransferPage />
                     <Route path=path!("/inventory/stock") view=StockPage />
                     <Route path=path!("/inventory/moves") view=StockMovesPage />
                     <Route path=path!("/inventory/units") view=UnitsPage />

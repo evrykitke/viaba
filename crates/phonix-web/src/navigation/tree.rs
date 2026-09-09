@@ -231,6 +231,12 @@ pub static MENU: &[NavNode] = &[
                 "freight", "duty", "customs", "shipping", "handling", "insurance",
                 "carriage", "landed", "capitalise",
             ]),
+            NavNode::leaf("transfers", "nav.transfers", Icon::Truck, "/inventory/transfers")
+                .require(names::TRANSFERS)
+                .keywords(&[
+                    "move", "internal", "in transit", "despatch", "dispatch", "put away",
+                    "between warehouses", "consignment",
+                ]),
             // Stock sits above the setup screens: what is on the shelf is
             // what somebody opens this app to find out, and the location tree
             // is what they arranged once in March.

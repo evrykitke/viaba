@@ -30,5 +30,6 @@ pub mod purchase;
 pub mod receipt;
 pub mod requisition;
 pub mod stock;
+pub mod transfer;
 pub mod unit;
 pub mod warehouse;

@@ -58,6 +58,7 @@ pub mod stock;
 pub mod stock_locations;
 pub mod stock_moves;
 pub mod taxes;
+pub mod transfers;
 pub mod units;
 pub mod users;
 pub mod warehouses;

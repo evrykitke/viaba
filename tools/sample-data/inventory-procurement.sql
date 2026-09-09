@@ -774,6 +774,31 @@ COMMIT;
 --      against the same delivery with a NEGATIVE charge, which is how every
 --      other posted document here is corrected.
 --
+--  13. Inventory > Transfers > New transfer. Move stock from `WH/Stock` to
+--      somewhere else that holds stock - a second warehouse if you made one,
+--      or add a `WH/Stock/Zone B` under Locations first. Put ten gloves and
+--      two wipes on it, give it a van registration as the reference, and
+--      Save, then Despatch. Expect:
+--
+--        * an INT- number, drawn at despatch rather than at create;
+--        * Stock on hand: ten gloves fewer at `WH/Stock`, and ten gloves at
+--          `Transit` - a location in NO warehouse, so neither warehouse's
+--          total counts them;
+--        * two journals, each crediting stock and debiting stock in transit.
+--          That account has had nothing in it until now.
+--
+--      Then open it again and Book it in, but lower the gloves to six. Expect
+--      four gloves still ON THE ROAD, the transfer still `In transit` rather
+--      than `Arrived`, and the destination holding six. That is the state
+--      "subtract here, add there" cannot express, and the reason a transfer is
+--      one document rather than two adjustments.
+--
+--      Receive the remaining four and it closes itself.
+--
+--      To see the control: try to receive more than left. It is refused by
+--      name rather than absorbed - more arriving than was sent is a count
+--      error at one end, and this document will not hide it.
+--
 -- WHAT SHOULD BE TRUE AFTERWARDS
 --
 -- The first query is the one that matters: it is the schema proving its own
@@ -818,6 +843,17 @@ COMMIT;
 --     JOIN inventory.item_variants v ON v.id = l.variant_id
 --    WHERE l.additional_value <> 0
 --    ORDER BY v.code;
+--
+--   -- What is on the road. Empty once everything has arrived.
+--   SELECT * FROM inventory.stock_in_transit;
+--
+--   -- And the same fact from the other side: the transit location's quants.
+--   -- These two agree, or something is wrong.
+--   SELECT l.path, v.code, q.quantity
+--     FROM inventory.stock_quants q
+--     JOIN inventory.locations l ON l.id = q.location_id
+--     JOIN inventory.item_variants v ON v.id = q.variant_id
+--    WHERE l.kind = 'transit';
 --
 --   SELECT j.number, j.narration, a.number AS account, jl.side, jl.amount
 --     FROM books.journal_lines jl

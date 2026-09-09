@@ -44,8 +44,14 @@ thing: what somebody does is an `assignments` row with dates on it, not a column
 on the person. A login is an optional, per-person act on top — most people who
 work somewhere never sign in. See *People, as built* under section 9.
 
-Still specified only — the **transfer**, which is a form and a header over
-`stock::apply`.
+And now **the transfer**, which is the last document on section 7's list and
+the only caller of the `transit` location kind and `InventoryInTransit`: stock
+that has left one building and not reached the next is in a real place, on the
+balance sheet, and in neither warehouse's total. See *The transfer, as built*
+under section 7.
+
+Still specified only — **adjustment types**, which decide which account the
+other side of a discrepancy goes to. Everything else section 7 names is built.
 
 `Stock` is still not declared, as section 2 says it should not be: Books does
 not yet put cost of goods sold on an invoice, and that is the caller the port
@@ -623,6 +629,43 @@ of the journal goes to, and whether the adjustment needs approval. A workspace
 that posts every discrepancy to one "inventory adjustment" account has a number
 that grows and tells nobody anything. Types are seeded as defaults per §4, each
 naming its account, and the workspace can add their own.
+
+#### The transfer, as built
+
+`migrations/apps/inventory/0010_stock_transfer.sql`, `app_inventory::transfer`,
+and the store, service and screens above them.
+
+**Neither movement is written by this document.** Both are `stock::apply`, and
+`posting_roles` already turns the two ends into the two account roles - so the
+transfer names no account anywhere in its code. Internal to transit credits
+`Inventory` and debits `InventoryInTransit`; the arrival is the same sentence
+backwards. Both were declared in 0001 and until now nothing posted to either.
+
+**`despatched` and `received` are two columns, and the difference is the
+point.** What is on the lorry is a subtraction, not a state. Something that left
+and never turned up stays a positive difference rather than disappearing, and is
+written off *from the transit location* by an adjustment - which is the right
+account for goods lost in carriage, and not the destination warehouse's
+shrinkage. More arriving than left is refused rather than absorbed: that is a
+count error at one end, and finding it is why the two numbers are kept apart.
+
+**A part-load is ordinary, so receiving is not a single irreversible act.** It
+may be called more than once, and what has already arrived has already lowered
+what the next call is allowed to move. Despatch, by contrast, *is* single, and
+is made resumable the way the receipt's posting is: the movement is written
+against its line immediately, and a line already carrying one is skipped. The
+document is claimed - numbered, and flipped out of draft - before any stock
+moves, so two people pressing Despatch at once cannot both start moving the same
+pallets.
+
+**Cancelling stops at the gate.** Only a draft, per section 6.3. A load that
+turned back is *received* - back into the location it came from, by a second
+transfer - rather than un-sent.
+
+**Despatch and receive are separate permissions.** They happen at two ends of a
+road, days apart, and are almost never one person's job. Splitting them is the
+same argument the bill's override makes: the control is worth nothing if the
+person who sends is automatically the person who confirms arrival.
 
 ### The stock ledger, as built
 

@@ -77,6 +77,7 @@ pub mod quantity;
 pub mod receipt;
 pub mod requisition;
 pub mod unit;
+pub mod transfer;
 pub mod valuation;
 pub mod variant;
 pub mod warehouse;
@@ -143,6 +144,7 @@ pub use landed_cost::{
     ReceiptLandedCost,
 };
 pub use location::{Location, LocationInput, LocationKind, LocationSummary, MoveKind};
+pub use transfer::{Transfer, TransferInput, TransferState, TransferSummary};
 pub use lot::{Lot, LotInput, LotSummary};
 pub use movement::{JournalOutcome, MoveRequest, MoveState, MoveSummary, StockMove};
 pub use purchase::{OrderInput, OrderLine, OrderState, OrderSummary, PurchaseOrder};

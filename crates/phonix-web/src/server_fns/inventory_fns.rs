@@ -8,6 +8,9 @@
 
 use app_inventory::accounts::{AccountOverrides, AccountRef};
 use app_inventory::bill::{Bill, BillInput, BillSummary, MatchGrade, UnbilledReceipt};
+use app_inventory::transfer::{
+    ArrivalInput, Transfer, TransferInput, TransferSummary,
+};
 use app_inventory::landed_cost::{
     Landable, LandedCost, LandedCostInput, LandedCostSummary, ReceiptLandedCost,
 };
@@ -1496,6 +1499,149 @@ pub async fn delete_landed_cost(landed_cost_id: Uuid) -> Result<bool, ServerFnEr
     let (pool, caller) = pool_and_caller().await?;
 
     phonix_services::inventory::landed_cost::delete(&pool, &caller, landed_cost_id)
+        .await
+        .map_err(service_error)
+}
+
+// --- Stock transfers -----------------------------------------------------
+//
+// Two movements against one document, with a transit location between them.
+// ADR 0006 section 7. Despatch and receive are separate calls because they
+// happen at two ends of a road, days apart.
+
+#[server(name = ListTransfers, prefix = "/api", endpoint = "inventory/transfers")]
+pub async fn list_transfers() -> Result<Vec<TransferSummary>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::transfer::list(&pool, &caller)
+        .await
+        .map_err(service_error)
+}
+
+/// Journeys with stock still on them: what the in-transit account is made of.
+#[server(
+    name = TransfersInTransit,
+    prefix = "/api",
+    endpoint = "inventory/transfers/in-transit"
+)]
+pub async fn transfers_in_transit() -> Result<Vec<TransferSummary>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::transfer::in_transit(&pool, &caller)
+        .await
+        .map_err(service_error)
+}
+
+#[server(name = TransferDetail, prefix = "/api", endpoint = "inventory/transfers/detail")]
+pub async fn transfer_detail(transfer_id: Uuid) -> Result<Transfer, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::transfer::detail(&pool, &caller, transfer_id)
+        .await
+        .map_err(service_error)
+}
+
+#[server(name = EditTransfer, prefix = "/api", endpoint = "inventory/transfers/edit")]
+pub async fn edit_transfer(transfer_id: Uuid) -> Result<TransferInput, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::transfer::edit(&pool, &caller, transfer_id)
+        .await
+        .map_err(service_error)
+}
+
+#[server(name = BlankTransfer, prefix = "/api", endpoint = "inventory/transfers/blank")]
+pub async fn blank_transfer() -> Result<TransferInput, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::transfer::blank(&pool, &caller)
+        .await
+        .map_err(service_error)
+}
+
+/// The arrival form, pre-filled with everything still on the road.
+#[server(name = TransferArrival, prefix = "/api", endpoint = "inventory/transfers/arrival")]
+pub async fn transfer_arrival(
+    transfer_id: Uuid,
+) -> Result<Submission<ArrivalInput>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::transfer::arrival(&pool, &caller, transfer_id)
+        .await
+        .map_err(service_error)
+}
+
+#[server(name = SaveTransfer, prefix = "/api", endpoint = "inventory/transfers/save")]
+pub async fn save_transfer(
+    draft: TransferInput,
+) -> Result<Submission<TransferInput>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::transfer::save(&pool, &caller, draft)
+        .await
+        .map_err(service_error)
+}
+
+#[server(name = DespatchTransfer, prefix = "/api", endpoint = "inventory/transfers/despatch")]
+pub async fn despatch_transfer(
+    transfer_id: Uuid,
+) -> Result<Submission<Transfer>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+    let ledger = phonix_services::books::BooksLedger::new(pool.clone(), caller.clone());
+
+    phonix_services::inventory::transfer::despatch(&pool, &caller, &ledger, transfer_id)
+        .await
+        .map_err(service_error)
+}
+
+#[server(name = ReceiveTransfer, prefix = "/api", endpoint = "inventory/transfers/receive")]
+pub async fn receive_transfer(
+    arrival: ArrivalInput,
+) -> Result<Submission<Transfer>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+    let ledger = phonix_services::books::BooksLedger::new(pool.clone(), caller.clone());
+
+    phonix_services::inventory::transfer::receive(&pool, &caller, &ledger, arrival)
+        .await
+        .map_err(service_error)
+}
+
+#[server(name = CancelTransfer, prefix = "/api", endpoint = "inventory/transfers/cancel")]
+pub async fn cancel_transfer(transfer_id: Uuid) -> Result<Submission<()>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::transfer::cancel(&pool, &caller, transfer_id)
+        .await
+        .map_err(service_error)
+}
+
+#[server(name = DeleteTransfer, prefix = "/api", endpoint = "inventory/transfers/delete")]
+pub async fn delete_transfer(transfer_id: Uuid) -> Result<bool, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::transfer::delete(&pool, &caller, transfer_id)
         .await
         .map_err(service_error)
 }

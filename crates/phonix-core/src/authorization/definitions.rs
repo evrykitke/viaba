@@ -153,6 +153,11 @@ pub mod names {
     pub const BILLS_POST: &str = "Pages.Inventory.Bills.Post";
     pub const BILLS_OVERRIDE: &str = "Pages.Inventory.Bills.Override";
 
+    pub const TRANSFERS: &str = "Pages.Inventory.Transfers";
+    pub const TRANSFERS_CREATE: &str = "Pages.Inventory.Transfers.Create";
+    pub const TRANSFERS_DESPATCH: &str = "Pages.Inventory.Transfers.Despatch";
+    pub const TRANSFERS_RECEIVE: &str = "Pages.Inventory.Transfers.Receive";
+
     pub const LANDED_COSTS: &str = "Pages.Inventory.LandedCosts";
     pub const LANDED_COSTS_CREATE: &str = "Pages.Inventory.LandedCosts.Create";
     pub const LANDED_COSTS_POST: &str = "Pages.Inventory.LandedCosts.Post";
@@ -740,6 +745,36 @@ pub const DEFINITIONS: &[PermissionDefinition] = &[
             "Post a bill whose match did not clear, giving a reason that stays on the document.",
         ),
         parent: Some(names::BILLS),
+        default_for_user: false,
+    },
+    PermissionDefinition {
+        name: names::TRANSFERS,
+        display_name: "Transfers",
+        description: Some("View stock moved between the workspace's own locations."),
+        parent: Some(names::INVENTORY),
+        default_for_user: false,
+    },
+    PermissionDefinition {
+        name: names::TRANSFERS_CREATE,
+        display_name: "Create",
+        description: Some("Plan a transfer, as a draft."),
+        parent: Some(names::TRANSFERS),
+        default_for_user: false,
+    },
+    PermissionDefinition {
+        name: names::TRANSFERS_DESPATCH,
+        display_name: "Despatch",
+        // Separate from Receive on purpose: the two acts happen at two ends of
+        // a road, days apart, and are almost never the same person's job.
+        description: Some("Send a transfer: move the stock off the shelf and onto the road."),
+        parent: Some(names::TRANSFERS),
+        default_for_user: false,
+    },
+    PermissionDefinition {
+        name: names::TRANSFERS_RECEIVE,
+        display_name: "Receive",
+        description: Some("Book a transfer in at the far end, in whole or in part."),
+        parent: Some(names::TRANSFERS),
         default_for_user: false,
     },
     PermissionDefinition {
