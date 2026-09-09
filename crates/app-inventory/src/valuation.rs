@@ -46,7 +46,34 @@ pub struct Layer {
     pub unit_cost: Money,
     /// `quantity * unit_cost`, rounded once when this was written.
     pub value: Money,
+    /// Freight, duty and handling landed on this layer after the fact - see
+    /// [`crate::landed_cost`]. Zero for almost every layer, and the reason
+    /// [`Layer::effective_unit_cost`] exists rather than everybody reading
+    /// `unit_cost` and being quietly wrong for the ones where it is not.
+    pub additional_value: Money,
     pub created_at: chrono::DateTime<chrono::Utc>,
+}
+
+impl Layer {
+    /// What the layer is worth: what the supplier charged, plus what was landed
+    /// on it since.
+    pub fn worth(&self) -> Result<Money, ValuationError> {
+        Ok(self.value.checked_add(self.additional_value)?)
+    }
+
+    /// What one unit of it costs, freight included.
+    ///
+    /// The stored `unit_cost` is returned untouched where nothing was landed,
+    /// which is the ordinary case: a layer with no landed cost costs exactly
+    /// what it did before this existed, to the last digit, rather than what a
+    /// division and a rounding make of it.
+    pub fn effective_unit_cost(&self) -> Result<Money, ValuationError> {
+        if self.additional_value.is_zero() {
+            return Ok(self.unit_cost);
+        }
+
+        unit_cost_of(self.quantity, self.worth()?)
+    }
 }
 
 /// One layer's share of an issue.
@@ -166,11 +193,17 @@ pub fn consume_fifo(layers: &[Layer], quantity: Quantity) -> Result<Issue, Valua
             left
         };
 
+        // What the layer is worth *now*, not what the supplier charged for it.
+        // Freight capitalised onto a layer is part of what a unit out of it
+        // costs, and an issue that took the receipt price would leave that
+        // freight in the stock account after the last unit had gone.
+        let unit_cost = layer.effective_unit_cost()?;
+
         lines.push(Consumed {
             layer_id: layer.id,
             quantity: taken,
-            unit_cost: layer.unit_cost,
-            value: value_of(taken, layer.unit_cost)?,
+            unit_cost,
+            value: value_of(taken, unit_cost)?,
         });
 
         left = left.checked_sub(taken).map_err(|_| ValuationError::OutOfRange)?;
@@ -283,6 +316,7 @@ mod tests {
             remaining: quantity,
             unit_cost: cost,
             value: value_of(quantity, cost).unwrap(),
+            additional_value: Money::zero(cost.currency()),
             created_at: chrono::Utc::now(),
         }
     }
@@ -361,6 +395,30 @@ mod tests {
             price_variance(CostingMethod::Average, qty("100"), gbp("2.00"), gbp("2.15")).unwrap(),
             gbp("0")
         );
+    }
+
+    #[test]
+    fn freight_landed_on_a_layer_leaves_with_the_units() {
+        // ADR 0006 section 6.2 from the far end: capitalising the freight is
+        // only half of it. If an issue still costs at the supplier's price, the
+        // freight sits in the stock account after the last unit has gone.
+        let mut landed = layer(1, "10", "2.00");
+        landed.additional_value = gbp("5.00");
+
+        assert_eq!(landed.effective_unit_cost().unwrap(), gbp("2.50"));
+
+        let issue = consume_fifo(&[landed], qty("10")).unwrap();
+        assert_eq!(issue.value, gbp("25.00"));
+    }
+
+    #[test]
+    fn a_layer_with_nothing_landed_on_it_costs_exactly_what_it_did() {
+        // Not `value / quantity`: a division and a rounding would move the
+        // ordinary case, which is every layer in a workspace that never buys
+        // anything abroad.
+        let plain = layer(1, "3", "1.005");
+
+        assert_eq!(plain.effective_unit_cost().unwrap(), gbp("1.005"));
     }
 
     #[test]

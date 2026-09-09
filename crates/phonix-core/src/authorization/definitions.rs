@@ -153,6 +153,10 @@ pub mod names {
     pub const BILLS_POST: &str = "Pages.Inventory.Bills.Post";
     pub const BILLS_OVERRIDE: &str = "Pages.Inventory.Bills.Override";
 
+    pub const LANDED_COSTS: &str = "Pages.Inventory.LandedCosts";
+    pub const LANDED_COSTS_CREATE: &str = "Pages.Inventory.LandedCosts.Create";
+    pub const LANDED_COSTS_POST: &str = "Pages.Inventory.LandedCosts.Post";
+
     pub const UNITS: &str = "Pages.Inventory.Units";
     pub const UNITS_MANAGE: &str = "Pages.Inventory.Units.Manage";
 
@@ -736,6 +740,29 @@ pub const DEFINITIONS: &[PermissionDefinition] = &[
             "Post a bill whose match did not clear, giving a reason that stays on the document.",
         ),
         parent: Some(names::BILLS),
+        default_for_user: false,
+    },
+    PermissionDefinition {
+        name: names::LANDED_COSTS,
+        display_name: "Landed costs",
+        description: Some("View freight, duty and handling spread over what it arrived with."),
+        parent: Some(names::INVENTORY),
+        default_for_user: false,
+    },
+    PermissionDefinition {
+        name: names::LANDED_COSTS_CREATE,
+        display_name: "Create",
+        description: Some("Key freight and duty against a delivery, as a draft."),
+        parent: Some(names::LANDED_COSTS),
+        default_for_user: false,
+    },
+    PermissionDefinition {
+        name: names::LANDED_COSTS_POST,
+        display_name: "Post",
+        description: Some(
+            "Post a landed cost: raise what the stock is worth, and charge the rest to cost of sales.",
+        ),
+        parent: Some(names::LANDED_COSTS),
         default_for_user: false,
     },
     PermissionDefinition {

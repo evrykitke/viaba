@@ -8,6 +8,9 @@
 
 use app_inventory::accounts::{AccountOverrides, AccountRef};
 use app_inventory::bill::{Bill, BillInput, BillSummary, MatchGrade, UnbilledReceipt};
+use app_inventory::landed_cost::{
+    Landable, LandedCost, LandedCostInput, LandedCostSummary, ReceiptLandedCost,
+};
 use app_inventory::category::{Category, CategoryInput, CategorySummary};
 use app_inventory::consolidation::{
     Consolidation, ConsolidationInput, ConsolidationSummary, LineAllocation,
@@ -1293,6 +1296,206 @@ pub async fn unbilled_receipts() -> Result<Vec<UnbilledReceipt>, ServerFnError> 
     let (pool, caller) = pool_and_caller().await?;
 
     phonix_services::inventory::bill::unbilled(&pool, &caller)
+        .await
+        .map_err(service_error)
+}
+
+// --- Landed costs --------------------------------------------------------
+//
+// Freight, duty and handling spread over the delivery that carried them. ADR
+// 0006 section 6.2. Posting one raises what stock on the shelf is worth and
+// charges the rest of it to cost of sales.
+
+#[server(name = ListLandedCosts, prefix = "/api", endpoint = "inventory/landed-costs")]
+pub async fn list_landed_costs() -> Result<Vec<LandedCostSummary>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::landed_cost::list(&pool, &caller)
+        .await
+        .map_err(service_error)
+}
+
+/// What has been landed on one delivery. The panel on the receipt screen.
+#[server(
+    name = LandedCostsForReceipt,
+    prefix = "/api",
+    endpoint = "inventory/landed-costs/for-receipt"
+)]
+pub async fn landed_costs_for_receipt(
+    receipt_id: Uuid,
+) -> Result<Vec<LandedCostSummary>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::landed_cost::for_receipt(&pool, &caller, receipt_id)
+        .await
+        .map_err(service_error)
+}
+
+/// What one delivery has been landed with in total, from the view that keeps
+/// the sum in step. `None` where nothing has been.
+#[server(
+    name = LandedOnReceipt,
+    prefix = "/api",
+    endpoint = "inventory/landed-costs/on-receipt"
+)]
+pub async fn landed_on_receipt(
+    receipt_id: Uuid,
+) -> Result<Option<ReceiptLandedCost>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::landed_cost::landed_on_receipt(&pool, &caller, receipt_id)
+        .await
+        .map_err(service_error)
+}
+
+#[server(
+    name = LandedCostDetail,
+    prefix = "/api",
+    endpoint = "inventory/landed-costs/detail"
+)]
+pub async fn landed_cost_detail(landed_cost_id: Uuid) -> Result<LandedCost, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::landed_cost::detail(&pool, &caller, landed_cost_id)
+        .await
+        .map_err(service_error)
+}
+
+#[server(
+    name = BlankLandedCost,
+    prefix = "/api",
+    endpoint = "inventory/landed-costs/blank"
+)]
+pub async fn blank_landed_cost() -> Result<LandedCostInput, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::landed_cost::blank(&pool, &caller)
+        .await
+        .map_err(service_error)
+}
+
+#[server(
+    name = EditLandedCost,
+    prefix = "/api",
+    endpoint = "inventory/landed-costs/edit"
+)]
+pub async fn edit_landed_cost(landed_cost_id: Uuid) -> Result<LandedCostInput, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::landed_cost::edit(&pool, &caller, landed_cost_id)
+        .await
+        .map_err(service_error)
+}
+
+/// A landed cost against one delivery, which is how the screen is reached from
+/// the receipt.
+#[server(
+    name = LandedCostAgainst,
+    prefix = "/api",
+    endpoint = "inventory/landed-costs/against"
+)]
+pub async fn landed_cost_against(
+    receipt_id: Uuid,
+) -> Result<Submission<LandedCostInput>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::landed_cost::against(&pool, &caller, receipt_id)
+        .await
+        .map_err(service_error)
+}
+
+/// What the delivery holds that a charge can be spread over, so the screen can
+/// show the cartons before somebody posts rather than after.
+#[server(
+    name = LandedCostLines,
+    prefix = "/api",
+    endpoint = "inventory/landed-costs/lines"
+)]
+pub async fn landed_cost_lines(receipt_id: Uuid) -> Result<Vec<Landable>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::landed_cost::landables(&pool, &caller, receipt_id)
+        .await
+        .map_err(service_error)
+}
+
+#[server(
+    name = SaveLandedCost,
+    prefix = "/api",
+    endpoint = "inventory/landed-costs/save"
+)]
+pub async fn save_landed_cost(
+    draft: LandedCostInput,
+) -> Result<Submission<LandedCostInput>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::landed_cost::save(&pool, &caller, draft)
+        .await
+        .map_err(service_error)
+}
+
+#[server(
+    name = PostLandedCost,
+    prefix = "/api",
+    endpoint = "inventory/landed-costs/post"
+)]
+pub async fn post_landed_cost(
+    landed_cost_id: Uuid,
+) -> Result<Submission<LandedCost>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+    let ledger = phonix_services::books::BooksLedger::new(pool.clone(), caller.clone());
+
+    phonix_services::inventory::landed_cost::post(&pool, &caller, &ledger, landed_cost_id)
+        .await
+        .map_err(service_error)
+}
+
+#[server(
+    name = CancelLandedCost,
+    prefix = "/api",
+    endpoint = "inventory/landed-costs/cancel"
+)]
+pub async fn cancel_landed_cost(landed_cost_id: Uuid) -> Result<Submission<()>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::landed_cost::cancel(&pool, &caller, landed_cost_id)
+        .await
+        .map_err(service_error)
+}
+
+#[server(
+    name = DeleteLandedCost,
+    prefix = "/api",
+    endpoint = "inventory/landed-costs/delete"
+)]
+pub async fn delete_landed_cost(landed_cost_id: Uuid) -> Result<bool, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::landed_cost::delete(&pool, &caller, landed_cost_id)
         .await
         .map_err(service_error)
 }

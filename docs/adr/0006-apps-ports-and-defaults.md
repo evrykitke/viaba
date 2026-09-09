@@ -17,7 +17,11 @@ hold in code rather than on paper. See *The stock ledger, as built* under
 section 7, and now **the first three documents on the chain**: the purchase
 order, the goods receipt and the supplier bill, each with its list, its form and
 its document view. With the bill, 6.5 (the three-way match) holds in code, and
-6.2's landed cost is the only part of the buying side still on paper.
+6.2's landed cost is now built too, and with it the buying side is whole: the
+freight, duty and handling that arrive weeks after the goods are capitalised
+onto the layers those goods opened, and the part belonging to units already sold
+goes to cost of sales rather than onto stock that is not there. See *Landed
+cost, as built* under section 6.2.
 
 And now **the requisition**, which is the document *before* the order and the
 first caller of the `CostCentres` port from a document rather than from a
@@ -41,7 +45,7 @@ on the person. A login is an optional, per-person act on top — most people who
 work somewhere never sign in. See *People, as built* under section 9.
 
 Still specified only — the **transfer**, which is a form and a header over
-`stock::apply`, and 6.2's landed cost.
+`stock::apply`.
 
 `Stock` is still not declared, as section 2 says it should not be: Books does
 not yet put cost of goods sold on an invoice, and that is the caller the port
@@ -442,6 +446,61 @@ and a set of cost lines, allocates them across the received lines by value,
 weight or quantity, and adjusts the valuation layers it touches. The allocation
 basis is stored on the document, because "why is this unit 4.12 and that one
 4.09" has to be answerable a year later.
+
+#### Landed cost, as built
+
+`migrations/apps/inventory/0009_landed_cost.sql`, `app_inventory::landed_cost`,
+and the store, service and screens above them.
+
+**The basis is on the charge, not on the document.** One column further down
+than the paragraph above says, and deliberately. Freight is charged by weight,
+duty and insurance by value, and a customs clearance fee by the number of
+cartons. A document holding all three with one basis would make two of them
+wrong, and the question this section exists to keep answerable — *why is this
+unit 4.12 and that one 4.09* — needs the basis each charge was actually spread
+on, not the one the document happened to carry.
+
+**Freight is a second column beside the layer's value, not an edit of it.**
+`valuation_layers.additional_value`. `unit_cost` and `value` stay what the
+supplier charged; what stock is worth is `value + additional_value`, and a unit
+of it is that over `quantity`. Keeping them apart is what makes *was this unit
+dear because we paid too much or because it came by air* a question with an
+answer. A layer nothing was landed on returns its stored `unit_cost` untouched,
+so no existing layer moves by a rounding digit.
+
+**Capitalising is only half of it.** Freight arriving six weeks after the goods
+is partly freight on goods that have been sold. The share is split by
+`remaining / quantity`: the part on stock still held raises the layer, the rest
+is a cost of sales that was understated when it went out. Capitalising the whole
+of it would put value on stock that is not there — which is the half most
+systems in this market leave out, and the reason `consume_fifo` costs an issue
+at `effective_unit_cost()` rather than at the supplier's price.
+
+`expensed` is *subtracted* from the share rather than computed a second time, so
+the two halves add back exactly; a row-local CHECK says so, as does the
+document-level one that refuses a posted total that is not `capitalised +
+expensed`.
+
+**The arithmetic is kept, never recomputed.** An allocation row is derivable at
+the moment of posting and never again: the basis it was computed from is the
+receipt as it stood, and a receipt's own value moves when a bill posts a price
+difference against it (§6.5). Recomputing later answers a different question
+than the one that was posted.
+
+**The shares add up.** `Money::allocate` — largest remainder, exact sum, ties by
+position — rather than a proportion per line. A penny lost between the stock
+ledger and the stock account is a penny somebody reconciles for ever, which is
+what §6.7 exists to avoid. The journal splits its stock and cost-of-sales legs
+by the account each item resolves to, for the same reason.
+
+**A posted landed cost is not editable**, per §6.3. It is corrected by a second
+one against the same delivery carrying a negative charge.
+
+Under average costing the item's own `cost` is rebased as well: the layer's
+`additional_value` is the whole answer under FIFO, but average valuation reads
+`items.cost`, and freight that never reached it would sit in the stock account
+with nothing in the stock ledger to match. A standard cost is left alone — a
+standard that drifted with the freight bill would not be a standard.
 
 ### 6.3 Posted transactions stay editable
 

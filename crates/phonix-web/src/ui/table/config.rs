@@ -44,6 +44,7 @@ pub mod invoices;
 pub mod item_categories;
 pub mod items;
 pub mod job_positions;
+pub mod landed_costs;
 pub mod journals;
 pub mod numbering;
 pub mod parties;

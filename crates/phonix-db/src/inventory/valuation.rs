@@ -8,6 +8,13 @@
 //! category's removal strategy, decided in SQL rather than in the caller so the
 //! `LIMIT` can stay on the query.
 //!
+//! # A layer's cost is `value + additional_value`, never `unit_cost`
+//!
+//! `unit_cost` is what the supplier charged and stays that. Freight landed on
+//! the layer afterwards is a second column beside it - ADR 0006 section 6.2 and
+//! `inventory` migration 0009. Every query in this file that asks what stock is
+//! worth adds the two, and this is the only file that reads either.
+//!
 //! # A consumption is written, never inferred
 //!
 //! Decrementing `remaining` alone would leave "these forty went out at 2.15" as
@@ -64,6 +71,7 @@ pub async fn open_layers(
         "SELECT l.id, l.move_id, l.variant_id,
                 l.quantity::text AS quantity, l.remaining::text AS remaining,
                 l.unit_cost::text AS unit_cost, l.value::text AS value,
+                l.additional_value::text AS additional_value,
                 l.created_at
            FROM inventory.valuation_layers l
            LEFT JOIN inventory.lots lt ON lt.id = l.lot_id
@@ -83,6 +91,7 @@ pub async fn open_layers(
             let remaining: String = row.try_get("remaining")?;
             let unit_cost: String = row.try_get("unit_cost")?;
             let value: String = row.try_get("value")?;
+            let landed: String = row.try_get("additional_value")?;
 
             Ok(Layer {
                 id: row.try_get("id")?,
@@ -92,6 +101,11 @@ pub async fn open_layers(
                 remaining: read_quantity(&remaining, "valuation_layers.remaining")?,
                 unit_cost: read_money(&unit_cost, currency, "valuation_layers.unit_cost")?,
                 value: read_money(&value, currency, "valuation_layers.value")?,
+                additional_value: read_money(
+                    &landed,
+                    currency,
+                    "valuation_layers.additional_value",
+                )?,
                 created_at: row.try_get("created_at")?,
             })
         })
@@ -165,6 +179,31 @@ pub async fn consume(
     Ok(())
 }
 
+/// Capitalise a landed cost onto one layer.
+///
+/// A delta rather than an absolute, for the reason an order's received quantity
+/// is: two landed costs against the same delivery in the same minute both have
+/// to count. The CHECK on the column is what refuses one that would take the
+/// layer below nothing.
+pub async fn add_landed_value(
+    conn: &mut PgConnection,
+    layer_id: Uuid,
+    amount: Money,
+) -> Result<(), DbError> {
+    sqlx::query(
+        "UPDATE inventory.valuation_layers
+            SET additional_value = additional_value + $2::numeric
+          WHERE id = $1",
+    )
+    .bind(layer_id)
+    .bind(amount.to_storage_string())
+    .execute(conn)
+    .await
+    .map_err(DbError::Query)?;
+
+    Ok(())
+}
+
 /// What the workspace holds in stock, at what its costing method says.
 ///
 /// The number a stock account is reconciled against - ADR 0006 section 6.7,
@@ -179,7 +218,7 @@ where
     let raw: String = sqlx::query_scalar(
         "SELECT COALESCE(sum(
                     l.remaining * CASE WHEN c.costing_method = 'fifo'
-                                       THEN l.unit_cost
+                                       THEN (l.value + l.additional_value) / l.quantity
                                        ELSE i.cost END
                 ), 0)::numeric(19, 4)::text
            FROM inventory.valuation_layers l

@@ -21,6 +21,9 @@
 //! /inventory/bills/new            a form. `?order=<id>` bills what one owes
 //! /inventory/bills/:id            the editor while draft, the document after
 //! /inventory/unbilled             received not billed, by age
+//! /inventory/landed-costs         freight and duty, and where it landed
+//! /inventory/landed-costs/new     a form. `?receipt=<id>` opens it against one
+//! /inventory/landed-costs/:id     the editor while draft, the document after
 //! /inventory/receipts             what arrived, and what it was worth
 //! /inventory/receipts/new         a form. `?order=<id>` opens it against one
 //! /inventory/receipts/:id         the tally while draft, the document after
@@ -45,6 +48,7 @@ pub mod home;
 pub mod item;
 pub mod item_categories;
 pub mod items;
+pub mod landed_cost;
 pub mod pictures;
 pub mod receipt;
 pub mod requisition;

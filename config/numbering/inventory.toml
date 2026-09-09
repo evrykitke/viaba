@@ -113,3 +113,17 @@ label    = "inventory.doc_type.consolidation"
 mask     = "CON-{YYYY}-#####"
 reset    = "fiscal_year"
 start_at = 1
+
+[[series]]
+doc_type = "landed_cost"
+label    = "inventory.doc_type.landed_cost"
+
+# `LC-{YYYY}-#####`. Allocated at post, like everything else here: a draft
+# somebody keyed while waiting for the freight invoice and then abandoned must
+# not leave a hole.
+#
+# Not the carrier's invoice number. The freight bill is an ordinary bill with
+# its own series; this is the document that decides which cartons carried it.
+mask     = "LC-{YYYY}-#####"
+reset    = "fiscal_year"
+start_at = 1

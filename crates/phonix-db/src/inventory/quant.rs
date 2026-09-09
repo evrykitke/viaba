@@ -196,7 +196,8 @@ where
          ),
          layer_cost AS (
              SELECT variant_id,
-                    sum(remaining * unit_cost) / sum(remaining) AS unit_cost
+                    sum(remaining * (value + additional_value) / quantity)
+                        / sum(remaining) AS unit_cost
                FROM inventory.valuation_layers
               WHERE remaining > 0
               GROUP BY variant_id

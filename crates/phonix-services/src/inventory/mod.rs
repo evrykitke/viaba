@@ -24,6 +24,7 @@ pub mod bill;
 pub mod category;
 pub mod consolidation;
 pub mod item;
+pub mod landed_cost;
 pub mod location;
 pub mod purchase;
 pub mod receipt;

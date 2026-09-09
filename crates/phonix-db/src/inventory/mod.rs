@@ -27,6 +27,7 @@ pub mod defaults;
 pub mod image;
 pub mod bill;
 pub mod item;
+pub mod landed_cost;
 pub mod location;
 pub mod lot;
 pub mod movement;

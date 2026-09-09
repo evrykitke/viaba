@@ -31,8 +31,8 @@ use crate::components::page::{Badge, GhostButton, Notice, PageHeader, Panel, Pri
 use crate::icons::Icon;
 use crate::l;
 use crate::server_fns::inventory_fns::{
-    cancel_receipt, pickable_variants, post_receipt, receipt_against_order, receipt_detail,
-    save_receipt, selectable_warehouses,
+    cancel_receipt, landed_costs_for_receipt, landed_on_receipt, pickable_variants,
+    post_receipt, receipt_against_order, receipt_detail, save_receipt, selectable_warehouses,
 };
 use crate::server_fns::master_fns::list_parties;
 use crate::ui::alert::{Alert, Alerts, Confirm};
@@ -781,6 +781,7 @@ fn receipt_document(receipt: Receipt) -> impl IntoView {
     let value = receipt.value.to_display_string();
     let currency = receipt.value.currency().code().to_owned();
     let lines = receipt.lines.clone();
+    let posted = receipt.state.is_posted();
 
     view! {
         <div class="space-y-3">
@@ -929,9 +930,185 @@ fn receipt_document(receipt: Receipt) -> impl IntoView {
                 </Panel>
             </div>
 
+            {posted.then(|| view! { <LandedCosts receipt_id=id /> })}
+
             <Panel title=l!("common.history")>
                 <RecordHistory kind=kinds::RECEIPT id=Some(id.to_string()) />
             </Panel>
         </div>
+    }
+}
+
+/// What freight and duty have been landed on this delivery, and the way to add
+/// more.
+///
+/// On the receipt rather than only on its own screen: the person holding the
+/// carrier's invoice reached the delivery first, and asking them to find it
+/// again from a menu is how freight ends up uncapitalised. ADR 0006 section
+/// 6.2.
+#[component]
+fn landed_costs(receipt_id: Uuid) -> impl IntoView {
+    let rows = Resource::new(
+        move || receipt_id,
+        |id| async move { landed_costs_for_receipt(id).await.unwrap_or_default() },
+    );
+
+    // The sum comes from `inventory.receipt_landed_cost` rather than from
+    // adding the rows above: that view counts posted documents only, and a
+    // draft sitting in the list has changed nothing yet.
+    let landed = Resource::new(
+        move || receipt_id,
+        |id| async move { landed_on_receipt(id).await.ok().flatten() },
+    );
+
+    let viewer = crate::ui::viewer::Viewer::get();
+    let may_add = move || {
+        viewer.with(|user| {
+            user.as_ref()
+                .is_some_and(|user| user.can(phonix_core::permissions::LANDED_COSTS_CREATE))
+        })
+    };
+    let href = format!("/inventory/landed-costs/new?receipt={receipt_id}");
+
+    view! {
+        <Panel title=l!("landed_costs.title") description=l!("receipts.landed.help")>
+            <Transition fallback=|| {
+                view! { <p class="text-sm text-content-subtle">{l!("common.loading")}</p> }
+            }>
+                {move || Suspend::new(async move {
+                    let rows = rows.await;
+
+                    if rows.is_empty() {
+                        return view! {
+                            <p class="text-sm text-content-subtle">
+                                {l!("receipts.landed.empty")}
+                            </p>
+                        }
+                            .into_any();
+                    }
+
+                    view! {
+                        <div class="overflow-x-auto">
+                            <table class="w-full min-w-[32rem] text-sm">
+                                <thead>
+                                    <tr class="border-b border-edge text-left text-xs text-content-muted">
+                                        <th class="py-2 font-medium">{l!("field.number")}</th>
+                                        <th class="py-2 font-medium">{l!("landed_costs.dated")}</th>
+                                        <th class="py-2 font-medium">{l!("field.status")}</th>
+                                        <th class="py-2 text-right font-medium">
+                                            {l!("landed_costs.capitalised")}
+                                        </th>
+                                        <th class="py-2 text-right font-medium">
+                                            {l!("landed_costs.total")}
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {rows
+                                        .into_iter()
+                                        .map(|row| {
+                                            let open = format!("/inventory/landed-costs/{}", row.id);
+                                            let label = if row.number.is_empty() {
+                                                l!("landed_costs.state.draft")
+                                            } else {
+                                                row.number.clone()
+                                            };
+                                            let tone = match row.state {
+                                                app_inventory::landed_cost::LandedCostState::Draft => {
+                                                    Tone::Neutral
+                                                }
+                                                app_inventory::landed_cost::LandedCostState::Done => {
+                                                    Tone::Success
+                                                }
+                                                _ => Tone::Warning,
+                                            };
+
+                                            view! {
+                                                <tr class="border-b border-edge/60">
+                                                    <td class="py-1.5">
+                                                        <leptos_router::components::A
+                                                            href=open
+                                                            attr:class="font-mono text-xs text-accent hover:underline"
+                                                        >
+                                                            {label}
+                                                        </leptos_router::components::A>
+                                                    </td>
+                                                    <td class="py-1.5 tabular-nums text-content-muted">
+                                                        {row.cost_date.to_string()}
+                                                    </td>
+                                                    <td class="py-1.5">
+                                                        <Badge
+                                                            label=crate::i18n::t(&row.state.label())
+                                                            tone=tone
+                                                        />
+                                                    </td>
+                                                    <td class="py-1.5 text-right tabular-nums text-content-muted">
+                                                        {row.capitalised.to_display_string()}
+                                                    </td>
+                                                    <td class="py-1.5 text-right tabular-nums text-content">
+                                                        {row.total.to_display_string()}
+                                                    </td>
+                                                </tr>
+                                            }
+                                        })
+                                        .collect_view()}
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                        .into_any()
+                })}
+            </Transition>
+
+            <Transition fallback=|| ()>
+                {move || Suspend::new(async move {
+                    landed
+                        .await
+                        .map(|landed| {
+                            let total = landed.total.to_display_string();
+                            let capitalised = landed.capitalised.to_display_string();
+                            let expensed = landed.expensed.to_display_string();
+                            let split = !landed.expensed.is_zero();
+
+                            view! {
+                                <dl class="mt-2 space-y-1 border-t border-edge pt-2 text-sm tabular-nums">
+                                    <div class="flex justify-between gap-4">
+                                        <dt class="text-content-muted">
+                                            {l!("landed_costs.capitalised")}
+                                        </dt>
+                                        <dd class="text-content">{capitalised}</dd>
+                                    </div>
+                                    {split
+                                        .then(|| {
+                                            view! {
+                                                <div class="flex justify-between gap-4">
+                                                    <dt class="text-content-muted">
+                                                        {l!("landed_costs.expensed")}
+                                                    </dt>
+                                                    <dd class="text-warning">{expensed}</dd>
+                                                </div>
+                                            }
+                                        })}
+                                    <div class="flex justify-between gap-4 font-medium">
+                                        <dt class="text-content">{l!("receipts.landed.total")}</dt>
+                                        <dd class="text-content">{total}</dd>
+                                    </div>
+                                </dl>
+                            }
+                        })
+                })}
+            </Transition>
+
+            <Show when=may_add fallback=|| ()>
+                <div class="mt-2">
+                    <leptos_router::components::A
+                        href=href.clone()
+                        attr:class="text-xs text-accent hover:underline"
+                    >
+                        {l!("receipts.landed.add")}
+                    </leptos_router::components::A>
+                </div>
+            </Show>
+        </Panel>
     }
 }

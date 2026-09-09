@@ -433,6 +433,16 @@ pub mod kinds {
         singleton: false,
     };
 
+    /// A landed cost. Recorded because posting one changes what stock on the
+    /// shelf is worth, and the delivery it names does not say who decided that.
+    pub const LANDED_COST: EntityKind = EntityKind {
+        name: "landed_cost",
+        singular_key: "entity.landed_cost.singular",
+        plural_key: "entity.landed_cost.plural",
+        href: Some("/inventory/landed-costs/{id}"),
+        singleton: false,
+    };
+
     pub const RECEIPT: EntityKind = EntityKind {
         name: "goods_receipt",
         singular_key: "entity.goods_receipt.singular",
@@ -526,6 +536,7 @@ pub const ENTITY_KINDS: &[EntityKind] = &[
     kinds::PURCHASE_ORDER,
     kinds::BILL,
     kinds::RECEIPT,
+    kinds::LANDED_COST,
     kinds::UNIT_OF_MEASURE,
 ];
 

@@ -387,6 +387,30 @@ pub async fn update(
     Ok(true)
 }
 
+/// The standing cost alone, for arithmetic that has to add to it.
+///
+/// What a landed cost reads before rebasing an average - the whole item row is
+/// a form's worth of columns to answer one number.
+pub async fn cost_of<'e, E>(
+    executor: E,
+    id: Uuid,
+    currency: Currency,
+) -> Result<Option<Money>, DbError>
+where
+    E: PgExecutor<'e>,
+{
+    let raw: Option<String> =
+        sqlx::query_scalar("SELECT i.cost::text FROM inventory.items i WHERE i.id = $1")
+            .bind(id)
+            .fetch_optional(executor)
+            .await
+            .map_err(DbError::Query)?;
+
+    raw.map(|raw| read_money(&raw, currency, "cost"))
+        .transpose()
+        .map_err(DbError::Query)
+}
+
 /// Write a new standing cost, without touching anything else.
 ///
 /// What a receipt does under average costing, in the same transaction as the

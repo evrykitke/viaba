@@ -220,6 +220,17 @@ pub static MENU: &[NavNode] = &[
                     "invoice", "supplier invoice", "payable", "ap", "three-way match",
                     "grni", "accrual", "variance",
                 ]),
+            NavNode::leaf(
+                "landed_costs",
+                "nav.landed_costs",
+                Icon::Truck,
+                "/inventory/landed-costs",
+            )
+            .require(names::LANDED_COSTS)
+            .keywords(&[
+                "freight", "duty", "customs", "shipping", "handling", "insurance",
+                "carriage", "landed", "capitalise",
+            ]),
             // Stock sits above the setup screens: what is on the shelf is
             // what somebody opens this app to find out, and the location tree
             // is what they arranged once in March.

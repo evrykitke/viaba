@@ -261,6 +261,27 @@ SELECT i.id, i.code, TRUE
  WHERE i.code LIKE 'SAMPLE-%'
    AND NOT EXISTS (SELECT 1 FROM item_variants v WHERE v.item_id = i.id);
 
+-- What the items weigh, so freight has something to spread on.
+--
+-- A weight is master data, not a ledger fact, so a seed script may write it.
+-- Without it every landed cost falls back to value or quantity, and the basis
+-- a carrier actually charges on could not be demonstrated at all - ADR 0006
+-- section 6.2. Per stock unit: a box of a hundred gloves, one otoscope.
+--
+-- The otoscope is deliberately left unweighed. An item nobody weighed gets no
+-- share of a freight charge rather than a share of zero, and that is a case
+-- worth being able to see on the screen.
+
+UPDATE items SET weight_grams = v.grams
+  FROM (VALUES
+        ('SAMPLE-GLOVE-M', 1200),
+        ('SAMPLE-SYRINGE-5', 450),
+        ('SAMPLE-WIPE-70', 180),
+        ('SAMPLE-THERM-01', 320)
+       ) AS v(code, grams)
+ WHERE lower(items.code) = lower(v.code)
+   AND items.weight_grams IS DISTINCT FROM v.grams;
+
 -- ---------------------------------------------------------------------------
 -- A purchase order, left as a draft
 -- ---------------------------------------------------------------------------
@@ -720,6 +741,39 @@ COMMIT;
 --          accepted - the uniqueness is per supplier, because two suppliers
 --          numbering their invoices from one is not a duplicate.
 --
+--  12. Inventory > Goods receipts > MMS-DN-55130, and the "Landed costs"
+--      panel at the foot of it. Land a cost on this delivery. Key two
+--      charges against the one delivery:
+--
+--        Sea freight        Weight   420.00
+--        Customs duty       Value     96.00
+--
+--      Two bases on one document, which is the departure from the ADR's
+--      wording that section 6.2's note explains: the carrier charged by the
+--      kilo and the customs agent by the invoice value, and one basis for
+--      both would make one of them wrong.
+--
+--      The panel above the charges shows what the freight will land on -
+--      the delivery's lines, and how much of each is STILL HERE. Post it and
+--      expect:
+--
+--        * an LC- number, drawn at post like every other document here;
+--        * "Where it went": one row per charge per line, the freight split by
+--          weight and the duty by value, and each set of shares adding back
+--          to its charge to the penny;
+--        * the otoscope carrying none of the freight - it has no weight on
+--          file - but its share of the duty, which goes by value;
+--        * a journal debiting stock and crediting landed cost absorbed.
+--
+--      Then issue some stock and land a second cost on the same delivery.
+--      The part belonging to units that have gone shows as TO COST OF SALES
+--      rather than being capitalised onto stock that is not there - which is
+--      the half of landed cost that most systems leave out.
+--
+--      To correct one: a posted landed cost is not editable. Raise a second
+--      against the same delivery with a NEGATIVE charge, which is how every
+--      other posted document here is corrected.
+--
 -- WHAT SHOULD BE TRUE AFTERWARDS
 --
 -- The first query is the one that matters: it is the schema proving its own
@@ -748,6 +802,22 @@ COMMIT;
 --
 -- And the accounting side, which is the point of all of it: inventory debited
 -- and goods-received-not-invoiced credited, by the same amount, once per line.
+--
+--   -- What was landed, and how it split. Capitalised plus expensed is the
+--   -- total, always: the CHECK on the row says so.
+--   SELECT c.number, c.receipt_number, c.total, c.capitalised, c.expensed
+--     FROM inventory.landed_costs c
+--    WHERE c.state = 'done'
+--    ORDER BY c.cost_date;
+--
+--   -- What a layer is worth now. `value` is what the supplier charged and
+--   -- never moves; `additional_value` is everything landed on it since.
+--   SELECT v.code, l.quantity, l.remaining, l.value, l.additional_value,
+--          (l.value + l.additional_value) / l.quantity AS effective_unit_cost
+--     FROM inventory.valuation_layers l
+--     JOIN inventory.item_variants v ON v.id = l.variant_id
+--    WHERE l.additional_value <> 0
+--    ORDER BY v.code;
 --
 --   SELECT j.number, j.narration, a.number AS account, jl.side, jl.amount
 --     FROM books.journal_lines jl

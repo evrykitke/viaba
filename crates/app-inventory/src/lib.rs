@@ -67,6 +67,7 @@ pub mod category;
 pub mod defaults;
 pub mod image;
 pub mod item;
+pub mod landed_cost;
 pub mod location;
 pub mod lot;
 pub mod movement;
@@ -98,6 +99,7 @@ pub const INTERNAL_TRANSFER: &str = "internal_transfer";
 pub const ADJUSTMENT: &str = "adjustment";
 pub const REQUISITION: &str = "requisition";
 pub const CONSOLIDATION: &str = "consolidation";
+pub const LANDED_COST: &str = "landed_cost";
 
 /// What this app needs before it is useful, checked on its home page.
 ///
@@ -136,6 +138,10 @@ pub use category::{Category, CategoryInput, CategorySummary, CostingMethod, Remo
 pub use image::{Gallery, Image};
 pub use bill::{Bill, BillInput, BillLine, BillState, BillSummary, MatchGrade};
 pub use item::{Item, ItemInput, ItemKind, ItemSummary, Tracking};
+pub use landed_cost::{
+    AllocationBasis, LandedCost, LandedCostInput, LandedCostState, LandedCostSummary,
+    ReceiptLandedCost,
+};
 pub use location::{Location, LocationInput, LocationKind, LocationSummary, MoveKind};
 pub use lot::{Lot, LotInput, LotSummary};
 pub use movement::{JournalOutcome, MoveRequest, MoveState, MoveSummary, StockMove};
