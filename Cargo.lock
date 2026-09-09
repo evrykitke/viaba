@@ -163,6 +163,7 @@ dependencies = [
 name = "app-hr"
 version = "0.1.0"
 dependencies = [
+ "chrono",
  "phonix-core",
  "phonix-ports",
  "serde",

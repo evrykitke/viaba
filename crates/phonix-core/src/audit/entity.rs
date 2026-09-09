@@ -274,6 +274,43 @@ pub mod kinds {
         singleton: false,
     };
 
+    /// A person, and their employment.
+    ///
+    /// The trail matters more here than on most rows in this codebase, because
+    /// the record is about somebody rather than about a thing: who changed a
+    /// leaving date, who gave a person a login, and who moved them between
+    /// departments are all questions with a person on the other end of them.
+    ///
+    /// Every dated act - hiring, moving, leaving, rehiring - is recorded
+    /// against this one kind rather than against the engagement or the
+    /// assignment, so one screen shows the whole of somebody's history in the
+    /// order it happened.
+    pub const EMPLOYEE: EntityKind = EntityKind {
+        name: "employee",
+        singular_key: "entity.employee.singular",
+        plural_key: "entity.employee.plural",
+        href: Some("/people/employees/{id}"),
+        singleton: false,
+    };
+
+    /// A role the organization is made of.
+    pub const JOB_POSITION: EntityKind = EntityKind {
+        name: "job_position",
+        singular_key: "entity.job_position.singular",
+        plural_key: "entity.job_position.plural",
+        href: Some("/people/roles/{id}"),
+        singleton: false,
+    };
+
+    /// A place people work.
+    pub const WORK_LOCATION: EntityKind = EntityKind {
+        name: "work_location",
+        singular_key: "entity.work_location.singular",
+        plural_key: "entity.work_location.plural",
+        href: Some("/people/places/{id}"),
+        singleton: false,
+    };
+
     /// An item: what the workspace stocks, buys and sells.
     ///
     /// Its `tracking` and its stock unit are the fields worth a trail. Both are
@@ -476,6 +513,9 @@ pub const ENTITY_KINDS: &[EntityKind] = &[
     kinds::JOURNAL,
     kinds::PERIOD,
     kinds::DEPARTMENT,
+    kinds::EMPLOYEE,
+    kinds::JOB_POSITION,
+    kinds::WORK_LOCATION,
     kinds::ITEM,
     kinds::ITEM_CATEGORY,
     kinds::WAREHOUSE,

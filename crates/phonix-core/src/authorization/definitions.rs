@@ -95,6 +95,17 @@ pub mod names {
 
     pub const PEOPLE: &str = "Pages.People";
 
+    pub const EMPLOYEES: &str = "Pages.People.Employees";
+    pub const EMPLOYEES_MANAGE: &str = "Pages.People.Employees.Manage";
+    pub const EMPLOYEES_PERSONAL: &str = "Pages.People.Employees.Personal";
+    pub const EMPLOYEES_INVITE: &str = "Pages.People.Employees.Invite";
+
+    pub const JOB_POSITIONS: &str = "Pages.People.JobPositions";
+    pub const JOB_POSITIONS_MANAGE: &str = "Pages.People.JobPositions.Manage";
+
+    pub const WORK_LOCATIONS: &str = "Pages.People.WorkLocations";
+    pub const WORK_LOCATIONS_MANAGE: &str = "Pages.People.WorkLocations.Manage";
+
     pub const DEPARTMENTS: &str = "Pages.People.Departments";
     pub const DEPARTMENTS_CREATE: &str = "Pages.People.Departments.Create";
     pub const DEPARTMENTS_EDIT: &str = "Pages.People.Departments.Edit";
@@ -758,6 +769,83 @@ pub const DEFINITIONS: &[PermissionDefinition] = &[
         display_name: "People",
         description: Some("Reach the people area."),
         parent: Some(names::PAGES),
+        default_for_user: false,
+    },
+    PermissionDefinition {
+        name: names::EMPLOYEES,
+        display_name: "People",
+        description: Some("See who works here and what they do."),
+        parent: Some(names::PEOPLE),
+        default_for_user: false,
+    },
+    PermissionDefinition {
+        name: names::EMPLOYEES_MANAGE,
+        display_name: "Manage people",
+        // One permission for hiring, moving and recording a leaver. They are
+        // the same person's job, and a grant that let somebody add an employee
+        // but not move them would leave the record wrong the first time
+        // anybody changed desks.
+        description: Some(
+            "Add somebody, move them between departments, and record a leaver.",
+        ),
+        parent: Some(names::EMPLOYEES),
+        default_for_user: false,
+    },
+    PermissionDefinition {
+        name: names::EMPLOYEES_PERSONAL,
+        display_name: "See personal details",
+        // Split from the rest, and the only permission in this app that is.
+        // A rota, an org chart and a headcount report all need to know who
+        // works here; none of them needs a date of birth or a national
+        // identifier, and the difference between the two is what a data
+        // protection officer asks about first.
+        description: Some(
+            "Date of birth and national identifier. Separated from the rest because most \
+             screens that name a person do not need them.",
+        ),
+        parent: Some(names::EMPLOYEES),
+        default_for_user: false,
+    },
+    PermissionDefinition {
+        name: names::EMPLOYEES_INVITE,
+        display_name: "Create logins",
+        // Deliberately NOT implied by managing people. Adding somebody to the
+        // staff list is an HR act; giving them a way into the accounting system
+        // is a security one, and the service requires `Users.Create` as well -
+        // so this permission alone grants nothing.
+        description: Some(
+            "Invite an employee to sign in. Needs the permission to create users as well, so \
+             this on its own grants no access.",
+        ),
+        parent: Some(names::EMPLOYEES),
+        default_for_user: false,
+    },
+    PermissionDefinition {
+        name: names::JOB_POSITIONS,
+        display_name: "Roles",
+        description: Some("See the roles the organization is made of."),
+        parent: Some(names::PEOPLE),
+        default_for_user: false,
+    },
+    PermissionDefinition {
+        name: names::JOB_POSITIONS_MANAGE,
+        display_name: "Manage roles",
+        description: Some("Define a role and the department it belongs to."),
+        parent: Some(names::JOB_POSITIONS),
+        default_for_user: false,
+    },
+    PermissionDefinition {
+        name: names::WORK_LOCATIONS,
+        display_name: "Places",
+        description: Some("See where people work."),
+        parent: Some(names::PEOPLE),
+        default_for_user: false,
+    },
+    PermissionDefinition {
+        name: names::WORK_LOCATIONS_MANAGE,
+        display_name: "Manage places",
+        description: Some("Define a place people work at."),
+        parent: Some(names::WORK_LOCATIONS),
         default_for_user: false,
     },
     PermissionDefinition {

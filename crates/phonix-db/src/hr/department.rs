@@ -21,13 +21,7 @@ const CODE_INDEX: &str = "departments_code_key";
 /// by a typed code that is taken, and by an allocator whose `start_at` was
 /// edited backwards.
 fn as_code_conflict(err: sqlx::Error, code: &str) -> DbError {
-    match &err {
-        sqlx::Error::Database(db) if db.constraint() == Some(CODE_INDEX) => DbError::CodeExists {
-            entity: "department",
-            code: code.to_owned(),
-        },
-        _ => DbError::Query(err),
-    }
+    super::code_conflict(err, "department", CODE_INDEX, code)
 }
 
 impl<'r> FromRow<'r, sqlx::postgres::PgRow> for RowOf<Department> {

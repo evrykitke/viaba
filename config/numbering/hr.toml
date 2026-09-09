@@ -17,3 +17,32 @@ label    = "hr.doc_type.department"
 mask     = "DEPT-###"
 reset    = "never"
 start_at = 1
+
+[[series]]
+doc_type = "employee"
+label    = "hr.doc_type.employee"
+
+# `EMP-####` renders `EMP-0042`. No reset, for the reason a department's code
+# has none: an employee number outlives everything else about the record - a
+# rename, a rehire, a change of legal name - and it is what a payroll export and
+# a pension scheme cite. Two people sharing one because the year rolled over
+# would be two people sharing a pension.
+mask     = "EMP-####"
+reset    = "never"
+start_at = 1
+
+[[series]]
+doc_type = "job_position"
+label    = "hr.doc_type.job_position"
+
+mask     = "JOB-###"
+reset    = "never"
+start_at = 1
+
+[[series]]
+doc_type = "work_location"
+label    = "hr.doc_type.work_location"
+
+mask     = "LOC-###"
+reset    = "never"
+start_at = 1
