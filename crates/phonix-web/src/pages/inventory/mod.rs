@@ -11,6 +11,9 @@
 //! /inventory/warehouses           the list
 //! /inventory/warehouses/new       a form
 //! /inventory/warehouses/:id       Details | History
+//! /inventory/requisitions         what departments have asked for
+//! /inventory/requisitions/new     a form
+//! /inventory/requisitions/:id     the editor while draft, the document after
 //! /inventory/orders               what has been ordered, and what is owed
 //! /inventory/orders/new           a form
 //! /inventory/orders/:id           the editor while draft, the document after
@@ -43,6 +46,7 @@ pub mod item_categories;
 pub mod items;
 pub mod pictures;
 pub mod receipt;
+pub mod requisition;
 pub mod procurement;
 pub mod purchase_order;
 pub mod stock;

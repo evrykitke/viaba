@@ -83,3 +83,18 @@ label    = "inventory.doc_type.adjustment"
 mask     = "ADJ-{YYYY}-#####"
 reset    = "fiscal_year"
 start_at = 1
+
+[[series]]
+doc_type = "requisition"
+label    = "inventory.doc_type.requisition"
+
+# `REQ-{YYYY}-#####`. Allocated at SUBMIT, not at create - the same rule the
+# purchase order applies at confirm and the receipt at post, and for the same
+# reason: a draft somebody abandoned must not leave a hole in a series.
+#
+# A rejected or withdrawn requisition KEEPS its number. Somebody was quoted it,
+# and a series that hands a number back once a request is turned down is one
+# nobody can cite.
+mask     = "REQ-{YYYY}-#####"
+reset    = "fiscal_year"
+start_at = 1

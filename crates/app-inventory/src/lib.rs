@@ -39,6 +39,7 @@
 //!   valuation    what it cost, and what leaves the stock account.
 //!   purchase     the commitment: what was ordered, and what is still owed.
 //!   receipt      goods arriving, which is where value enters the business.
+//!   requisition  a department asking. A request, and never a commitment.
 //! ```
 //!
 //! Compiled to wasm, so this crate may not panic.
@@ -72,6 +73,7 @@ pub mod purchase;
 pub mod quant;
 pub mod quantity;
 pub mod receipt;
+pub mod requisition;
 pub mod unit;
 pub mod valuation;
 pub mod variant;
@@ -93,6 +95,7 @@ pub const RECEIPT: &str = "receipt";
 pub const DELIVERY: &str = "delivery";
 pub const INTERNAL_TRANSFER: &str = "internal_transfer";
 pub const ADJUSTMENT: &str = "adjustment";
+pub const REQUISITION: &str = "requisition";
 
 /// What this app needs before it is useful, checked on its home page.
 ///
@@ -138,6 +141,10 @@ pub use purchase::{OrderInput, OrderLine, OrderState, OrderSummary, PurchaseOrde
 pub use quant::{OnHandRow, Quant};
 pub use quantity::Quantity;
 pub use receipt::{Backorder, Receipt, ReceiptInput, ReceiptLine, ReceiptSummary};
+pub use requisition::{
+    OrderProgress, Requisition, RequisitionInput, RequisitionLine, RequisitionState,
+    RequisitionSummary,
+};
 pub use unit::{Conversion, Unit, UnitClass, UnitInput};
 pub use valuation::{Consumed, Issue, Layer};
 pub use variant::{Attribute, AttributeValue, Selection, Variant, VariantChoice, VariantSummary};

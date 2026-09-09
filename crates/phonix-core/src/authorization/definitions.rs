@@ -30,6 +30,8 @@
 //!  |   |   +- .Manage
 //!  |   +- Pages.Inventory.Stock
 //!  |   |   +- .Adjust
+//!  |   +- Pages.Inventory.Requisitions
+//!  |   |   +- .Create  .Decide
 //!  |   +- Pages.Inventory.PurchaseOrders
 //!  |   |   +- .Create  .Edit  .Confirm  .Cancel
 //!  |   +- Pages.Inventory.Receipts
@@ -116,6 +118,10 @@ pub mod names {
 
     pub const STOCK: &str = "Pages.Inventory.Stock";
     pub const STOCK_ADJUST: &str = "Pages.Inventory.Stock.Adjust";
+
+    pub const REQUISITIONS: &str = "Pages.Inventory.Requisitions";
+    pub const REQUISITIONS_CREATE: &str = "Pages.Inventory.Requisitions.Create";
+    pub const REQUISITIONS_DECIDE: &str = "Pages.Inventory.Requisitions.Decide";
 
     pub const PURCHASE_ORDERS: &str = "Pages.Inventory.PurchaseOrders";
     pub const PURCHASE_ORDERS_CREATE: &str = "Pages.Inventory.PurchaseOrders.Create";
@@ -550,6 +556,38 @@ pub const DEFINITIONS: &[PermissionDefinition] = &[
         // the profit and loss.
         description: Some("Write stock off, scrap it, or book in a count difference."),
         parent: Some(names::STOCK),
+        default_for_user: false,
+    },
+    PermissionDefinition {
+        name: names::REQUISITIONS,
+        display_name: "Requisitions",
+        description: Some("See what departments have asked for."),
+        parent: Some(names::INVENTORY),
+        default_for_user: false,
+    },
+    PermissionDefinition {
+        name: names::REQUISITIONS_CREATE,
+        display_name: "Raise",
+        // Granted rather than assumed. An earlier version defaulted this on, on
+        // the grounds that a requisition commits nothing; that was overruled.
+        // Raising one starts a piece of work for an approver and a buyer, and a
+        // queue anybody can add to is a queue nobody can plan.
+        description: Some("Ask for something, and edit the request until it is submitted."),
+        parent: Some(names::REQUISITIONS),
+        default_for_user: false,
+    },
+    PermissionDefinition {
+        name: names::REQUISITIONS_DECIDE,
+        display_name: "Approve",
+        // And the narrow one beside it. Approving is what lets an order be
+        // raised, so this is the first point on the chain where somebody's
+        // decision costs money - even though the document itself still posts
+        // nothing.
+        description: Some(
+            "Answer a submitted requisition, either way. Approving is what lets an order be \
+             raised against it.",
+        ),
+        parent: Some(names::REQUISITIONS),
         default_for_user: false,
     },
     PermissionDefinition {

@@ -19,9 +19,18 @@ order, the goods receipt and the supplier bill, each with its list, its form and
 its document view. With the bill, 6.5 (the three-way match) holds in code, and
 6.2's landed cost is the only part of the buying side still on paper.
 
-Still specified only — the rest of the **documents** of section 7. Requisition,
-consolidated requisition and transfer. Each of them is a form and a header over
-`stock::apply`, which is the whole reason the ledger came first.
+And now **the requisition**, which is the document *before* the order and the
+first caller of the `CostCentres` port from a document rather than from a
+journal line. It requires a cost centre, which makes Inventory's requisition
+screens depend on the HR app being installed — a knowing departure from the
+spirit of section 2, recorded with its argument in *Asking, as built* under
+section 7.
+
+Still specified only — the rest of the **documents** of section 7. Consolidated
+requisition and transfer. The transfer is a form and a header over
+`stock::apply`, which is the whole reason the ledger came first; the
+consolidated requisition is the one document on the chain that moves no stock at
+all, and what it needs is a link table rather than a movement.
 
 `Stock` is still not declared, as section 2 says it should not be: Books does
 not yet put cost of goods sold on an invoice, and that is the caller the port
@@ -591,6 +600,65 @@ is how the quantity is *valued*: FIFO uses each layer's own cost, and standard
 and average use the item's one number. The average is recomputed on receipt and
 never on issue, so the order two pickers happened to work in cannot change what
 the month cost.
+
+### Asking, as built
+
+The requisition is where the chain starts, and it is the only document on it
+that commits nothing: no supplier, no price, no currency, and nothing that
+reaches the ledger.
+
+**Four fields are required, and each was optional first.** The document was
+built once with all four permissive and every one of them was overruled. They
+are recorded together because the trade is the same each time: a field that may
+be left blank is a field that *is* left blank, and the cost of that lands on
+somebody further down the chain than the person who skipped it. The permissive
+version and the reasoning for it are kept here, because a decision reversed
+without its original argument on the record is one that gets re-argued.
+
+**A cost centre, and therefore the HR app.** This is the `CostCentres` port's
+first caller from a *document* — Books already called it from a journal line —
+and the id is resolved through the port and stored as the port's own answer,
+with the code and name snapshotted beside it. It is `NOT NULL`, which means a
+workspace without the HR app cannot raise a requisition at all.
+
+That is a real dependency between two apps and a departure from the spirit of
+section 2, taken with that understood. The argument against was that
+`NoCostCentres` answers an empty list precisely so a missing provider is an
+answer rather than an outage. The argument that won: "who is paying for this",
+answered at the invoice, is answered by whoever argues least, and a requisition
+that cannot say is the document this one exists to replace.
+
+**An item and a unit on every line.** A line may not merely describe something
+in words. The permissive version allowed it, on the grounds that somebody
+needing a thing the workspace does not stock should not be turned away by a form
+— they describe it, and buying decides what item it becomes. What overruled it
+is that such a line cannot be grouped with anybody else's, cannot be priced, and
+cannot become an order line without somebody retyping it. The workflow cost is
+real and accepted: needing something unstocked is now two steps, the item first
+and the request second. The payoff is that consolidation has one case instead of
+two, and `requisition_demand` can group rather than filter.
+
+**A reason on every decision, approval included.** The first version required
+one only on a rejection, on the grounds that "no" with no reason sends the
+requester back having learned nothing while "yes" explains itself. Overruled: an
+approval nobody had to justify is the one given without being read, and the note
+is what somebody reads a year later when the spend is queried. It is also why
+the decision is a panel on the document rather than a confirm dialog — a yes/no
+dialog cannot carry a reason.
+
+**Raising is granted, not assumed.** `Requisitions.Create` defaulted on in the
+first version, because the document commits nothing and gating the *asking* buys
+no control. Overruled: raising one starts work for an approver and a buyer, and
+a queue anybody can add to is a queue nobody can plan. Both permissions are now
+off by default.
+
+Two things are deliberately absent. There is no journal, because a request that
+moved an account would be a commitment under another name. And there is no
+button to raise an order from an approved requisition yet: an order raised from
+one has to remember *which* requisition lines it satisfied, or
+`requisition_lines.ordered` can never be advanced and the request stays
+not-ordered for ever while the goods arrive. That link table is the consolidated
+requisition's, and the button lands with it.
 
 ### Buying, as built
 

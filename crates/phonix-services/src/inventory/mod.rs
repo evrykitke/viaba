@@ -26,6 +26,7 @@ pub mod item;
 pub mod location;
 pub mod purchase;
 pub mod receipt;
+pub mod requisition;
 pub mod stock;
 pub mod unit;
 pub mod warehouse;

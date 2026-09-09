@@ -174,6 +174,20 @@ pub static MENU: &[NavNode] = &[
             // Buying sits above stock: an order is raised before the goods
             // it brings can be counted, and a buyer opens these two far more
             // often than the location tree they arranged once in March.
+            // First of the four, because it is first on the chain: asked for,
+            // ordered, received, billed. It is also the one entry here that
+            // somebody outside the buying team opens, which is why it leads.
+            NavNode::leaf(
+                "requisitions",
+                "nav.requisitions",
+                Icon::ClipboardList,
+                "/inventory/requisitions",
+            )
+            .require(names::REQUISITIONS)
+            .keywords(&[
+                "request", "ask", "pr", "purchase requisition", "approval", "cost centre",
+                "department", "consolidate",
+            ]),
             NavNode::leaf(
                 "purchase-orders",
                 "nav.purchase_orders",

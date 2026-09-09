@@ -337,6 +337,22 @@ pub mod kinds {
         singleton: false,
     };
 
+    /// A requisition.
+    ///
+    /// The document posts nothing, and is recorded anyway: approving one is
+    /// what lets money be spent against it, and "who said yes" is a fact about
+    /// a person that the requisition row only holds until somebody edits it.
+    /// The rejections matter as much as the approvals - a request that was
+    /// turned down twice and granted on the third asking is a pattern no single
+    /// row shows.
+    pub const REQUISITION: EntityKind = EntityKind {
+        name: "requisition",
+        singular_key: "entity.requisition.singular",
+        plural_key: "entity.requisition.plural",
+        href: Some("/inventory/requisitions/{id}"),
+        singleton: false,
+    };
+
     /// A purchase order.
     ///
     /// Recorded because confirming one is a commitment to spend money, and
@@ -451,6 +467,7 @@ pub const ENTITY_KINDS: &[EntityKind] = &[
     kinds::WAREHOUSE,
     kinds::STOCK_LOCATION,
     kinds::STOCK_MOVE,
+    kinds::REQUISITION,
     kinds::PURCHASE_ORDER,
     kinds::BILL,
     kinds::RECEIPT,
@@ -841,8 +858,11 @@ mod tests {
 
     #[test]
     fn a_kind_this_build_does_not_know_has_nowhere_to_link_to() {
+        // A name no `kinds` const uses, and one nothing is likely to claim -
+        // this fixture named `purchase_order` until that became a real kind,
+        // at which point the test was asserting the opposite of its own name.
         assert!(
-            change("purchase_order", EntityAction::Updated)
+            change("a_kind_from_a_newer_release", EntityAction::Updated)
                 .href()
                 .is_none()
         );

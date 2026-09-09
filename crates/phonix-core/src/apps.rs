@@ -412,7 +412,7 @@ mod tests {
         assert_eq!(always_on, vec![CORE, MASTER]);
         assert_eq!(
             optional().map(|app| app.id).collect::<Vec<_>>(),
-            vec![HR, BOOKS]
+            vec![HR, INVENTORY, BOOKS]
         );
     }
 

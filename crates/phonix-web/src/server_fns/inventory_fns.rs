@@ -17,6 +17,9 @@ use app_inventory::movement::{MoveFilter, MoveSummary, StockMove};
 use app_inventory::purchase::{OrderInput, OrderSummary, PurchaseOrder};
 use app_inventory::quant::{OnHandFilter, OnHandRow};
 use app_inventory::receipt::{Backorder, Receipt, ReceiptInput, ReceiptSummary};
+use app_inventory::requisition::{
+    DecisionInput, Demand, Requisition, RequisitionInput, RequisitionSummary,
+};
 use app_inventory::quantity::Quantity;
 use app_inventory::unit::{Unit, UnitInput};
 use app_inventory::variant::{Attribute, Plan, Selection, VariantChoice, VariantSummary};
@@ -641,6 +644,171 @@ pub async fn adjust_stock(
     .map_err(service_error)
 }
 
+
+// --- Requisitions --------------------------------------------------------
+//
+// The document before the order, and the one that commits nothing: no supplier,
+// no price, no currency, and nothing that reaches the ledger. What it does carry
+// is the cost centre, which is this app's first caller of the `CostCentres` port
+// from a document - see ADR 0006 sections 2 and 7.
+
+#[server(name = ListRequisitions, prefix = "/api", endpoint = "inventory/requisitions")]
+pub async fn list_requisitions() -> Result<Vec<RequisitionSummary>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::requisition::list(&pool, &caller)
+        .await
+        .map_err(service_error)
+}
+
+/// What is waiting on a decision, for whoever answers them.
+#[server(name = RequisitionsAwaiting, prefix = "/api", endpoint = "inventory/requisitions/awaiting")]
+pub async fn requisitions_awaiting_decision() -> Result<Vec<RequisitionSummary>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::requisition::awaiting_decision(&pool, &caller)
+        .await
+        .map_err(service_error)
+}
+
+/// The cost centres a requisition may be charged to.
+///
+/// The port's answer, not a query against `hr` - the browser does not cross the
+/// app boundary either. An empty list means this workspace has no HR app, and
+/// therefore cannot raise a requisition at all: the cost centre is required.
+#[server(name = ChargeableCostCentres, prefix = "/api", endpoint = "inventory/cost-centres")]
+pub async fn chargeable_cost_centres()
+-> Result<Vec<phonix_ports::cost_centre::CostCentre>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::requisition::chargeable(&pool, &caller)
+        .await
+        .map_err(service_error)
+}
+
+#[server(name = RequisitionDetail, prefix = "/api", endpoint = "inventory/requisitions/detail")]
+pub async fn requisition_detail(requisition_id: Uuid) -> Result<Requisition, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::requisition::detail(&pool, &caller, requisition_id)
+        .await
+        .map_err(service_error)
+}
+
+#[server(name = RequisitionEdit, prefix = "/api", endpoint = "inventory/requisitions/edit")]
+pub async fn requisition_edit(requisition_id: Uuid) -> Result<RequisitionInput, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::requisition::edit(&pool, &caller, requisition_id)
+        .await
+        .map_err(service_error)
+}
+
+#[server(name = BlankRequisition, prefix = "/api", endpoint = "inventory/requisitions/blank")]
+pub async fn blank_requisition() -> Result<RequisitionInput, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (_pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::requisition::blank(&caller).map_err(service_error)
+}
+
+#[server(name = SaveRequisition, prefix = "/api", endpoint = "inventory/requisitions/save")]
+pub async fn save_requisition(
+    draft: RequisitionInput,
+) -> Result<Submission<RequisitionInput>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::requisition::save(&pool, &caller, draft)
+        .await
+        .map_err(service_error)
+}
+
+/// Ask. Allocates the number and puts it in front of whoever answers.
+#[server(name = SubmitRequisition, prefix = "/api", endpoint = "inventory/requisitions/submit")]
+pub async fn submit_requisition(
+    requisition_id: Uuid,
+) -> Result<Submission<Requisition>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::requisition::submit(&pool, &caller, requisition_id)
+        .await
+        .map_err(service_error)
+}
+
+/// Answer one. `approving` picks which of the two answers; the reason is
+/// required either way, and the service is what refuses one without it.
+#[server(name = DecideRequisition, prefix = "/api", endpoint = "inventory/requisitions/decide")]
+pub async fn decide_requisition(
+    requisition_id: Uuid,
+    approving: bool,
+    decision: DecisionInput,
+) -> Result<Submission<Requisition>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::requisition::decide(
+        &pool,
+        &caller,
+        requisition_id,
+        approving,
+        decision,
+    )
+    .await
+    .map_err(service_error)
+}
+
+#[server(name = CancelRequisition, prefix = "/api", endpoint = "inventory/requisitions/cancel")]
+pub async fn cancel_requisition(requisition_id: Uuid) -> Result<Submission<()>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::requisition::cancel(&pool, &caller, requisition_id)
+        .await
+        .map_err(service_error)
+}
+
+#[server(name = DeleteRequisition, prefix = "/api", endpoint = "inventory/requisitions/delete")]
+pub async fn delete_requisition(requisition_id: Uuid) -> Result<bool, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::requisition::delete(&pool, &caller, requisition_id)
+        .await
+        .map_err(service_error)
+}
+
+/// What approved requisitions are still waiting for, grouped by item and place.
+///
+/// The consolidation screen's query: eleven departments asking for printer paper
+/// is one row here, and one line of the order it becomes.
+#[server(name = RequisitionDemand, prefix = "/api", endpoint = "inventory/requisitions/demand")]
+pub async fn requisition_demand() -> Result<Vec<Demand>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::requisition::demand(&pool, &caller)
+        .await
+        .map_err(service_error)
+}
 
 // --- Purchase orders -----------------------------------------------------
 //
