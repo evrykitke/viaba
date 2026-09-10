@@ -39,6 +39,7 @@ pub struct Seeded {
     pub locations: u64,
     pub warehouses: u64,
     pub categories: u64,
+    pub adjustment_types: u64,
 }
 
 /// Install everything the file declares that is not already there.
@@ -51,8 +52,52 @@ pub async fn install(pool: &PgPool, defaults: &Defaults) -> Result<Seeded, DbErr
 
     seeded.warehouses = install_warehouses(pool, defaults).await?;
     seeded.categories = install_categories(pool, defaults).await?;
+    seeded.adjustment_types = install_adjustment_types(pool, defaults).await?;
 
     Ok(seeded)
+}
+
+/// Why a stock figure was corrected by hand.
+///
+/// `is_system` on every one of them: a workspace may rename these, give them an
+/// account and retire them, but not delete them - the movements point at them,
+/// and one that removed "Count difference" would have nowhere to put the next
+/// count difference. See `app_inventory::adjustment`.
+async fn install_adjustment_types(pool: &PgPool, defaults: &Defaults) -> Result<u64, DbError> {
+    if defaults.adjustment_type.is_empty() {
+        return Ok(0);
+    }
+
+    let mut codes = Vec::with_capacity(defaults.adjustment_type.len());
+    let mut names = Vec::with_capacity(defaults.adjustment_type.len());
+    let mut directions = Vec::with_capacity(defaults.adjustment_type.len());
+    let mut approvals = Vec::with_capacity(defaults.adjustment_type.len());
+
+    for entry in &defaults.adjustment_type {
+        codes.push(entry.code.trim().to_uppercase());
+        names.push(entry.name.trim().to_owned());
+        directions.push(entry.direction.as_str());
+        approvals.push(entry.needs_approval);
+    }
+
+    let inserted = sqlx::query(
+        "INSERT INTO inventory.adjustment_types
+             (code, name, direction, needs_approval, is_system)
+              SELECT code, name, direction, needs_approval, TRUE
+                FROM unnest($1::text[], $2::text[], $3::text[], $4::bool[])
+                  AS t(code, name, direction, needs_approval)
+         ON CONFLICT (code) DO NOTHING",
+    )
+    .bind(&codes)
+    .bind(&names)
+    .bind(&directions)
+    .bind(&approvals)
+    .execute(pool)
+    .await
+    .map_err(DbError::Query)?
+    .rows_affected();
+
+    Ok(inserted)
 }
 
 async fn install_units(pool: &PgPool, defaults: &Defaults) -> Result<u64, DbError> {

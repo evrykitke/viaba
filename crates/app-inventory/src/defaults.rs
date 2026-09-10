@@ -17,12 +17,17 @@
 //!   be received on day one.
 //! * **A category**, so an item has somewhere to be filed and a costing method
 //!   without anybody opening the accounting screen.
+//! * **The adjustment types.** A count difference, damage, expiry, a sample,
+//!   a write-off. Not a gap a workspace can be expected to notice, and the
+//!   argument for each having its own account is in
+//!   [`crate::adjustment`].
 //!
 //! Everything is inserted `ON CONFLICT DO NOTHING`, so a redeploy can neither
 //! put back a row somebody deleted nor overwrite one they edited.
 
 use serde::Deserialize;
 
+use crate::adjustment::Direction;
 use crate::category::{CostingMethod, RemovalStrategy, Valuation};
 use crate::location::LocationKind;
 use crate::unit::{self, UnitClass};
@@ -39,6 +44,8 @@ pub struct Defaults {
     pub warehouse: Vec<DefaultWarehouse>,
     #[serde(default)]
     pub category: Vec<DefaultCategory>,
+    #[serde(default)]
+    pub adjustment_type: Vec<DefaultAdjustmentType>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
@@ -82,6 +89,23 @@ pub struct DefaultCategory {
     pub removal_strategy: RemovalStrategy,
 }
 
+/// One reason a stock figure may be corrected by hand.
+///
+/// No account: the chart of accounts belongs to Books and does not exist yet
+/// when this file is installed. A seeded type takes the workspace's
+/// `InventoryAdjustment` default until somebody gives it one of its own, which
+/// is the screen's job and not this file's.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct DefaultAdjustmentType {
+    pub code: String,
+    pub name: String,
+    #[serde(default)]
+    pub direction: Direction,
+    #[serde(default)]
+    pub needs_approval: bool,
+}
+
 impl Defaults {
     /// Everything that has to be true before any of this is worth installing.
     ///
@@ -92,7 +116,32 @@ impl Defaults {
         self.check_units()?;
         self.check_locations()?;
         self.check_warehouses()?;
-        self.check_categories()
+        self.check_categories()?;
+        self.check_adjustment_types()
+    }
+
+    fn check_adjustment_types(&self) -> Result<(), DefaultsError> {
+        let mut seen: Vec<String> = Vec::new();
+
+        for entry in &self.adjustment_type {
+            let code = entry.code.trim().to_uppercase();
+            if code.is_empty()
+                || !code
+                    .bytes()
+                    .all(|byte| byte.is_ascii_alphanumeric() || byte == b'-' || byte == b'_')
+            {
+                return Err(DefaultsError::AdjustmentTypeCode(entry.code.clone()));
+            }
+            if seen.contains(&code) {
+                return Err(DefaultsError::DuplicateAdjustmentType(code));
+            }
+            if entry.name.trim().is_empty() {
+                return Err(DefaultsError::AdjustmentTypeName(code));
+            }
+            seen.push(code);
+        }
+
+        Ok(())
     }
 
     fn check_units(&self) -> Result<(), DefaultsError> {
@@ -247,6 +296,12 @@ pub enum DefaultsError {
     DuplicateCategory(String),
     #[error("category parent '{0}' is not declared before it is used")]
     UnknownParent(String),
+    #[error("'{0}' is not a usable adjustment type code")]
+    AdjustmentTypeCode(String),
+    #[error("adjustment type {0} has no name")]
+    AdjustmentTypeName(String),
+    #[error("adjustment type {0} is declared twice")]
+    DuplicateAdjustmentType(String),
 }
 
 #[cfg(test)]
@@ -292,6 +347,12 @@ mod tests {
                 costing_method: CostingMethod::Average,
                 valuation: Valuation::Automated,
                 removal_strategy: RemovalStrategy::Fifo,
+            }],
+            adjustment_type: vec![DefaultAdjustmentType {
+                code: "COUNT".to_owned(),
+                name: "Count difference".to_owned(),
+                direction: Direction::Both,
+                needs_approval: false,
             }],
         }
     }

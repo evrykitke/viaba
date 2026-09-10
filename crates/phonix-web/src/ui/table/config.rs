@@ -34,6 +34,7 @@
 //! makes it obvious when two modules describe the same thing two ways.
 
 pub mod accounts;
+pub mod adjustment_types;
 pub mod api_keys;
 pub mod audit;
 pub mod changes;

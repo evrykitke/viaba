@@ -31,7 +31,11 @@
 //! /inventory/transfers/new        a form
 //! /inventory/transfers/:id        the editor while draft, the document after
 //! /inventory/stock                what is on hand, and where
+//! /inventory/stock/adjust         correcting one figure by hand
 //! /inventory/moves                every change to every quantity
+//! /inventory/adjustment-types     why a figure may be corrected
+//! /inventory/adjustment-types/new a form
+//! /inventory/adjustment-types/:id Details | History
 //! /inventory/locations            the list, drawn as a tree
 //! /inventory/locations/new        a form
 //! /inventory/locations/:id        Details | History
@@ -45,6 +49,8 @@
 //! is the one somebody has open all day, which is why it is the only screen
 //! here that grew tabs.
 
+pub mod adjust;
+pub mod adjustment_types;
 pub mod bill;
 pub mod consolidation;
 pub mod home;

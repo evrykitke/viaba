@@ -42,6 +42,7 @@
 //! column, which is the cheap way to catch a rename that only went halfway.
 
 pub mod accounts;
+pub mod adjustment_types;
 pub mod api_keys;
 pub mod departments;
 pub mod item_categories;

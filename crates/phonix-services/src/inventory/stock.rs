@@ -44,7 +44,6 @@ use app_inventory::movement::{
 use app_inventory::quant::{self, OnHandFilter, OnHandRow};
 use app_inventory::quantity::Quantity;
 use app_inventory::valuation;
-use chrono::NaiveDate;
 use phonix_core::form::Submission;
 use phonix_core::locale::Currency;
 use phonix_core::money::Money;
@@ -118,44 +117,6 @@ pub async fn total_value(pool: &PgPool, caller: &Caller) -> ServiceResult<Money>
     let currency = base_currency(pool).await?;
 
     Ok(layer_store::total_value(pool, currency).await?)
-}
-
-/// Write off, scrap, or book in a count difference.
-///
-/// The one movement a person makes by hand rather than through a document, and
-/// the reason it has its own permission: everything else that moves stock is
-/// the consequence of a purchase or a sale, and this is somebody saying the
-/// shelf disagrees with the system. `found` is which way - true books stock in
-/// from inventory loss, false writes it out to inventory loss.
-pub async fn adjust(
-    pool: &PgPool,
-    caller: &Caller,
-    ledger: &dyn Ledger,
-    location_id: Uuid,
-    variant_id: Uuid,
-    lot_id: Option<Uuid>,
-    quantity: Quantity,
-    found: bool,
-    moved_on: NaiveDate,
-    reason: Option<String>,
-) -> ServiceResult<Submission<StockMove>> {
-    caller.require(permissions::STOCK_ADJUST)?;
-
-    let loss = crate::inventory::location::counterpart(pool, LocationKind::InventoryLoss).await?;
-
-    let (from, to) = if found {
-        (loss.id, location_id)
-    } else {
-        (location_id, loss.id)
-    };
-
-    let request = MoveRequest {
-        lot_id,
-        reference: reason,
-        ..MoveRequest::new(variant_id, from, to, quantity, moved_on)
-    };
-
-    apply(pool, caller, ledger, request).await
 }
 
 /// Move stock, cost it, and post what follows.
@@ -237,6 +198,7 @@ pub async fn apply(
         value: costed.value,
         reference: checked.reference.as_deref(),
         source: checked.source.as_ref(),
+        adjustment_type_id: checked.adjustment_type_id,
     };
 
     let move_id = store::insert(&mut tx, &draft, caller.user_id()).await?;
@@ -566,7 +528,21 @@ async fn post(
     let amount = costed.value.abs().to_storage_string();
     let line = |role, side| Posting {
         role,
-        account_id: app_inventory::accounts::account_for(role, &item_accounts, &category_accounts),
+        // The adjustment's *type* names the account a discrepancy is charged
+        // to, and nothing else on a movement does. Every other role resolves
+        // the ordinary way; `InventoryAdjustment` resolves to `None` there by
+        // design - it is workspace-wide policy, not an item's business - so
+        // this is the one place a per-document answer can be given. `None`
+        // still falls back to whatever the workspace mapped the role to, which
+        // is what every adjustment did before types existed.
+        account_id: match role {
+            phonix_ports::ledger::AccountRole::InventoryAdjustment => {
+                request.adjustment_account_id
+            }
+            role => {
+                app_inventory::accounts::account_for(role, &item_accounts, &category_accounts)
+            }
+        },
         side,
         amount: amount.clone(),
         memo: Some(format!(

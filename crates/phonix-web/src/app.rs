@@ -25,6 +25,10 @@ use crate::pages::admin::users::UsersPage;
 use crate::pages::auth::{
     AcceptInvitationPage, ChallengePage, ForgotPasswordPage, SignInPage, SignUpPage,
 };
+use crate::pages::inventory::adjust::AdjustStockPage;
+use crate::pages::inventory::adjustment_types::{
+    AdjustmentTypeNewPage, AdjustmentTypePage, AdjustmentTypesPage,
+};
 use crate::pages::inventory::home::InventoryHomePage;
 use crate::pages::inventory::item::ItemPage;
 use crate::pages::inventory::item_categories::{
@@ -310,7 +314,17 @@ pub fn app() -> impl IntoView {
                     <Route path=path!("/inventory/transfers/new") view=TransferNewPage />
                     <Route path=path!("/inventory/transfers/:id") view=TransferPage />
                     <Route path=path!("/inventory/stock") view=StockPage />
+                    <Route path=path!("/inventory/stock/adjust") view=AdjustStockPage />
                     <Route path=path!("/inventory/moves") view=StockMovesPage />
+                    <Route path=path!("/inventory/adjustment-types") view=AdjustmentTypesPage />
+                    <Route
+                        path=path!("/inventory/adjustment-types/new")
+                        view=AdjustmentTypeNewPage
+                    />
+                    <Route
+                        path=path!("/inventory/adjustment-types/:id")
+                        view=AdjustmentTypePage
+                    />
                     <Route path=path!("/inventory/units") view=UnitsPage />
                     <Route path=path!("/inventory/units/new") view=UnitNewPage />
                     <Route path=path!("/inventory/units/:id") view=UnitPage />

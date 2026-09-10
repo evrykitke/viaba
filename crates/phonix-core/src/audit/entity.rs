@@ -444,6 +444,17 @@ pub mod kinds {
         singleton: false,
     };
 
+    /// A reason a stock figure may be corrected by hand. Recorded because the
+    /// account it names is where a loss lands, and changing that quietly moves
+    /// next quarter's shrinkage into a different line of the accounts.
+    pub const ADJUSTMENT_TYPE: EntityKind = EntityKind {
+        name: "adjustment_type",
+        singular_key: "entity.adjustment_type.singular",
+        plural_key: "entity.adjustment_type.plural",
+        href: Some("/inventory/adjustment-types/{id}"),
+        singleton: false,
+    };
+
     /// A landed cost. Recorded because posting one changes what stock on the
     /// shelf is worth, and the delivery it names does not say who decided that.
     pub const LANDED_COST: EntityKind = EntityKind {
@@ -549,6 +560,7 @@ pub const ENTITY_KINDS: &[EntityKind] = &[
     kinds::RECEIPT,
     kinds::LANDED_COST,
     kinds::STOCK_TRANSFER,
+    kinds::ADJUSTMENT_TYPE,
     kinds::UNIT_OF_MEASURE,
 ];
 

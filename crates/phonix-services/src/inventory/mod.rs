@@ -20,6 +20,7 @@
 //!
 //! Neither is discovered during a recall. They are refused here.
 
+pub mod adjustment;
 pub mod bill;
 pub mod category;
 pub mod consolidation;

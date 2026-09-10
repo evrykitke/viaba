@@ -47,6 +47,9 @@ pub struct NewMove<'a> {
     pub value: Money,
     pub reference: Option<&'a str>,
     pub source: Option<&'a MoveSource>,
+    /// Why the shelf disagreed with the record. `None` for every movement that
+    /// is not an adjustment, which is most of them.
+    pub adjustment_type_id: Option<Uuid>,
 }
 
 fn read_quantity(raw: &str, column: &str) -> Result<Quantity, sqlx::Error> {
@@ -182,9 +185,9 @@ pub async fn insert(
         "INSERT INTO inventory.stock_moves
              (variant_id, from_location_id, to_location_id, lot_id, quantity,
               unit_id, state, moved_on, unit_cost, value, reference,
-              source_doc_type, source_doc_id, created_by)
+              source_doc_type, source_doc_id, adjustment_type_id, created_by)
           VALUES ($1, $2, $3, $4, $5::numeric, $6, $7, $8, $9::numeric,
-                  $10::numeric, $11, $12, $13, $14)
+                  $10::numeric, $11, $12, $13, $14, $15)
        RETURNING id",
     )
     .bind(draft.variant_id)
@@ -200,6 +203,7 @@ pub async fn insert(
     .bind(draft.reference)
     .bind(draft.source.map(|source| source.doc_type.as_str()))
     .bind(draft.source.map(|source| source.doc_id))
+    .bind(draft.adjustment_type_id)
     .bind(actor)
     .fetch_one(conn)
     .await

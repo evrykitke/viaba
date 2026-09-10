@@ -7,6 +7,9 @@
 //! query against `books`.
 
 use app_inventory::accounts::{AccountOverrides, AccountRef};
+use app_inventory::adjustment::{
+    AdjustmentInput, AdjustmentType, AdjustmentTypeInput, AdjustmentTypeSummary,
+};
 use app_inventory::bill::{Bill, BillInput, BillSummary, MatchGrade, UnbilledReceipt};
 use app_inventory::transfer::{
     ArrivalInput, Transfer, TransferInput, TransferSummary,
@@ -29,7 +32,6 @@ use app_inventory::receipt::{Backorder, Receipt, ReceiptInput, ReceiptSummary};
 use app_inventory::requisition::{
     DecisionInput, Demand, Requisition, RequisitionInput, RequisitionSummary,
 };
-use app_inventory::quantity::Quantity;
 use app_inventory::unit::{Unit, UnitInput};
 use app_inventory::variant::{Attribute, Plan, Selection, VariantChoice, VariantSummary};
 use app_inventory::warehouse::{Warehouse, WarehouseInput, WarehouseSummary};
@@ -616,43 +618,116 @@ pub async fn variant_lots(variant_id: Uuid) -> Result<Vec<LotSummary>, ServerFnE
         .map_err(service_error)
 }
 
+// --- Adjustment types ------------------------------------------------------
+//
+// Why a stock figure was corrected by hand. The reason names the account the
+// other half of the journal lands in, which is the whole argument for the
+// table - see ADR 0006 section 7 and `app_inventory::adjustment`.
+
+#[server(name = ListAdjustmentTypes, prefix = "/api", endpoint = "inventory/adjustment-types")]
+pub async fn list_adjustment_types() -> Result<Vec<AdjustmentTypeSummary>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::adjustment::list(&pool, &caller)
+        .await
+        .map_err(service_error)
+}
+
+/// The reasons the adjust screen offers. Gated on the movement rather than on
+/// this table: booking a count difference is not the power to decide which
+/// account damage posts to.
+#[server(
+    name = SelectableAdjustmentTypes,
+    prefix = "/api",
+    endpoint = "inventory/adjustment-types/selectable"
+)]
+pub async fn selectable_adjustment_types() -> Result<Vec<AdjustmentType>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::adjustment::selectable(&pool, &caller)
+        .await
+        .map_err(service_error)
+}
+
+#[server(
+    name = AdjustmentTypeEdit,
+    prefix = "/api",
+    endpoint = "inventory/adjustment-types/edit"
+)]
+pub async fn adjustment_type_edit(type_id: Uuid) -> Result<AdjustmentTypeInput, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::adjustment::edit(&pool, &caller, type_id)
+        .await
+        .map_err(service_error)
+}
+
+#[server(
+    name = BlankAdjustmentType,
+    prefix = "/api",
+    endpoint = "inventory/adjustment-types/blank"
+)]
+pub async fn blank_adjustment_type() -> Result<AdjustmentTypeInput, ServerFnError> {
+    Ok(phonix_services::inventory::adjustment::blank())
+}
+
+#[server(
+    name = SaveAdjustmentType,
+    prefix = "/api",
+    endpoint = "inventory/adjustment-types/save"
+)]
+pub async fn save_adjustment_type(
+    draft: AdjustmentTypeInput,
+) -> Result<Submission<AdjustmentTypeInput>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::adjustment::save(&pool, &caller, draft)
+        .await
+        .map_err(service_error)
+}
+
+#[server(
+    name = DeleteAdjustmentType,
+    prefix = "/api",
+    endpoint = "inventory/adjustment-types/delete"
+)]
+pub async fn delete_adjustment_type(type_id: Uuid) -> Result<Submission<()>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::adjustment::delete(&pool, &caller, type_id)
+        .await
+        .map_err(service_error)
+}
+
 /// Write stock off, scrap it, or book in a count difference.
 ///
-/// `found` says which way: true books stock in from inventory loss, false
-/// writes it out to it. Both post through the `Ledger` port, and both refuse
-/// outright if the ledger refuses - a shelf that changed while the stock
-/// account did not is the thing this whole design exists to prevent.
-#[server(name = AdjustStock, prefix = "/api", endpoint = "inventory/stock/adjust")]
-pub async fn adjust_stock(
-    location_id: Uuid,
-    variant_id: Uuid,
-    lot_id: Option<Uuid>,
-    quantity: Quantity,
-    found: bool,
-    moved_on: chrono::NaiveDate,
-    reason: Option<String>,
+/// The reason carries the account and, where the workspace marked it so, the
+/// second permission. Posts through the `Ledger` port and refuses outright if
+/// the ledger refuses - a shelf that changed while the stock account did not is
+/// the thing this whole design exists to prevent.
+#[server(name = RecordAdjustment, prefix = "/api", endpoint = "inventory/stock/adjust")]
+pub async fn record_adjustment(
+    draft: AdjustmentInput,
 ) -> Result<Submission<StockMove>, ServerFnError> {
     use crate::state::{pool_and_caller, service_error};
 
     let (pool, caller) = pool_and_caller().await?;
     let ledger = phonix_services::books::BooksLedger::new(pool.clone(), caller.clone());
 
-    phonix_services::inventory::stock::adjust(
-        &pool,
-        &caller,
-        &ledger,
-        location_id,
-        variant_id,
-        lot_id,
-        quantity,
-        found,
-        moved_on,
-        reason,
-    )
-    .await
-    .map_err(service_error)
+    phonix_services::inventory::adjustment::record(&pool, &caller, &ledger, draft)
+        .await
+        .map_err(service_error)
 }
-
 
 // --- Requisitions --------------------------------------------------------
 //

@@ -339,3 +339,72 @@ parent = "All"
 costing_method = "standard"
 valuation = "manual"
 removal_strategy = "fifo"
+
+# ---------------------------------------------------------------------------
+# Adjustment types
+# ---------------------------------------------------------------------------
+#
+# Why the shelf disagreed with the record. Every one of these is the same
+# movement — into or out of the inventory-loss location — and the TYPE is the
+# only thing that tells them apart afterwards.
+#
+# A workspace that posts a miscount, a smashed pallet, a case that went out of
+# date and a sample handed to a rep all to one "inventory adjustment" account
+# ends the year with a number that grows and explains nothing. Theft, a
+# warehouse that cannot count, and a range with the wrong shelf life have three
+# different answers, and none of them is visible in one total.
+#
+# `direction` is a fact about the reason. Damage, expiry and theft take stock
+# off a shelf and can never put it back; found stock only goes the other way.
+# A miscount is the one honest "both", and it is the reason that flag exists.
+#
+# `needs_approval` asks for a second permission at the moment somebody presses
+# the button — not a queue and not a second state. See `app_inventory::adjustment`.
+#
+# No account is named here: the chart of accounts belongs to Books and does not
+# exist when this file is installed. Each type takes the workspace's
+# `InventoryAdjustment` default until somebody gives it one of its own on the
+# adjustment types screen, which is the whole point of the screen.
+
+[[adjustment_type]]
+code = "COUNT"
+name = "Count difference"
+direction = "both"
+
+[[adjustment_type]]
+code = "DAMAGE"
+name = "Damage"
+direction = "out"
+
+[[adjustment_type]]
+code = "EXPIRY"
+name = "Expiry"
+direction = "out"
+
+# Stock that left the building for a reason the sales ledger never sees.
+[[adjustment_type]]
+code = "SAMPLE"
+name = "Sample or demonstration"
+direction = "out"
+
+# The two that a storekeeper should not be able to book alone. Both are large,
+# both are the ones an auditor asks about, and both are somebody's decision
+# rather than somebody's observation.
+[[adjustment_type]]
+code = "THEFT"
+name = "Loss or theft"
+direction = "out"
+needs_approval = true
+
+[[adjustment_type]]
+code = "WRITEOFF"
+name = "Write-off"
+direction = "out"
+needs_approval = true
+
+# Stock that turned up. Rare, and worth its own row so that it is not booked as
+# a miscount when nobody counted anything.
+[[adjustment_type]]
+code = "FOUND"
+name = "Found stock"
+direction = "in"

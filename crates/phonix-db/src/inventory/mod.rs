@@ -21,6 +21,7 @@
 //! `migrations/apps/inventory/0002_variants_and_images.sql`.
 
 pub mod account_mapping;
+pub mod adjustment;
 pub mod category;
 pub mod consolidation;
 pub mod defaults;

@@ -61,6 +61,7 @@
 )]
 
 pub mod accounts;
+pub mod adjustment;
 pub mod bill;
 pub mod consolidation;
 pub mod category;

@@ -50,8 +50,14 @@ that has left one building and not reached the next is in a real place, on the
 balance sheet, and in neither warehouse's total. See *The transfer, as built*
 under section 7.
 
-Still specified only — **adjustment types**, which decide which account the
-other side of a discrepancy goes to. Everything else section 7 names is built.
+And now **adjustment types**, the last thing on section 7's list: every change
+to stock that is not a purchase, a sale or a transfer now names a *reason*, the
+reason names the account the loss lands in, and the movement remembers which
+reason it was. With it the screen that makes an adjustment exists at all —
+`stock::adjust` had been reachable only through an endpoint nothing called. See
+*Adjustment types, as built* under section 7.
+
+**Everything section 7 names is now built.**
 
 `Stock` is still not declared, as section 2 says it should not be: Books does
 not yet put cost of goods sold on an invoice, and that is the caller the port
@@ -666,6 +672,69 @@ transfer - rather than un-sent.
 road, days apart, and are almost never one person's job. Splitting them is the
 same argument the bill's override makes: the control is worth nothing if the
 person who sends is automatically the person who confirms arrival.
+
+#### Adjustment types, as built
+
+`migrations/apps/inventory/0011_adjustment_types.sql`, `app_inventory::adjustment`,
+the store, the service and two screens: the reasons themselves, and the one that
+corrects a figure.
+
+**The type is the whole of it.** An adjustment was already one movement into or
+out of the inventory-loss location, and that movement already valued itself and
+posted. What it could not say was *why* — and why is the only thing anybody asks
+about it afterwards. A workspace that posts a miscount, a smashed pallet, a case
+that went out of date and a sample handed to a rep all to one account ends the
+year with a number that grows and explains nothing. Theft, a warehouse that
+cannot count and a range with the wrong shelf life have three different answers,
+and none of them is visible in one total.
+
+**Seven reasons are seeded per section 4, and none of them names an account.**
+`config/defaults/inventory.toml` declares count difference, damage, expiry,
+sample, loss or theft, write-off and found stock. The chart of accounts belongs
+to Books and does not exist when this file is installed, so each type takes the
+workspace's `InventoryAdjustment` mapping until somebody gives it one of its own
+— which is exactly what the screen is for, and what makes opening it worth
+doing. Seeded rows are marked `is_system`: renameable, retirable, accountable,
+never deletable, because a workspace that removed "Count difference" would have
+nowhere to put the next one.
+
+**The account reaches the journal through the movement, not around it.**
+`MoveRequest` gained one field, `adjustment_account_id`, and `stock::post`
+applies it to the `InventoryAdjustment` leg alone. That role already resolved to
+`None` in `AccountOverrides::for_role` by design — it is workspace-wide policy
+rather than an item's business — so this is the one place a per-document answer
+could be given without contradicting anything, and `None` still falls through to
+the workspace default exactly as before. No other role is touched, and nothing
+about the two-ends rule changes.
+
+**Direction is a fact about the reason.** Damage, expiry and theft take stock off
+a shelf and can never put it back; found stock only goes the other way; a count
+difference is the one honest both. Refused before the movement rather than after
+it, and the screen offers only the ways the chosen reason allows — refusing
+afterwards would be correct and useless, because the person has already counted,
+typed and pressed.
+
+**"Needs approval" asks a person, not a queue.** An adjustment is one movement,
+and a movement that has half happened is precisely what the stock ledger exists
+to make impossible — so a type marked for approval requires
+`Inventory.Stock.Adjust.Approve` at the moment the button is pressed. A
+storekeeper may book a miscount; only somebody with that permission may write
+forty thousand pounds off. The screen says so before the button rather than
+after the refusal.
+
+**The movement remembers the reason.** `stock_moves.adjustment_type_id`, with
+`ON DELETE RESTRICT`, and the view `adjustment_totals` beside it. Without the
+column the types would be a screen that changed a posting and answered no
+question afterwards; with it, "what has expiry cost us this year" is a `GROUP
+BY`. Value is signed there — what left the shelf counts positive and what came
+back counts negative — so a warehouse that loses forty and finds two shows
+thirty-eight rather than forty-two.
+
+**It is a screen, not a document.** One shelf, one item, one reason: no draft to
+keep, nothing to send anybody, nothing to approve later. A header over one line
+would be a document whose only field is the reason, and the reason has a table
+of its own. It is reached from `/inventory/stock` — from the figure it disagrees
+with — because an adjustment is authorised by nothing but the person making it.
 
 ### The stock ledger, as built
 

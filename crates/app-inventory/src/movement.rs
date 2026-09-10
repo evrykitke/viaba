@@ -227,6 +227,15 @@ pub struct MoveRequest {
     /// there is another side. Resolved through the `CostCentres` port before a
     /// posting is built.
     pub cost_centre_id: Option<Uuid>,
+    /// Why the shelf disagreed with the record. Set by an adjustment and by
+    /// nothing else: a receipt is not an adjustment and has no reason.
+    pub adjustment_type_id: Option<Uuid>,
+    /// Where the discrepancy is charged, in place of the workspace-wide
+    /// inventory-adjustment default. Comes from the type above, and applies to
+    /// the `InventoryAdjustment` leg alone - see
+    /// [`crate::adjustment`] for why one account for every kind of loss is a
+    /// number that tells nobody anything.
+    pub adjustment_account_id: Option<Uuid>,
 }
 
 impl MoveRequest {
@@ -248,6 +257,8 @@ impl MoveRequest {
             reference: None,
             source: None,
             cost_centre_id: None,
+            adjustment_type_id: None,
+            adjustment_account_id: None,
         }
     }
 

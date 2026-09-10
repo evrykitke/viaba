@@ -30,6 +30,7 @@
 //!  |   |   +- .Manage
 //!  |   +- Pages.Inventory.Stock
 //!  |   |   +- .Adjust
+//!  |   |       +- .Approve
 //!  |   +- Pages.Inventory.Requisitions
 //!  |   |   +- .Create  .Decide
 //!  |   +- Pages.Inventory.PurchaseOrders
@@ -129,6 +130,9 @@ pub mod names {
 
     pub const STOCK: &str = "Pages.Inventory.Stock";
     pub const STOCK_ADJUST: &str = "Pages.Inventory.Stock.Adjust";
+    pub const STOCK_ADJUST_APPROVE: &str = "Pages.Inventory.Stock.Adjust.Approve";
+    pub const ADJUSTMENT_TYPES: &str = "Pages.Inventory.AdjustmentTypes";
+    pub const ADJUSTMENT_TYPES_MANAGE: &str = "Pages.Inventory.AdjustmentTypes.Manage";
 
     pub const REQUISITIONS: &str = "Pages.Inventory.Requisitions";
     pub const REQUISITIONS_CREATE: &str = "Pages.Inventory.Requisitions.Create";
@@ -579,6 +583,41 @@ pub const DEFINITIONS: &[PermissionDefinition] = &[
         // the profit and loss.
         description: Some("Write stock off, scrap it, or book in a count difference."),
         parent: Some(names::STOCK),
+        default_for_user: false,
+    },
+    PermissionDefinition {
+        name: names::STOCK_ADJUST_APPROVE,
+        display_name: "Approve",
+        // What an adjustment type's `needs_approval` asks for. Not a queue: an
+        // adjustment is one movement, and a movement that has half happened is
+        // the thing the stock ledger exists to make impossible. It is a second
+        // permission asked at the moment the button is pressed, so a
+        // storekeeper may book a miscount and only a manager may write forty
+        // thousand pounds off.
+        description: Some(
+            "Make an adjustment whose reason is marked as needing approval.",
+        ),
+        parent: Some(names::STOCK_ADJUST),
+        default_for_user: false,
+    },
+    PermissionDefinition {
+        name: names::ADJUSTMENT_TYPES,
+        display_name: "Adjustment types",
+        description: Some("See the reasons a stock figure may be corrected by hand."),
+        parent: Some(names::INVENTORY),
+        default_for_user: false,
+    },
+    PermissionDefinition {
+        name: names::ADJUSTMENT_TYPES_MANAGE,
+        display_name: "Manage",
+        // Naming the account a loss lands in is an accounting decision wearing
+        // an inventory screen, which is why it is not folded into
+        // `STOCK_ADJUST`: the person who books the damage is rarely the person
+        // who decides which account damage belongs to.
+        description: Some(
+            "Add a reason, name the account it posts to, and say whether it needs approval.",
+        ),
+        parent: Some(names::ADJUSTMENT_TYPES),
         default_for_user: false,
     },
     PermissionDefinition {

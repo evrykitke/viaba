@@ -568,6 +568,7 @@ async fn install_inventory_defaults(
         locations = seeded.locations,
         warehouses = seeded.warehouses,
         categories = seeded.categories,
+        adjustment_types = seeded.adjustment_types,
         "inventory defaults installed"
     );
 

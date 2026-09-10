@@ -138,6 +138,18 @@ pub fn stock_grid() -> GridConfig<OnHandRow> {
         ToolbarAction::link(l!("stock.moves"), Icon::ArrowRight, "/inventory/moves")
             .require(permissions::STOCK),
     )
+    // The one way a quantity changes without a document behind it, and the
+    // only route to it: an adjustment is authorised by nothing but the person
+    // making it, so it is reached from the figure it disagrees with.
+    .toolbar(
+        ToolbarAction::link(
+            l!("adjustments.record"),
+            Icon::SlidersHorizontal,
+            "/inventory/stock/adjust",
+        )
+        .require(permissions::STOCK_ADJUST)
+        .primary(),
+    )
 }
 
 /// The code, with the combination under it. A grid of forty rows that all say

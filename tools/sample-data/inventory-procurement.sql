@@ -799,6 +799,23 @@ COMMIT;
 --      name rather than absorbed - more arriving than was sent is a count
 --      error at one end, and this document will not hide it.
 --
+--
+--  14. Inventory > Stock, then "Adjust stock". Pick a reason, an item and a
+--      shelf, and write two of something off as `DAMAGE`.
+--
+--      Watch what the reason does to the form: `DAMAGE` only takes stock off
+--      a shelf, so the direction stops being a question and says so. Switch
+--      the reason to `COUNT` and the choice comes back, because a count
+--      difference is the one that genuinely runs both ways.
+--
+--      Then pick `WRITEOFF`. Unless the account you are signed in as holds
+--      `Inventory.Stock.Adjust.Approve`, the button goes flat and the form
+--      says why - before you have counted anything, rather than after.
+--
+--      To see the accounting half: Inventory > Adjustment types > Damage,
+--      give it an account of its own, and write another two off. The two
+--      movements are the same movement; the journals are not.
+--
 -- WHAT SHOULD BE TRUE AFTERWARDS
 --
 -- The first query is the one that matters: it is the schema proving its own
@@ -861,3 +878,19 @@ COMMIT;
 --     JOIN books.accounts a ON a.id = jl.account_id
 --    WHERE j.source_app = 'inventory'
 --    ORDER BY j.created_at, jl.side;
+--
+--   -- What each reason has cost, which is the question one "inventory
+--   -- adjustment" total could never answer. Value is signed: what left the
+--   -- shelf counts positive, what came back counts negative.
+--   SELECT code, name, sum(move_count) AS moves, sum(quantity) AS quantity,
+--          sum(value) AS value
+--     FROM inventory.adjustment_totals
+--    GROUP BY code, name
+--    ORDER BY value DESC;
+--
+--   -- The seven seeded reasons, and which of them somebody has given an
+--   -- account of its own. Every row that still says NULL posts to the
+--   -- workspace default, which is what every adjustment did before.
+--   SELECT code, name, direction, needs_approval, account_number
+--     FROM inventory.adjustment_types
+--    ORDER BY code;
