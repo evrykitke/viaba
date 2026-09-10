@@ -138,6 +138,27 @@ impl Shell {
             theme: Theme::get(),
         };
 
+        // Arriving inside a section opens it, whatever was remembered.
+        //
+        // The rule above closes a neighbour by *writing* that it is shut, and
+        // an override outlives the click that made it. Without this, following
+        // a link or the command palette into a section closed a moment ago
+        // would land on a screen whose own section is folded away - the one
+        // place the menu is expected to answer "where am I".
+        Effect::new(move |_| {
+            let trail = shell.trail.get();
+
+            let stale = shell.overrides.with_untracked(|map| {
+                map.iter().any(|(key, open)| !*open && trail.contains(key))
+            });
+
+            if stale {
+                shell
+                    .overrides
+                    .update(|map| map.retain(|key, open| *open || !trail.contains(key)));
+            }
+        });
+
         provide_context(shell);
         // The kit is handed what it needs rather than reaching in for it, so
         // `ui` depends on `phonix_core` and not on this shell.
@@ -222,9 +243,24 @@ impl Shell {
     }
 
     /// Open a closed group or close an open one, and remember which.
+    ///
+    /// One group at a time among neighbours: opening a section closes whichever
+    /// of the sections beside it was open, so the panel is a list of sections
+    /// with one unpacked rather than every screen in the workspace at once.
+    /// Depth is unaffected - a subgroup's neighbours are the other subgroups
+    /// inside the same section, not the sections themselves.
     pub fn toggle(self, key: &'static str) {
         let now_open = !self.is_open(key);
+
         self.overrides.update(|map| {
+            if now_open {
+                for sibling in crate::navigation::siblings_of(MENU, key) {
+                    if sibling.key != key && sibling.is_group() {
+                        map.insert(sibling.key, false);
+                    }
+                }
+            }
+
             map.insert(key, now_open);
         });
     }

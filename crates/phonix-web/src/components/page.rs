@@ -1,9 +1,29 @@
-//! Page furniture: the heading block, the panel, the empty state.
+//! Page furniture: the heading block, the panel, the section, the empty state.
 //!
 //! Every screen inside the shell opens the same way - an icon, a title, a line
 //! of explanation, and whatever actions belong to the whole page. Writing that
 //! per screen produces five variants within a month, none of them wrong and no
 //! two the same.
+//!
+//! # One card, several sections
+//!
+//! A screen is compact or it is not read. Four bordered cards stacked down a
+//! page put four borders, four shadows and eight edges of padding between the
+//! first field and the last, and the reader pays for all of it in scrolling to
+//! learn what one heading would have told them.
+//!
+//! So the rule for anything somebody fills in is:
+//!
+//! * **one [`Panel`] for the whole form**, and
+//! * a [`Section`] per group inside it - a small heading and a hairline, no
+//!   border of its own and no second ring of padding.
+//!
+//! A second card on a screen has to earn it, and the way it earns it is by
+//! being something a reader wants *out of the way* - in which case it is a
+//! [`CollapsibleCard`](crate::ui::card::CollapsibleCard), which arrives closed.
+//! "This is a different subject" is what a section says; "you probably do not
+//! need this right now" is what a closed card says. Neither of them is a second
+//! `Panel`.
 
 use leptos::prelude::*;
 use leptos_router::components::A;
@@ -66,6 +86,13 @@ pub fn page_header(
 }
 
 /// A bordered card with an optional heading strip.
+///
+/// One per screen region, holding [`Section`]s - not one per group. See the
+/// [module docs](self).
+///
+/// The heading is worth leaving off wherever the page header already says the
+/// same word: a card titled "Employee" directly under a page titled "Employee"
+/// says it twice and pushes the first field down for the privilege.
 #[component]
 pub fn panel(
     #[prop(optional, into)] title: Option<String>,
@@ -90,7 +117,67 @@ pub fn panel(
                         </header>
                     }
                 })}
-            <div class="p-4">{children()}</div>
+            // Vertical rhythm belongs to the body, not to every caller: a panel
+            // holds sections, grids and the odd bare field, and only one of
+            // those three carries a gap of its own.
+            <div class="space-y-4 p-4">{children()}</div>
+        </section>
+    }
+}
+
+/// One group inside a [`Panel`], separated by a hairline rather than by a card.
+///
+/// The workhorse of every form on the site. See the [module docs](self) for the
+/// rule; the short version is that a heading and a rule group things as well as
+/// a border does and cost a tenth of the vertical space.
+///
+/// The first section in a panel draws no rule and takes no top padding, so a
+/// form opens on its fields rather than on a line.
+#[component]
+pub fn section(
+    /// Left off where the group needs separating but not naming - a row of
+    /// actions under the fields they act on.
+    #[prop(optional, into)]
+    title: Option<String>,
+    #[prop(optional, into)] description: Option<String>,
+    /// No rule and no gap above it.
+    ///
+    /// For a section in a column of a grid: the columns already separate them,
+    /// and a horizontal rule across one of two side-by-side blocks reads as a
+    /// mistake rather than as a division.
+    #[prop(optional)]
+    flush: bool,
+    children: Children,
+) -> impl IntoView {
+    // Self-spacing: `mt` above the rule, `pt` below it, so a section is dropped
+    // straight into a panel body without the caller wrapping it in something
+    // that knows the gap. The first one in a panel resets all three, so a form
+    // opens on its fields rather than on a line.
+    let separated = if flush {
+        "space-y-2"
+    } else {
+        "space-y-2 border-t border-edge pt-4 mt-4 first:border-t-0 first:pt-0 first:mt-0"
+    };
+
+    view! {
+        <section class=separated>
+            {title
+                .map(|title| {
+                    view! {
+                        <div class="space-y-0.5">
+                            <h3 class="text-xs font-semibold uppercase tracking-wide text-content-muted">
+                                {title}
+                            </h3>
+                            {description
+                                .map(|description| {
+                                    view! {
+                                        <p class="text-xs text-content-subtle">{description}</p>
+                                    }
+                                })}
+                        </div>
+                    }
+                })}
+            {children()}
         </section>
     }
 }

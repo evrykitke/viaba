@@ -331,7 +331,13 @@ pub fn entity_form<T: Draft>(
                             // be rebuilt to hear about it - which is fine for an
                             // input and fatal for the editor, whose JavaScript
                             // reads "editable" once when it mounts.
-                            let editable = Signal::derive(move || {
+                            //
+                            // A memo rather than a derived signal, because it
+                            // reads the draft: every keystroke in any field
+                            // would otherwise notify every other field's
+                            // `disabled`, and the one control that acts on
+                            // being told is the editor.
+                            let editable = Memo::new(move |_| {
                                 held.with_value(|held| {
                                     held.iter()
                                         .find(|field| field.name() == name)

@@ -33,7 +33,9 @@ use phonix_master::party::{PartySummary, roles};
 use uuid::Uuid;
 
 use crate::components::history::RecordHistory;
-use crate::components::page::{Badge, GhostButton, Notice, PageHeader, Panel, PrimaryButton, Tone};
+use crate::components::page::{
+    Badge, GhostButton, Notice, PageHeader, Panel, PrimaryButton, Section, Tone,
+};
 use crate::icons::Icon;
 use crate::l;
 use crate::server_fns::inventory_fns::{
@@ -420,17 +422,17 @@ fn editor_body(
     let saved = move || draft.with(|d| d.id.is_some());
 
     view! {
-        <div class="space-y-3">
-            <Panel title=l!("purchase_orders.header")>
+        <Panel>
+            <Section title=l!("purchase_orders.header")>
                 <HeaderFields draft=draft suppliers=suppliers warehouses=warehouses />
-            </Panel>
+            </Section>
 
-            <Panel title=l!("purchase_orders.lines") description=l!("purchase_orders.lines.help")>
+            <Section title=l!("purchase_orders.lines") description=l!("purchase_orders.lines.help")>
                 <LineTable draft=draft variants=variants unit_options=unit_options />
-            </Panel>
+            </Section>
 
             <div class="grid gap-3 lg:grid-cols-[1fr_22rem] lg:items-start">
-                <Panel title=l!("purchase_orders.note")>
+                <Section title=l!("purchase_orders.note") flush=true>
                     <textarea
                         class="w-full"
                         rows="3"
@@ -440,9 +442,9 @@ fn editor_body(
                             draft.update(|d| d.note = text);
                         }
                     />
-                </Panel>
+                </Section>
 
-                <Panel title=l!("purchase_orders.net")>
+                <Section title=l!("purchase_orders.net") flush=true>
                     {move || match net.get() {
                         None => {
                             view! {
@@ -467,10 +469,10 @@ fn editor_body(
                                 .into_any()
                         }
                     }}
-                </Panel>
+                </Section>
             </div>
 
-            <div class="flex flex-wrap items-center justify-end gap-2">
+            <div class="mt-4 flex flex-wrap items-center justify-end gap-2 border-t border-edge pt-4">
                 <Show when=saved fallback=|| ()>
                     <GhostButton
                         label=l!("common.delete")
@@ -505,7 +507,7 @@ fn editor_body(
                     />
                 </Show>
             </div>
-        </div>
+        </Panel>
     }
 }
 
@@ -942,9 +944,9 @@ fn order_document(order: PurchaseOrder, reload: Callback<()>) -> impl IntoView {
     };
 
     view! {
-        <div class="space-y-3">
+        <Panel>
             <div class="grid gap-3 lg:grid-cols-2">
-                <Panel title=l!("purchase_orders.supplier")>
+                <Section title=l!("purchase_orders.supplier") flush=true>
                     <div class="space-y-1 text-sm">
                         <div class="font-medium text-content">{supplier_name}</div>
                         <code class="text-2xs text-content-subtle">{supplier_code}</code>
@@ -957,9 +959,9 @@ fn order_document(order: PurchaseOrder, reload: Callback<()>) -> impl IntoView {
                                 }
                             })}
                     </div>
-                </Panel>
+                </Section>
 
-                <Panel title=l!("purchase_orders.header")>
+                <Section title=l!("purchase_orders.header") flush=true>
                     <dl class="space-y-1 text-sm">
                         <div class="flex justify-between gap-4">
                             <dt class="text-content-muted">{l!("nav.warehouses")}</dt>
@@ -987,10 +989,10 @@ fn order_document(order: PurchaseOrder, reload: Callback<()>) -> impl IntoView {
                             </dd>
                         </div>
                     </dl>
-                </Panel>
+                </Section>
             </div>
 
-            <Panel title=l!("purchase_orders.lines")>
+            <Section title=l!("purchase_orders.lines")>
                 <div class="overflow-x-auto">
                     <table class="w-full min-w-[44rem] text-sm">
                         <thead>
@@ -1060,21 +1062,21 @@ fn order_document(order: PurchaseOrder, reload: Callback<()>) -> impl IntoView {
                         </tbody>
                     </table>
                 </div>
-            </Panel>
+            </Section>
 
             <div class="grid gap-3 lg:grid-cols-[1fr_22rem] lg:items-start">
                 {note
                     .map(|note| {
                         view! {
-                            <Panel title=l!("purchase_orders.note")>
+                            <Section title=l!("purchase_orders.note")>
                                 <p class="whitespace-pre-wrap text-sm text-content-muted">
                                     {note}
                                 </p>
-                            </Panel>
+                            </Section>
                         }
                     })}
 
-                <Panel title=l!("purchase_orders.net")>
+                <Section title=l!("purchase_orders.net") flush=true>
                     <div class="flex items-baseline justify-between gap-4 text-sm font-medium tabular-nums">
                         <span class="text-content">
                             {l!("purchase_orders.net")} " "
@@ -1082,13 +1084,13 @@ fn order_document(order: PurchaseOrder, reload: Callback<()>) -> impl IntoView {
                         </span>
                         <span class="text-content">{net}</span>
                     </div>
-                </Panel>
+                </Section>
             </div>
 
             // Two conditions, and they are different questions. The state decides
             // whether the act means anything; the permission decides whether this
             // reader may do it - and the service checks it again.
-            <div class="flex flex-wrap items-center justify-end gap-2">
+            <div class="mt-4 flex flex-wrap items-center justify-end gap-2 border-t border-edge pt-4">
                 <Show when=move || is_cancellable && may_cancel.get() fallback=|| ()>
                     <GhostButton
                         label=l!("purchase_orders.cancel")
@@ -1111,10 +1113,10 @@ fn order_document(order: PurchaseOrder, reload: Callback<()>) -> impl IntoView {
 
             <OrderAllocationPanel order_id=id />
 
-            <Panel title=l!("common.history")>
+            <Section title=l!("common.history")>
                 <RecordHistory kind=kinds::PURCHASE_ORDER id=Some(id.to_string()) />
-            </Panel>
-        </div>
+            </Section>
+        </Panel>
     }
 }
 

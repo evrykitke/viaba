@@ -55,7 +55,9 @@ use phonix_core::permissions;
 use uuid::Uuid;
 
 use crate::components::history::RecordHistory;
-use crate::components::page::{Badge, GhostButton, Notice, PageHeader, Panel, PrimaryButton, Tone};
+use crate::components::page::{
+    Badge, GhostButton, Notice, PageHeader, Panel, PrimaryButton, Section, Tone,
+};
 use crate::icons::Icon;
 use crate::l;
 use crate::server_fns::inventory_fns::{
@@ -412,17 +414,17 @@ fn editor_body(
     let saved = move || draft.with(|d| d.id.is_some());
 
     view! {
-        <div class="space-y-3">
-            <Panel title=l!("requisitions.header")>
+        <Panel>
+            <Section title=l!("requisitions.header")>
                 <HeaderFields draft=draft centres=centres warehouses=warehouses no_centres=no_centres />
-            </Panel>
+            </Section>
 
-            <Panel title=l!("requisitions.lines") description=l!("requisitions.lines.help")>
+            <Section title=l!("requisitions.lines") description=l!("requisitions.lines.help")>
                 <LineTable draft=draft variants=variants unit_options=unit_options />
-            </Panel>
+            </Section>
 
             <div class="grid gap-3 lg:grid-cols-2 lg:items-start">
-                <Panel
+                <Section flush=true
                     title=l!("requisitions.justification")
                     description=l!("requisitions.justification.help")
                 >
@@ -435,9 +437,9 @@ fn editor_body(
                             draft.update(|d| d.justification = text);
                         }
                     />
-                </Panel>
+                </Section>
 
-                <Panel title=l!("requisitions.note")>
+                <Section title=l!("requisitions.note") flush=true>
                     <textarea
                         class="w-full"
                         rows="3"
@@ -447,10 +449,10 @@ fn editor_body(
                             draft.update(|d| d.note = text);
                         }
                     />
-                </Panel>
+                </Section>
             </div>
 
-            <div class="flex flex-wrap items-center justify-end gap-2">
+            <div class="mt-4 flex flex-wrap items-center justify-end gap-2 border-t border-edge pt-4">
                 <Show when=saved fallback=|| ()>
                     <GhostButton
                         label=l!("common.delete")
@@ -485,7 +487,7 @@ fn editor_body(
                     />
                 </Show>
             </div>
-        </div>
+        </Panel>
     }
 }
 
@@ -911,9 +913,9 @@ fn requisition_document(requisition: Requisition, reload: Callback<()>) -> impl 
     };
 
     view! {
-        <div class="space-y-3">
+        <Panel>
             <div class="grid gap-3 lg:grid-cols-2">
-                <Panel title=l!("requisitions.header")>
+                <Section title=l!("requisitions.header") flush=true>
                     <dl class="space-y-1 text-sm">
                         <div class="flex justify-between gap-4">
                             <dt class="text-content-muted">{l!("requisitions.cost_centre")}</dt>
@@ -967,19 +969,19 @@ fn requisition_document(requisition: Requisition, reload: Callback<()>) -> impl 
                                 }
                             })}
                     </dl>
-                </Panel>
+                </Section>
 
                 {justification
                     .map(|why| {
                         view! {
-                            <Panel title=l!("requisitions.justification")>
+                            <Section title=l!("requisitions.justification")>
                                 <p class="whitespace-pre-wrap text-sm text-content-muted">{why}</p>
-                            </Panel>
+                            </Section>
                         }
                     })}
             </div>
 
-            <Panel title=l!("requisitions.lines")>
+            <Section title=l!("requisitions.lines")>
                 <div class="overflow-x-auto">
                     <table class="w-full min-w-[44rem] text-sm">
                         <thead>
@@ -1042,14 +1044,14 @@ fn requisition_document(requisition: Requisition, reload: Callback<()>) -> impl 
                         </tbody>
                     </table>
                 </div>
-            </Panel>
+            </Section>
 
             {note
                 .map(|note| {
                     view! {
-                        <Panel title=l!("requisitions.note")>
+                        <Section title=l!("requisitions.note")>
                             <p class="whitespace-pre-wrap text-sm text-content-muted">{note}</p>
-                        </Panel>
+                        </Section>
                     }
                 })}
 
@@ -1062,7 +1064,7 @@ fn requisition_document(requisition: Requisition, reload: Callback<()>) -> impl 
 
 
                     view! {
-                        <Panel title=l!("requisitions.decision")>
+                        <Section title=l!("requisitions.decision")>
                             <dl class="space-y-1 text-sm">
                                 {by
                                     .map(|by| {
@@ -1085,7 +1087,7 @@ fn requisition_document(requisition: Requisition, reload: Callback<()>) -> impl 
                             <p class="mt-2 whitespace-pre-wrap text-sm text-content-muted">
                                 {why}
                             </p>
-                        </Panel>
+                        </Section>
                     }
                 })}
 
@@ -1093,7 +1095,7 @@ fn requisition_document(requisition: Requisition, reload: Callback<()>) -> impl 
             // rejection carries a reason and an approval does not - see the
             // module documentation.
             <Show when=move || awaits && may_decide.get() fallback=|| ()>
-                <Panel title=l!("requisitions.decision")>
+                <Section title=l!("requisitions.decision")>
                     <div class="space-y-2">
                         <label class="block space-y-1">
                             <span class="text-xs font-medium text-content-muted">
@@ -1110,7 +1112,7 @@ fn requisition_document(requisition: Requisition, reload: Callback<()>) -> impl 
                             </span>
                         </label>
 
-                        <div class="flex flex-wrap items-center justify-end gap-2">
+                        <div class="mt-4 flex flex-wrap items-center justify-end gap-2 border-t border-edge pt-4">
                             // Both disabled until there is a reason, not
                             // just the rejection. The service refuses either
                             // without one - a disabled button is not a control.
@@ -1133,13 +1135,13 @@ fn requisition_document(requisition: Requisition, reload: Callback<()>) -> impl 
                             />
                         </div>
                     </div>
-                </Panel>
+                </Section>
             </Show>
 
             // Two conditions, and they are different questions. The state decides
             // whether the act means anything; the permission decides whether this
             // reader may do it - and the service checks it again.
-            <div class="flex flex-wrap items-center justify-end gap-2">
+            <div class="mt-4 flex flex-wrap items-center justify-end gap-2 border-t border-edge pt-4">
                 <Show when=move || awaits && may_withdraw.get() fallback=|| ()>
                     <GhostButton
                         label=l!("requisitions.cancel")
@@ -1158,9 +1160,9 @@ fn requisition_document(requisition: Requisition, reload: Callback<()>) -> impl 
                 </Show>
             </div>
 
-            <Panel title=l!("common.history")>
+            <Section title=l!("common.history")>
                 <RecordHistory kind=kinds::REQUISITION id=Some(id.to_string()) />
-            </Panel>
-        </div>
+            </Section>
+        </Panel>
     }
 }

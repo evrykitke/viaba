@@ -35,7 +35,9 @@ use phonix_core::permissions;
 use uuid::Uuid;
 
 use crate::components::history::RecordHistory;
-use crate::components::page::{Badge, GhostButton, Notice, PageHeader, Panel, PrimaryButton, Tone};
+use crate::components::page::{
+    Badge, GhostButton, Notice, PageHeader, Panel, PrimaryButton, Section, Tone,
+};
 use crate::icons::Icon;
 use crate::l;
 use crate::server_fns::hr_fns::{
@@ -47,6 +49,7 @@ use crate::server_fns::hr_fns::{
 use crate::ui::alert::{Alert, Alerts, Confirm};
 use crate::ui::form::field::Choice;
 use crate::ui::lookup::SelectField;
+use crate::ui::tabs::{Tab, TabbedPanel};
 
 const BACK: &str = "/people/employees";
 
@@ -173,50 +176,93 @@ pub fn employee_page() -> impl IntoView {
 fn employee_record(employee: Employee, reload: Callback<()>) -> impl IntoView {
     let id = employee.id;
     let employed = employee.is_employed();
-    let engagements = employee.engagements.clone();
     let has_login = employee.user_id.is_some();
-    let blocker = employee.invitation_blocker();
     let can_invite = employee.can_be_invited();
     // Only a record with no employment at all - which in practice means one
     // saved by mistake and caught immediately. Anybody who has ever worked here
     // is recorded as a leaver, because deleting them would take their
     // assignment history with them.
     let deletable = employee.engagements.is_empty();
-    let draft = EmployeeInput::from_employee(&employee, today());
 
-    view! {
-        <div class="space-y-3">
-            <EmployeeForm draft=draft hiring=false />
+    // Held rather than moved: a tab renders every time it is shown, so what it
+    // draws from has to survive being read more than once.
+    let draft = StoredValue::new(EmployeeInput::from_employee(&employee, today()));
+    let engagements = StoredValue::new(employee.engagements.clone());
+    let blocker = StoredValue::new(
+        employee
+            .invitation_blocker()
+            .map(|err| crate::i18n::t(&err.message())),
+    );
 
-            <Show when=move || employed fallback=|| ()>
-                <MovePanel employee_id=id reload=reload />
-            </Show>
+    // Tabs, for the reason [`crate::ui::tabs`] gives: five panels stacked is a
+    // screen whose history is a scroll away from the name it belongs to, with
+    // two thirds of the viewport empty beside a narrow form.
+    //
+    // The grouping is by what the reader came to do, which on this screen is
+    // also the line the module docs draw: correcting a record, changing where
+    // somebody works, giving them a way in, and reading what has happened.
+    let details_tab = Tab::new("details", l!("common.details"), move || {
+        view! {
+            <div class="space-y-3">
+                <EmployeeForm draft=draft.get_value() hiring=false />
 
+                <Show when=move || deletable fallback=|| ()>
+                    <div class="flex flex-wrap items-center justify-end gap-2">
+                        <DeleteButton employee_id=id />
+                    </div>
+                </Show>
+            </div>
+        }
+        .into_any()
+    })
+    .icon(Icon::User);
+
+    let employment_tab = Tab::new("employment", l!("employees.employment"), move || {
+        view! {
+            // Moving somebody and reading what they have done here are two
+            // sections of one subject, not two cards.
+            <Panel>
+                <Show when=move || employed fallback=|| ()>
+                    <MovePanel employee_id=id reload=reload />
+                </Show>
+
+                <EmploymentPanel
+                    employee_id=id
+                    engagements=engagements.get_value()
+                    employed=employed
+                    reload=reload
+                />
+            </Panel>
+        }
+        .into_any()
+    })
+    .icon(Icon::Building2);
+
+    let login_tab = Tab::new("login", l!("employees.login"), move || {
+        view! {
             <LoginPanel
                 employee_id=id
                 has_login=has_login
                 can_invite=can_invite
-                blocker=blocker.map(|err| crate::i18n::t(&err.message()))
+                blocker=blocker.get_value()
                 reload=reload
             />
+        }
+        .into_any()
+    })
+    .icon(Icon::KeyRound);
 
-            <EmploymentPanel
-                employee_id=id
-                engagements=engagements
-                employed=employed
-                reload=reload
-            />
+    let history_tab = Tab::new("history", l!("common.history"), move || {
+        view! { <RecordHistory kind=kinds::EMPLOYEE id=Some(id.to_string()) /> }.into_any()
+    })
+    .icon(Icon::Clock)
+    .require(permissions::AUDIT_LOGS);
 
-            <Show when=move || deletable fallback=|| ()>
-                <div class="flex flex-wrap items-center justify-end gap-2">
-                    <DeleteButton employee_id=id />
-                </div>
-            </Show>
-
-            <Panel title=l!("common.history")>
-                <RecordHistory kind=kinds::EMPLOYEE id=Some(id.to_string()) />
-            </Panel>
-        </div>
+    view! {
+        <TabbedPanel
+            id="employee"
+            tabs=vec![details_tab, employment_tab, login_tab, history_tab]
+        />
     }
 }
 
@@ -400,8 +446,11 @@ fn employee_fields(
     };
 
     view! {
-        <>
-            <Panel title=l!("entity.employee.singular")>
+        // One card, sections inside: see `components::page`. Four bordered
+        // blocks put four borders and eight edges of padding between a name
+        // and a note, and a reader pays for all of it in scrolling.
+        <Panel>
+            <Section title=l!("employees.identity")>
                 <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                     <label class="block space-y-1">
                         <span class="text-xs font-medium text-content-muted">
@@ -502,13 +551,13 @@ fn employee_fields(
                         />
                     </label>
                 </div>
-            </Panel>
+            </Section>
 
             // Absent, not merely disabled, for a caller without the permission:
             // the service strips these fields before they reach the browser, so
             // drawing an empty box would be drawing a lie.
             <Show when=move || may_see_personal.get() fallback=|| ()>
-                <Panel title=l!("employees.personal")>
+                <Section title=l!("employees.personal")>
                     <div class="grid gap-3 sm:grid-cols-2">
                         <label class="block space-y-1">
                             <span class="text-xs font-medium text-content-muted">
@@ -550,13 +599,13 @@ fn employee_fields(
                             </span>
                         </label>
                     </div>
-                </Panel>
+                </Section>
             </Show>
 
             // Only when hiring. On an existing record these are the current
             // assignment's, and changing them is a move - see the module docs.
             <Show when=move || hiring fallback=|| ()>
-                <Panel
+                <Section
                     title=l!("employees.assignment")
                     description=l!("employees.assignment.help")
                 >
@@ -668,10 +717,10 @@ fn employee_fields(
                             })
                         />
                     </div>
-                </Panel>
+                </Section>
             </Show>
 
-            <Panel title=l!("employees.note")>
+            <Section title=l!("employees.note")>
                 <textarea
                     class="w-full"
                     rows="3"
@@ -681,20 +730,22 @@ fn employee_fields(
                         draft.update(|d| d.note = value);
                     }
                 />
-            </Panel>
+            </Section>
 
-            <div class="flex flex-wrap items-center justify-end gap-2">
-                <PrimaryButton
-                    label=l!("common.save")
-                    icon=Icon::Save
-                    pending=Signal::derive(move || saving.get())
-                    on_click=Callback::new({
-                        let save = save.clone();
-                        move |()| save()
-                    })
-                />
-            </div>
-        </>
+            <Section>
+                <div class="flex flex-wrap items-center justify-end gap-2">
+                    <PrimaryButton
+                        label=l!("common.save")
+                        icon=Icon::Save
+                        pending=Signal::derive(move || saving.get())
+                        on_click=Callback::new({
+                            let save = save.clone();
+                            move |()| save()
+                        })
+                    />
+                </div>
+            </Section>
+        </Panel>
     }
 }
 
@@ -748,7 +799,7 @@ fn move_panel(employee_id: Uuid, reload: Callback<()>) -> impl IntoView {
     let managers = Resource::new(|| (), |()| async move { employed_people().await });
 
     view! {
-        <Panel title=l!("employees.move.title") description=l!("employees.move.subtitle")>
+        <Section title=l!("employees.move.title") description=l!("employees.move.subtitle")>
             <Show
                 when=move || open.get()
                 fallback=move || {
@@ -822,7 +873,7 @@ fn move_panel(employee_id: Uuid, reload: Callback<()>) -> impl IntoView {
                     })}
                 </Transition>
             </Show>
-        </Panel>
+        </Section>
     }
 }
 
@@ -1144,7 +1195,7 @@ fn employment_panel(
     let rehired = count > 1;
 
     view! {
-        <Panel
+        <Section
             title=l!("employees.employment")
             description=l!("employees.employment.help")
         >
@@ -1169,7 +1220,7 @@ fn employment_panel(
                     </Show>
                 </div>
             </div>
-        </Panel>
+        </Section>
     }
 }
 

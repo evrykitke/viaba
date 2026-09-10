@@ -280,6 +280,15 @@ impl Dispatch {
         // the editor, which reports a change, which writes it into `value`.
         let mirror = StoredValue::new(String::new());
 
+        // What the editor was last told about being editable.
+        //
+        // TipTap's `setEditable` emits an update; the update is reported back
+        // here; the report writes the draft; writing the draft re-runs the
+        // effect that called `setEditable`. Telling the editor what it already
+        // knows is therefore not a wasted call but a loop that starves the
+        // event loop and takes the tab with it.
+        let editable_now = StoredValue::new(false);
+
         // `NodeRef` resolves after the element is in the document, so this runs
         // once with `None` and again with the div.
         Effect::new(move |mounted: Option<bool>| {
@@ -302,14 +311,24 @@ impl Dispatch {
                     return;
                 }
 
-                let content = value.get_untracked();
-                mirror.set_value(content.clone());
+                // `try_*`: the bundle is fetched asynchronously and the
+                // component may be gone by the time it lands - a tab switched
+                // away from while the editor was still loading. Reading a
+                // disposed signal is a panic, and a panic here takes every
+                // handler on the page with it.
+                let Some(content) = value.try_get_untracked() else {
+                    return;
+                };
+                mirror.try_set_value(content.clone());
+
+                let editable = !disabled.try_get_untracked().unwrap_or(true);
+                editable_now.try_set_value(editable);
 
                 let mounted = Editor::mount(
                     &host,
                     &content,
                     label.as_deref(),
-                    !disabled.get_untracked(),
+                    editable,
                     move |html, snapshot| {
                         // `try_*` throughout: a transaction can arrive while
                         // the component is being torn down, and a reactive
@@ -354,14 +373,25 @@ impl Dispatch {
         // Gating a field hides nothing - see `ui::form` - so a field somebody
         // may read and not change stays on screen, holding its value, and
         // stops accepting keystrokes.
+        //
+        // `ready` is read as well as `disabled`, and it has to be: the editor
+        // is mounted by an async task, so this effect can hold the answer
+        // before there is anything to tell it to. A viewer whose permissions
+        // resolve while the bundle is still in flight would otherwise get a
+        // field that is read-only for the rest of the page's life.
         Effect::new(move |_| {
-            let disabled = disabled.get();
+            let wanted = ready.get() && !disabled.get();
+
+            if editable_now.with_value(|held| *held == wanted) {
+                return;
+            }
 
             editor.with_value(|editor| {
                 if let Some(editor) = editor {
-                    editor.set_editable(!disabled);
+                    editor.set_editable(wanted);
                 }
             });
+            editable_now.set_value(wanted);
         });
 
         on_cleanup(move || {

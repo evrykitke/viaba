@@ -17,7 +17,9 @@ use phonix_core::form::Submission;
 use uuid::Uuid;
 
 use crate::components::history::RecordHistory;
-use crate::components::page::{Badge, GhostButton, Notice, PageHeader, Panel, PrimaryButton, Tone};
+use crate::components::page::{
+    Badge, GhostButton, Notice, PageHeader, Panel, PrimaryButton, Section, Tone,
+};
 use crate::icons::Icon;
 use crate::l;
 use crate::server_fns::inventory_fns::{
@@ -426,8 +428,8 @@ fn editor_body(
     let saved = move || draft.with(|d| d.id.is_some());
 
     view! {
-        <div class="space-y-3">
-            <Panel title=l!("landed_costs.header")>
+        <Panel>
+            <Section title=l!("landed_costs.header")>
                 <div class="grid gap-3 sm:grid-cols-2">
                     <div class="block space-y-1">
                         <label
@@ -473,13 +475,13 @@ fn editor_body(
                         />
                     </label>
                 </div>
-            </Panel>
+            </Section>
 
-            <Panel title=l!("landed_costs.charges") description=l!("landed_costs.charges.help")>
+            <Section title=l!("landed_costs.charges") description=l!("landed_costs.charges.help")>
                 <ChargeTable draft=draft />
-            </Panel>
+            </Section>
 
-            <Panel title=l!("landed_costs.note")>
+            <Section title=l!("landed_costs.note")>
                 <textarea
                     class="w-full"
                     rows="3"
@@ -489,9 +491,9 @@ fn editor_body(
                         draft.update(|d| d.note = text);
                     }
                 />
-            </Panel>
+            </Section>
 
-            <div class="flex flex-wrap items-center justify-end gap-2">
+            <div class="mt-4 flex flex-wrap items-center justify-end gap-2 border-t border-edge pt-4">
                 <Show when=saved fallback=|| ()>
                     <GhostButton
                         label=l!("common.delete")
@@ -536,7 +538,7 @@ fn editor_body(
                     />
                 </Show>
             </div>
-        </div>
+        </Panel>
     }
 }
 
@@ -771,9 +773,9 @@ fn landed_cost_document(document: LandedCost) -> impl IntoView {
     let allocations = document.allocations.clone();
 
     view! {
-        <div class="space-y-3">
+        <Panel>
             <div class="grid gap-3 lg:grid-cols-2">
-                <Panel title=l!("landed_costs.receipt")>
+                <Section title=l!("landed_costs.receipt") flush=true>
                     <div class="space-y-1 text-sm">
                         <div class="font-medium text-content">{supplier}</div>
                         <div class="text-xs">
@@ -797,9 +799,9 @@ fn landed_cost_document(document: LandedCost) -> impl IntoView {
                                 }
                             })}
                     </div>
-                </Panel>
+                </Section>
 
-                <Panel title=l!("landed_costs.what_it_did")
+                <Section title=l!("landed_costs.what_it_did") flush=true
                     description=l!("landed_costs.what_it_did.help")
                 >
                     <dl class="space-y-1 text-sm tabular-nums">
@@ -823,10 +825,10 @@ fn landed_cost_document(document: LandedCost) -> impl IntoView {
                             <dd class="text-content">{total}</dd>
                         </div>
                     </dl>
-                </Panel>
+                </Section>
             </div>
 
-            <Panel title=l!("landed_costs.charges")>
+            <Section title=l!("landed_costs.charges")>
                 <div class="overflow-x-auto">
                     <table class="w-full min-w-[34rem] text-sm">
                         <thead>
@@ -864,9 +866,9 @@ fn landed_cost_document(document: LandedCost) -> impl IntoView {
                         </tbody>
                     </table>
                 </div>
-            </Panel>
+            </Section>
 
-            <Panel
+            <Section
                 title=l!("landed_costs.allocations")
                 description=l!("landed_costs.allocations.help")
             >
@@ -924,20 +926,20 @@ fn landed_cost_document(document: LandedCost) -> impl IntoView {
                         </tbody>
                     </table>
                 </div>
-            </Panel>
+            </Section>
 
             {note
                 .map(|note| {
                     view! {
-                        <Panel title=l!("landed_costs.note")>
+                        <Section title=l!("landed_costs.note")>
                             <p class="whitespace-pre-wrap text-sm text-content-muted">{note}</p>
-                        </Panel>
+                        </Section>
                     }
                 })}
 
-            <Panel title=l!("common.history")>
+            <Section title=l!("common.history")>
                 <RecordHistory kind=kinds::LANDED_COST id=Some(id.to_string()) />
-            </Panel>
-        </div>
+            </Section>
+        </Panel>
     }
 }

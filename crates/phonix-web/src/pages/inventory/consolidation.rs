@@ -46,7 +46,9 @@ use phonix_master::party::{PartySummary, roles};
 use uuid::Uuid;
 
 use crate::components::history::RecordHistory;
-use crate::components::page::{Badge, GhostButton, Notice, PageHeader, Panel, PrimaryButton, Tone};
+use crate::components::page::{
+    Badge, GhostButton, Notice, PageHeader, Panel, PrimaryButton, Section, Tone,
+};
 use crate::icons::Icon;
 use crate::l;
 use crate::server_fns::inventory_fns::{
@@ -459,13 +461,13 @@ fn editor_body(
     };
 
     view! {
-        <div class="space-y-3">
-            <Panel title=l!("consolidations.lines") description=l!("consolidations.lines.help")>
+        <Panel>
+            <Section title=l!("consolidations.lines") description=l!("consolidations.lines.help")>
                 <LineTable draft=draft variants=variants supplier_options=supplier_options />
-            </Panel>
+            </Section>
 
             <div class="grid gap-3 lg:grid-cols-2 lg:items-start">
-                <Panel title=l!("consolidations.header")>
+                <Section title=l!("consolidations.header") flush=true>
                     <label class="block space-y-1">
                         <span class="text-xs font-medium text-content-muted">
                             {l!("consolidations.raised_on")}
@@ -481,9 +483,9 @@ fn editor_body(
                             }
                         />
                     </label>
-                </Panel>
+                </Section>
 
-                <Panel title=l!("consolidations.note")>
+                <Section title=l!("consolidations.note") flush=true>
                     <textarea
                         class="w-full"
                         rows="3"
@@ -493,7 +495,7 @@ fn editor_body(
                             draft.update(|d| d.note = text);
                         }
                     />
-                </Panel>
+                </Section>
             </div>
 
             <div class="flex flex-wrap items-center justify-between gap-2">
@@ -514,7 +516,7 @@ fn editor_body(
                     }}
                 </p>
 
-                <div class="flex flex-wrap items-center justify-end gap-2">
+                <div class="mt-4 flex flex-wrap items-center justify-end gap-2 border-t border-edge pt-4">
                     <Show when=saved fallback=|| ()>
                         <GhostButton
                             label=l!("common.delete")
@@ -554,7 +556,7 @@ fn editor_body(
                     </Show>
                 </div>
             </div>
-        </div>
+        </Panel>
     }
 }
 
@@ -840,9 +842,9 @@ fn consolidation_document(consolidation: Consolidation) -> impl IntoView {
     };
 
     view! {
-        <div class="space-y-3">
+        <Panel>
             <div class="grid gap-3 lg:grid-cols-2">
-                <Panel title=l!("consolidations.header")>
+                <Section title=l!("consolidations.header") flush=true>
                     <dl class="space-y-1 text-sm">
                         <div class="flex justify-between gap-4">
                             <dt class="text-content-muted">{l!("consolidations.warehouse")}</dt>
@@ -864,9 +866,9 @@ fn consolidation_document(consolidation: Consolidation) -> impl IntoView {
                                 }
                             })}
                     </dl>
-                </Panel>
+                </Section>
 
-                <Panel title=l!("consolidations.orders")>
+                <Section title=l!("consolidations.orders") flush=true>
                     {if orders.is_empty() {
                         view! {
                             <p class="text-sm text-content-subtle">
@@ -903,10 +905,10 @@ fn consolidation_document(consolidation: Consolidation) -> impl IntoView {
                         }
                             .into_any()
                     }}
-                </Panel>
+                </Section>
             </div>
 
-            <Panel title=l!("consolidations.lines")>
+            <Section title=l!("consolidations.lines")>
                 <div class="overflow-x-auto">
                     <table class="w-full min-w-[48rem] text-sm">
                         <thead>
@@ -977,18 +979,18 @@ fn consolidation_document(consolidation: Consolidation) -> impl IntoView {
                         </tbody>
                     </table>
                 </div>
-            </Panel>
+            </Section>
 
             {note
                 .map(|note| {
                     view! {
-                        <Panel title=l!("consolidations.note")>
+                        <Section title=l!("consolidations.note")>
                             <p class="whitespace-pre-wrap text-sm text-content-muted">{note}</p>
-                        </Panel>
+                        </Section>
                     }
                 })}
 
-            <div class="flex flex-wrap items-center justify-end gap-2">
+            <div class="mt-4 flex flex-wrap items-center justify-end gap-2 border-t border-edge pt-4">
                 <Show when=move || editable && may_manage.get() fallback=|| ()>
                     <GhostButton
                         label=l!("consolidations.cancel")
@@ -998,9 +1000,9 @@ fn consolidation_document(consolidation: Consolidation) -> impl IntoView {
                 </Show>
             </div>
 
-            <Panel title=l!("common.history")>
+            <Section title=l!("common.history")>
                 <RecordHistory kind=kinds::CONSOLIDATION id=Some(id.to_string()) />
-            </Panel>
-        </div>
+            </Section>
+        </Panel>
     }
 }

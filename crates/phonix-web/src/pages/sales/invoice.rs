@@ -35,7 +35,9 @@ use phonix_tax::group::TaxTreatment;
 use uuid::Uuid;
 
 use crate::components::history::RecordHistory;
-use crate::components::page::{Badge, GhostButton, Notice, PageHeader, Panel, PrimaryButton, Tone};
+use crate::components::page::{
+    Badge, GhostButton, Notice, PageHeader, Panel, PrimaryButton, Section, Tone,
+};
 use crate::icons::Icon;
 use crate::l;
 use crate::server_fns::books_fns::{
@@ -414,17 +416,17 @@ fn editor_body(
     let saved = move || draft.with(|d| d.id.is_some());
 
     view! {
-        <div class="space-y-3">
-            <Panel title=l!("invoices.header")>
+        <Panel>
+            <Section title=l!("invoices.header")>
                 <HeaderFields draft=draft parties=parties />
-            </Panel>
+            </Section>
 
-            <Panel title=l!("invoices.lines") description=l!("invoices.lines.help")>
+            <Section title=l!("invoices.lines") description=l!("invoices.lines.help")>
                 <LineTable draft=draft treatments=treatments />
-            </Panel>
+            </Section>
 
             <div class="grid gap-3 lg:grid-cols-[1fr_22rem] lg:items-start">
-                <Panel title=l!("invoices.notes")>
+                <Section title=l!("invoices.notes") flush=true>
                     <textarea
                         class="w-full"
                         rows="3"
@@ -437,12 +439,12 @@ fn editor_body(
                                 });
                         }
                     />
-                </Panel>
+                </Section>
 
                 <Totals totals=totals />
             </div>
 
-            <div class="flex flex-wrap items-center justify-end gap-2">
+            <div class="mt-4 flex flex-wrap items-center justify-end gap-2 border-t border-edge pt-4">
                 <Show when=saved fallback=|| ()>
                     <GhostButton
                         label=l!("common.delete")
@@ -480,7 +482,7 @@ fn editor_body(
                     />
                 </Show>
             </div>
-        </div>
+        </Panel>
     }
 }
 
@@ -952,9 +954,9 @@ fn invoice_document(invoice: app_books::invoice::Invoice, reload: Callback<()>) 
     };
 
     view! {
-        <div class="space-y-3">
+        <Panel>
             <div class="grid gap-3 lg:grid-cols-2">
-                <Panel title=l!("invoices.customer")>
+                <Section title=l!("invoices.customer") flush=true>
                     <div class="space-y-1 text-sm">
                         <div class="font-medium text-content">{party_name}</div>
                         <code class="text-2xs text-content-subtle">{party_code}</code>
@@ -971,9 +973,9 @@ fn invoice_document(invoice: app_books::invoice::Invoice, reload: Callback<()>) 
                                 }
                             })}
                     </div>
-                </Panel>
+                </Section>
 
-                <Panel title=l!("invoices.header")>
+                <Section title=l!("invoices.header") flush=true>
                     <dl class="space-y-1 text-sm">
                         <div class="flex justify-between gap-4">
                             <dt class="text-content-muted">{l!("invoices.issued")}</dt>
@@ -989,10 +991,10 @@ fn invoice_document(invoice: app_books::invoice::Invoice, reload: Callback<()>) 
                                 }
                             })}
                     </dl>
-                </Panel>
+                </Section>
             </div>
 
-            <Panel title=l!("invoices.lines")>
+            <Section title=l!("invoices.lines")>
                 <div class="overflow-x-auto">
                     <table class="w-full min-w-[40rem] text-sm">
                         <thead>
@@ -1062,21 +1064,21 @@ fn invoice_document(invoice: app_books::invoice::Invoice, reload: Callback<()>) 
                         </tbody>
                     </table>
                 </div>
-            </Panel>
+            </Section>
 
             <div class="grid gap-3 lg:grid-cols-[1fr_22rem] lg:items-start">
                 {notes
                     .map(|notes| {
                         view! {
-                            <Panel title=l!("invoices.notes")>
+                            <Section title=l!("invoices.notes")>
                                 <p class="whitespace-pre-wrap text-sm text-content-muted">
                                     {notes}
                                 </p>
-                            </Panel>
+                            </Section>
                         }
                     })}
 
-                <Panel title=l!("invoices.total")>
+                <Section title=l!("invoices.total") flush=true>
                     <dl class="space-y-1 text-sm tabular-nums">
                         <div class="flex justify-between gap-4">
                             <dt class="text-content-muted">{l!("invoices.net")}</dt>
@@ -1107,7 +1109,7 @@ fn invoice_document(invoice: app_books::invoice::Invoice, reload: Callback<()>) 
                                 }
                             })}
                     </dl>
-                </Panel>
+                </Section>
             </div>
 
             // Two conditions, and they are different questions. The *status*
@@ -1125,9 +1127,9 @@ fn invoice_document(invoice: app_books::invoice::Invoice, reload: Callback<()>) 
                 </div>
             </Show>
 
-            <Panel title=l!("common.history")>
+            <Section title=l!("common.history")>
                 <RecordHistory kind=kinds::SALES_INVOICE id=Some(id.to_string()) />
-            </Panel>
-        </div>
+            </Section>
+        </Panel>
     }
 }

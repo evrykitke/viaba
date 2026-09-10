@@ -27,7 +27,9 @@ use phonix_master::party::{PartySummary, roles};
 use uuid::Uuid;
 
 use crate::components::history::RecordHistory;
-use crate::components::page::{Badge, GhostButton, Notice, PageHeader, Panel, PrimaryButton, Tone};
+use crate::components::page::{
+    Badge, GhostButton, Notice, PageHeader, Panel, PrimaryButton, Section, Tone,
+};
 use crate::icons::Icon;
 use crate::l;
 use crate::server_fns::inventory_fns::{
@@ -378,16 +380,16 @@ fn editor_body(
     let saved = move || draft.with(|d| d.id.is_some());
 
     view! {
-        <div class="space-y-3">
-            <Panel title=l!("receipts.header")>
+        <Panel>
+            <Section title=l!("receipts.header")>
                 <HeaderFields draft=draft suppliers=suppliers warehouses=warehouses />
-            </Panel>
+            </Section>
 
-            <Panel title=l!("receipts.lines") description=l!("receipts.lines.help")>
+            <Section title=l!("receipts.lines") description=l!("receipts.lines.help")>
                 <LineTable draft=draft variants=variants />
-            </Panel>
+            </Section>
 
-            <Panel title=l!("receipts.note")>
+            <Section title=l!("receipts.note")>
                 <textarea
                     class="w-full"
                     rows="3"
@@ -397,9 +399,9 @@ fn editor_body(
                         draft.update(|d| d.note = text);
                     }
                 />
-            </Panel>
+            </Section>
 
-            <div class="flex flex-wrap items-center justify-end gap-2">
+            <div class="mt-4 flex flex-wrap items-center justify-end gap-2 border-t border-edge pt-4">
                 <Show when=saved fallback=|| ()>
                     <GhostButton
                         label=l!("receipts.cancel")
@@ -435,7 +437,7 @@ fn editor_body(
                     />
                 </Show>
             </div>
-        </div>
+        </Panel>
     }
 }
 
@@ -784,9 +786,9 @@ fn receipt_document(receipt: Receipt) -> impl IntoView {
     let posted = receipt.state.is_posted();
 
     view! {
-        <div class="space-y-3">
+        <Panel>
             <div class="grid gap-3 lg:grid-cols-2">
-                <Panel title=l!("purchase_orders.supplier")>
+                <Section title=l!("purchase_orders.supplier") flush=true>
                     <div class="space-y-1 text-sm">
                         <div class="font-medium text-content">{supplier_name}</div>
                         <code class="text-2xs text-content-subtle">{supplier_code}</code>
@@ -804,9 +806,9 @@ fn receipt_document(receipt: Receipt) -> impl IntoView {
                                 }
                             })}
                     </div>
-                </Panel>
+                </Section>
 
-                <Panel title=l!("receipts.header")>
+                <Section title=l!("receipts.header") flush=true>
                     <dl class="space-y-1 text-sm">
                         <div class="flex justify-between gap-4">
                             <dt class="text-content-muted">{l!("nav.warehouses")}</dt>
@@ -834,10 +836,10 @@ fn receipt_document(receipt: Receipt) -> impl IntoView {
                                 }
                             })}
                     </dl>
-                </Panel>
+                </Section>
             </div>
 
-            <Panel title=l!("receipts.lines")>
+            <Section title=l!("receipts.lines")>
                 <div class="overflow-x-auto">
                     <table class="w-full min-w-[48rem] text-sm">
                         <thead>
@@ -904,21 +906,21 @@ fn receipt_document(receipt: Receipt) -> impl IntoView {
                         </tbody>
                     </table>
                 </div>
-            </Panel>
+            </Section>
 
             <div class="grid gap-3 lg:grid-cols-[1fr_22rem] lg:items-start">
                 {note
                     .map(|note| {
                         view! {
-                            <Panel title=l!("receipts.note")>
+                            <Section title=l!("receipts.note")>
                                 <p class="whitespace-pre-wrap text-sm text-content-muted">
                                     {note}
                                 </p>
-                            </Panel>
+                            </Section>
                         }
                     })}
 
-                <Panel title=l!("receipts.value")>
+                <Section title=l!("receipts.value") flush=true>
                     <div class="flex items-baseline justify-between gap-4 text-sm font-medium tabular-nums">
                         <span class="text-content">
                             {l!("receipts.value")} " "
@@ -927,15 +929,15 @@ fn receipt_document(receipt: Receipt) -> impl IntoView {
                         <span class="text-content">{value}</span>
                     </div>
                     <p class="mt-1 text-2xs text-content-subtle">{l!("receipts.value.help")}</p>
-                </Panel>
+                </Section>
             </div>
 
             {posted.then(|| view! { <LandedCosts receipt_id=id /> })}
 
-            <Panel title=l!("common.history")>
+            <Section title=l!("common.history")>
                 <RecordHistory kind=kinds::RECEIPT id=Some(id.to_string()) />
-            </Panel>
-        </div>
+            </Section>
+        </Panel>
     }
 }
 

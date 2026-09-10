@@ -5,6 +5,13 @@
 //! highlighted, and which groups are open, both come from the [`Trail`] rather
 //! than from anything a screen sets - see [`super`] for why.
 //!
+//! # Weight
+//!
+//! The open section carries the accent solid; the page you are on carries it
+//! tinted. That order is deliberate and is the reverse of the obvious one: a
+//! menu is read to answer "which list is this", and the heading answers that.
+//! The page is already named by the heading at the top of the screen.
+//!
 //! Collapsed, the panel becomes a 48px rail of icons. Nested levels are hidden
 //! there rather than squeezed: there is no honest way to show a third-level
 //! item in 48 pixels, so clicking a group on the rail opens the panel back up
@@ -253,19 +260,46 @@ fn nav_node(
         }
     };
 
+    // Three weights, and the order of them is the point.
+    //
+    // The heaviest mark is on the section that is OPEN, not on the page that is
+    // current. What somebody needs from a menu they are already looking at is
+    // "which of these lists am I reading", and that is a question the heading
+    // answers, not the row. The current page is marked a step below - enough to
+    // find, not enough to compete with the section holding it - and everything
+    // else is unmarked.
+    //
+    // Two functions rather than one with a third flag: only a group can be open
+    // and only a leaf can be current, so a single function would carry two
+    // arguments that are never both true.
+    const ROW: &str = "group flex h-row w-full items-center gap-2 rounded-control pr-2 \
+                       text-sm transition-colors";
+
     let row_class = move |is_current: bool, on_trail: bool| {
         let state = if is_current {
-            "bg-brand-subtle text-brand font-medium"
+            "bg-brand-subtle text-brand font-medium hover:bg-brand-subtle-hover"
         } else if on_trail {
             "text-content hover:bg-surface-hover"
         } else {
             "text-content-muted hover:bg-surface-hover hover:text-content"
         };
 
-        format!(
-            "group flex h-row w-full items-center gap-2 rounded-control pr-2 text-sm \
-             transition-colors {state}"
-        )
+        format!("{ROW} {state}")
+    };
+
+    // A section heading. Solid where the row for a page is tinted, so the two
+    // cannot be mistaken for one another at a glance - and, on the rail, so a
+    // column of icons still says which section is unpacked.
+    let group_class = move |is_open: bool, on_trail: bool| {
+        let state = if is_open {
+            "bg-brand text-on-brand font-medium hover:bg-brand-hover"
+        } else if on_trail {
+            "text-content hover:bg-surface-hover"
+        } else {
+            "text-content-muted hover:bg-surface-hover hover:text-content"
+        };
+
+        format!("{ROW} {state}")
     };
 
     match node.href {
@@ -299,9 +333,9 @@ fn nav_node(
                 <button
                     type="button"
                     class=move || {
-                        shell
-                            .trail
-                            .with(|trail| row_class(trail.is_current(key), trail.contains(key)))
+                        let is_open = shell.is_open(key);
+
+                        shell.trail.with(|trail| group_class(is_open, trail.contains(key)))
                     }
                     style=indent
                     aria-expanded=move || if shell.is_open(key) { "true" } else { "false" }

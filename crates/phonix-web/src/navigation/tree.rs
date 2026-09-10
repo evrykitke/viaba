@@ -131,6 +131,11 @@ pub static MENU: &[NavNode] = &[
     // Inventory, between master data and people: an item list is read by more
     // of a workspace than a department list is, and by fewer people than the
     // customer list.
+    //
+    // Sections rather than a column of fifteen rows. Two screens stay at the
+    // top because they are opened every day - what we sell and what is on the
+    // shelf - and everything else is one of three answers to "why am I here":
+    // buying it, moving it, or arranging the reference data behind it.
     NavNode::group(
         "inventory",
         "nav.inventory",
@@ -151,116 +156,168 @@ pub static MENU: &[NavNode] = &[
                 .keywords(&[
                     "products", "sku", "goods", "stock", "barcode", "upc", "variants",
                 ]),
-            NavNode::leaf(
-                "item-categories",
-                "nav.item_categories",
-                Icon::ListTree,
-                "/inventory/categories",
-            )
-            .require(names::ITEM_CATEGORIES)
-            // The costing method lives on the category, and somebody looking
-            // for "FIFO" is looking for this screen without knowing its name.
-            .keywords(&[
-                "costing", "valuation", "fifo", "average", "standard cost", "removal",
-            ]),
-            NavNode::leaf(
-                "warehouses",
-                "nav.warehouses",
-                Icon::Warehouse,
-                "/inventory/warehouses",
-            )
-            .require(names::WAREHOUSES)
-            .keywords(&["depot", "site", "building", "receiving", "shipping", "steps"]),
-            // Buying sits above stock: an order is raised before the goods
-            // it brings can be counted, and a buyer opens these two far more
-            // often than the location tree they arranged once in March.
-            // First of the four, because it is first on the chain: asked for,
-            // ordered, received, billed. It is also the one entry here that
-            // somebody outside the buying team opens, which is why it leads.
-            NavNode::leaf(
-                "requisitions",
-                "nav.requisitions",
-                Icon::ClipboardList,
-                "/inventory/requisitions",
-            )
-            .require(names::REQUISITIONS)
-            .keywords(&[
-                "request", "ask", "pr", "purchase requisition", "approval", "cost centre",
-                "department", "consolidate",
-            ]),
-            // Between the two, because that is where it is on the chain: it
-            // reads the requisitions and it writes the orders.
-            NavNode::leaf(
-                "consolidations",
-                "nav.consolidations",
-                Icon::Boxes,
-                "/inventory/consolidations",
-            )
-            .require(names::CONSOLIDATIONS)
-            .keywords(&[
-                "consolidate", "combine", "merge", "group demand", "batch", "aggregate",
-                "buying plan",
-            ]),
-            NavNode::leaf(
-                "purchase-orders",
-                "nav.purchase_orders",
-                Icon::ScrollText,
-                "/inventory/orders",
-            )
-            .require(names::PURCHASE_ORDERS)
-            .keywords(&["po", "buying", "procurement", "supplier", "vendor", "order"]),
-            NavNode::leaf("receipts", "nav.receipts", Icon::Package, "/inventory/receipts")
-                .require(names::RECEIPTS)
-                .keywords(&[
-                    "goods in", "grn", "delivery note", "receiving", "incoming", "backorder",
-                ]),
-            NavNode::leaf("bills", "nav.bills", Icon::Receipt, "/inventory/bills")
-                .require(names::BILLS)
-                .keywords(&[
-                    "invoice", "supplier invoice", "payable", "ap", "three-way match",
-                    "grni", "accrual", "variance",
-                ]),
-            NavNode::leaf(
-                "landed_costs",
-                "nav.landed_costs",
-                Icon::Truck,
-                "/inventory/landed-costs",
-            )
-            .require(names::LANDED_COSTS)
-            .keywords(&[
-                "freight", "duty", "customs", "shipping", "handling", "insurance",
-                "carriage", "landed", "capitalise",
-            ]),
-            NavNode::leaf("transfers", "nav.transfers", Icon::Truck, "/inventory/transfers")
-                .require(names::TRANSFERS)
-                .keywords(&[
-                    "move", "internal", "in transit", "despatch", "dispatch", "put away",
-                    "between warehouses", "consignment",
-                ]),
-            // Stock sits above the setup screens: what is on the shelf is
-            // what somebody opens this app to find out, and the location tree
-            // is what they arranged once in March.
+            // What is on the shelf is what somebody opens this app to find
+            // out, and it is one row rather than a section for that reason.
             NavNode::leaf("stock", "nav.stock", Icon::Boxes, "/inventory/stock")
                 .require(names::STOCK)
                 .keywords(&[
                     "on hand", "quantity", "availability", "quants", "count", "lots",
                 ]),
-            NavNode::leaf("stock-moves", "nav.stock_moves", Icon::ArrowRight, "/inventory/moves")
-                .require(names::STOCK)
-                .keywords(&[
-                    "movements", "history", "receipts", "deliveries", "adjustments", "stock card",
-                ]),
-            NavNode::leaf(
-                "stock-locations",
-                "nav.stock_locations",
-                Icon::Boxes,
-                "/inventory/locations",
-            )
-            .require(names::STOCK_LOCATIONS)
-            .keywords(&["bin", "shelf", "zone", "aisle", "transit", "inventory loss"]),
-            NavNode::leaf("units", "nav.units", Icon::Ruler, "/inventory/units")
-                .require(names::UNITS)
-                .keywords(&["uom", "measure", "kilogram", "litre", "each", "conversion"]),
+            // The buying chain, in the order it happens: asked for, planned,
+            // ordered, received, billed, and then what the freight added.
+            NavNode::group(
+                "inventory-procurement",
+                "nav.procurement",
+                Icon::ShoppingCart,
+                &[
+                    NavNode::leaf(
+                        "requisitions",
+                        "nav.requisitions",
+                        Icon::ClipboardList,
+                        "/inventory/requisitions",
+                    )
+                    .require(names::REQUISITIONS)
+                    .keywords(&[
+                        "request", "ask", "pr", "purchase requisition", "approval",
+                        "cost centre", "department", "consolidate",
+                    ]),
+                    NavNode::leaf(
+                        "consolidations",
+                        "nav.consolidations",
+                        Icon::Boxes,
+                        "/inventory/consolidations",
+                    )
+                    .require(names::CONSOLIDATIONS)
+                    .keywords(&[
+                        "consolidate", "combine", "merge", "group demand", "batch",
+                        "aggregate", "buying plan",
+                    ]),
+                    NavNode::leaf(
+                        "purchase-orders",
+                        "nav.purchase_orders",
+                        Icon::ScrollText,
+                        "/inventory/orders",
+                    )
+                    .require(names::PURCHASE_ORDERS)
+                    .keywords(&["po", "buying", "procurement", "supplier", "vendor", "order"]),
+                    NavNode::leaf(
+                        "receipts",
+                        "nav.receipts",
+                        Icon::Package,
+                        "/inventory/receipts",
+                    )
+                    .require(names::RECEIPTS)
+                    .keywords(&[
+                        "goods in", "grn", "delivery note", "receiving", "incoming",
+                        "backorder",
+                    ]),
+                    NavNode::leaf("bills", "nav.bills", Icon::Receipt, "/inventory/bills")
+                        .require(names::BILLS)
+                        .keywords(&[
+                            "invoice", "supplier invoice", "payable", "ap",
+                            "three-way match", "grni", "accrual", "variance",
+                        ]),
+                    NavNode::leaf(
+                        "landed_costs",
+                        "nav.landed_costs",
+                        Icon::Truck,
+                        "/inventory/landed-costs",
+                    )
+                    .require(names::LANDED_COSTS)
+                    .keywords(&[
+                        "freight", "duty", "customs", "shipping", "handling", "insurance",
+                        "carriage", "landed", "capitalise",
+                    ]),
+                ],
+            ),
+            // Stock that moves for a reason that is not a purchase: between our
+            // own buildings, or because a count disagreed with the record.
+            NavNode::group(
+                "inventory-operations",
+                "nav.operations",
+                Icon::ArrowRight,
+                &[
+                    NavNode::leaf(
+                        "transfers",
+                        "nav.transfers",
+                        Icon::Truck,
+                        "/inventory/transfers",
+                    )
+                    .require(names::TRANSFERS)
+                    .keywords(&[
+                        "move", "internal", "in transit", "despatch", "dispatch",
+                        "put away", "between warehouses", "consignment",
+                    ]),
+                    NavNode::leaf(
+                        "stock-moves",
+                        "nav.stock_moves",
+                        Icon::ArrowRight,
+                        "/inventory/moves",
+                    )
+                    .require(names::STOCK)
+                    .keywords(&[
+                        "movements", "history", "receipts", "deliveries", "adjustments",
+                        "stock card",
+                    ]),
+                ],
+            ),
+            // The reference data: arranged once, read by everything above it.
+            NavNode::group(
+                "inventory-master",
+                "nav.inventory_master",
+                Icon::ListTree,
+                &[
+                    NavNode::leaf(
+                        "item-categories",
+                        "nav.item_categories",
+                        Icon::ListTree,
+                        "/inventory/categories",
+                    )
+                    .require(names::ITEM_CATEGORIES)
+                    // The costing method lives on the category, and somebody
+                    // looking for "FIFO" is looking for this screen without
+                    // knowing its name.
+                    .keywords(&[
+                        "costing", "valuation", "fifo", "average", "standard cost",
+                        "removal",
+                    ]),
+                    NavNode::leaf(
+                        "warehouses",
+                        "nav.warehouses",
+                        Icon::Warehouse,
+                        "/inventory/warehouses",
+                    )
+                    .require(names::WAREHOUSES)
+                    .keywords(&[
+                        "depot", "site", "building", "receiving", "shipping", "steps",
+                    ]),
+                    NavNode::leaf(
+                        "stock-locations",
+                        "nav.stock_locations",
+                        Icon::Boxes,
+                        "/inventory/locations",
+                    )
+                    .require(names::STOCK_LOCATIONS)
+                    .keywords(&["bin", "shelf", "zone", "aisle", "transit", "inventory loss"]),
+                    NavNode::leaf("units", "nav.units", Icon::Ruler, "/inventory/units")
+                        .require(names::UNITS)
+                        .keywords(&["uom", "measure", "kilogram", "litre", "each", "conversion"]),
+                    // Reference data that decides an account, which is why it
+                    // sits here rather than beside the stock screens: it is
+                    // arranged once and read by every discrepancy afterwards.
+                    NavNode::leaf(
+                        "adjustment-types",
+                        "nav.adjustment_types",
+                        Icon::SlidersHorizontal,
+                        "/inventory/adjustment-types",
+                    )
+                    .require(names::ADJUSTMENT_TYPES)
+                    .keywords(&[
+                        "adjustment", "reason", "shrinkage", "damage", "expiry", "write-off",
+                        "scrap", "sample", "count difference", "stocktake", "loss",
+                    ]),
+                ],
+            ),
         ],
     )
     .require(names::INVENTORY),

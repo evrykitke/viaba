@@ -347,6 +347,24 @@ pub fn find(roots: &'static [NavNode], key: &str) -> Option<&'static NavNode> {
     None
 }
 
+/// The list a key sits in: `MENU` for a top-level node, its holder's children
+/// otherwise.
+///
+/// What the sidebar's one-open-at-a-time rule needs. Empty for a key that names
+/// nothing, which is what a remembered override looks like after a menu has
+/// been rearranged.
+pub fn siblings_of(roots: &'static [NavNode], key: &str) -> &'static [NavNode] {
+    if roots.iter().any(|node| node.key == key) {
+        return roots;
+    }
+
+    roots
+        .iter()
+        .map(|node| siblings_of(node.children, key))
+        .find(|found| !found.is_empty())
+        .unwrap_or(&[])
+}
+
 /// Every routable node the viewer may reach, flattened.
 ///
 /// What the command palette searches: groups are dropped because opening one is

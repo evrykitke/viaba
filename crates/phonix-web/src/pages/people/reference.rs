@@ -15,7 +15,9 @@ use phonix_core::form::Submission;
 use uuid::Uuid;
 
 use crate::components::history::RecordHistory;
-use crate::components::page::{GhostButton, Notice, PageHeader, Panel, PrimaryButton, Tone};
+use crate::components::page::{
+    GhostButton, Notice, PageHeader, Panel, PrimaryButton, Section, Tone,
+};
 use crate::icons::Icon;
 use crate::l;
 use crate::server_fns::hr_fns::{
@@ -23,6 +25,7 @@ use crate::server_fns::hr_fns::{
     job_position_edit, list_departments, save_job_position, save_work_location, work_location_edit,
 };
 use crate::ui::alert::{Alert, Alerts, Confirm};
+use crate::ui::card::CollapsibleCard;
 use crate::ui::form::field::Choice;
 use crate::ui::lookup::SelectField;
 
@@ -179,7 +182,7 @@ fn job_position_form(draft: JobPositionInput) -> impl IntoView {
         <div class="space-y-3">
             <Notice message=Signal::derive(move || rejected.get()) tone=Tone::Danger />
 
-            <Panel title=l!("entity.job_position.singular")>
+            <Panel>
                 <div class="grid gap-3 sm:grid-cols-2">
                     <label class="block space-y-1">
                         <span class="text-xs font-medium text-content-muted">
@@ -289,38 +292,42 @@ fn job_position_form(draft: JobPositionInput) -> impl IntoView {
                         }
                     />
                 </label>
+
+                <Section>
+                    <div class="flex flex-wrap items-center justify-end gap-2">
+                        <Show when=saved fallback=|| ()>
+                            <GhostButton
+                                label=l!("common.delete")
+                                icon=Icon::Trash2
+                                on_click=Callback::new({
+                                    let remove = remove.clone();
+                                    move |()| remove()
+                                })
+                            />
+                        </Show>
+
+                        <PrimaryButton
+                            label=l!("common.save")
+                            icon=Icon::Save
+                            pending=Signal::derive(move || saving.get())
+                            on_click=Callback::new({
+                                let save = save.clone();
+                                move |()| save()
+                            })
+                        />
+                    </div>
+                </Section>
             </Panel>
 
-            <div class="flex flex-wrap items-center justify-end gap-2">
-                <Show when=saved fallback=|| ()>
-                    <GhostButton
-                        label=l!("common.delete")
-                        icon=Icon::Trash2
-                        on_click=Callback::new({
-                            let remove = remove.clone();
-                            move |()| remove()
-                        })
-                    />
-                </Show>
-
-                <PrimaryButton
-                    label=l!("common.save")
-                    icon=Icon::Save
-                    pending=Signal::derive(move || saving.get())
-                    on_click=Callback::new({
-                        let save = save.clone();
-                        move |()| save()
-                    })
-                />
-            </div>
-
+            // Closed, because it is the part of this screen nobody opened it
+            // for - see `components::page` for when a second card earns itself.
             <Show when=saved fallback=|| ()>
-                <Panel title=l!("common.history")>
+                <CollapsibleCard title=l!("common.history") icon=Icon::Clock>
                     <RecordHistory
                         kind=kinds::JOB_POSITION
                         id=id().map(|id| id.to_string())
                     />
-                </Panel>
+                </CollapsibleCard>
             </Show>
         </div>
     }
@@ -479,7 +486,7 @@ fn work_location_form(draft: WorkLocationInput) -> impl IntoView {
         <div class="space-y-3">
             <Notice message=Signal::derive(move || rejected.get()) tone=Tone::Danger />
 
-            <Panel title=l!("entity.work_location.singular")>
+            <Panel>
                 <div class="grid gap-3 sm:grid-cols-2">
                     <label class="block space-y-1">
                         <span class="text-xs font-medium text-content-muted">
@@ -564,38 +571,42 @@ fn work_location_form(draft: WorkLocationInput) -> impl IntoView {
                         }
                     />
                 </label>
+
+                <Section>
+                    <div class="flex flex-wrap items-center justify-end gap-2">
+                        <Show when=saved fallback=|| ()>
+                            <GhostButton
+                                label=l!("common.delete")
+                                icon=Icon::Trash2
+                                on_click=Callback::new({
+                                    let remove = remove.clone();
+                                    move |()| remove()
+                                })
+                            />
+                        </Show>
+
+                        <PrimaryButton
+                            label=l!("common.save")
+                            icon=Icon::Save
+                            pending=Signal::derive(move || saving.get())
+                            on_click=Callback::new({
+                                let save = save.clone();
+                                move |()| save()
+                            })
+                        />
+                    </div>
+                </Section>
             </Panel>
 
-            <div class="flex flex-wrap items-center justify-end gap-2">
-                <Show when=saved fallback=|| ()>
-                    <GhostButton
-                        label=l!("common.delete")
-                        icon=Icon::Trash2
-                        on_click=Callback::new({
-                            let remove = remove.clone();
-                            move |()| remove()
-                        })
-                    />
-                </Show>
-
-                <PrimaryButton
-                    label=l!("common.save")
-                    icon=Icon::Save
-                    pending=Signal::derive(move || saving.get())
-                    on_click=Callback::new({
-                        let save = save.clone();
-                        move |()| save()
-                    })
-                />
-            </div>
-
+            // Closed, because it is the part of this screen nobody opened it
+            // for - see `components::page` for when a second card earns itself.
             <Show when=saved fallback=|| ()>
-                <Panel title=l!("common.history")>
+                <CollapsibleCard title=l!("common.history") icon=Icon::Clock>
                     <RecordHistory
                         kind=kinds::WORK_LOCATION
                         id=id().map(|id| id.to_string())
                     />
-                </Panel>
+                </CollapsibleCard>
             </Show>
         </div>
     }

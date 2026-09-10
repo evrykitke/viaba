@@ -24,7 +24,9 @@ use phonix_core::form::Submission;
 use uuid::Uuid;
 
 use crate::components::history::RecordHistory;
-use crate::components::page::{Badge, GhostButton, Notice, PageHeader, Panel, PrimaryButton, Tone};
+use crate::components::page::{
+    Badge, GhostButton, Notice, PageHeader, Panel, PrimaryButton, Section, Tone,
+};
 use crate::icons::Icon;
 use crate::l;
 use crate::server_fns::inventory_fns::{
@@ -393,8 +395,8 @@ fn editor_body(
     let saved = move || draft.with(|d| d.id.is_some());
 
     view! {
-        <div class="space-y-3">
-            <Panel title=l!("transfers.header") description=l!("transfers.header.help")>
+        <Panel>
+            <Section title=l!("transfers.header") description=l!("transfers.header.help")>
                 <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                     <div class="block space-y-1">
                         <label for="transfer-from" class="block text-xs font-medium text-content-muted">
@@ -478,13 +480,13 @@ fn editor_body(
                         </span>
                     </label>
                 </div>
-            </Panel>
+            </Section>
 
-            <Panel title=l!("transfers.lines")>
+            <Section title=l!("transfers.lines")>
                 <LineTable draft=draft variants=variants />
-            </Panel>
+            </Section>
 
-            <Panel title=l!("transfers.note")>
+            <Section title=l!("transfers.note")>
                 <textarea
                     class="w-full"
                     rows="3"
@@ -494,9 +496,9 @@ fn editor_body(
                         draft.update(|d| d.note = text);
                     }
                 />
-            </Panel>
+            </Section>
 
-            <div class="flex flex-wrap items-center justify-end gap-2">
+            <div class="mt-4 flex flex-wrap items-center justify-end gap-2 border-t border-edge pt-4">
                 <Show when=saved fallback=|| ()>
                     <GhostButton
                         label=l!("common.delete")
@@ -541,7 +543,7 @@ fn editor_body(
                     />
                 </Show>
             </div>
-        </div>
+        </Panel>
     }
 }
 
@@ -718,14 +720,14 @@ fn transfer_document(document: Transfer) -> impl IntoView {
     let in_transit_state = matches!(document.state, TransferState::InTransit);
 
     view! {
-        <div class="space-y-3">
+        <Panel>
             // While anything is still on the road this is the thing to act on,
             // so it comes before the document rather than after it.
             {(in_transit_state && carrying)
                 .then(|| view! { <ArrivalPanel transfer_id=id /> })}
 
             <div class="grid gap-3 lg:grid-cols-2">
-                <Panel title=l!("transfers.header")>
+                <Section title=l!("transfers.header") flush=true>
                     <dl class="space-y-1 text-sm">
                         <div class="flex justify-between gap-4">
                             <dt class="text-content-muted">{l!("transfers.from")}</dt>
@@ -747,9 +749,9 @@ fn transfer_document(document: Transfer) -> impl IntoView {
                                 }
                             })}
                     </dl>
-                </Panel>
+                </Section>
 
-                <Panel title=l!("transfers.journey") description=l!("transfers.journey.help")>
+                <Section title=l!("transfers.journey") description=l!("transfers.journey.help") flush=true>
                     <dl class="space-y-1 text-sm tabular-nums">
                         <div class="flex justify-between gap-4">
                             <dt class="text-content-muted">{l!("transfers.planned")}</dt>
@@ -784,10 +786,10 @@ fn transfer_document(document: Transfer) -> impl IntoView {
                             </dd>
                         </div>
                     </dl>
-                </Panel>
+                </Section>
             </div>
 
-            <Panel title=l!("transfers.lines")>
+            <Section title=l!("transfers.lines")>
                 <div class="overflow-x-auto">
                     <table class="w-full min-w-[40rem] text-sm">
                         <thead>
@@ -849,21 +851,21 @@ fn transfer_document(document: Transfer) -> impl IntoView {
                         </tbody>
                     </table>
                 </div>
-            </Panel>
+            </Section>
 
             {note
                 .map(|note| {
                     view! {
-                        <Panel title=l!("transfers.note")>
+                        <Section title=l!("transfers.note")>
                             <p class="whitespace-pre-wrap text-sm text-content-muted">{note}</p>
-                        </Panel>
+                        </Section>
                     }
                 })}
 
-            <Panel title=l!("common.history")>
+            <Section title=l!("common.history")>
                 <RecordHistory kind=kinds::STOCK_TRANSFER id=Some(id.to_string()) />
-            </Panel>
-        </div>
+            </Section>
+        </Panel>
     }
 }
 

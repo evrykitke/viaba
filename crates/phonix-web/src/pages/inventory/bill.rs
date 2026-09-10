@@ -16,7 +16,9 @@ use phonix_master::party::{PartySummary, roles};
 use uuid::Uuid;
 
 use crate::components::history::RecordHistory;
-use crate::components::page::{Badge, GhostButton, Notice, PageHeader, Panel, PrimaryButton, Tone};
+use crate::components::page::{
+    Badge, GhostButton, Notice, PageHeader, Panel, PrimaryButton, Section, Tone,
+};
 use crate::icons::Icon;
 use crate::l;
 use crate::server_fns::inventory_fns::{
@@ -533,16 +535,16 @@ fn editor_body(
     let blocked = move || needs_reason && match_note.with(|note| note.trim().is_empty());
 
     view! {
-        <div class="space-y-3">
-            <Panel title=l!("bills.header")>
+        <Panel>
+            <Section title=l!("bills.header")>
                 <HeaderFields draft=draft suppliers=suppliers />
-            </Panel>
+            </Section>
 
-            <Panel title=l!("bills.lines") description=l!("bills.lines.help")>
+            <Section title=l!("bills.lines") description=l!("bills.lines.help")>
                 <LineTable draft=draft variants=variants />
-            </Panel>
+            </Section>
 
-            <Panel title=l!("bills.note")>
+            <Section title=l!("bills.note")>
                 <textarea
                     class="w-full"
                     rows="3"
@@ -552,12 +554,12 @@ fn editor_body(
                         draft.update(|d| d.note = text);
                     }
                 />
-            </Panel>
+            </Section>
 
             // Only where the grade did not clear. A reason box on every bill
             // teaches people to type "ok" into it.
             <Show when=move || needs_reason fallback=|| ()>
-                <Panel title=l!("bills.match_note")>
+                <Section title=l!("bills.match_note")>
                     <textarea
                         class="w-full"
                         rows="2"
@@ -567,10 +569,10 @@ fn editor_body(
                     <p class="mt-1 text-2xs text-content-subtle">
                         {l!("bills.match_note.help")}
                     </p>
-                </Panel>
+                </Section>
             </Show>
 
-            <div class="flex flex-wrap items-center justify-end gap-2">
+            <div class="mt-4 flex flex-wrap items-center justify-end gap-2 border-t border-edge pt-4">
                 <Show when=saved fallback=|| ()>
                     <GhostButton
                         label=l!("common.delete")
@@ -616,7 +618,7 @@ fn editor_body(
                     />
                 </Show>
             </div>
-        </div>
+        </Panel>
     }
 }
 
@@ -916,9 +918,9 @@ fn bill_document(bill: Bill, grade: Option<MatchGrade>) -> impl IntoView {
     let lines = bill.lines.clone();
 
     view! {
-        <div class="space-y-3">
+        <Panel>
             <div class="grid gap-3 lg:grid-cols-2">
-                <Panel title=l!("purchase_orders.supplier")>
+                <Section title=l!("purchase_orders.supplier") flush=true>
                     <div class="space-y-1 text-sm">
                         <div class="font-medium text-content">{supplier_name}</div>
                         <code class="text-2xs text-content-subtle">{supplier_code}</code>
@@ -940,12 +942,12 @@ fn bill_document(bill: Bill, grade: Option<MatchGrade>) -> impl IntoView {
                                 }
                             })}
                     </div>
-                </Panel>
+                </Section>
 
                 {grade.map(|grade| view! { <MatchPanel grade=grade /> })}
             </div>
 
-            <Panel title=l!("bills.lines")>
+            <Section title=l!("bills.lines")>
                 <div class="overflow-x-auto">
                     <table class="w-full min-w-[44rem] text-sm">
                         <thead>
@@ -1004,18 +1006,18 @@ fn bill_document(bill: Bill, grade: Option<MatchGrade>) -> impl IntoView {
                         </tbody>
                     </table>
                 </div>
-            </Panel>
+            </Section>
 
             <div class="grid gap-3 lg:grid-cols-[1fr_22rem] lg:items-start">
                 <div class="space-y-3">
                     {note
                         .map(|note| {
                             view! {
-                                <Panel title=l!("bills.note")>
+                                <Section title=l!("bills.note")>
                                     <p class="whitespace-pre-wrap text-sm text-content-muted">
                                         {note}
                                     </p>
-                                </Panel>
+                                </Section>
                             }
                         })}
 
@@ -1024,16 +1026,16 @@ fn bill_document(bill: Bill, grade: Option<MatchGrade>) -> impl IntoView {
                     {match_note
                         .map(|reason| {
                             view! {
-                                <Panel title=l!("bills.match_note")>
+                                <Section title=l!("bills.match_note")>
                                     <p class="whitespace-pre-wrap text-sm text-content-muted">
                                         {reason}
                                     </p>
-                                </Panel>
+                                </Section>
                             }
                         })}
                 </div>
 
-                <Panel title=l!("bills.header")>
+                <Section title=l!("bills.header") flush=true>
                     <dl class="space-y-1 text-sm tabular-nums">
                         <div class="flex justify-between gap-4">
                             <dt class="text-content-muted">{l!("bills.dated")}</dt>
@@ -1069,12 +1071,12 @@ fn bill_document(bill: Bill, grade: Option<MatchGrade>) -> impl IntoView {
                             <dd class="text-content">{net}</dd>
                         </div>
                     </dl>
-                </Panel>
+                </Section>
             </div>
 
-            <Panel title=l!("common.history")>
+            <Section title=l!("common.history")>
                 <RecordHistory kind=kinds::BILL id=Some(id.to_string()) />
-            </Panel>
-        </div>
+            </Section>
+        </Panel>
     }
 }
