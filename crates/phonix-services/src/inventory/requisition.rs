@@ -43,6 +43,7 @@ use phonix_core::locale::Currency;
 use phonix_core::money::Money;
 use phonix_core::msg;
 use phonix_core::permissions;
+use phonix_core::query::{Page, PageRequest};
 use phonix_db::error::DbError;
 use phonix_db::inventory::requisition as store;
 use phonix_db::numbering::SequenceKey;
@@ -55,11 +56,15 @@ use crate::audit::{self, Target, kinds};
 use crate::caller::{Caller, acting_user};
 use crate::error::{ServiceError, ServiceResult};
 
-pub async fn list(pool: &PgPool, caller: &Caller) -> ServiceResult<Vec<RequisitionSummary>> {
+pub async fn list(
+    pool: &PgPool,
+    caller: &Caller,
+    request: PageRequest,
+) -> ServiceResult<Page<RequisitionSummary>> {
     caller.require(permissions::REQUISITIONS)?;
-
     let currency = base_currency(pool).await?;
-    Ok(store::list(pool, currency).await?)
+
+    Ok(store::page(pool, currency, &request).await?)
 }
 
 /// What is waiting on a decision. The approver's own screen.

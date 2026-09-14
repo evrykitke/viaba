@@ -24,10 +24,12 @@ use crate::components::page::{Badge, Tone};
 use crate::icons::Icon;
 use crate::l;
 use crate::server_fns::inventory_fns::list_requisitions;
-use crate::ui::table::{Align, Cell, Column, Filter, FilterChoice, RowAction, Source, ToolbarAction};
+use crate::ui::table::{
+    Align, Cell, Column, DateFilter, Filter, FilterChoice, RowAction, Source, ToolbarAction,
+};
 
 pub fn requisitions_grid() -> GridConfig<RequisitionSummary> {
-    GridConfig::new("requisitions", Source::in_memory(list_requisitions))
+    GridConfig::new("requisitions", Source::paged(list_requisitions))
         .searching(l!("requisitions.search"))
         .exports_as("requisitions")
         .sorted_by(Sort::descending("raised_on"))
@@ -169,17 +171,7 @@ pub fn requisitions_grid() -> GridConfig<RequisitionSummary> {
                     FilterChoice::new("draft", l!("requisitions.state.draft")),
                     FilterChoice::new("closed", l!("requisitions.state.rejected")),
                 ],
-            )
-            .matching(|row: &RequisitionSummary, wanted| match wanted {
-                "submitted" => matches!(row.state, RequisitionState::Submitted),
-                "approved" => matches!(row.state, RequisitionState::Approved),
-                "draft" => matches!(row.state, RequisitionState::Draft),
-                "closed" => matches!(
-                    row.state,
-                    RequisitionState::Rejected | RequisitionState::Cancelled
-                ),
-                _ => true,
-            }),
+            ),
         )
         .filter(
             Filter::new(
@@ -190,13 +182,9 @@ pub fn requisitions_grid() -> GridConfig<RequisitionSummary> {
                     FilterChoice::new("outstanding", l!("requisitions.ordered.nothing")),
                     FilterChoice::new("complete", l!("requisitions.ordered.everything")),
                 ],
-            )
-            .matching(|row: &RequisitionSummary, wanted| match wanted {
-                "outstanding" => !row.order_progress.is_complete(),
-                "complete" => row.order_progress.is_complete(),
-                _ => true,
-            }),
+            ),
         )
+        .date_filter(DateFilter::new("raised", l!("requisitions.raised_on")))
         .toolbar(
             ToolbarAction::link(
                 l!("requisitions.new"),
@@ -281,5 +269,107 @@ const fn progress_tone(progress: OrderProgress) -> Tone {
         OrderProgress::Nothing => Tone::Neutral,
         OrderProgress::Partly => Tone::Brand,
         OrderProgress::Everything => Tone::Success,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use leptos::prelude::Owner;
+
+    use super::*;
+
+    fn grid() -> GridConfig<RequisitionSummary> {
+        Owner::new().with(requisitions_grid)
+    }
+
+    /// Mirrors the database sort fields without adding a crate dependency.
+    const SERVER_SORTS: &[&str] = &["cost_centre", "raised_on", "needed_by", "estimate", "line_count"];
+
+    /// Mirrors the database search fields.
+    const SERVER_SEARCHES: &[&str] = &["number", "cost_centre", "raised_by", "warehouse"];
+
+    #[test]
+    fn every_sortable_column_is_one_the_server_can_order_by() {
+        for column in grid().columns.iter().filter(|column| column.sortable) {
+            assert!(
+                SERVER_SORTS.contains(&column.field()),
+                "{} offers a sort the reader will ignore",
+                column.field(),
+            );
+        }
+    }
+
+    #[test]
+    fn every_searchable_column_is_one_the_server_looks_inside() {
+        for column in grid().columns.iter().filter(|column| column.searchable) {
+            assert!(
+                SERVER_SEARCHES.contains(&column.field()),
+                "{} is offered to the search box and never searched",
+                column.field(),
+            );
+        }
+    }
+
+    #[test]
+    fn it_opens_on_everything_newest_first() {
+        let grid = grid();
+        let sort = grid.initial_request().sort.expect("an opening order");
+
+        assert_eq!(sort, Sort::descending("raised_on"));
+        assert!(SERVER_SORTS.contains(&sort.field.as_str()));
+
+        // The empty choice keeps the initial list unfiltered.
+        for filter in &grid.filters {
+            assert_eq!(filter.default_value(), "", "{}", filter.key());
+            assert!(
+                !filter.is_local(),
+                "{} is answered in the wrong place",
+                filter.key()
+            );
+        }
+
+        let range = grid.date_filters.first().expect("the grid offers a span");
+
+        // Mirrors the database date-range key.
+        assert_eq!(range.key(), "raised");
+        assert!(!range.is_local());
+    }
+
+    #[test]
+    fn every_state_is_offered_under_some_group() {
+        // Every state must have a filter group.
+        let grid = grid();
+        let states = grid.filters.iter().find(|f| f.key() == "state").unwrap();
+
+        for state in RequisitionState::ALL {
+            assert!(
+                states.choices.iter().any(|c| c.value == state.group()),
+                "{} is in no group the grid offers",
+                state.as_str(),
+            );
+        }
+
+        for choice in states.choices.iter().filter(|c| !c.value.is_empty()) {
+            assert!(
+                !RequisitionState::in_group(choice.value).is_empty(),
+                "{} is offered and covers nothing",
+                choice.value,
+            );
+        }
+    }
+
+    #[test]
+    fn the_ordered_filter_offers_the_two_words_the_reader_answers() {
+        let grid = grid();
+        let filter = grid.filters.iter().find(|f| f.key() == "ordered").unwrap();
+
+        let offered: Vec<&str> = filter
+            .choices
+            .iter()
+            .map(|choice| choice.value)
+            .filter(|value| !value.is_empty())
+            .collect();
+
+        assert_eq!(offered, ["outstanding", "complete"]);
     }
 }

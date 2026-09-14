@@ -147,6 +147,25 @@ impl RequisitionState {
         !matches!(self, Self::Draft)
     }
 
+    /// Filter group for this state.
+    pub const fn group(self) -> &'static str {
+        match self {
+            Self::Draft => "draft",
+            Self::Submitted => "submitted",
+            Self::Approved => "approved",
+            Self::Rejected | Self::Cancelled => "closed",
+        }
+    }
+
+    /// Returns all states in a filter group.
+    pub fn in_group(group: &str) -> Vec<Self> {
+        Self::ALL
+            .iter()
+            .copied()
+            .filter(|state| state.group() == group)
+            .collect()
+    }
+
     pub fn label(self) -> Message {
         match self {
             Self::Draft => msg!("requisitions.state.draft"),
@@ -169,6 +188,30 @@ pub enum OrderProgress {
 }
 
 impl OrderProgress {
+    pub const ALL: &'static [Self] = &[Self::Nothing, Self::Partly, Self::Everything];
+
+    /// Database representation of this progress state.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Nothing => "nothing",
+            Self::Partly => "partly",
+            Self::Everything => "everything",
+        }
+    }
+
+    pub fn parse(raw: &str) -> Option<Self> {
+        Self::ALL.iter().copied().find(|state| state.as_str() == raw)
+    }
+
+    /// Returns complete or incomplete progress states.
+    pub fn complete_or_not(complete: bool) -> Vec<Self> {
+        Self::ALL
+            .iter()
+            .copied()
+            .filter(|state| state.is_complete() == complete)
+            .collect()
+    }
+
     pub fn label(self) -> Message {
         match self {
             Self::Nothing => msg!("requisitions.ordered.nothing"),

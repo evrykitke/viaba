@@ -16,6 +16,7 @@ use phonix_core::locale::Currency;
 use phonix_core::money::{Money, Rounding};
 use phonix_core::msg;
 use phonix_core::permissions;
+use phonix_core::query::{Page, PageRequest};
 use phonix_db::error::DbError;
 use phonix_db::inventory::bill::{self as store, CostedBillLine};
 use phonix_db::numbering::SequenceKey;
@@ -35,9 +36,13 @@ async fn base_currency(pool: &PgPool) -> ServiceResult<Currency> {
     Ok(crate::workspace::profile::current(pool).await?.currency)
 }
 
-pub async fn list(pool: &PgPool, caller: &Caller) -> ServiceResult<Vec<BillSummary>> {
+pub async fn list(
+    pool: &PgPool,
+    caller: &Caller,
+    request: PageRequest,
+) -> ServiceResult<Page<BillSummary>> {
     caller.require(permissions::BILLS)?;
-    Ok(store::list(pool).await?)
+    Ok(store::page(pool, &request).await?)
 }
 
 pub async fn detail(pool: &PgPool, caller: &Caller, id: Uuid) -> ServiceResult<Bill> {

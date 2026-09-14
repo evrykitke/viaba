@@ -37,17 +37,20 @@
 
 use app_inventory::quantity::Quantity;
 use app_inventory::requisition::{
-    Checked, Decision, Demand, Requisition, RequisitionLine, RequisitionState, RequisitionSummary,
+    Checked, Decision, Demand, OrderProgress, Requisition, RequisitionLine, RequisitionState,
+    RequisitionSummary,
 };
 use chrono::{DateTime, NaiveDate, Utc};
 use phonix_core::identity::UserId;
 use phonix_core::locale::Currency;
+use phonix_core::query::{Page, PageRequest};
 use phonix_core::money::Money;
 use phonix_ports::cost_centre::CostCentre;
-use sqlx::{PgConnection, PgExecutor, Row};
+use sqlx::{AssertSqlSafe, PgConnection, PgExecutor, Row};
 use uuid::Uuid;
 
 use crate::error::DbError;
+use crate::listing::{self, Sortable};
 
 fn unknown(column: &str, raw: &str) -> sqlx::Error {
     sqlx::Error::Decode(
@@ -140,29 +143,131 @@ fn read_progress(raw: &str) -> Result<app_inventory::requisition::OrderProgress,
     }
 }
 
-/// Every requisition, newest first.
-pub async fn list<'e, E>(executor: E, currency: Currency) -> Result<Vec<RequisitionSummary>, DbError>
-where
-    E: PgExecutor<'e>,
-{
-    let statement = format!(
-        "SELECT {SUMMARY_COLUMNS}
-           FROM inventory.requisitions r
+/// Request date-range filter key.
+pub const RAISED: &str = "raised";
+
+/// Request state-group filter key.
+pub const STATE: &str = "state";
+
+/// Request order-progress filter key.
+pub const ORDERED: &str = "ordered";
+
+/// Fields allowed in `ORDER BY`.
+const SORTABLE: &[Sortable] = &[
+    ("cost_centre", "r.cost_centre_name"),
+    ("raised_on", "r.raised_on"),
+    ("needed_by", "r.needed_by"),
+    ("estimate", "estimate"),
+    ("line_count", "line_count"),
+];
+
+const FROM: &str = "FROM inventory.requisitions r
            JOIN inventory.warehouses w ON w.id = r.warehouse_id
-           LEFT JOIN core.users u ON u.id = r.created_by
-          ORDER BY r.raised_on DESC, r.created_at DESC"
+           LEFT JOIN core.users u ON u.id = r.created_by";
+
+/// Order progress used by the query and result set.
+const PROGRESS: &str = "COALESCE((
+        SELECT CASE
+            WHEN bool_and(l.ordered >= l.quantity_stock) THEN 'everything'
+            WHEN bool_or(l.ordered > 0) THEN 'partly'
+            ELSE 'nothing' END
+          FROM inventory.requisition_lines l
+         WHERE l.requisition_id = r.id
+    ), 'nothing')";
+
+/// Returns a filtered, sorted page of requisitions.
+pub async fn page(
+    pool: &sqlx::PgPool,
+    currency: Currency,
+    request: &PageRequest,
+) -> Result<Page<RequisitionSummary>, DbError> {
+    let request = request.sanitised();
+    let needle = request.needle().map(|needle| crate::search::contains(&needle));
+    let raised = request.range(RAISED);
+
+    // Ignore unknown state groups.
+    let states: Option<Vec<String>> = request.filter(STATE).and_then(|group| {
+        let states = RequisitionState::in_group(group);
+
+        (!states.is_empty()).then(|| {
+            states
+                .into_iter()
+                .map(|state| state.as_str().to_owned())
+                .collect()
+        })
+    });
+
+    let ordered: Option<Vec<String>> = match request.filter(ORDERED) {
+        Some("complete") => Some(true),
+        Some("outstanding") => Some(false),
+        _ => None,
+    }
+    .map(|complete| {
+        OrderProgress::complete_or_not(complete)
+            .into_iter()
+            .map(|state| state.as_str().to_owned())
+            .collect()
+    });
+
+    let where_clause = format!(
+        "WHERE ($1::text IS NULL
+                 OR r.number ILIKE $1
+                 OR r.cost_centre_name ILIKE $1
+                 OR w.name ILIKE $1
+                 OR u.display_name ILIKE $1)
+            AND ($2::date IS NULL OR r.raised_on >= $2)
+            AND ($3::date IS NULL OR r.raised_on <= $3)
+            AND ($4::text[] IS NULL OR r.state = ANY($4::text[]))
+            AND ($5::text[] IS NULL OR {PROGRESS} = ANY($5::text[]))"
     );
 
-    let rows = sqlx::query(sqlx::AssertSqlSafe(statement))
-        .fetch_all(executor)
+    let counting = AssertSqlSafe(format!("SELECT count(*) {FROM} {where_clause}"));
+
+    let total: i64 = sqlx::query_scalar(counting)
+        .bind(needle.as_deref())
+        .bind(raised.first_day())
+        .bind(raised.last_day())
+        .bind(states.as_deref())
+        .bind(ordered.as_deref())
+        .fetch_one(pool)
         .await
         .map_err(DbError::Query)?;
 
-    rows.iter()
+    let total = u64::try_from(total).unwrap_or(0);
+    let request = request.clamped_to(total);
+
+    // Keep pagination stable when primary sort values match.
+    let order = listing::order_by(request.sort.as_ref(), SORTABLE, "r.raised_on DESC");
+
+    let selecting = AssertSqlSafe(format!(
+        "SELECT {SUMMARY_COLUMNS}
+           {FROM}
+           {where_clause}
+          ORDER BY {order}, r.created_at DESC
+          LIMIT $6 OFFSET $7"
+    ));
+
+    let rows = sqlx::query(selecting)
+        .bind(needle.as_deref())
+        .bind(raised.first_day())
+        .bind(raised.last_day())
+        .bind(states.as_deref())
+        .bind(ordered.as_deref())
+        .bind(request.limit() as i64)
+        .bind(request.offset() as i64)
+        .fetch_all(pool)
+        .await
+        .map_err(DbError::Query)?;
+
+    let summaries = rows
+        .iter()
         .map(|row| read_summary(row, currency))
         .collect::<Result<Vec<_>, sqlx::Error>>()
-        .map_err(DbError::Query)
+        .map_err(DbError::Query)?;
+
+    Ok(Page::new(summaries, total, &request))
 }
+
 
 /// What is waiting on somebody. The approver's own screen.
 pub async fn awaiting_decision<'e, E>(

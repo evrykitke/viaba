@@ -13,10 +13,12 @@ use crate::components::page::{Badge, Tone};
 use crate::icons::Icon;
 use crate::l;
 use crate::server_fns::inventory_fns::list_bills;
-use crate::ui::table::{Align, Cell, Column, Filter, FilterChoice, RowAction, Source, ToolbarAction};
+use crate::ui::table::{
+    Align, Cell, Column, DateFilter, Filter, FilterChoice, RowAction, Source, ToolbarAction,
+};
 
 pub fn bills_grid() -> GridConfig<BillSummary> {
-    GridConfig::new("bills", Source::in_memory(list_bills))
+    GridConfig::new("bills", Source::paged(list_bills))
         .searching(l!("bills.search"))
         .exports_as("supplier-bills")
         .sorted_by(Sort::descending("bill_date"))
@@ -116,18 +118,14 @@ pub fn bills_grid() -> GridConfig<BillSummary> {
                 "state",
                 l!("field.status"),
                 vec![
+                    FilterChoice::all(l!("common.all")),
                     FilterChoice::new("draft", l!("bills.state.draft")),
                     FilterChoice::new("posted", l!("bills.state.posted")),
                     FilterChoice::new("cancelled", l!("bills.state.cancelled")),
                 ],
-            )
-            .matching(|row: &BillSummary, wanted| match wanted {
-                    "draft" => matches!(row.state, BillState::Draft),
-                    "posted" => matches!(row.state, BillState::Posted),
-                    "cancelled" => matches!(row.state, BillState::Cancelled),
-                    _ => true,
-                }),
+            ),
         )
+        .date_filter(DateFilter::new("billed", l!("bills.dated")))
         .toolbar(
             ToolbarAction::link(l!("common.add"), Icon::Plus, "/inventory/bills/new")
                 .require(permissions::BILLS_CREATE)
@@ -204,5 +202,83 @@ fn state_tone(state: BillState) -> Tone {
         BillState::Draft => Tone::Neutral,
         BillState::Posted => Tone::Success,
         BillState::Cancelled => Tone::Warning,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use leptos::prelude::Owner;
+
+    use super::*;
+
+    fn grid() -> GridConfig<BillSummary> {
+        Owner::new().with(bills_grid)
+    }
+
+    /// Mirrors the database sort fields without adding a crate dependency.
+    const SERVER_SORTS: &[&str] = &["number", "supplier", "reference", "bill_date", "due_on", "order", "net", "variance"];
+
+    /// Mirrors the database search fields.
+    const SERVER_SEARCHES: &[&str] = &["number", "supplier", "reference", "order"];
+
+    #[test]
+    fn every_sortable_column_is_one_the_server_can_order_by() {
+        for column in grid().columns.iter().filter(|column| column.sortable) {
+            assert!(
+                SERVER_SORTS.contains(&column.field()),
+                "{} offers a sort the reader will ignore",
+                column.field(),
+            );
+        }
+    }
+
+    #[test]
+    fn every_searchable_column_is_one_the_server_looks_inside() {
+        for column in grid().columns.iter().filter(|column| column.searchable) {
+            assert!(
+                SERVER_SEARCHES.contains(&column.field()),
+                "{} is offered to the search box and never searched",
+                column.field(),
+            );
+        }
+    }
+
+    #[test]
+    fn it_opens_on_everything_newest_first() {
+        let grid = grid();
+        let sort = grid.initial_request().sort.expect("an opening order");
+
+        assert_eq!(sort, Sort::descending("bill_date"));
+        assert!(SERVER_SORTS.contains(&sort.field.as_str()));
+
+        // The empty choice keeps the initial list unfiltered.
+        for filter in &grid.filters {
+            assert_eq!(filter.default_value(), "", "{}", filter.key());
+            assert!(
+                !filter.is_local(),
+                "{} is answered in the wrong place",
+                filter.key()
+            );
+        }
+
+        let range = grid.date_filters.first().expect("the grid offers a span");
+
+        // Mirrors the database date-range key.
+        assert_eq!(range.key(), "billed");
+        assert!(!range.is_local());
+    }
+
+    #[test]
+    fn every_state_offered_is_one_the_reader_parses_back() {
+        let grid = grid();
+        let states = grid.filters.iter().find(|f| f.key() == "state").unwrap();
+
+        for choice in states.choices.iter().filter(|c| !c.value.is_empty()) {
+            assert!(
+                BillState::parse(choice.value).is_some(),
+                "{} is offered and cannot be read back",
+                choice.value,
+            );
+        }
     }
 }

@@ -767,13 +767,13 @@ pub async fn record_adjustment(
 // is the cost centre, which is this app's first caller of the `CostCentres` port
 // from a document - see ADR 0006 sections 2 and 7.
 
-#[server(name = ListRequisitions, prefix = "/api", endpoint = "inventory/requisitions")]
-pub async fn list_requisitions() -> Result<Vec<RequisitionSummary>, ServerFnError> {
+#[server(name = ListRequisitions, prefix = "/api", endpoint = "inventory/requisitions", input = Json)]
+pub async fn list_requisitions(request: PageRequest) -> Result<Page<RequisitionSummary>, ServerFnError> {
     use crate::state::{pool_and_caller, service_error};
 
     let (pool, caller) = pool_and_caller().await?;
 
-    phonix_services::inventory::requisition::list(&pool, &caller)
+    phonix_services::inventory::requisition::list(&pool, &caller, request)
         .await
         .map_err(service_error)
 }
@@ -1583,13 +1583,13 @@ pub async fn cancel_receipt(receipt_id: Uuid) -> Result<Submission<()>, ServerFn
 // The third document of the three-way match. Posting one clears GRNI, books the
 // price difference and creates the payable - all through the `Ledger` port.
 
-#[server(name = ListBills, prefix = "/api", endpoint = "inventory/bills")]
-pub async fn list_bills() -> Result<Vec<BillSummary>, ServerFnError> {
+#[server(name = ListBills, prefix = "/api", endpoint = "inventory/bills", input = Json)]
+pub async fn list_bills(request: PageRequest) -> Result<Page<BillSummary>, ServerFnError> {
     use crate::state::{pool_and_caller, service_error};
 
     let (pool, caller) = pool_and_caller().await?;
 
-    phonix_services::inventory::bill::list(&pool, &caller)
+    phonix_services::inventory::bill::list(&pool, &caller, request)
         .await
         .map_err(service_error)
 }

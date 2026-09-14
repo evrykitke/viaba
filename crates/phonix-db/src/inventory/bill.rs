@@ -11,10 +11,12 @@ use app_inventory::quantity::Quantity;
 use phonix_core::identity::UserId;
 use phonix_core::locale::Currency;
 use phonix_core::money::Money;
-use sqlx::{PgConnection, PgExecutor, Row};
+use phonix_core::query::{Page, PageRequest};
+use sqlx::{AssertSqlSafe, PgConnection, PgExecutor, Row};
 use uuid::Uuid;
 
 use crate::error::DbError;
+use crate::listing::{self, Sortable};
 
 fn unknown(column: &str, raw: &str) -> sqlx::Error {
     sqlx::Error::Decode(
@@ -40,11 +42,62 @@ fn read_state(raw: &str) -> Result<BillState, sqlx::Error> {
     BillState::parse(raw).ok_or_else(|| unknown("state", raw))
 }
 
-pub async fn list<'e, E>(executor: E) -> Result<Vec<BillSummary>, DbError>
-where
-    E: PgExecutor<'e>,
-{
-    let rows = sqlx::query(
+/// Request date-range filter key.
+pub const BILLED: &str = "billed";
+
+/// Request state filter key.
+pub const STATE: &str = "state";
+
+/// Fields allowed in `ORDER BY`.
+const SORTABLE: &[Sortable] = &[
+    ("number", "b.number"),
+    ("supplier", "b.supplier_name"),
+    ("reference", "b.supplier_reference"),
+    ("bill_date", "b.bill_date"),
+    ("due_on", "b.due_on"),
+    ("order", "o.number"),
+    ("net", "b.net"),
+    ("variance", "b.variance"),
+];
+
+const FROM: &str = "FROM inventory.bills b
+           LEFT JOIN inventory.purchase_orders o ON o.id = b.order_id";
+
+/// Optional filters, bound as parameters.
+const WHERE: &str = "WHERE ($1::text IS NULL
+                 OR b.number ILIKE $1
+                 OR b.supplier_name ILIKE $1
+                 OR b.supplier_reference ILIKE $1
+                 OR o.number ILIKE $1)
+            AND ($2::date IS NULL OR b.bill_date >= $2)
+            AND ($3::date IS NULL OR b.bill_date <= $3)
+            AND ($4::text IS NULL OR b.state = $4)";
+
+/// Returns a filtered, sorted page of bills.
+pub async fn page(pool: &sqlx::PgPool, request: &PageRequest) -> Result<Page<BillSummary>, DbError> {
+    let request = request.sanitised();
+    let needle = request.needle().map(|needle| crate::search::contains(&needle));
+    let state = request.filter(STATE).and_then(BillState::parse);
+    let billed = request.range(BILLED);
+
+    let counting = AssertSqlSafe(format!("SELECT count(*) {FROM} {WHERE}"));
+
+    let total: i64 = sqlx::query_scalar(counting)
+        .bind(needle.as_deref())
+        .bind(billed.first_day())
+        .bind(billed.last_day())
+        .bind(state.map(BillState::as_str))
+        .fetch_one(pool)
+        .await
+        .map_err(DbError::Query)?;
+
+    let total = u64::try_from(total).unwrap_or(0);
+    let request = request.clamped_to(total);
+
+    // Keep pagination stable when primary sort values match.
+    let order = listing::order_by(request.sort.as_ref(), SORTABLE, "b.bill_date DESC");
+
+    let selecting = AssertSqlSafe(format!(
         "SELECT b.id, b.number, b.state, b.supplier_name, b.supplier_reference,
                 b.bill_date, b.due_on, b.currency,
                 b.net::text AS net, b.variance::text AS variance,
@@ -52,15 +105,25 @@ where
                 o.number AS order_number,
                 (SELECT count(*) FROM inventory.bill_lines l WHERE l.bill_id = b.id)
                     AS line_count
-           FROM inventory.bills b
-           LEFT JOIN inventory.purchase_orders o ON o.id = b.order_id
-          ORDER BY b.bill_date DESC, b.created_at DESC",
-    )
-    .fetch_all(executor)
-    .await
-    .map_err(DbError::Query)?;
+           {FROM}
+           {WHERE}
+          ORDER BY {order}, b.created_at DESC
+          LIMIT $5 OFFSET $6"
+    ));
 
-    rows.iter()
+    let rows = sqlx::query(selecting)
+        .bind(needle.as_deref())
+        .bind(billed.first_day())
+        .bind(billed.last_day())
+        .bind(state.map(BillState::as_str))
+        .bind(request.limit() as i64)
+        .bind(request.offset() as i64)
+        .fetch_all(pool)
+        .await
+        .map_err(DbError::Query)?;
+
+    let summaries = rows
+        .iter()
         .map(|row| {
             let currency = read_currency(row.try_get("currency").map_err(DbError::Query)?)
                 .map_err(DbError::Query)?;
@@ -91,8 +154,11 @@ where
                 was_overridden: row.try_get("was_overridden").map_err(DbError::Query)?,
             })
         })
-        .collect()
+        .collect::<Result<Vec<_>, DbError>>()?;
+
+    Ok(Page::new(summaries, total, &request))
 }
+
 
 pub async fn find<'e, E>(executor: E, id: Uuid) -> Result<Option<Bill>, DbError>
 where
