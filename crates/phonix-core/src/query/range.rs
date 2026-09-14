@@ -32,7 +32,7 @@
 //! * a request stays reproducible: the same request run tomorrow returns the
 //!   same rows, which is what an audit needs and what "this week" would break
 
-use chrono::{DateTime, SecondsFormat, Utc};
+use chrono::{DateTime, NaiveDate, SecondsFormat, TimeDelta, Utc};
 
 /// A half-open span of instants: `from` included, `to` excluded.
 ///
@@ -111,6 +111,24 @@ impl DateRange {
         }
     }
 
+    /// The first day this span includes, or `None` if it is unbounded that way.
+    pub fn first_day(&self) -> Option<NaiveDate> {
+        self.from.map(|at| at.date_naive())
+    }
+
+    /// The last day this span includes, given that its end is exclusive.
+    ///
+    /// A span ending at midnight ends on the day before; one ending at nine in
+    /// the morning ends on that day, because a day is either in it or is not
+    /// and that one partly is. One subtraction covers both, and it is why the
+    /// exclusive edge never has to be explained to anybody - not to a reader
+    /// writing `moved_on <= $1`, and not to somebody looking at the panel.
+    pub fn last_day(&self) -> Option<NaiveDate> {
+        self.to
+            .and_then(|at| at.checked_sub_signed(TimeDelta::nanoseconds(1)))
+            .map(|at| at.date_naive())
+    }
+
     /// Whether `at` falls inside.
     pub fn contains(&self, at: DateTime<Utc>) -> bool {
         self.from.is_none_or(|from| at >= from) && self.to.is_none_or(|to| at < to)
@@ -156,6 +174,30 @@ mod tests {
         Utc.with_ymd_and_hms(2026, 8, day, hour, 0, 0)
             .single()
             .expect("a real instant")
+    }
+
+    #[test]
+    fn a_span_of_days_ends_on_the_day_before_the_edge() {
+        let span = DateRange::between(at(17, 0), at(24, 0));
+
+        assert_eq!(span.first_day(), NaiveDate::from_ymd_opt(2026, 8, 17));
+        assert_eq!(span.last_day(), NaiveDate::from_ymd_opt(2026, 8, 23));
+    }
+
+    #[test]
+    fn a_day_the_span_only_partly_covers_is_still_a_day_it_covers() {
+        // A row carrying a date rather than an instant is in or out, and the
+        // seventeenth is in.
+        assert_eq!(
+            DateRange::until(at(17, 9)).last_day(),
+            NaiveDate::from_ymd_opt(2026, 8, 17)
+        );
+    }
+
+    #[test]
+    fn an_unbounded_end_names_no_day() {
+        assert_eq!(DateRange::ANY.first_day(), None);
+        assert_eq!(DateRange::ANY.last_day(), None);
     }
 
     #[test]

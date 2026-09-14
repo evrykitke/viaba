@@ -16,7 +16,6 @@ use app_books::account::Side;
 use app_books::journal::{
     Dimension, DimensionValue, JournalEntry, JournalSummary, Posted, PostedLine, Source,
 };
-use chrono::TimeDelta;
 use phonix_core::identity::UserId;
 use phonix_core::locale::Currency;
 use phonix_core::money::Money;
@@ -25,6 +24,7 @@ use sqlx::{AssertSqlSafe, PgConnection, PgExecutor, PgPool, Row};
 use uuid::Uuid;
 
 use crate::error::DbError;
+use crate::listing::{self, Sortable};
 
 /// What a journal screen is *about*.
 ///
@@ -140,7 +140,7 @@ pub const KIND: &str = "kind";
 /// only safe way to put it in an `ORDER BY` is to not put it there at all.
 /// `total` and `line_count` are the aggregates below, ordered by the name they
 /// are selected as.
-const SORTABLE: &[(&str, &str)] = &[
+const SORTABLE: &[Sortable] = &[
     ("number", "j.number"),
     ("entry_date", "j.entry_date"),
     ("period", "p.label"),
@@ -193,13 +193,8 @@ pub async fn page(
     let needle = request.needle().map(|needle| crate::search::contains(&needle));
     let entered = request.range(ENTRY);
 
-    // The span is half open and a journal carries a day, so the last day it
-    // includes is the day the moment before its end falls on.
-    let from_day = entered.from.map(|at| at.date_naive());
-    let to_day = entered
-        .to
-        .and_then(|at| at.checked_sub_signed(TimeDelta::nanoseconds(1)))
-        .map(|at| at.date_naive());
+    let from_day = entered.first_day();
+    let to_day = entered.last_day();
 
     let reversals = match request.filter(KIND) {
         Some("reversal") => Some(true),
@@ -232,17 +227,14 @@ pub async fn page(
     let total = u64::try_from(total).unwrap_or(0);
     let request = request.clamped_to(total);
 
-    let order = match &request.sort {
-        Some(sort) => SORTABLE
-            .iter()
-            .find(|(field, _)| *field == sort.field)
-            .map(|(_, column)| format!("{column} {}", sort.direction.sql())),
-        None => None,
-    }
     // Newest first, and the number after it whatever the sort: two journals
     // posted on the same day would otherwise swap places between one page and
     // the next, which shows up as a row that appears twice.
-    .unwrap_or_else(|| "j.entry_date DESC".to_owned());
+    let order = listing::order_by(
+        request.sort.as_ref(),
+        SORTABLE,
+        "j.entry_date DESC",
+    );
 
     let selecting = AssertSqlSafe(format!(
         "SELECT j.id, j.number, j.entry_date, j.narration,

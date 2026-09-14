@@ -20,7 +20,7 @@ use app_books::invoice::{
     LineTaxSnapshot, PartySnapshot,
 };
 use app_books::quantity::Quantity;
-use chrono::{NaiveDate, TimeDelta};
+use chrono::NaiveDate;
 use phonix_core::identity::UserId;
 use phonix_core::locale::{Country, Currency};
 use phonix_core::money::{ExchangeRate, Money, Rate, Rounding};
@@ -34,6 +34,7 @@ use sqlx::{AssertSqlSafe, FromRow, PgConnection, PgExecutor, Row};
 use uuid::Uuid;
 
 use crate::error::DbError;
+use crate::listing::{self, Sortable};
 
 /// What an invoice screen is *about*.
 ///
@@ -105,7 +106,7 @@ pub const OVERDUE: &str = "overdue";
 ///
 /// A whitelist, not a convenience: `sort.field` arrives from a browser, and the
 /// only safe way to put it in an `ORDER BY` is to not put it there at all.
-const SORTABLE: &[(&str, &str)] = &[
+const SORTABLE: &[Sortable] = &[
     ("number", "i.number"),
     ("party_name", "i.party_name"),
     ("issued_on", "i.issued_on"),
@@ -153,13 +154,8 @@ pub async fn page(
     let needle = request.needle().map(|needle| crate::search::contains(&needle));
     let issued = request.range(ISSUED);
 
-    // The span is half open and an invoice carries a day, so the last day it
-    // includes is the day the moment before its end falls on.
-    let from_day = issued.from.map(|at| at.date_naive());
-    let to_day = issued
-        .to
-        .and_then(|at| at.checked_sub_signed(TimeDelta::nanoseconds(1)))
-        .map(|at| at.date_naive());
+    let from_day = issued.first_day();
+    let to_day = issued.last_day();
 
     // A value this build does not know narrows nothing rather than matching
     // nothing: a browser running a newer screen should not turn a list into an
@@ -186,17 +182,14 @@ pub async fn page(
     let total = u64::try_from(total).unwrap_or(0);
     let request = request.clamped_to(total);
 
-    let order = match &request.sort {
-        Some(sort) => SORTABLE
-            .iter()
-            .find(|(field, _)| *field == sort.field)
-            .map(|(_, column)| format!("{column} {}", sort.direction.sql())),
-        None => None,
-    }
     // Newest first, and `created_at` after it whatever the sort: two invoices
     // issued on the same day would otherwise swap places between one page and
     // the next, which shows up as a row that appears twice.
-    .unwrap_or_else(|| "i.issued_on DESC".to_owned());
+    let order = listing::order_by(
+        request.sort.as_ref(),
+        SORTABLE,
+        "i.issued_on DESC",
+    );
 
     let selecting = AssertSqlSafe(format!(
         "SELECT i.id, i.number, i.status, i.party_id, i.party_name,

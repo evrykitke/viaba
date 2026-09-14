@@ -20,7 +20,7 @@ use app_inventory::movement::{
     JournalOutcome, MoveContext, MoveFilter, MoveSource, MoveState, MoveSummary, StockMove,
 };
 use app_inventory::quantity::Quantity;
-use chrono::{NaiveDate, TimeDelta};
+use chrono::NaiveDate;
 use phonix_core::identity::UserId;
 use phonix_core::locale::Currency;
 use phonix_core::money::Money;
@@ -29,6 +29,7 @@ use sqlx::{AssertSqlSafe, PgConnection, PgExecutor, PgPool, Row};
 use uuid::Uuid;
 
 use crate::error::DbError;
+use crate::listing::{self, Sortable};
 
 /// What a service hands over to write one.
 ///
@@ -292,7 +293,7 @@ pub const STATE: &str = "state";
 /// A whitelist, not a convenience: `sort.field` arrives from a browser, and the
 /// only safe way to put it in an `ORDER BY` is to not put it there at all - to
 /// match it against a list of literals this file wrote itself.
-const SORTABLE: &[(&str, &str)] = &[
+const SORTABLE: &[Sortable] = &[
     ("moved_on", "m.moved_on"),
     ("item", "i.name"),
     ("quantity", "m.quantity"),
@@ -375,14 +376,8 @@ pub async fn page(
     let state = request.filter(STATE).and_then(MoveState::parse);
 
     let moved = request.range(MOVED);
-    // The span is half open and a movement carries a day rather than an
-    // instant, so the last day it includes is the day the moment before its end
-    // falls on. One subtraction, and midnight does not lose the last day.
-    let from_day = moved.from.map(|at| at.date_naive());
-    let to_day = moved
-        .to
-        .and_then(|at| at.checked_sub_signed(TimeDelta::nanoseconds(1)))
-        .map(|at| at.date_naive());
+    let from_day = moved.first_day();
+    let to_day = moved.last_day();
 
     // The kind is derived from two location kinds and there is no column to
     // compare, so the pairs that amount to it come from the domain rather than
@@ -396,7 +391,7 @@ pub async fn page(
     });
 
     // `AssertSqlSafe` because these statements are composed rather than
-    // written: `COLUMNS`, `FROM` and `WHERE` are constants, and `order` can
+    // written: `SUMMARY`, `FROM` and `WHERE` are constants, and `order` can
     // only be a string this file put in `SORTABLE`. Nothing from a browser
     // reaches the text of the query.
     let counting = AssertSqlSafe(format!("SELECT count(*) {FROM} {WHERE}"));
@@ -418,17 +413,14 @@ pub async fn page(
     let total = u64::try_from(total).unwrap_or(0);
     let request = request.clamped_to(total);
 
-    let order = match &request.sort {
-        Some(sort) => SORTABLE
-            .iter()
-            .find(|(field, _)| *field == sort.field)
-            .map(|(_, column)| format!("{column} {}", sort.direction.sql())),
-        None => None,
-    }
     // Newest first, and `created_at` after it whatever the sort: two movements
     // on the same day would otherwise swap places between one page and the
     // next, which shows up as a row that appears twice.
-    .unwrap_or_else(|| "m.moved_on DESC".to_owned());
+    let order = listing::order_by(
+        request.sort.as_ref(),
+        SORTABLE,
+        "m.moved_on DESC",
+    );
 
     let selecting = AssertSqlSafe(format!(
         "SELECT {SUMMARY}

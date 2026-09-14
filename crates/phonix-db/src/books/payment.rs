@@ -30,11 +30,11 @@ use phonix_core::identity::UserId;
 use phonix_core::locale::Currency;
 use phonix_core::money::{ExchangeRate, Money, Rate};
 use phonix_core::query::{Page, PageRequest};
-use chrono::TimeDelta;
 use sqlx::{AssertSqlSafe, PgConnection, PgExecutor, Row};
 use uuid::Uuid;
 
 use crate::error::DbError;
+use crate::listing::{self, Sortable};
 
 fn unknown(column: &str, raw: &str) -> sqlx::Error {
     sqlx::Error::Decode(
@@ -77,7 +77,7 @@ const ON_ACCOUNT: &str = "(p.amount - coalesce((SELECT sum(al.amount)
 ///
 /// A whitelist, not a convenience: `sort.field` arrives from a browser, and the
 /// only safe way to put it in an `ORDER BY` is to not put it there at all.
-const SORTABLE: &[(&str, &str)] = &[
+const SORTABLE: &[Sortable] = &[
     ("number", "p.number"),
     ("customer", "p.party_name"),
     ("received_on", "p.received_on"),
@@ -104,13 +104,8 @@ pub async fn page(
     let unallocated = request.filter_is(ALLOCATION, UNALLOCATED);
 
     let received = request.range(RECEIVED);
-    // The span is half open and a payment carries a day, so the last day it
-    // includes is the day the moment before its end falls on.
-    let from_day = received.from.map(|at| at.date_naive());
-    let to_day = received
-        .to
-        .and_then(|at| at.checked_sub_signed(TimeDelta::nanoseconds(1)))
-        .map(|at| at.date_naive());
+    let from_day = received.first_day();
+    let to_day = received.last_day();
 
     // A filter nobody set is a NULL that discards its own line, so one clause
     // serves every combination and nothing is interpolated.
@@ -150,17 +145,14 @@ pub async fn page(
     let total = u64::try_from(total).unwrap_or(0);
     let request = request.clamped_to(total);
 
-    let order = match &request.sort {
-        Some(sort) => SORTABLE
-            .iter()
-            .find(|(field, _)| *field == sort.field)
-            .map(|(_, column)| format!("{column} {}", sort.direction.sql())),
-        None => None,
-    }
     // Newest first, and `created_at` after it whatever the sort: two payments
     // received on the same day would otherwise swap places between one page and
     // the next, which shows up as a row that appears twice.
-    .unwrap_or_else(|| "p.received_on DESC".to_owned());
+    let order = listing::order_by(
+        request.sort.as_ref(),
+        SORTABLE,
+        "p.received_on DESC",
+    );
 
     let selecting = AssertSqlSafe(format!(
         "SELECT p.id, p.number, p.status, p.party_id, p.party_name, p.received_on,
