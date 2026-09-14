@@ -29,9 +29,10 @@ use crate::components::page::{
 };
 use crate::icons::Icon;
 use crate::l;
+use crate::pages::inventory::item_lookup::ItemLookup;
 use crate::server_fns::inventory_fns::{
     blank_transfer, cancel_transfer, delete_transfer, despatch_transfer, edit_transfer,
-    pickable_variants, receive_transfer, save_transfer, selectable_locations, transfer_arrival,
+    receive_transfer, save_transfer, selectable_locations, transfer_arrival,
     transfer_detail,
 };
 use crate::ui::alert::{Alert, Alerts, Confirm};
@@ -193,7 +194,6 @@ fn transfer_editor(draft: TransferInput) -> impl IntoView {
     let rejected = RwSignal::new(None::<String>);
 
     let locations = Resource::new(|| (), |()| async move { selectable_locations().await });
-    let variants = Resource::new(|| (), |()| async move { pickable_variants().await });
 
     view! {
         <div class="space-y-3">
@@ -204,13 +204,11 @@ fn transfer_editor(draft: TransferInput) -> impl IntoView {
             }>
                 {move || Suspend::new(async move {
                     let locations = locations.await.unwrap_or_default();
-                    let variants = variants.await.unwrap_or_default();
 
                     view! {
                         <EditorBody
                             draft=draft
                             locations=locations
-                            variants=variants
                             saving=saving
                             rejected=rejected
                         />
@@ -225,14 +223,12 @@ fn transfer_editor(draft: TransferInput) -> impl IntoView {
 fn editor_body(
     draft: RwSignal<TransferInput>,
     locations: Vec<Location>,
-    variants: Vec<VariantChoice>,
     saving: RwSignal<bool>,
     rejected: RwSignal<Option<String>>,
 ) -> impl IntoView {
     let alerts = Alerts::get();
     let navigate = leptos_router::hooks::use_navigate();
 
-    let variants = StoredValue::new(variants);
 
     // A grouping holds nothing of its own, so it is not offered as an end.
     // Refusing it at the gate would be finding out too late.
@@ -483,7 +479,7 @@ fn editor_body(
             </Section>
 
             <Section title=l!("transfers.lines")>
-                <LineTable draft=draft variants=variants />
+                <LineTable draft=draft />
             </Section>
 
             <Section title=l!("transfers.note")>
@@ -550,7 +546,6 @@ fn editor_body(
 #[component]
 fn line_table(
     draft: RwSignal<TransferInput>,
-    variants: StoredValue<Vec<VariantChoice>>,
 ) -> impl IntoView {
     view! {
         <div class="space-y-2">
@@ -572,7 +567,7 @@ fn line_table(
                             let count = draft.with(|d| d.lines.len());
                             (0..count)
                                 .map(|index| {
-                                    view! { <LineRow draft=draft index=index variants=variants /> }
+                                    view! { <LineRow draft=draft index=index /> }
                                 })
                                 .collect_view()
                         }}
@@ -595,54 +590,47 @@ fn line_table(
 fn line_row(
     draft: RwSignal<TransferInput>,
     index: usize,
-    variants: StoredValue<Vec<VariantChoice>>,
 ) -> impl IntoView {
     let field = move |read: fn(&TransferLineInput) -> String| {
         draft.with(|d| d.lines.get(index).map(read).unwrap_or_default())
     };
 
-    let variant_options = variants.with_value(|variants| {
-        variants
-            .iter()
-            .map(|variant| {
-                Choice::new(variant.id.to_string(), variant.label()).detail(variant.code.clone())
-            })
-            .collect::<Vec<_>>()
+    // The chip the field opens with, built once from what the line already
+    // says. No query: a fifty-line document reopened would otherwise be fifty
+    // lookups before anything is on screen.
+    let initial = draft.with_untracked(|d| {
+        let line = d.lines.get(index)?;
+        let id = line.variant_id?;
+        let label = match line.description.trim() {
+            "" => id.to_string(),
+            words => words.to_owned(),
+        };
+
+        Some(Choice::new(id.to_string(), label))
     });
 
     view! {
         <tr class="border-b border-edge/60">
             <td class="py-1 text-xs text-content-subtle">{index + 1}</td>
             <td class="py-1 pr-2">
-                <SelectField
-                    value=Signal::derive(move || {
-                        field(|line| line.variant_id.map(|id| id.to_string()).unwrap_or_default())
-                    })
-                    on_change=Callback::new(move |value: String| {
-                        let chosen = value.parse::<Uuid>().ok();
-                        let picked = chosen
-                            .and_then(|id| {
-                                variants
-                                    .with_value(|variants| {
-                                        variants.iter().find(|variant| variant.id == id).cloned()
-                                    })
-                            });
+                <ItemLookup
+                    initial=initial
+                    on_pick=Callback::new(move |picked: Option<VariantChoice>| {
                         draft
                             .update(|d| {
                                 if let Some(line) = d.lines.get_mut(index) {
-                                    line.variant_id = chosen;
-                                    if let Some(picked) = picked {
-                                        if line.description.trim().is_empty() {
-                                            line.description = picked.label();
-                                        }
+                                    line.variant_id = picked
+                                        .as_ref()
+                                        .map(|variant| variant.id);
+                                    if let Some(picked) = &picked
+                                        && line.description.trim().is_empty()
+                                    {
+                                        line.description = picked.label();
                                     }
                                 }
                             });
                     })
-                    options=variant_options
-                    placeholder=l!("common.not_set")
-                    clearable=true
-                    label=l!("purchase_orders.item")
+                    placeholder=Some(l!("common.not_set"))
                 />
             </td>
             <td class="py-1 pr-2">

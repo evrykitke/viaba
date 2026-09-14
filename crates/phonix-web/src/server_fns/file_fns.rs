@@ -22,6 +22,8 @@
 
 use leptos::prelude::*;
 use phonix_core::files::FileSummary;
+use phonix_core::files::attachment::{Attachment, AttachmentInput, RecordRef};
+use phonix_core::form::Submission;
 use phonix_core::query::{Page, PageRequest};
 use uuid::Uuid;
 
@@ -160,6 +162,54 @@ pub async fn delete_file(id: Uuid) -> Result<(), ServerFnError> {
 }
 
 // ---------------------------------------------------------------------------
+// Attachments
+// ---------------------------------------------------------------------------
+
+/// Everything attached to one record.
+///
+/// The permission checked is the *record's*, not the file system's - see
+/// `phonix_services::files::attachment`.
+#[server(name = RecordAttachments, prefix = "/api", endpoint = "files/attachments")]
+pub async fn record_attachments(record: RecordRef) -> Result<Vec<Attachment>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::files::attachment::list(&pool, &caller, &record)
+        .await
+        .map_err(service_error)
+}
+
+/// Link an already-uploaded file to a record.
+///
+/// The bytes went to `/files/upload?bucket=attachments` first; this is only the
+/// link, which is why it is a server function and the upload is not.
+#[server(name = AttachFile, prefix = "/api", endpoint = "files/attach")]
+pub async fn attach_file(
+    input: AttachmentInput,
+) -> Result<Submission<Attachment>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::files::attachment::attach(&pool, &caller, input)
+        .await
+        .map_err(service_error)
+}
+
+/// Take one off. The file stays in the workspace.
+#[server(name = DetachFile, prefix = "/api", endpoint = "files/detach")]
+pub async fn detach_file(id: Uuid) -> Result<Submission<()>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::files::attachment::detach(&pool, &caller, id)
+        .await
+        .map_err(service_error)
+}
+
+// ---------------------------------------------------------------------------
 // Addresses
 //
 // Compiled into both builds, because the browser needs them to build markup and
@@ -173,6 +223,17 @@ pub async fn delete_file(id: Uuid) -> Result<(), ServerFnError> {
 /// slightly different address that happens to work.
 pub fn content_url(id: Uuid) -> String {
     format!("/files/{id}/content")
+}
+
+/// Where the same bytes are served for *showing* rather than for saving.
+///
+/// A separate address from [`content_url`] because it is a separate promise.
+/// `/content` hands the file over as a download; this one asks the browser to
+/// render it, which is a thing the server may only agree to for the handful of
+/// types it can render safely - see `phonix_server::files`. Everything else
+/// answers 415 here and is downloaded from the other address.
+pub fn preview_url(id: Uuid) -> String {
+    format!("/files/{id}/preview")
 }
 
 /// Where to POST a file for a given bucket.
@@ -195,6 +256,10 @@ mod tests {
         assert_eq!(
             content_url(id),
             "/files/0199c4f2-e1a3-7b8d-9e5f-0a1b2c3d4e5f/content"
+        );
+        assert_eq!(
+            preview_url(id),
+            "/files/0199c4f2-e1a3-7b8d-9e5f-0a1b2c3d4e5f/preview"
         );
         assert_eq!(upload_url("avatars"), "/files/upload?bucket=avatars");
     }

@@ -6,6 +6,8 @@
 //! moves are the audit trail; a combination nobody sells any more is one that
 //! is switched off, and its history stays legible.
 
+use app_inventory::item::{ItemKind, Tracking};
+use app_inventory::lot::LotRules;
 use app_inventory::variant::{
     Attribute, AttributeValue, Display, Selection, SelectionLine, Variant, VariantChoice,
     VariantSummary, VariantValue,
@@ -18,6 +20,45 @@ use crate::error::DbError;
 
 fn unknown(column: &str, raw: &str) -> sqlx::Error {
     sqlx::Error::Decode(format!("{column} holds '{raw}', which this build does not know").into())
+}
+
+/// One picker row, from either of the two queries that produce them.
+fn choice_from(row: &sqlx::postgres::PgRow) -> Result<VariantChoice, DbError> {
+    Ok(VariantChoice {
+        id: row.try_get("id").map_err(DbError::Query)?,
+        code: row.try_get("code").map_err(DbError::Query)?,
+        item_name: row.try_get("item_name").map_err(DbError::Query)?,
+        combination: row.try_get("combination").map_err(DbError::Query)?,
+        purchase_unit_id: row.try_get("purchase_unit_id").map_err(DbError::Query)?,
+        purchase_unit_code: row.try_get("purchase_unit_code").map_err(DbError::Query)?,
+        rules: rules_from(row).map_err(DbError::Query)?,
+    })
+}
+
+/// The item's lot rules, off a row that selected the four `items` columns
+/// behind them: `tracking`, `uses_expiry`, `is_tracked` and `kind`.
+fn rules_from(row: &sqlx::postgres::PgRow) -> Result<LotRules, sqlx::Error> {
+    let tracking: String = row.try_get("tracking")?;
+    let kind: String = row.try_get("kind")?;
+    let is_tracked: bool = row.try_get("is_tracked")?;
+
+    let kind = ItemKind::parse(&kind).ok_or_else(|| unknown("items.kind", &kind))?;
+
+    Ok(LotRules {
+        tracking: Tracking::parse(&tracking).ok_or_else(|| unknown("items.tracking", &tracking))?,
+        uses_expiry: row.try_get("uses_expiry")?,
+        holds_stock: is_tracked && kind.can_be_stocked(),
+    })
+}
+
+/// Escape the wildcards in a search term.
+///
+/// Without this, a search for `50%` matches everything.
+fn escape_like(needle: &str) -> String {
+    needle
+        .replace('\\', "\\\\")
+        .replace('%', "\\%")
+        .replace('_', "\\_")
 }
 
 /// Every attribute, each with its values, in display order.
@@ -116,18 +157,13 @@ where
     Ok(Selection { lines })
 }
 
-/// Every variant a purchase order or receipt line may name.
+/// The columns and joins behind every purchasable-variant query.
 ///
-/// The combination is aggregated in the query rather than fetched as rows and
-/// stitched together here, because this list is read whole by a picker and
-/// never row by row.
-pub async fn purchasable<'e, E>(executor: E) -> Result<Vec<VariantChoice>, DbError>
-where
-    E: PgExecutor<'e>,
-{
-    let rows = sqlx::query(
-        "SELECT v.id, v.code, i.name AS item_name, i.purchase_unit_id,
+/// A constant rather than inline, so the day a column is added to a picker row
+/// there is one query to change.
+const PURCHASABLE: &str = "SELECT v.id, v.code, i.name AS item_name, i.purchase_unit_id,
                 u.code AS purchase_unit_code,
+                i.tracking, i.uses_expiry, i.is_tracked, i.kind,
                 (SELECT string_agg(av.name, ' / ' ORDER BY a.position, a.name)
                    FROM inventory.variant_values vv
                    JOIN inventory.attributes a ON a.id = vv.attribute_id
@@ -138,25 +174,83 @@ where
            JOIN inventory.units u ON u.id = i.purchase_unit_id
           WHERE i.can_be_purchased
             AND i.is_active
-            AND v.is_active
-          ORDER BY i.name, v.code",
+            AND v.is_active";
+
+/// Variants matching what somebody has typed, capped.
+///
+/// This is what a picker on a line grid reads. It replaced a query that sent
+/// every variant in the workspace to the browser, which is fine for a
+/// catalogue of forty and is a page nobody can load for one of forty
+/// thousand.
+///
+/// An empty needle is not an error: it answers with the first `limit` by name,
+/// which is what a picker shows before anything has been typed.
+///
+/// The code is matched with a prefix and the name anywhere. A code is scanned
+/// or typed from the left and a leading wildcard on it would forbid the index;
+/// a name is how somebody who does not know the code searches, and it has to
+/// match in the middle.
+pub async fn search_purchasable<'e, E>(
+    executor: E,
+    needle: &str,
+    limit: i64,
+) -> Result<Vec<VariantChoice>, DbError>
+where
+    E: PgExecutor<'e>,
+{
+    let needle = needle.trim();
+
+    let statement = sqlx::AssertSqlSafe(format!(
+        "{PURCHASABLE}
+            AND ($1 = ''
+                 OR v.code ILIKE $2 || '%'
+                 OR i.name ILIKE '%' || $2 || '%')
+          ORDER BY i.name, v.code
+          LIMIT $3"
+    ));
+
+    let rows = sqlx::query(statement)
+        .bind(needle)
+        .bind(escape_like(needle))
+        .bind(limit)
+        .fetch_all(executor)
+        .await
+        .map_err(DbError::Query)?;
+
+    rows.iter().map(choice_from).collect()
+}
+
+/// The lot rules of the variants a document already names, in one query.
+///
+/// What a reopened receipt and one prefilled from an order need: their lines
+/// carry variant ids that nobody picked in this browser, and the lot box on
+/// each of them is drawn or not drawn from the answer.
+pub async fn rules_for<'e, E>(
+    executor: E,
+    variant_ids: &[Uuid],
+) -> Result<Vec<(Uuid, LotRules)>, DbError>
+where
+    E: PgExecutor<'e>,
+{
+    if variant_ids.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let rows = sqlx::query(
+        "SELECT v.id, i.tracking, i.uses_expiry, i.is_tracked, i.kind
+           FROM inventory.item_variants v
+           JOIN inventory.items i ON i.id = v.item_id
+          WHERE v.id = ANY($1)",
     )
+    .bind(variant_ids)
     .fetch_all(executor)
     .await
     .map_err(DbError::Query)?;
 
     rows.iter()
-        .map(|row| {
-            Ok(VariantChoice {
-                id: row.try_get("id").map_err(DbError::Query)?,
-                code: row.try_get("code").map_err(DbError::Query)?,
-                item_name: row.try_get("item_name").map_err(DbError::Query)?,
-                combination: row.try_get("combination").map_err(DbError::Query)?,
-                purchase_unit_id: row.try_get("purchase_unit_id").map_err(DbError::Query)?,
-                purchase_unit_code: row.try_get("purchase_unit_code").map_err(DbError::Query)?,
-            })
-        })
-        .collect()
+        .map(|row| Ok((row.try_get("id")?, rules_from(row)?)))
+        .collect::<Result<Vec<_>, sqlx::Error>>()
+        .map_err(DbError::Query)
 }
 
 /// Every variant of an item, each with the combination it stands for.

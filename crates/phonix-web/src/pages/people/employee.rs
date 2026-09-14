@@ -1060,7 +1060,9 @@ fn login_panel(
                 leptos::task::spawn_local(async move {
                     // No roles from here. What somebody may do is decided under
                     // Users, by whoever owns access - an HR screen handing out
-                    // permissions would be the wrong person choosing.
+                    // permissions would be the wrong person choosing. Empty is
+                    // not "nothing": the invitation gives whatever this
+                    // workspace marks default, which ships as User.
                     let result = create_employee_login(employee_id, Vec::new()).await;
                     working.set(false);
 

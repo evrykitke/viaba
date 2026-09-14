@@ -39,12 +39,15 @@
 //! moves and writing them all at the end - is what leaves stock moved and
 //! nothing saying so.
 
+use app_inventory::lot::LotError;
 use app_inventory::purchase::{OrderState, SupplierSnapshot};
+use app_inventory::quantity::Quantity;
 use app_inventory::receipt::{
     Backorder, CheckedReceipt, Receipt, ReceiptError, ReceiptInput, ReceiptState, ReceiptSummary,
 };
 use chrono::NaiveDate;
 use phonix_core::form::Submission;
+use phonix_core::identity::FieldError;
 use phonix_core::locale::Currency;
 use phonix_core::money::{Money, Rounding};
 use phonix_core::msg;
@@ -144,7 +147,7 @@ pub async fn save(
 
     let costed = match cost_lines(pool, &checked, currency).await? {
         Ok(costed) => costed,
-        Err(err) => return Ok(Submission::rejected(err.field(), err.message())),
+        Err(err) => return Ok(Submission::Rejected(vec![err])),
     };
 
     let mut tx = pool.begin().await.map_err(DbError::Query)?;
@@ -224,6 +227,34 @@ pub async fn post(
     let currency = base_currency(pool).await?;
     let generator = crate::numbering::NumberGenerator::open(pool).await?;
 
+    // Every line is asked its lot question before the first one moves. The
+    // loop below cannot be a transaction, so a line refused halfway leaves the
+    // ones before it posted; a refusal that was always going to happen belongs
+    // here, where nothing has moved yet.
+    for line in &receipt.lines {
+        if line.move_id.is_some() {
+            continue;
+        }
+
+        let Some(context) =
+            phonix_db::inventory::movement::context(pool, line.variant_id, currency).await?
+        else {
+            return Ok(Submission::rejected(
+                "lines",
+                ReceiptError::ItemRequired.message(),
+            ));
+        };
+
+        if let Err(err) = check_lot_rules(
+            line.lot_number.as_deref(),
+            line.expires_on,
+            &Stage::Posting(line.quantity),
+            &context,
+        ) {
+            return Ok(Submission::Rejected(vec![err]));
+        }
+    }
+
     // Each line is its own `stock::apply`, and each is its own transaction:
     // `apply` posts a journal through a port, and holding one transaction open
     // across every line's port call would make the ledger's implementation a
@@ -255,13 +286,15 @@ pub async fn post(
 
         let request = match &line.lot_number {
             None => request,
-            Some(number) => {
-                let lot = resolve_lot(pool, line.variant_id, number, line.expires_on).await?;
-                app_inventory::movement::MoveRequest {
+            Some(number) => match resolve_lot(pool, line.variant_id, number, line.expires_on)
+                .await?
+            {
+                Submission::Saved(lot) => app_inventory::movement::MoveRequest {
                     lot_id: Some(lot),
                     ..request
-                }
-            }
+                },
+                Submission::Rejected(errors) => return Ok(Submission::Rejected(errors)),
+            },
         };
 
         let stored = match crate::inventory::stock::apply(pool, caller, ledger, request).await? {
@@ -397,7 +430,7 @@ async fn cost_lines<'a>(
     pool: &PgPool,
     checked: &'a CheckedReceipt,
     currency: Currency,
-) -> ServiceResult<Result<Vec<store::CostedReceiptLine<'a>>, ReceiptError>> {
+) -> ServiceResult<Result<Vec<store::CostedReceiptLine<'a>>, FieldError>> {
     let order = match checked.order_id {
         None => None,
         Some(id) => phonix_db::inventory::purchase::find(pool, id).await?,
@@ -409,15 +442,24 @@ async fn cost_lines<'a>(
         let Some(context) =
             phonix_db::inventory::movement::context(pool, line.variant_id, currency).await?
         else {
-            return Ok(Err(ReceiptError::ItemRequired));
+            return Ok(Err(refusal(ReceiptError::ItemRequired)));
         };
+
+        if let Err(err) = check_lot_rules(
+            line.lot_number.as_deref(),
+            line.expires_on,
+            &Stage::Drafting,
+            &context,
+        ) {
+            return Ok(Err(err));
+        }
 
         let unit_cost = match &line.unit_cost {
             // Typed on the receipt. Already in the workspace's own currency,
             // because that is what the form is denominated in.
             Some(typed) => match Money::parse(currency, typed) {
                 Ok(cost) => cost,
-                Err(err) => return Ok(Err(ReceiptError::Money(err))),
+                Err(err) => return Ok(Err(refusal(ReceiptError::Money(err)))),
             },
             None => match ordered_cost(pool, order.as_ref(), line, currency, checked.received_on)
                 .await?
@@ -435,7 +477,7 @@ async fn cost_lines<'a>(
             Rounding::HalfUp,
         ) {
             Ok(value) => value,
-            Err(err) => return Ok(Err(ReceiptError::Money(err))),
+            Err(err) => return Ok(Err(refusal(ReceiptError::Money(err)))),
         };
 
         costed.push(store::CostedReceiptLine {
@@ -451,6 +493,71 @@ async fn cost_lines<'a>(
     }
 
     Ok(Ok(costed))
+}
+
+/// Which of the two questions is being asked of a line.
+enum Stage {
+    /// Being written. The pallet is still being walked, so a tracked item
+    /// whose number has not been typed yet is not an error - only a line that
+    /// can never be right is refused.
+    Drafting,
+    /// About to move stock. Everything the movement will demand is demanded
+    /// here instead, before the first line commits.
+    Posting(Quantity),
+}
+
+/// What a line says about lots, against what the item actually keeps.
+///
+/// Asked where the draft is written and again before anything moves, rather
+/// than line by line inside the posting loop - where it used to surface as
+/// "this item does not keep lot or serial numbers" with the lorry unloaded and
+/// half the lines already through. The message names the item, so a receipt of
+/// forty lines says which one.
+fn check_lot_rules(
+    number: Option<&str>,
+    expires_on: Option<NaiveDate>,
+    stage: &Stage,
+    context: &app_inventory::movement::MoveContext,
+) -> Result<(), FieldError> {
+    let about = |message| FieldError::new("lines", message);
+    let item = || context.item_name.clone();
+
+    if !context.holds_stock() {
+        return Err(about(msg!("receipts.error.holds_no_stock", item = item())));
+    }
+
+    let rules = app_inventory::lot::LotRules {
+        tracking: context.tracking,
+        uses_expiry: context.uses_expiry,
+        holds_stock: true,
+    };
+
+    match rules.check_line(number, expires_on) {
+        Ok(()) => {}
+        Err(LotError::ExpiryNotKept) => {
+            return Err(about(msg!("receipts.error.expiry_not_kept", item = item())));
+        }
+        Err(_) => return Err(about(msg!("receipts.error.lot_not_kept", item = item()))),
+    }
+
+    let Stage::Posting(quantity) = stage else {
+        return Ok(());
+    };
+
+    if rules.wants_a_number() && number.is_none() {
+        return Err(about(msg!("receipts.error.lot_required", item = item())));
+    }
+    if rules.tracking.is_one_per_unit() && *quantity != Quantity::ONE {
+        return Err(about(msg!("receipts.error.serial_is_one", item = item())));
+    }
+
+    Ok(())
+}
+
+/// A whole-receipt refusal as one field error, for the places inside
+/// [`cost_lines`] that have no item to name.
+fn refusal(err: ReceiptError) -> FieldError {
+    FieldError::new(err.field(), err.message())
 }
 
 /// The order line's price per stock unit, in the workspace's own currency.
@@ -508,27 +615,50 @@ async fn ordered_cost(
 }
 
 /// Find or create the lot this batch number stands for.
+///
+/// The number is checked against the item's own rules first. `lots` refuses an
+/// untracked row, a blank number, one with a space in it, at the constraint
+/// level - and a constraint reached is a database error on a screen, where the
+/// same refusal made here is a sentence against the field. `LotInput::check`
+/// is the one that already knows all four rules.
 async fn resolve_lot(
     pool: &PgPool,
     variant_id: Uuid,
     number: &str,
     expires_on: Option<NaiveDate>,
-) -> ServiceResult<Uuid> {
+) -> ServiceResult<Submission<Uuid>> {
     let currency = base_currency(pool).await?;
 
-    let tracking = phonix_db::inventory::movement::context(pool, variant_id, currency)
-        .await?
-        .map_or(app_inventory::item::Tracking::Lot, |context| {
-            context.tracking
-        });
+    let Some(context) = phonix_db::inventory::movement::context(pool, variant_id, currency).await?
+    else {
+        return Ok(Submission::rejected("variant_id", msg!("items.gone")));
+    };
+
+    let input = app_inventory::lot::LotInput {
+        id: None,
+        variant_id,
+        number: number.to_owned(),
+        expires_on,
+    };
+
+    let checked = match input.check(context.tracking, context.uses_expiry) {
+        Ok(checked) => checked,
+        Err(err) => return Ok(Submission::rejected("lot_number", err.message())),
+    };
 
     let mut conn = pool.acquire().await.map_err(DbError::Query)?;
 
-    Ok(
-        phonix_db::inventory::lot::ensure(&mut conn, variant_id, number, expires_on, tracking, None)
-            .await?
-            .id,
+    let lot = phonix_db::inventory::lot::ensure(
+        &mut conn,
+        variant_id,
+        &checked.number,
+        checked.expires_on,
+        context.tracking,
+        None,
     )
+    .await?;
+
+    Ok(Submission::Saved(lot.id))
 }
 
 /// Close an order everything has arrived against.

@@ -1291,3 +1291,63 @@ description = "An appropriation of profit, not an expense. It reduces equity dir
 number = "9510"
 name = "Transfers to reserves"
 type = "contra_equity"
+
+# ---------------------------------------------------------------------------
+# Account determination: which account each sub-ledger role means
+# ---------------------------------------------------------------------------
+#
+# A goods receipt knows it is increasing stock and increasing goods received not
+# invoiced. It does not know that those are 1200 and 2010 here - see
+# `migrations/apps/books/0004_account_roles.sql` for why that separation matters.
+# This is where the two are joined for a workspace that has not chosen its own.
+#
+# WHY THE FILE SAYS IT AND NOT THE ACCOUNT TYPE
+#
+# Because the type does not narrow it down. Six accounts above are of type
+# `inventory` and only 1200 is the control account stock reconciles to; picking
+# the lowest-numbered one happens to be right for this chart and would be wrong
+# for a chart that put stock in transit first.
+#
+# Installed with ON CONFLICT DO NOTHING on every migration pass, so a workspace
+# that has remapped a role keeps its choice, and a role added by a later release
+# reaches the workspaces that already have Books.
+
+[[role]]
+role = "inventory"
+number = "1200"
+
+[[role]]
+role = "inventory_in_transit"
+number = "1240"
+
+[[role]]
+role = "goods_delivered_not_invoiced"
+number = "1270"
+
+[[role]]
+role = "accounts_payable"
+number = "2000"
+
+[[role]]
+role = "goods_received_not_invoiced"
+number = "2010"
+
+[[role]]
+role = "revenue"
+number = "4000"
+
+[[role]]
+role = "cost_of_sales"
+number = "5000"
+
+[[role]]
+role = "landed_cost"
+number = "5090"
+
+[[role]]
+role = "inventory_adjustment"
+number = "5200"
+
+[[role]]
+role = "purchase_price_variance"
+number = "5230"

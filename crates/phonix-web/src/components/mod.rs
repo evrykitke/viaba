@@ -1,7 +1,9 @@
 pub mod account_class;
 pub mod app_home;
+pub mod attachments;
 pub mod avatar;
 pub mod diff;
+pub mod dock;
 pub mod forms;
 pub mod history;
 pub mod language;
@@ -9,6 +11,7 @@ pub mod layout;
 pub mod logo;
 pub mod page;
 pub mod permission_tree;
+pub mod preview;
 pub mod public_chrome;
 pub mod shell;
 pub mod tenant_badge;

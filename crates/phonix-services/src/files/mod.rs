@@ -42,12 +42,14 @@
 //!   updated, so a row never points at bytes that are not there.
 
 pub mod access;
+pub mod attachment;
 pub mod upload;
 pub mod verify;
 
 pub use access::{
     clear_avatar, clear_logo, delete_file, list, open_for_download, set_avatar, set_logo, summary,
 };
+pub use attachment::{attach, detach, detach_all};
 pub use upload::{UploadTicket, authorise_upload, discard, record_upload};
 pub use verify::verify;
 

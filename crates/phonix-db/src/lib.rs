@@ -80,6 +80,7 @@
 //! A migration that adds a trigger or a function fails the `tenant_schema`
 //! test, which asserts the absence rather than counting what is there.
 
+pub mod attachment;
 pub mod audit;
 pub mod authorization;
 pub mod books;

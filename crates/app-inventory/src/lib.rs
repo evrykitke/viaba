@@ -146,7 +146,7 @@ pub use landed_cost::{
 };
 pub use location::{Location, LocationInput, LocationKind, LocationSummary, MoveKind};
 pub use transfer::{Transfer, TransferInput, TransferState, TransferSummary};
-pub use lot::{Lot, LotInput, LotSummary};
+pub use lot::{Lot, LotInput, LotRules, LotSummary};
 pub use movement::{JournalOutcome, MoveRequest, MoveState, MoveSummary, StockMove};
 pub use purchase::{OrderInput, OrderLine, OrderState, OrderSummary, PurchaseOrder};
 pub use quant::{OnHandRow, Quant};

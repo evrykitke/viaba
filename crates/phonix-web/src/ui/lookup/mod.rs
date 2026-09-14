@@ -98,6 +98,21 @@ pub enum Choices {
     /// For a set small enough to send with the page. A lookup whose entity has
     /// thousands of rows wants [`Choices::Table`], which pages.
     List(Vec<Choice>),
+    /// A list somebody else keeps filled.
+    ///
+    /// The rows come from a signal and are shown **unfiltered** - whoever owns
+    /// the signal has already decided what matches, which for a catalogue of
+    /// forty thousand items means the database did it and sent fifty rows.
+    /// `on_query` is run with what has been typed, on every keystroke and once
+    /// when the panel opens; answering it is the owner's job, and so is any
+    /// debouncing that job needs.
+    ///
+    /// [`List`](Self::List) is still the right thing for a set small enough to
+    /// send with the page. This is for the ones that are not.
+    Live {
+        choices: Signal<Vec<Choice>>,
+        on_query: Callback<String>,
+    },
     /// A grid in the panel.
     ///
     /// `width` is what the panel asks for in pixels; it still gets cut down to
@@ -120,6 +135,7 @@ impl std::fmt::Debug for Choices {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::List(choices) => f.debug_tuple("List").field(&choices.len()).finish(),
+            Self::Live { .. } => f.debug_struct("Live").finish_non_exhaustive(),
             Self::Table { width, .. } => f
                 .debug_struct("Table")
                 .field("width", width)
@@ -132,6 +148,10 @@ impl Clone for Choices {
     fn clone(&self) -> Self {
         match self {
             Self::List(choices) => Self::List(choices.clone()),
+            Self::Live { choices, on_query } => Self::Live {
+                choices: *choices,
+                on_query: *on_query,
+            },
             Self::Table { width, view } => Self::Table {
                 width: *width,
                 view: Arc::clone(view),
@@ -151,6 +171,11 @@ impl Choices {
             width: 640.0,
             view: Arc::new(view),
         }
+    }
+
+    /// A list the caller refills as the query changes.
+    pub const fn live(choices: Signal<Vec<Choice>>, on_query: Callback<String>) -> Self {
+        Self::Live { choices, on_query }
     }
 
     /// Ask for a different panel width.
@@ -315,7 +340,20 @@ pub fn lookup_field(
     let is_table = matches!(choices, Choices::Table { .. });
     let wanted = match &choices {
         Choices::Table { width, .. } => *width,
-        Choices::List(_) => 0.0,
+        Choices::List(_) | Choices::Live { .. } => 0.0,
+    };
+
+    // Pulled out before the rest is stored: both halves are `Copy`, so the
+    // closures below can hold them without reaching back through the
+    // `StoredValue` on every keystroke.
+    let live = match &choices {
+        Choices::Live { choices, on_query } => Some((*choices, *on_query)),
+        _ => None,
+    };
+    let ask = move |needle: String| {
+        if let Some((_, on_query)) = live {
+            let _ = on_query.try_run(needle);
+        }
     };
     let choices = StoredValue::new(choices);
     let quick_add = StoredValue::new(quick_add);
@@ -358,6 +396,13 @@ pub fn lookup_field(
     // --- the filtered list -------------------------------------------------
 
     let matching = Signal::derive(move || {
+        // A live list is already the answer: whoever fills it did the
+        // matching, and filtering it again here would hide rows the server
+        // matched on something this side cannot see.
+        if let Some((rows, _)) = live {
+            return rows.try_get().unwrap_or_default();
+        }
+
         let needle = query.try_get().unwrap_or_default().trim().to_lowercase();
 
         let matched = choices.try_with_value(|choices| {
@@ -398,6 +443,11 @@ pub fn lookup_field(
         let _ = open.try_set(true);
         let _ = opened.try_set(true);
         let _ = active.try_set(0);
+
+        // A live list has nothing in it until somebody asks. Opening is the
+        // ask, so a panel that has just been opened is never empty while the
+        // catalogue behind it is not.
+        ask(query.try_get_untracked().unwrap_or_default());
     };
 
     let toggle = move || {
@@ -608,11 +658,13 @@ pub fn lookup_field(
                                     }
                                 }
                                 on:input=move |event| {
-                                    let _ = query.try_set(event_target_value(&event));
+                                    let typed = event_target_value(&event);
+                                    let _ = query.try_set(typed.clone());
                                     let _ = active.try_set(0);
                                     if matches!(open.try_get_untracked(), Some(false)) {
                                         show();
                                     }
+                                    ask(typed);
                                 }
                                 on:keydown=on_key
                             />
@@ -660,7 +712,7 @@ pub fn lookup_field(
                     {move || {
                         choices
                             .try_with_value(|choices| match choices {
-                                Choices::List(_) => {
+                                Choices::List(_) | Choices::Live { .. } => {
                                     view! {
                                         <ListBody
                                             matching=matching

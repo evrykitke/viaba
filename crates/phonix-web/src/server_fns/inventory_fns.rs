@@ -24,7 +24,7 @@ use app_inventory::consolidation::{
 use app_inventory::image::{Gallery, ImageInput};
 use app_inventory::item::{Item, ItemInput, ItemSummary};
 use app_inventory::location::{Location, LocationInput, LocationSummary};
-use app_inventory::lot::LotSummary;
+use app_inventory::lot::{LotRules, LotSummary};
 use app_inventory::movement::{MoveFilter, MoveSummary, StockMove};
 use app_inventory::purchase::{OrderInput, OrderSummary, PurchaseOrder};
 use app_inventory::quant::{OnHandFilter, OnHandRow};
@@ -1053,15 +1053,36 @@ pub async fn list_purchase_orders() -> Result<Vec<OrderSummary>, ServerFnError> 
         .map_err(service_error)
 }
 
-/// What a document line may name: every variant of every item this workspace
-/// buys.
-#[server(name = PickableVariants, prefix = "/api", endpoint = "inventory/variants/pickable")]
-pub async fn pickable_variants() -> Result<Vec<VariantChoice>, ServerFnError> {
+/// The variants matching what somebody typed in a line's item box.
+///
+/// Capped and searched in the database rather than in the browser, which is
+/// the difference between a picker that works on a catalogue of forty and one
+/// that works on a catalogue of forty thousand.
+#[server(name = FindVariants, prefix = "/api", endpoint = "inventory/variants/find")]
+pub async fn find_variants(needle: String) -> Result<Vec<VariantChoice>, ServerFnError> {
     use crate::state::{pool_and_caller, service_error};
 
     let (pool, caller) = pool_and_caller().await?;
 
-    phonix_services::inventory::purchase::pickable_variants(&pool, &caller)
+    phonix_services::inventory::purchase::find_variants(&pool, &caller, &needle)
+        .await
+        .map_err(service_error)
+}
+
+/// The lot rules of the items a document already names.
+///
+/// One round trip for a whole line grid: a receipt opened against an order
+/// names forty items nobody picked in this browser, and each of them decides
+/// whether that line has a lot box.
+#[server(name = VariantLotRules, prefix = "/api", endpoint = "inventory/variants/rules")]
+pub async fn variant_lot_rules(
+    variant_ids: Vec<Uuid>,
+) -> Result<Vec<(Uuid, LotRules)>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::purchase::variant_rules(&pool, &caller, &variant_ids)
         .await
         .map_err(service_error)
 }

@@ -147,6 +147,18 @@ pub fn section(
     /// mistake rather than as a division.
     #[prop(optional)]
     flush: bool,
+    /// Fold the fields away behind the heading.
+    ///
+    /// For a group somebody fills in once and then scrolls past - a note, an
+    /// address, terms. It needs a `title`: the heading is the control, and a
+    /// chevron on its own names nothing to open.
+    #[prop(optional)]
+    collapsible: bool,
+    /// Start open. Only read when `collapsible`; a folded group arrives closed
+    /// unless the screen says otherwise, which is the whole point of folding
+    /// it.
+    #[prop(optional)]
+    open: bool,
     children: Children,
 ) -> impl IntoView {
     // Self-spacing: `mt` above the rule, `pt` below it, so a section is dropped
@@ -159,27 +171,45 @@ pub fn section(
         "space-y-2 border-t border-edge pt-4 mt-4 first:border-t-0 first:pt-0 first:mt-0"
     };
 
+    let heading = title.map(|title| {
+        view! {
+            <div class="min-w-0 space-y-0.5">
+                <h3 class="text-xs font-semibold uppercase tracking-wide text-content-muted">
+                    {title}
+                </h3>
+                {description
+                    .map(|description| {
+                        view! { <p class="text-xs text-content-subtle">{description}</p> }
+                    })}
+            </div>
+        }
+    });
+
+    // `<details>`, for the reason set out in `ui::card`: openness here is one
+    // node's business, and the element already carries the keyboard, the
+    // accessibility tree and a find-in-page that opens what it matched.
+    if collapsible {
+        return view! {
+            <details class=format!("group {separated}") open=open>
+                <summary class="flex cursor-pointer list-none items-center gap-2">
+                    {heading}
+                    <span class="text-content-subtle transition-transform group-open:rotate-180">
+                        <Icon icon=Icon::ChevronDown size=IconSize::Xs />
+                    </span>
+                </summary>
+                <div class="mt-2 space-y-2">{children()}</div>
+            </details>
+        }
+        .into_any();
+    }
+
     view! {
         <section class=separated>
-            {title
-                .map(|title| {
-                    view! {
-                        <div class="space-y-0.5">
-                            <h3 class="text-xs font-semibold uppercase tracking-wide text-content-muted">
-                                {title}
-                            </h3>
-                            {description
-                                .map(|description| {
-                                    view! {
-                                        <p class="text-xs text-content-subtle">{description}</p>
-                                    }
-                                })}
-                        </div>
-                    }
-                })}
+            {heading}
             {children()}
         </section>
     }
+    .into_any()
 }
 
 /// What a list shows when it has nothing in it.

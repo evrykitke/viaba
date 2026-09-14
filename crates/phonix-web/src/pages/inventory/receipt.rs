@@ -17,15 +17,22 @@
 //! disagrees with the one that gets filed, so the value appears on the document
 //! and not before.
 
+use std::collections::HashMap;
+
+use app_inventory::lot::LotRules;
 use app_inventory::receipt::{Receipt, ReceiptInput, ReceiptLineInput, ReceiptState};
 use app_inventory::variant::VariantChoice;
 use leptos::prelude::*;
 use leptos_meta::Title;
 use phonix_core::audit::kinds;
+use phonix_core::files::attachment::RecordRef;
 use phonix_core::form::Submission;
 use phonix_master::party::{PartySummary, roles};
 use uuid::Uuid;
 
+use crate::components::attachments::{Attachments, AttachmentsPending};
+use crate::pages::inventory::item_lookup::ItemLookup;
+use crate::components::dock::{DockField, DockHeader};
 use crate::components::history::RecordHistory;
 use crate::components::page::{
     Badge, GhostButton, Notice, PageHeader, Panel, PrimaryButton, Section, Tone,
@@ -33,8 +40,8 @@ use crate::components::page::{
 use crate::icons::Icon;
 use crate::l;
 use crate::server_fns::inventory_fns::{
-    cancel_receipt, landed_costs_for_receipt, landed_on_receipt, pickable_variants,
-    post_receipt, receipt_against_order, receipt_detail, save_receipt, selectable_warehouses,
+    cancel_receipt, landed_costs_for_receipt, landed_on_receipt, post_receipt,
+    receipt_against_order, receipt_detail, save_receipt, selectable_warehouses, variant_lot_rules,
 };
 use crate::server_fns::master_fns::list_parties;
 use crate::ui::alert::{Alert, Alerts, Confirm};
@@ -81,19 +88,24 @@ pub fn receipt_new_page() -> impl IntoView {
     view! {
         <Title text=format!("{} | Phonix", l!("receipts.new")) />
 
-        <PageHeader
-            title=l!("receipts.new")
-            subtitle=l!("receipts.new.subtitle")
-            icon=Icon::Package
-            back=(BACK, l!("receipts.title"))
-        />
-
+        // No `PageHeader`: the editor's own dock says the same three things and
+        // stays on screen while the lines are keyed. Two headers would be the
+        // page saying its name twice and pushing the first field down for it.
         <Transition fallback=|| {
             view! { <p class="text-sm text-content-subtle">{l!("common.loading")}</p> }
         }>
             {move || Suspend::new(async move {
                 match prefilled.await {
-                    Ok(draft) => view! { <ReceiptEditor draft=draft /> }.into_any(),
+                    Ok(draft) => {
+                        view! {
+                            <ReceiptEditor
+                                draft=draft
+                                title=l!("receipts.new")
+                                subtitle=Some(l!("receipts.new.subtitle"))
+                            />
+                        }
+                            .into_any()
+                    }
                     Err(message) => {
                         view! {
                             <Notice
@@ -136,6 +148,18 @@ pub fn receipt_page() -> impl IntoView {
                         let state = stored.state;
                         let opened_on = ReceiptInput::from_receipt(&stored);
 
+                        if state.is_editable() {
+                            return view! {
+                                <ReceiptEditor
+                                    draft=opened_on
+                                    title=heading
+                                    subtitle=Some(supplier)
+                                    state=Some(state)
+                                />
+                            }
+                                .into_any();
+                        }
+
                         view! {
                             <>
                                 <PageHeader
@@ -147,14 +171,7 @@ pub fn receipt_page() -> impl IntoView {
                                     <StateBadge state=state />
                                 </PageHeader>
 
-                                {if state.is_editable() {
-                                    view! { <ReceiptEditor draft=opened_on /> }.into_any()
-                                } else {
-                                    view! {
-                                        <ReceiptDocument receipt=stored />
-                                    }
-                                        .into_any()
-                                }}
+                                <ReceiptDocument receipt=stored />
                             </>
                         }
                             .into_any()
@@ -196,7 +213,22 @@ fn state_badge(state: ReceiptState) -> impl IntoView {
 // --- the editor ---------------------------------------------------------
 
 #[component]
-fn receipt_editor(draft: ReceiptInput) -> impl IntoView {
+fn receipt_editor(
+    draft: ReceiptInput,
+    /// What the dock calls this document: its number, or "New receipt".
+    #[prop(into)]
+    title: String,
+    #[prop(optional_no_strip)] subtitle: Option<String>,
+    /// Absent until the draft has been saved once and has a state to show.
+    #[prop(optional_no_strip)]
+    state: Option<ReceiptState>,
+) -> impl IntoView {
+    // Stored rather than captured: the body below is built inside a `Suspend`
+    // that re-runs whenever a resource reloads, and a `String` captured by
+    // that closure would be moved on the first run.
+    let title = StoredValue::new(title);
+    let subtitle = StoredValue::new(subtitle);
+
     let draft = RwSignal::new(draft);
     let saving = RwSignal::new(false);
     let rejected = RwSignal::new(None::<String>);
@@ -206,7 +238,6 @@ fn receipt_editor(draft: ReceiptInput) -> impl IntoView {
         |()| async move { list_parties(Some(roles::SUPPLIER.to_owned())).await },
     );
     let warehouses = Resource::new(|| (), |()| async move { selectable_warehouses().await });
-    let variants = Resource::new(|| (), |()| async move { pickable_variants().await });
 
     view! {
         <div class="space-y-3">
@@ -218,7 +249,6 @@ fn receipt_editor(draft: ReceiptInput) -> impl IntoView {
                 {move || Suspend::new(async move {
                     let suppliers = suppliers.await.unwrap_or_default();
                     let warehouses = warehouses.await.unwrap_or_default();
-                    let variants = variants.await.unwrap_or_default();
 
                     let warehouse_options = warehouses
                         .into_iter()
@@ -232,9 +262,11 @@ fn receipt_editor(draft: ReceiptInput) -> impl IntoView {
                     view! {
                         <EditorBody
                             draft=draft
+                            title=title.get_value()
+                            subtitle=subtitle.get_value()
+                            state=state
                             suppliers=suppliers
                             warehouses=warehouse_options
-                            variants=variants
                             saving=saving
                             rejected=rejected
                         />
@@ -248,16 +280,45 @@ fn receipt_editor(draft: ReceiptInput) -> impl IntoView {
 #[component]
 fn editor_body(
     draft: RwSignal<ReceiptInput>,
+    #[prop(into)] title: String,
+    #[prop(optional_no_strip)] subtitle: Option<String>,
+    #[prop(optional_no_strip)] state: Option<ReceiptState>,
     suppliers: Vec<PartySummary>,
     warehouses: Vec<Choice>,
-    variants: Vec<VariantChoice>,
     saving: RwSignal<bool>,
     rejected: RwSignal<Option<String>>,
 ) -> impl IntoView {
     let alerts = Alerts::get();
     let navigate = leptos_router::hooks::use_navigate();
 
-    let variants = StoredValue::new(variants);
+    // What each line's item keeps: a lot number, a serial, an expiry, or
+    // nothing at all. A picked row answers with its own rules, so this asks
+    // only about the items that were on the paper before this browser saw it -
+    // a reopened draft, or a receipt prefilled from an order.
+    let rules = RwSignal::new(HashMap::<Uuid, LotRules>::new());
+
+    Effect::new(move |_| {
+        let unknown = draft.with(|d| {
+            d.lines
+                .iter()
+                .filter_map(|line| line.variant_id)
+                .filter(|id| rules.with_untracked(|known| !known.contains_key(id)))
+                .collect::<Vec<_>>()
+        });
+
+        if unknown.is_empty() {
+            return;
+        }
+
+        leptos::task::spawn_local(async move {
+            let Ok(found) = variant_lot_rules(unknown).await else {
+                return;
+            };
+
+            rules.update(|known| known.extend(found));
+            forget_what_is_not_kept(draft, rules);
+        });
+    });
 
     let save = {
         let navigate = navigate.clone();
@@ -379,29 +440,57 @@ fn editor_body(
 
     let saved = move || draft.with(|d| d.id.is_some());
 
+    let supplier_options = StoredValue::new(
+        suppliers
+            .iter()
+            .filter(|party| party.is_active)
+            .map(|party| {
+                Choice::new(party.id.to_string(), party.name.clone()).detail(party.code.clone())
+            })
+            .collect::<Vec<_>>(),
+    );
+    let warehouse_options = StoredValue::new(warehouses);
+
+    // What the fields say, in one line, for when they are folded away. A
+    // lookup by value rather than a second list of names: the options are
+    // already the map from id to label, and a second one would be the one that
+    // goes stale.
+    let label_of = move |options: StoredValue<Vec<Choice>>, id: Option<Uuid>| {
+        let id = id?.to_string();
+        options.with_value(|options| {
+            options
+                .iter()
+                .find(|choice| choice.value == id)
+                .map(|choice| choice.label.clone())
+        })
+    };
+
+    let summary = Signal::derive(move || {
+        draft.with(|d| {
+            let note = d.delivery_note.trim();
+
+            [
+                label_of(supplier_options, d.supplier_id),
+                label_of(warehouse_options, d.warehouse_id),
+                Some(d.received_on.to_string()),
+                (!note.is_empty()).then(|| note.to_owned()),
+            ]
+            .into_iter()
+            .flatten()
+            .collect::<Vec<_>>()
+            .join(" · ")
+        })
+    });
+
     view! {
-        <Panel>
-            <Section title=l!("receipts.header")>
-                <HeaderFields draft=draft suppliers=suppliers warehouses=warehouses />
-            </Section>
-
-            <Section title=l!("receipts.lines") description=l!("receipts.lines.help")>
-                <LineTable draft=draft variants=variants />
-            </Section>
-
-            <Section title=l!("receipts.note")>
-                <textarea
-                    class="w-full"
-                    rows="3"
-                    prop:value=move || draft.with(|d| d.note.clone())
-                    on:input=move |ev| {
-                        let text = event_target_value(&ev);
-                        draft.update(|d| d.note = text);
-                    }
-                />
-            </Section>
-
-            <div class="mt-4 flex flex-wrap items-center justify-end gap-2 border-t border-edge pt-4">
+        <DockHeader
+            title=title
+            subtitle=subtitle
+            icon=Icon::Package
+            back=(BACK, l!("receipts.title"))
+            summary=summary
+            status=state.map(|state| view! { <StateBadge state=state /> }).into_any()
+            actions=view! {
                 <Show when=saved fallback=|| ()>
                     <GhostButton
                         label=l!("receipts.cancel")
@@ -423,8 +512,8 @@ fn editor_body(
                     })
                 />
 
-                // Offered only once the draft is saved: there is nothing to move
-                // and nothing to number otherwise.
+                // Offered only once the draft is saved: there is nothing to
+                // move and nothing to number otherwise.
                 <Show when=saved fallback=|| ()>
                     <PrimaryButton
                         label=l!("receipts.post")
@@ -436,107 +525,163 @@ fn editor_body(
                         })
                     />
                 </Show>
-            </div>
+            }
+                .into_any()
+        >
+            <HeaderFields draft=draft suppliers=supplier_options warehouses=warehouse_options />
+        </DockHeader>
+
+        <Panel>
+            <Section title=l!("receipts.lines") description=l!("receipts.lines.help")>
+                <LineTable draft=draft rules=rules />
+            </Section>
+
+            <Section title=l!("receipts.note") collapsible=true>
+                <textarea
+                    class="w-full"
+                    rows="3"
+                    prop:value=move || draft.with(|d| d.note.clone())
+                    on:input=move |ev| {
+                        let text = event_target_value(&ev);
+                        draft.update(|d| d.note = text);
+                    }
+                />
+            </Section>
+
+            // Only once there is a receipt to hang them on. A draft that has
+            // never been saved has no id, and an attachment names a record.
+            {move || match draft.with(|d| d.id) {
+                Some(id) => {
+                    view! {
+                        <Attachments record=RecordRef::new(kinds::RECEIPT, id) />
+                    }
+                        .into_any()
+                }
+                None => view! { <AttachmentsPending /> }.into_any(),
+            }}
         </Panel>
     }
 }
 
 /// Who it came from, where it landed, and when.
+///
+/// Four `DockField`s and nothing else - the dock draws the grid, so a wrapper
+/// here would be a second one inside it.
 #[component]
 fn header_fields(
     draft: RwSignal<ReceiptInput>,
-    suppliers: Vec<PartySummary>,
-    warehouses: Vec<Choice>,
+    suppliers: StoredValue<Vec<Choice>>,
+    warehouses: StoredValue<Vec<Choice>>,
 ) -> impl IntoView {
-    let supplier_options = suppliers
-        .iter()
-        .filter(|party| party.is_active)
-        .map(|party| {
-            Choice::new(party.id.to_string(), party.name.clone()).detail(party.code.clone())
-        })
-        .collect::<Vec<_>>();
-
     view! {
-        <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            <div class="block space-y-1">
-                <label for="receipt-supplier" class="block text-xs font-medium text-content-muted">
-                    {l!("purchase_orders.supplier")}
-                </label>
-                <SelectField
-                    id="receipt-supplier"
-                    value=Signal::derive(move || {
-                        draft.with(|d| d.supplier_id.map(|id| id.to_string()).unwrap_or_default())
-                    })
-                    on_change=Callback::new(move |value: String| {
-                        let chosen = value.parse::<Uuid>().ok();
-                        draft.update(|d| d.supplier_id = chosen);
-                    })
-                    options=supplier_options
-                    placeholder=l!("common.not_set")
-                    clearable=true
-                />
-            </div>
+        <DockField label=l!("purchase_orders.supplier") id="receipt-supplier">
+            <SelectField
+                id="receipt-supplier"
+                value=Signal::derive(move || {
+                    draft.with(|d| d.supplier_id.map(|id| id.to_string()).unwrap_or_default())
+                })
+                on_change=Callback::new(move |value: String| {
+                    let chosen = value.parse::<Uuid>().ok();
+                    draft.update(|d| d.supplier_id = chosen);
+                })
+                options=suppliers.get_value()
+                placeholder=l!("common.not_set")
+                clearable=true
+            />
+        </DockField>
 
-            <div class="block space-y-1">
-                <label for="receipt-warehouse" class="block text-xs font-medium text-content-muted">
-                    {l!("nav.warehouses")}
-                </label>
-                <SelectField
-                    id="receipt-warehouse"
-                    value=Signal::derive(move || {
-                        draft.with(|d| d.warehouse_id.map(|id| id.to_string()).unwrap_or_default())
-                    })
-                    on_change=Callback::new(move |value: String| {
-                        let chosen = value.parse::<Uuid>().ok();
-                        draft.update(|d| d.warehouse_id = chosen);
-                    })
-                    options=warehouses
-                    placeholder=l!("common.not_set")
-                    clearable=true
-                />
-            </div>
+        <DockField label=l!("nav.warehouses") id="receipt-warehouse">
+            <SelectField
+                id="receipt-warehouse"
+                value=Signal::derive(move || {
+                    draft.with(|d| d.warehouse_id.map(|id| id.to_string()).unwrap_or_default())
+                })
+                on_change=Callback::new(move |value: String| {
+                    let chosen = value.parse::<Uuid>().ok();
+                    draft.update(|d| d.warehouse_id = chosen);
+                })
+                options=warehouses.get_value()
+                placeholder=l!("common.not_set")
+                clearable=true
+            />
+        </DockField>
 
-            <label class="block space-y-1">
-                <span class="text-xs font-medium text-content-muted">
-                    {l!("receipts.received_on")}
-                </span>
-                <input
-                    type="date"
-                    class="w-full"
-                    prop:value=move || draft.with(|d| d.received_on.to_string())
-                    on:change=move |ev| {
-                        if let Ok(date) = event_target_value(&ev).parse() {
-                            draft.update(|d| d.received_on = date);
-                        }
+        <DockField label=l!("receipts.received_on")>
+            <input
+                type="date"
+                class="w-full"
+                prop:value=move || draft.with(|d| d.received_on.to_string())
+                on:change=move |ev| {
+                    if let Ok(date) = event_target_value(&ev).parse() {
+                        draft.update(|d| d.received_on = date);
                     }
-                />
-            </label>
+                }
+            />
+        </DockField>
 
-            <label class="block space-y-1">
-                <span class="text-xs font-medium text-content-muted">
-                    {l!("receipts.delivery_note")}
-                </span>
-                <input
-                    type="text"
-                    class="w-full"
-                    prop:value=move || draft.with(|d| d.delivery_note.clone())
-                    on:input=move |ev| {
-                        let value = event_target_value(&ev);
-                        draft.update(|d| d.delivery_note = value);
-                    }
-                />
-                <span class="block text-2xs text-content-subtle">
-                    {l!("receipts.delivery_note.help")}
-                </span>
-            </label>
-        </div>
+        <DockField label=l!("receipts.delivery_note") help=l!("receipts.delivery_note.help")>
+            <input
+                type="text"
+                class="w-full"
+                prop:value=move || draft.with(|d| d.delivery_note.clone())
+                on:input=move |ev| {
+                    let value = event_target_value(&ev);
+                    draft.update(|d| d.delivery_note = value);
+                }
+            />
+        </DockField>
     }
+}
+
+/// Drop what the items on these lines do not keep.
+///
+/// For the drafts written before the lot box knew what an item was: a number
+/// against an item that keeps none has no field to clear it in any more, and
+/// leaving it there is a receipt that refuses to post and cannot be corrected
+/// on its own screen. Only ever removes what the item could never have kept.
+fn forget_what_is_not_kept(
+    draft: RwSignal<ReceiptInput>,
+    rules: RwSignal<HashMap<Uuid, LotRules>>,
+) {
+    let stray = |line: &ReceiptLineInput, keeps: LotRules| {
+        (!keeps.wants_a_number() && !line.lot_number.is_empty())
+            || (!keeps.uses_expiry && line.expires_on.is_some())
+    };
+
+    let keeps_of = |line: &ReceiptLineInput| {
+        line.variant_id
+            .and_then(|id| rules.with_untracked(|known| known.get(&id).copied()))
+    };
+
+    let any = draft.with_untracked(|d| {
+        d.lines
+            .iter()
+            .any(|line| keeps_of(line).is_some_and(|keeps| stray(line, keeps)))
+    });
+
+    if !any {
+        return;
+    }
+
+    draft.update(|d| {
+        for line in &mut d.lines {
+            let Some(keeps) = keeps_of(line) else {
+                continue;
+            };
+            if !keeps.wants_a_number() {
+                line.lot_number.clear();
+            }
+            if !keeps.uses_expiry {
+                line.expires_on = None;
+            }
+        }
+    });
 }
 
 #[component]
 fn line_table(
     draft: RwSignal<ReceiptInput>,
-    variants: StoredValue<Vec<VariantChoice>>,
+    rules: RwSignal<HashMap<Uuid, LotRules>>,
 ) -> impl IntoView {
     view! {
         <div class="space-y-2">
@@ -563,7 +708,7 @@ fn line_table(
                             let count = draft.with(|d| d.lines.len());
                             (0..count)
                                 .map(|index| {
-                                    view! { <LineRow draft=draft index=index variants=variants /> }
+                                    view! { <LineRow draft=draft index=index rules=rules /> }
                                 })
                                 .collect_view()
                         }}
@@ -585,8 +730,8 @@ fn line_table(
 #[component]
 fn line_row(
     draft: RwSignal<ReceiptInput>,
+    rules: RwSignal<HashMap<Uuid, LotRules>>,
     index: usize,
-    variants: StoredValue<Vec<VariantChoice>>,
 ) -> impl IntoView {
     let field = move |read: fn(&ReceiptLineInput) -> String| {
         draft.with(|d| d.lines.get(index).map(read).unwrap_or_default())
@@ -602,51 +747,73 @@ fn line_row(
         })
     };
 
-    let variant_options = variants.with_value(|variants| {
-        variants
-            .iter()
-            .map(|variant| {
-                Choice::new(variant.id.to_string(), variant.label()).detail(variant.code.clone())
-            })
-            .collect::<Vec<_>>()
+    // What this line's item keeps. Unknown until it has been picked or the
+    // rules for it have come back, and an unknown item keeps nothing: a lot
+    // box is drawn once there is an item that wants one, and not before.
+    let keeps = move || {
+        let variant_id = draft.with(|d| d.lines.get(index).and_then(|line| line.variant_id))?;
+        rules.with(|known| known.get(&variant_id).copied())
+    };
+    let keeps_numbers = move || keeps().is_some_and(LotRules::wants_a_number);
+    let keeps_expiry = move || keeps().is_some_and(|rules| rules.uses_expiry);
+
+    // The chip the field opens with, built once from what the line already
+    // says. No query: a fifty-line receipt reopened would otherwise be fifty
+    // lookups before anything is on screen.
+    let initial = draft.with_untracked(|d| {
+        let line = d.lines.get(index)?;
+        let id = line.variant_id?;
+        let label = match line.description.trim() {
+            "" => id.to_string(),
+            words => words.to_owned(),
+        };
+
+        Some(Choice::new(id.to_string(), label))
     });
 
     view! {
         <tr class="border-b border-edge/60">
             <td class="py-1 text-xs text-content-subtle">{index + 1}</td>
             <td class="py-1 pr-2">
-                <SelectField
-                    value=Signal::derive(move || {
-                        field(|line| {
-                            line.variant_id.map(|id| id.to_string()).unwrap_or_default()
-                        })
-                    })
-                    on_change=Callback::new(move |value: String| {
-                        let chosen = value.parse::<Uuid>().ok();
-                        let picked = chosen
-                            .and_then(|id| {
-                                variants
-                                    .with_value(|variants| {
-                                        variants.iter().find(|variant| variant.id == id).cloned()
-                                    })
+                <ItemLookup
+                    initial=initial
+                    on_pick=Callback::new(move |picked: Option<VariantChoice>| {
+                        if let Some(picked) = picked.as_ref() {
+                            rules.update(|known| {
+                                known.insert(picked.id, picked.rules);
                             });
+                        }
+
                         draft
                             .update(|d| {
                                 if let Some(line) = d.lines.get_mut(index) {
+                                    let chosen = picked.as_ref().map(|variant| variant.id);
+                                    let changed = line.variant_id != chosen;
                                     line.variant_id = chosen;
-                                    if let Some(picked) = picked {
-                                        if line.description.trim().is_empty() {
-                                            line.description = picked.label();
-                                        }
+                                    if let Some(picked) = picked.as_ref()
+                                        && line.description.trim().is_empty()
+                                    {
+                                        line.description = picked.label();
+                                    }
+                                    // A lot number is read off the carton of the
+                                    // item it names. It does not survive that
+                                    // line being given a different item, and it
+                                    // is never kept for one that has no numbers
+                                    // to give.
+                                    let keeps = picked
+                                        .as_ref()
+                                        .map_or(LotRules::UNTRACKED, |variant| variant.rules);
+                                    if changed || !keeps.wants_a_number() {
+                                        line.lot_number.clear();
+                                    }
+                                    if changed || !keeps.uses_expiry {
+                                        line.expires_on = None;
                                     }
                                 }
                             });
                     })
-                    options=variant_options
-                    placeholder=l!("common.not_set")
-                    clearable=true
+                    placeholder=Some(l!("common.not_set"))
                     disabled=Signal::derive(from_order)
-                    label=l!("purchase_orders.item")
                 />
             </td>
             <td class="py-1 pr-2">
@@ -685,40 +852,48 @@ fn line_row(
                 />
             </td>
             <td class="py-1 pr-2">
-                // Typed, never generated: it is the supplier's batch number and
-                // one this system invented would match nothing on the carton.
-                <input
-                    type="text"
-                    class="w-full font-mono text-xs"
-                    prop:value=move || field(|line| line.lot_number.clone())
-                    on:input=move |ev| {
-                        let value = event_target_value(&ev);
-                        draft
-                            .update(|d| {
-                                if let Some(line) = d.lines.get_mut(index) {
-                                    line.lot_number = value;
-                                }
-                            });
-                    }
-                />
+                // Drawn only where the item keeps numbers. A box offered against
+                // an item that keeps none is a number typed into a form and
+                // refused at post, with the pallet already unloaded.
+                <Show when=keeps_numbers fallback=|| ()>
+                    // Typed, never generated: it is the supplier's batch number
+                    // and one this system invented would match nothing on the
+                    // carton.
+                    <input
+                        type="text"
+                        class="w-full font-mono text-xs"
+                        prop:value=move || field(|line| line.lot_number.clone())
+                        on:input=move |ev| {
+                            let value = event_target_value(&ev);
+                            draft
+                                .update(|d| {
+                                    if let Some(line) = d.lines.get_mut(index) {
+                                        line.lot_number = value;
+                                    }
+                                });
+                        }
+                    />
+                </Show>
             </td>
             <td class="py-1 pr-2">
-                <input
-                    type="date"
-                    class="w-full"
-                    prop:value=move || field(|line| {
-                        line.expires_on.map(|on| on.to_string()).unwrap_or_default()
-                    })
-                    on:change=move |ev| {
-                        let value = event_target_value(&ev);
-                        draft
-                            .update(|d| {
-                                if let Some(line) = d.lines.get_mut(index) {
-                                    line.expires_on = value.parse().ok();
-                                }
-                            });
-                    }
-                />
+                <Show when=keeps_expiry fallback=|| ()>
+                    <input
+                        type="date"
+                        class="w-full"
+                        prop:value=move || field(|line| {
+                            line.expires_on.map(|on| on.to_string()).unwrap_or_default()
+                        })
+                        on:change=move |ev| {
+                            let value = event_target_value(&ev);
+                            draft
+                                .update(|d| {
+                                    if let Some(line) = d.lines.get_mut(index) {
+                                        line.expires_on = value.parse().ok();
+                                    }
+                                });
+                        }
+                    />
+                </Show>
             </td>
             <td class="py-1 pr-2">
                 <input

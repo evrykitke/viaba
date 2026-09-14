@@ -103,16 +103,6 @@ pub async fn run(config: AppConfig, profiling: profiler::Profiling) -> Result<()
         .context("could not read the leptos configuration")?
         .leptos_options;
 
-    // `hash-files = true` in Cargo.toml makes the build emit
-    // `phonix.<hash>.js`; `LEPTOS_HASH_FILES` is what makes the *server* ask
-    // for that name. They are two halves of one decision, and the env var
-    // defaults to false, so a deployment that forgets it serves markup
-    // pointing at files the build no longer produces - a 404 for the bundle
-    // and a page that renders and then does nothing at all.
-    //
-    // The build always hashes, so the server always looks for a hash. Leptos
-    // reads the manifest from beside the executable, which is where
-    // cargo-leptos writes it, so nothing needs configuring per environment.
     leptos_options.hash_files = true;
 
     let site_addr = leptos_options.site_addr;
@@ -151,10 +141,6 @@ pub async fn run(config: AppConfig, profiling: profiler::Profiling) -> Result<()
 
     let routes = generate_route_list(App);
 
-    // The counters that keep an anonymous caller from spending this server's
-    // Argon2 budget, its mail relay, or its disk. Built here so there is
-    // exactly one set of them for the life of the process - a limiter
-    // constructed per request would count each request against an empty map.
     let throttle = rate_limit::RateLimitState {
         config: Arc::clone(&config),
         limiter: Arc::new(rate_limit::Limiter::new()),

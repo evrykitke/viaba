@@ -13,6 +13,7 @@ use app_hr::employee::{
 use app_hr::job_position::{JobPosition, JobPositionInput, JobPositionSummary};
 use app_hr::work_location::{WorkLocation, WorkLocationInput, WorkLocationSummary};
 use leptos::prelude::*;
+use leptos::server_fn::codec::Json;
 use phonix_core::form::Submission;
 use phonix_core::identity::InvitationIssued;
 use uuid::Uuid;
@@ -279,7 +280,16 @@ pub async fn direct_reports(employee_id: Uuid) -> Result<i64, ServerFnError> {
 // and `Users.Create` is checked on top of the HR permission - so an HR grant by
 // itself can never let anybody into the system.
 
-#[server(name = CreateEmployeeLogin, prefix = "/api", endpoint = "hr/employees/login")]
+/// `Json` because `roles` is usually empty, and an empty list disappears from a
+/// url-encoded body entirely - the server then reads a request with no `roles`
+/// field at all and refuses it. Empty is the ordinary case here, not an edge:
+/// it means "whatever this workspace gives everybody", which is the User role.
+#[server(
+    name = CreateEmployeeLogin,
+    prefix = "/api",
+    endpoint = "hr/employees/login",
+    input = Json
+)]
 pub async fn create_employee_login(
     employee_id: Uuid,
     roles: Vec<String>,

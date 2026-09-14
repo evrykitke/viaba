@@ -50,16 +50,43 @@ pub async fn list(pool: &PgPool, caller: &Caller) -> ServiceResult<Vec<OrderSumm
     Ok(store::list(pool).await?)
 }
 
-/// What an order or receipt line may be written against.
+/// How many rows a picker is sent at once.
 ///
-/// Either permission opens it: a receipts clerk who may not raise an order
-/// still has to be able to name what turned up on the pallet.
-pub async fn pickable_variants(
+/// Enough that a search which nearly narrows it still shows the answer, few
+/// enough that the list is read rather than scrolled. Somebody who types three
+/// characters and gets fifty rows types a fourth; somebody who gets two
+/// thousand closes the tab.
+pub const PICKER_LIMIT: i64 = 50;
+
+/// The variants matching what somebody has typed in a line's item box.
+///
+/// What a picker on a document line reads. Either permission opens it: a
+/// receipts clerk who may not raise an order still has to be able to name what
+/// turned up on the pallet.
+///
+/// An empty needle answers with the first [`PICKER_LIMIT`] by name, which is
+/// what the panel shows before anything is typed.
+pub async fn find_variants(
     pool: &PgPool,
     caller: &Caller,
+    needle: &str,
 ) -> ServiceResult<Vec<VariantChoice>> {
     caller.require_any(&[permissions::PURCHASE_ORDERS, permissions::RECEIPTS])?;
-    Ok(variants::purchasable(pool).await?)
+    Ok(variants::search_purchasable(pool, needle, PICKER_LIMIT).await?)
+}
+
+/// The lot rules of the items a document line already names.
+///
+/// The other half of [`find_variants`]: a picked row answers with its own
+/// rules, and a line that was already on the paper - a reopened draft, a
+/// receipt prefilled from an order - asks here instead of picking again.
+pub async fn variant_rules(
+    pool: &PgPool,
+    caller: &Caller,
+    variant_ids: &[Uuid],
+) -> ServiceResult<Vec<(Uuid, app_inventory::lot::LotRules)>> {
+    caller.require_any(&[permissions::PURCHASE_ORDERS, permissions::RECEIPTS])?;
+    Ok(variants::rules_for(pool, variant_ids).await?)
 }
 
 /// The confirmed orders with something still to come, for a receipt screen.

@@ -188,6 +188,11 @@ pub struct VariantChoice {
     /// What the item is bought in, which is what a new order line defaults to.
     pub purchase_unit_id: Uuid,
     pub purchase_unit_code: String,
+    /// Whether a line naming this has to say which units these are. Answered
+    /// with the row rather than asked for afterwards: the line that has just
+    /// been given an item is the one that has to decide whether to draw a lot
+    /// box at all.
+    pub rules: crate::lot::LotRules,
 }
 
 impl VariantChoice {

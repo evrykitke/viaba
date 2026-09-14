@@ -30,6 +30,33 @@
 //!   that permits nothing at all.
 //! * It never reads from quarantine. That is enforced in the service layer, so
 //!   it is true of every caller and not only of this one.
+//!
+//! # And why `GET /files/{id}/preview` exists beside it
+//!
+//! A preview pane needs the same bytes with the opposite disposition: `inline`,
+//! so a frame renders them rather than starting a download. That is a different
+//! promise, so it is a different address rather than a query parameter - a
+//! route that will only answer for the handful of types this application can
+//! render, and answers `415` for everything else.
+//!
+//! **The PDF question.** A PDF is active content: it has a JavaScript engine
+//! and an `/OpenAction` that fires on open, which is why the download route
+//! refuses to render one. It is also the commonest attachment there is, and a
+//! purchase ledger where every supplier invoice must be downloaded to be read
+//! is a purchase ledger nobody uses. So the preview route serves it with
+//! `Content-Security-Policy: sandbox allow-scripts`, and the two words matter
+//! in opposite directions:
+//!
+//! * `sandbox` puts the response in an **opaque origin**. Whatever the document
+//!   manages to run cannot read this origin's cookies, storage or DOM, cannot
+//!   call the API as the signed-in user, and cannot navigate the top window.
+//! * `allow-scripts` is there because the viewer doing the rendering is itself
+//!   a scripted document - `pdf.js` in Firefox, the built-in viewer in Chrome -
+//!   and without it the frame renders nothing at all.
+//!
+//! Notably absent is `allow-same-origin`, which is the one that would undo the
+//! first bullet. A picture gets the stricter form with no `allow-scripts` at
+//! all, because nothing has to run to draw one.
 
 use axum::Router;
 use axum::body::Body;
@@ -37,7 +64,7 @@ use axum::extract::{Multipart, Path, Query, State};
 use axum::http::{HeaderMap, HeaderValue, StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
-use phonix_core::files::FileSummary;
+use phonix_core::files::{FileSummary, Preview};
 use phonix_core::{Error as CoreError, TenantSummary};
 use phonix_db::PgPool;
 use phonix_services::files::{access, upload};
@@ -56,6 +83,7 @@ pub fn routes(state: &AppState) -> Router<AppState> {
     Router::new()
         .route("/files/upload", post(upload_file))
         .route("/files/{id}/content", get(download_file))
+        .route("/files/{id}/preview", get(preview_file))
         // Axum's own extractor limit would otherwise refuse the body before
         // `RequestBodyLimitLayer` had a chance to allow it. Disabled here and
         // replaced by the configured ceiling on the next line - not removed.
@@ -245,6 +273,40 @@ async fn download_file(
     headers: HeaderMap,
     Path(id): Path<Uuid>,
 ) -> Response {
+    serve(state, tenant, headers, id, Serve::Download).await
+}
+
+/// Send the same bytes for a preview pane to render.
+///
+/// Refuses anything [`Preview`] does not name, which is most things. See the
+/// module header for what that costs a PDF and why it is still worth doing.
+async fn preview_file(
+    State(state): State<AppState>,
+    tenant: Option<axum::Extension<TenantSummary>>,
+    headers: HeaderMap,
+    Path(id): Path<Uuid>,
+) -> Response {
+    serve(state, tenant, headers, id, Serve::Preview).await
+}
+
+/// Which of the two promises this response is making.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Serve {
+    /// Hand the file over. Renders inline only for a picture that cannot carry
+    /// a script, which is what `is_inline_safe` means.
+    Download,
+    /// Show the file. Refuses what it cannot show.
+    Preview,
+}
+
+/// Both routes, which differ only in the disposition and the sandbox.
+async fn serve(
+    state: AppState,
+    tenant: Option<axum::Extension<TenantSummary>>,
+    headers: HeaderMap,
+    id: Uuid,
+    mode: Serve,
+) -> Response {
     let (tenant, pool, caller) = match authenticate(&state, tenant, &headers).await {
         Ok(who) => who,
         Err(response) => return response,
@@ -265,7 +327,23 @@ async fn download_file(
         .as_deref()
         .and_then(|mime| phonix_core::files::by_mime(mime));
 
-    let inline = content_type.is_some_and(|file_type| file_type.is_inline_safe());
+    let preview = content_type.map_or(Preview::None, |file_type| file_type.preview());
+
+    // A preview that cannot be drawn is not a download in disguise. Answering
+    // with the bytes anyway would put the choice of what to do with them back
+    // in the browser's hands, which is the one place it must not be.
+    if mode == Serve::Preview && !preview.is_showable() {
+        return (
+            StatusCode::UNSUPPORTED_MEDIA_TYPE,
+            "This kind of file has no preview.",
+        )
+            .into_response();
+    }
+
+    let inline = match mode {
+        Serve::Download => content_type.is_some_and(|file_type| file_type.is_inline_safe()),
+        Serve::Preview => true,
+    };
     let mime = content_type.map_or("application/octet-stream", |file_type| file_type.mime);
 
     let mut response = Response::builder()
@@ -282,10 +360,7 @@ async fn download_file(
         .header("x-content-type-options", "nosniff")
         // Nothing this file references may load, and nothing in it may run,
         // even if it is opened directly. Belt and braces over `is_inline_safe`.
-        .header(
-            "content-security-policy",
-            "default-src 'none'; img-src 'self'; style-src 'unsafe-inline'; sandbox",
-        )
+        .header("content-security-policy", policy(mode, preview))
         // A stored file is per-workspace and often per-person, so it must never
         // land in a shared cache. Immutable because the bytes at an id never
         // change: a replacement is a new upload with a new id.
@@ -301,6 +376,25 @@ async fn download_file(
     }
 
     response
+}
+
+/// The content security policy this response carries.
+///
+/// `sandbox` on its own is the strong form: an opaque origin with no scripting
+/// at all. It is what a download and a picture both get, and it is what a PDF
+/// would get if a PDF could be drawn without a scripted viewer. It cannot, so
+/// that one case adds `allow-scripts` - and nothing else. `allow-same-origin`
+/// is the token that would put the document back in this application's origin,
+/// and it is absent on purpose.
+fn policy(mode: Serve, preview: Preview) -> &'static str {
+    match (mode, preview) {
+        (Serve::Preview, Preview::Pdf) => concat!(
+            "default-src 'none'; img-src 'self' blob: data:; ",
+            "style-src 'unsafe-inline'; font-src 'self' data:; ",
+            "sandbox allow-scripts",
+        ),
+        _ => "default-src 'none'; img-src 'self'; style-src 'unsafe-inline'; sandbox",
+    }
 }
 
 /// A `Content-Disposition` header that survives a name in any language.

@@ -526,11 +526,18 @@ async fn install_books_defaults(
 
     let created = crate::books::account::install_defaults(pool, &chart).await?;
 
+    // After the chart, never before it: a mapping names an account by number
+    // and there is nothing to join to until the accounts are there. This is
+    // why the seeding in migration 0004 reached no workspace provisioned after
+    // it was written - see `books::account_role::install_defaults`.
+    let mapped = crate::books::account_role::install_defaults(pool, &chart).await?;
+
     tracing::info!(
         database,
         app = app_id,
         declared = chart.account.len(),
         created,
+        mapped,
         "default chart of accounts installed"
     );
 

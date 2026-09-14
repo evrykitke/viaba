@@ -651,6 +651,27 @@ pub struct DefaultChart {
     /// `[[account]]` in the file.
     #[serde(default)]
     pub account: Vec<DefaultAccount>,
+    /// `[[role]]` in the file: which of those accounts each sub-ledger role
+    /// means.
+    ///
+    /// Declared beside the chart rather than derived from it, because the
+    /// account type is not enough to choose: this chart has six accounts of
+    /// type `inventory` and only one of them is the control account stock
+    /// reconciles to.
+    #[serde(default)]
+    pub role: Vec<DefaultRole>,
+}
+
+/// One role mapping the file declares.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct DefaultRole {
+    /// A `phonix_ports::ledger::AccountRole`, as its serialised name. Left a
+    /// `String` here because a crate the browser compiles may not name a port;
+    /// the closed set is checked where the mapping is installed.
+    pub role: String,
+    /// The `number` of an account this same file declares.
+    pub number: String,
 }
 
 /// One account the file declares.
@@ -717,6 +738,34 @@ impl DefaultChart {
             seen.push(key);
         }
 
+        for mapping in &self.role {
+            if mapping.role.trim().is_empty() {
+                return Err(DefaultChartError::RoleUnnamed);
+            }
+
+            // The account has to be one this file declares. A number that is
+            // merely plausible installs no mapping at all, and the workspace
+            // finds out at the moment somebody posts.
+            if !seen.contains(&mapping.number.trim().to_lowercase()) {
+                return Err(DefaultChartError::RoleAccountUnknown {
+                    role: mapping.role.clone(),
+                    number: mapping.number.clone(),
+                });
+            }
+
+            if self
+                .role
+                .iter()
+                .filter(|other| other.role.trim() == mapping.role.trim())
+                .count()
+                > 1
+            {
+                return Err(DefaultChartError::RoleTwice {
+                    role: mapping.role.clone(),
+                });
+            }
+        }
+
         Ok(())
     }
 }
@@ -733,6 +782,12 @@ pub enum DefaultChartError {
     DescriptionTooLong { number: String },
     #[error("account {number} is declared twice")]
     Duplicate { number: String },
+    #[error("a role mapping has no role name")]
+    RoleUnnamed,
+    #[error("role {role} names account {number}, which the chart does not declare")]
+    RoleAccountUnknown { role: String, number: String },
+    #[error("role {role} is declared twice")]
+    RoleTwice { role: String },
 }
 
 #[cfg(test)]

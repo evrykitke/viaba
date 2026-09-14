@@ -105,6 +105,55 @@ impl LotInput {
     }
 }
 
+/// What a document line has to say about which units these are.
+///
+/// The item's rules, small enough to send to a line grid and keep beside it.
+/// A receipt screen asks for them once for the items on the paper, and a lot
+/// box that an item keeps no numbers for is then not drawn at all - which is
+/// the difference between a rule enforced at post and a field that was never
+/// there to be typed into.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct LotRules {
+    pub tracking: Tracking,
+    pub uses_expiry: bool,
+    /// False for a service, and for goods nobody counts. A line naming one
+    /// moves no stock, so it cannot be received.
+    pub holds_stock: bool,
+}
+
+impl LotRules {
+    pub const UNTRACKED: Self = Self {
+        tracking: Tracking::None,
+        uses_expiry: false,
+        holds_stock: true,
+    };
+
+    pub const fn wants_a_number(self) -> bool {
+        self.tracking.needs_a_number()
+    }
+
+    /// Whether what a line says about lots is something this item can keep.
+    ///
+    /// A draft may be incomplete - a number not typed yet is not refused here,
+    /// because the pallet is still being walked - but it may not be wrong. A
+    /// number against an item that keeps none is the one that used to be
+    /// discovered at post, with the goods already half moved.
+    pub fn check_line(
+        self,
+        number: Option<&str>,
+        expires_on: Option<NaiveDate>,
+    ) -> Result<(), LotError> {
+        if number.is_some() && !self.wants_a_number() {
+            return Err(LotError::ItemIsNotTracked);
+        }
+        if expires_on.is_some() && !self.uses_expiry {
+            return Err(LotError::ExpiryNotKept);
+        }
+
+        Ok(())
+    }
+}
+
 /// A lot with what is on hand of it, for a picking screen and a recall.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct LotSummary {

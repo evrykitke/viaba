@@ -315,6 +315,14 @@ pub async fn claim_one(
 /// `RETURNING` in an `UPDATE ... FROM` sees both tables, and `id` is ambiguous
 /// between them. Built here rather than written out twice so the list cannot
 /// drift from [`COLUMNS`].
+/// The file columns, aliased, for a join that reads them alongside its own.
+///
+/// `attachment` needs exactly this, and a second copy of the column list is
+/// the one that goes stale when a column is added here.
+pub fn prefixed_file_columns(alias: &str) -> String {
+    prefixed(COLUMNS, alias)
+}
+
 fn prefixed(columns: &str, alias: &str) -> String {
     columns
         .split(',')

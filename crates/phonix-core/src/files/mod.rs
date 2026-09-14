@@ -6,8 +6,9 @@
 //! all come from the same tables - so a screen cannot offer something the
 //! server would refuse, and a new format is added in one place.
 //!
-//! | Module      | Question it answers                                  |
-//! | ----------- | ---------------------------------------------------- |
+//! | Module        | Question it answers                                |
+//! | ------------- | -------------------------------------------------- |
+//! | [`attachment`] | Which record is this file the paperwork for?      |
 //! | [`catalog`] | What is this file, judged from its bytes?            |
 //! | [`bucket`]  | What is it for, and what does that permit?           |
 //! | [`image`]   | How large is this picture, without decoding it?      |
@@ -32,16 +33,18 @@
 //! traversal attempt in a filename has nowhere to go, because no part of the
 //! filename reaches the filesystem.
 
+pub mod attachment;
 pub mod bucket;
 pub mod catalog;
 pub mod image;
 pub mod name;
 pub mod upload;
 
+pub use attachment::{Attachment, AttachmentError, AttachmentInput, RecordRef};
 pub use bucket::{BUCKETS, BucketPolicy, bucket, largest_bucket_limit};
 pub use catalog::{
-    CATALOGUE, Container, FileCategory, FileType, Signature, by_extension, by_mime, detect,
-    looks_like_text,
+    CATALOGUE, Container, FileCategory, FileType, Preview, Signature, by_extension, by_mime,
+    detect, looks_like_text, preview_for,
 };
 pub use image::Dimensions;
 pub use name::{extension_of, human_size, sanitize_file_name};

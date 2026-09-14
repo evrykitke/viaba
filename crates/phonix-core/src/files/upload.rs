@@ -347,6 +347,19 @@ impl FileSummary {
     pub fn is_available(&self) -> bool {
         self.status.is_available()
     }
+
+    /// What a preview pane can do with it.
+    ///
+    /// `None` for anything not yet stored as well as for a format nothing here
+    /// can draw: a row in quarantine has no bytes to show and no settled type
+    /// to decide from.
+    pub fn preview(&self) -> super::catalog::Preview {
+        if !self.is_available() {
+            return super::catalog::Preview::None;
+        }
+
+        super::catalog::preview_for(self.content_type.as_deref())
+    }
 }
 
 #[cfg(test)]

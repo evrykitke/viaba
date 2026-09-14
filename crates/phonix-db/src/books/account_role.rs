@@ -4,7 +4,9 @@
 //! role means in this workspace, so the chart stays renumberable - see
 //! `migrations/apps/books/0004_account_roles.sql`.
 
+use app_books::account::DefaultChart;
 use phonix_core::identity::UserId;
+use phonix_ports::ledger::AccountRole;
 use sqlx::{PgExecutor, Row};
 use uuid::Uuid;
 
@@ -29,6 +31,68 @@ where
         .fetch_optional(executor)
         .await
         .map_err(DbError::Query)
+}
+
+/// Point every role the default chart declares at the account it names.
+///
+/// # Why this is not the migration's job any more
+///
+/// `0004_account_roles.sql` seeded these, and on a workspace provisioned after
+/// it was written it seeded nothing: migrations run first and the chart is
+/// installed afterwards, so the accounts those statements selected from did not
+/// exist yet. The mapping was empty for every new workspace, and the first
+/// goods receipt failed with an unmapped role.
+///
+/// So it belongs beside the chart it is derived from - which also means a role
+/// added by a later release reaches a workspace that already has Books, the
+/// same way a new account does.
+///
+/// `ON CONFLICT DO NOTHING`, so a workspace that has remapped a role keeps its
+/// choice. A role naming an account the workspace has since deleted or retired
+/// installs nothing rather than failing: the port answers `UnmappedRole` for it
+/// and a screen shows a sentence.
+pub async fn install_defaults<'e, E>(executor: E, chart: &DefaultChart) -> Result<u64, DbError>
+where
+    E: PgExecutor<'e>,
+{
+    if chart.role.is_empty() {
+        return Ok(0);
+    }
+
+    let mut roles: Vec<&str> = Vec::with_capacity(chart.role.len());
+    let mut numbers: Vec<&str> = Vec::with_capacity(chart.role.len());
+
+    for mapping in &chart.role {
+        let role = mapping.role.trim();
+
+        // The closed set is checked here rather than in `app-books`, which is
+        // compiled for the browser and may not name a port. A role this build
+        // does not know would install a row nothing ever asks for.
+        if AccountRole::parse(role).is_none() {
+            return Err(DbError::CorruptCatalogRow {
+                slug: "books".to_owned(),
+                reason: format!("default chart maps unknown account role '{role}'"),
+            });
+        }
+
+        roles.push(role);
+        numbers.push(mapping.number.trim());
+    }
+
+    let result = sqlx::query(
+        "INSERT INTO books.account_roles (role, account_id)
+              SELECT m.role, a.id
+                FROM unnest($1::text[], $2::text[]) AS m(role, number)
+                JOIN books.accounts a ON a.number = m.number AND a.is_active
+         ON CONFLICT DO NOTHING",
+    )
+    .bind(&roles)
+    .bind(&numbers)
+    .execute(executor)
+    .await
+    .map_err(DbError::Query)?;
+
+    Ok(result.rows_affected())
 }
 
 /// Every mapping, with the account each one names.

@@ -33,8 +33,9 @@ use uuid::Uuid;
 use crate::components::page::{Notice, PageHeader, Panel, PrimaryButton, Section, Tone};
 use crate::icons::Icon;
 use crate::l;
+use crate::pages::inventory::item_lookup::ItemLookup;
 use crate::server_fns::inventory_fns::{
-    record_adjustment, selectable_adjustment_types, selectable_locations, pickable_variants,
+    record_adjustment, selectable_adjustment_types, selectable_locations,
     variant_lots,
 };
 use crate::ui::alert::{Alert, Alerts};
@@ -52,7 +53,6 @@ fn today() -> NaiveDate {
 pub fn adjust_stock_page() -> impl IntoView {
     let types = Resource::new(|| (), |()| async move { selectable_adjustment_types().await });
     let locations = Resource::new(|| (), |()| async move { selectable_locations().await });
-    let variants = Resource::new(|| (), |()| async move { pickable_variants().await });
 
     view! {
         <Title text=format!("{} | Phonix", l!("adjustments.title")) />
@@ -71,7 +71,6 @@ pub fn adjust_stock_page() -> impl IntoView {
                 {move || Suspend::new(async move {
                     let types = types.await.unwrap_or_default();
                     let locations = locations.await.unwrap_or_default();
-                    let variants = variants.await.unwrap_or_default();
 
                     // Said rather than shown empty: a workspace whose reasons
                     // have all been retired has a fixable problem, and a form
@@ -87,7 +86,7 @@ pub fn adjust_stock_page() -> impl IntoView {
                     }
 
                     view! {
-                        <AdjustForm types=types locations=locations variants=variants />
+                        <AdjustForm types=types locations=locations />
                     }
                         .into_any()
                 })}
@@ -100,7 +99,6 @@ pub fn adjust_stock_page() -> impl IntoView {
 fn adjust_form(
     types: Vec<AdjustmentType>,
     locations: Vec<Location>,
-    variants: Vec<VariantChoice>,
 ) -> impl IntoView {
     let alerts = Alerts::get();
     let viewer = Viewer::get();
@@ -122,12 +120,6 @@ fn adjust_form(
         .map(|place| Choice::new(place.id.to_string(), place.name.clone()).detail(place.code.clone()))
         .collect();
 
-    let variant_options: Vec<Choice> = variants
-        .iter()
-        .map(|variant| {
-            Choice::new(variant.id.to_string(), variant.label()).detail(variant.code.clone())
-        })
-        .collect();
 
     // The reason as chosen, which is what decides the rest of the form.
     let chosen = Signal::derive(move || {
@@ -243,28 +235,19 @@ fn adjust_form(
                             >
                                 {l!("adjustments.item")}
                             </label>
-                            <SelectField
+                            <ItemLookup
                                 id="adjust-item"
-                                value=Signal::derive(move || {
-                                    draft
-                                        .with(|d| {
-                                            d.variant_id.map(|id| id.to_string()).unwrap_or_default()
-                                        })
-                                })
-                                on_change=Callback::new(move |raw: String| {
-                                    let id = raw.parse::<Uuid>().ok();
+                                on_pick=Callback::new(move |picked: Option<VariantChoice>| {
                                     draft
                                         .update(|d| {
-                                            d.variant_id = id;
+                                            d.variant_id = picked.map(|variant| variant.id);
                                             // A lot belongs to one item. Keeping
                                             // the old one would leave the form
                                             // holding a lot of something else.
                                             d.lot_id = None;
                                         });
                                 })
-                                options=variant_options
-                                placeholder=l!("common.not_set")
-                                label=l!("adjustments.item")
+                                placeholder=Some(l!("common.not_set"))
                             />
                         </div>
 

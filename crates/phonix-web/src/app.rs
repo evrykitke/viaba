@@ -6,6 +6,7 @@ use leptos_router::components::{ParentRoute, Route, Router, Routes};
 use leptos_router::path;
 
 use crate::components::layout::Layout;
+use crate::components::preview::{PreviewLayer, Previews};
 use crate::components::user_link::{OpenCard, UserCardLayer};
 use crate::i18n::{self, Locale};
 use crate::pages::account::AccountPage;
@@ -171,6 +172,9 @@ pub fn app() -> impl IntoView {
     // Beside the alerts, and mounted at the root for the same reason: the card
     // is opened from inside a scrolling table and must not be drawn there.
     OpenCard::provide();
+    // And the file preview, for the same reason again: an attachment row sits
+    // inside a scrolling panel, and a dialog drawn there is clipped by it.
+    Previews::provide();
 
     view! {
         <Title text="Phonix" />
@@ -179,6 +183,7 @@ pub fn app() -> impl IntoView {
 
         <AlertLayer />
         <UserCardLayer />
+        <PreviewLayer />
 
         <Router>
             // Renders nothing. Inside the router because that is where the

@@ -194,6 +194,58 @@ impl FileType {
     pub fn is_inline_safe(&self) -> bool {
         !self.active_content && matches!(self.category, FileCategory::Image)
     }
+
+    /// How a screen may show this without downloading it.
+    ///
+    /// A different question from [`Self::is_inline_safe`], which asks whether
+    /// the bytes may be handed to a browser tab *as themselves*. This asks what
+    /// a preview pane can do with them, and the answer for a PDF is "in a frame
+    /// of its own, with the origin taken away" - see
+    /// `phonix_server::files`, which is where that is actually arranged.
+    pub fn preview(&self) -> Preview {
+        match self.category {
+            // An SVG is the one picture this will not draw: a document with a
+            // script engine that happens to render as one, and `<img>` is not
+            // a boundary.
+            FileCategory::Image if !self.active_content => Preview::Image,
+            _ if self.mime == "application/pdf" => Preview::Pdf,
+            _ => Preview::None,
+        }
+    }
+}
+
+/// What a preview pane can do with a file.
+///
+/// Deliberately not "the MIME type" and not "the category". Those say what the
+/// bytes are; this says which of a handful of viewers can show them, which is
+/// the only question a screen has. Everything the list does not name is
+/// downloaded, and that is the default rather than the exception.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Preview {
+    /// Drawn with `<img>`.
+    Image,
+    /// Handed to the browser's own PDF viewer inside a frame whose origin has
+    /// been taken away.
+    Pdf,
+    /// Nothing here can show it. Offer the download.
+    None,
+}
+
+impl Preview {
+    /// Whether there is anything to show at all.
+    pub const fn is_showable(self) -> bool {
+        !matches!(self, Self::None)
+    }
+}
+
+/// What a preview pane may do with the file at this MIME type.
+///
+/// The lookup a screen actually has: a row carries a detected MIME string and
+/// nothing else. An unknown type previews as nothing, which is the right answer
+/// for a row still in quarantine as much as for a format nobody listed.
+pub fn preview_for(mime: Option<&str>) -> Preview {
+    mime.and_then(by_mime).map_or(Preview::None, |file_type| file_type.preview())
 }
 
 // ---------------------------------------------------------------------------
