@@ -1,4 +1,5 @@
-//! Buying: what was asked for, what was ordered, and what arrived.
+//! Buying and selling: what was asked for, what was ordered, what arrived -
+//! and, on the other side, what was quoted and agreed.
 //!
 //! Three list screens, thin by design - each is a `PageHeader` over a grid
 //! whose whole shape lives in `ui::table::config`. The documents behind them
@@ -14,6 +15,7 @@ use crate::ui::table::DataGrid;
 use crate::ui::table::config::consolidations::consolidations_grid;
 use crate::ui::table::config::purchase_orders::purchase_orders_grid;
 use crate::ui::table::config::requisitions::requisitions_grid;
+use crate::ui::table::config::sales_orders::sales_orders_grid;
 use crate::ui::table::config::receipts::receipts_grid;
 
 #[component]
@@ -28,6 +30,22 @@ pub fn purchase_orders_page() -> impl IntoView {
         />
 
         <DataGrid config=purchase_orders_grid() />
+    }
+}
+
+/// The mirror of the screen above: what has been quoted and agreed.
+#[component]
+pub fn sales_orders_page() -> impl IntoView {
+    view! {
+        <Title text=format!("{} | Phonix", l!("sales_orders.title")) />
+
+        <PageHeader
+            title=l!("sales_orders.title")
+            subtitle=l!("sales_orders.subtitle")
+            icon=Icon::ScrollText
+        />
+
+        <DataGrid config=sales_orders_grid() />
     }
 }
 

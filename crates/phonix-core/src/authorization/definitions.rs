@@ -36,6 +36,8 @@
 //!  |   |   +- .Create  .Decide
 //!  |   +- Pages.Inventory.PurchaseOrders
 //!  |   |   +- .Create  .Edit  .Confirm  .Cancel
+//!  |   +- Pages.Inventory.SalesOrders
+//!  |   |   +- .Create  .Edit  .Confirm  .Cancel
 //!  |   +- Pages.Inventory.Receipts
 //!  |   |   +- .Create  .Post
 //!  |   +- Pages.Inventory.Bills
@@ -149,6 +151,12 @@ pub mod names {
     pub const PURCHASE_ORDERS_EDIT: &str = "Pages.Inventory.PurchaseOrders.Edit";
     pub const PURCHASE_ORDERS_CONFIRM: &str = "Pages.Inventory.PurchaseOrders.Confirm";
     pub const PURCHASE_ORDERS_CANCEL: &str = "Pages.Inventory.PurchaseOrders.Cancel";
+
+    pub const SALES_ORDERS: &str = "Pages.Inventory.SalesOrders";
+    pub const SALES_ORDERS_CREATE: &str = "Pages.Inventory.SalesOrders.Create";
+    pub const SALES_ORDERS_EDIT: &str = "Pages.Inventory.SalesOrders.Edit";
+    pub const SALES_ORDERS_CONFIRM: &str = "Pages.Inventory.SalesOrders.Confirm";
+    pub const SALES_ORDERS_CANCEL: &str = "Pages.Inventory.SalesOrders.Cancel";
 
     pub const RECEIPTS: &str = "Pages.Inventory.Receipts";
     pub const RECEIPTS_CREATE: &str = "Pages.Inventory.Receipts.Create";
@@ -731,6 +739,45 @@ pub const DEFINITIONS: &[PermissionDefinition] = &[
         display_name: "Cancel",
         description: Some("Stop an order, or close one that will never be completed."),
         parent: Some(names::PURCHASE_ORDERS),
+        default_for_user: false,
+    },
+    PermissionDefinition {
+        name: names::SALES_ORDERS,
+        display_name: "Sales orders",
+        description: Some("View what has been quoted and agreed, and what is still to ship."),
+        parent: Some(names::INVENTORY),
+        default_for_user: false,
+    },
+    PermissionDefinition {
+        name: names::SALES_ORDERS_CREATE,
+        display_name: "Create",
+        description: Some("Write a quotation or an order."),
+        parent: Some(names::SALES_ORDERS),
+        default_for_user: false,
+    },
+    PermissionDefinition {
+        name: names::SALES_ORDERS_EDIT,
+        display_name: "Edit",
+        description: Some("Change an order that has not been confirmed, and send a quotation."),
+        parent: Some(names::SALES_ORDERS),
+        default_for_user: false,
+    },
+    PermissionDefinition {
+        name: names::SALES_ORDERS_CONFIRM,
+        display_name: "Confirm",
+        // The mirror of confirming a purchase order, and its own permission
+        // for the mirror reason: it is where an offer becomes stock this
+        // workspace has promised somebody else, and whoever quotes a price and
+        // whoever accepts an order are routinely two people.
+        description: Some("Accept an order, making its quantities what deliveries are measured against."),
+        parent: Some(names::SALES_ORDERS),
+        default_for_user: false,
+    },
+    PermissionDefinition {
+        name: names::SALES_ORDERS_CANCEL,
+        display_name: "Cancel",
+        description: Some("Stop an order, or close one that will never be completed."),
+        parent: Some(names::SALES_ORDERS),
         default_for_user: false,
     },
     PermissionDefinition {

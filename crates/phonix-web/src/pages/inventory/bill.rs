@@ -792,7 +792,7 @@ fn line_row(
                                     if let Some(picked) = &picked
                                         && line.unit_id.is_none()
                                     {
-                                        line.unit_id = Some(picked.purchase_unit_id);
+                                        line.unit_id = Some(picked.unit_id);
                                     }
                                     if let Some(picked) = &picked
                                         && line.description.trim().is_empty()

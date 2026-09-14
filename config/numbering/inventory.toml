@@ -34,6 +34,23 @@ reset    = "fiscal_year"
 start_at = 1
 
 [[series]]
+doc_type = "sales_order"
+label    = "inventory.doc_type.sales_order"
+
+# `SO-{YYYY}-#####`. Allocated when the document LEAVES THE BUILDING - at the
+# moment a quotation is sent, or at confirmation for an order that was never
+# quoted. Not at create, for the reason every series here gives; and not at
+# confirm, which is where the purchase order takes its number, because a
+# quotation is read and quoted back by somebody outside and one with no number
+# is one nobody can cite.
+#
+# A quotation that is never accepted keeps its number, exactly as a rejected
+# requisition does. Somebody was quoted it.
+mask     = "SO-{YYYY}-#####"
+reset    = "fiscal_year"
+start_at = 1
+
+[[series]]
 doc_type = "bill"
 label    = "inventory.doc_type.bill"
 

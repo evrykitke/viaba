@@ -1,24 +1,35 @@
-//! One purchase order: the editor while it is a draft, the document once it is
-//! a commitment.
+//! One sales order: the editor while it is a draft or a quotation, the
+//! document once it is agreed.
 //!
-//! # Confirming is the decision, so it sits where a decision goes
+//! The mirror of [`super::purchase_order`], with three differences that are
+//! about selling rather than about screens.
 //!
-//! Saving a draft costs nothing and can be undone. Confirming takes a number
-//! nobody can hand back, freezes the supplier onto the record, and makes the
-//! quantities the thing every receipt and bill is measured against. So it is
-//! the last button on the screen, it asks first, and it is offered only once
-//! there is something saved to number.
+//! # There are two buttons at the end, not one
+//!
+//! A purchase order has one decision: confirm it. A sales order has two, and
+//! they happen to different people on different days. *Send* puts the quotation
+//! in front of a customer and is where the number is spent - from then on
+//! somebody outside can cite it. *Confirm* is the customer saying yes, and from
+//! then on the quantities are what every delivery is measured against. An order
+//! taken over the counter skips the first, which is why Confirm is offered on a
+//! draft too.
+//!
+//! # A blank price is refused, not defaulted
+//!
+//! The purchase order fills an empty price from the item's cost. This does not:
+//! a price nobody typed is revenue nobody decided. The field opens on the
+//! item's standing sale price when a line is picked, which is a suggestion
+//! somebody can see and change.
 //!
 //! # The net is worked out in the browser, with the server's own arithmetic
 //!
 //! `phonix_core::money` compiles to wasm, so the total moves as somebody types
-//! and the figure they approve is the figure the server computes. The one thing
-//! this cannot know is the fallback price - a line with no price takes the
-//! item's own cost, which lives in the database - so a blank line is left out
-//! of the preview rather than counted as nothing.
+//! and the figure they approve is the figure the server computes. Unlike the
+//! buying side there is no fallback to work around: every line that is priced
+//! is counted, and an unpriced one is the thing the save will refuse.
 
-use app_inventory::purchase::{
-    OrderInput, OrderLineInput, OrderState, PurchaseOrder, ReceiptState,
+use app_inventory::sales_order::{
+    Progress, SaleInput, SaleLineInput, SaleState, SalesOrder,
 };
 use app_inventory::quantity::{self, Quantity};
 use app_inventory::variant::VariantChoice;
@@ -40,32 +51,32 @@ use crate::icons::Icon;
 use crate::l;
 use crate::pages::inventory::item_lookup::ItemLookup;
 use crate::server_fns::inventory_fns::{
-    blank_purchase_order, cancel_purchase_order, confirm_purchase_order, delete_purchase_order,
-    order_allocation, purchase_order_detail, save_purchase_order,
-    selectable_units, selectable_warehouses,
+    blank_sales_order, cancel_sales_order, close_sales_order, confirm_sales_order,
+    delete_sales_order, sales_order_detail, save_sales_order, selectable_units,
+    selectable_warehouses, send_sales_order,
 };
 use crate::server_fns::master_fns::list_parties;
 use crate::ui::alert::{Alert, Alerts, Confirm};
 use crate::ui::form::field::Choice;
 use crate::ui::lookup::SelectField;
 
-const BACK: &str = "/inventory/orders";
+const BACK: &str = "/inventory/sales-orders";
 
 /// Raising one.
 #[component]
-pub fn purchase_order_new_page() -> impl IntoView {
+pub fn sales_order_new_page() -> impl IntoView {
     // The blank comes from the server because its currency is the workspace's,
     // which the browser has no way to know.
-    let blank = Resource::new(|| (), |()| async move { blank_purchase_order().await });
+    let blank = Resource::new(|| (), |()| async move { blank_sales_order().await });
 
     view! {
-        <Title text=format!("{} | Phonix", l!("purchase_orders.new")) />
+        <Title text=format!("{} | Phonix", l!("sales_orders.new")) />
 
         <PageHeader
-            title=l!("purchase_orders.new")
-            subtitle=l!("purchase_orders.new.subtitle")
+            title=l!("sales_orders.new")
+            subtitle=l!("sales_orders.new.subtitle")
             icon=Icon::ScrollText
-            back=(BACK, l!("purchase_orders.title"))
+            back=(BACK, l!("sales_orders.title"))
         />
 
         <Transition fallback=|| {
@@ -73,7 +84,9 @@ pub fn purchase_order_new_page() -> impl IntoView {
         }>
             {move || Suspend::new(async move {
                 match blank.await {
-                    Ok(draft) => view! { <OrderEditor draft=draft /> }.into_any(),
+                    Ok(draft) => {
+                        view! { <SaleEditor draft=draft state=SaleState::Draft /> }.into_any()
+                    }
                     Err(err) => {
                         view! {
                             <Notice
@@ -91,19 +104,19 @@ pub fn purchase_order_new_page() -> impl IntoView {
 
 /// One order: editable while it is a draft or a quotation, a document after.
 #[component]
-pub fn purchase_order_page() -> impl IntoView {
+pub fn sales_order_page() -> impl IntoView {
     let params = leptos_router::hooks::use_params_map();
     let order_id = move || params.with(|params| params.get("id").unwrap_or_default());
 
     let order = Resource::new(order_id, |raw| async move {
         match raw.parse::<Uuid>() {
-            Ok(id) => purchase_order_detail(id).await,
+            Ok(id) => sales_order_detail(id).await,
             Err(_) => Err(ServerFnError::new("That is not an order id.")),
         }
     });
 
     view! {
-        <Title text=format!("{} | Phonix", l!("entity.purchase_order.singular")) />
+        <Title text=format!("{} | Phonix", l!("entity.sales_order.singular")) />
 
         // Transition rather than Suspense, so moving between two orders replaces
         // the screen when the next one arrives instead of blanking it.
@@ -114,26 +127,27 @@ pub fn purchase_order_page() -> impl IntoView {
                 match order.await {
                     Ok(stored) => {
                         let heading = stored.label();
-                        let supplier = stored.supplier.name.clone();
+                        let customer = stored.customer.name.clone();
                         let state = stored.state;
-                        let opened_on = OrderInput::from_order(&stored);
+                        let opened_on = SaleInput::from_order(&stored);
 
                         view! {
                             <>
                                 <PageHeader
                                     title=heading
-                                    subtitle=supplier
+                                    subtitle=customer
                                     icon=Icon::ScrollText
-                                    back=(BACK, l!("purchase_orders.title"))
+                                    back=(BACK, l!("sales_orders.title"))
                                 >
                                     <StateBadge state=state />
                                 </PageHeader>
 
                                 {if state.is_editable() {
-                                    view! { <OrderEditor draft=opened_on /> }.into_any()
+                                    view! { <SaleEditor draft=opened_on state=state /> }
+                                        .into_any()
                                 } else {
                                     view! {
-                                        <OrderDocument
+                                        <SaleDocument
                                             order=stored
                                             reload=Callback::new(move |()| order.refetch())
                                         />
@@ -148,9 +162,9 @@ pub fn purchase_order_page() -> impl IntoView {
                         view! {
                             <>
                                 <PageHeader
-                                    title=l!("entity.purchase_order.singular")
+                                    title=l!("entity.sales_order.singular")
                                     icon=Icon::ScrollText
-                                    back=(BACK, l!("purchase_orders.title"))
+                                    back=(BACK, l!("sales_orders.title"))
                                 />
                                 <Notice
                                     message=Signal::derive(move || Some(err.to_string()))
@@ -167,26 +181,33 @@ pub fn purchase_order_page() -> impl IntoView {
 }
 
 #[component]
-fn state_badge(state: OrderState) -> impl IntoView {
+fn state_badge(state: SaleState) -> impl IntoView {
     let label = crate::i18n::t(&state.label());
     let tone = match state {
-        OrderState::Draft | OrderState::Sent => Tone::Neutral,
-        OrderState::Confirmed => Tone::Success,
-        OrderState::Done => Tone::Brand,
-        OrderState::Cancelled => Tone::Warning,
+        SaleState::Draft | SaleState::Sent => Tone::Neutral,
+        SaleState::Confirmed => Tone::Success,
+        SaleState::Done => Tone::Brand,
+        SaleState::Cancelled => Tone::Warning,
     };
 
     view! { <Badge label=label tone=tone /> }
 }
 
+/// How much has gone, or been billed. Over is a warning rather than a failure:
+/// it is not wrong, and somebody should look at it.
 #[component]
-fn receipt_badge(state: ReceiptState) -> impl IntoView {
-    let label = crate::i18n::t(&state.label());
-    let tone = match state {
-        ReceiptState::Nothing => Tone::Neutral,
-        ReceiptState::Partly => Tone::Warning,
-        ReceiptState::Everything => Tone::Success,
-        ReceiptState::Over => Tone::Danger,
+fn progress_badge(progress: Progress, invoiced: bool) -> impl IntoView {
+    let label = crate::i18n::t(&if invoiced {
+        progress.invoiced_label()
+    } else {
+        progress.delivered_label()
+    });
+
+    let tone = match progress {
+        Progress::Nothing => Tone::Neutral,
+        Progress::Partly => Tone::Warning,
+        Progress::Everything => Tone::Success,
+        Progress::Over => Tone::Danger,
     };
 
     view! { <Badge label=label tone=tone /> }
@@ -194,12 +215,13 @@ fn receipt_badge(state: ReceiptState) -> impl IntoView {
 
 // --- the editor ---------------------------------------------------------
 
-/// What the lines come to, priced the way the server prices them.
+/// What the lines come to.
 ///
-/// A line with no price is skipped rather than treated as zero: the server
-/// fills it from the item's cost, and a preview that read it as nothing would
-/// show a total nobody is going to be charged.
-fn net_of(draft: &OrderInput) -> Option<Money> {
+/// A line with no price is skipped rather than counted as zero - not because
+/// the server will fill it in, as it does on a purchase order, but because it
+/// is the line the save is about to refuse, and a total that quietly included
+/// it as nothing would be a figure nobody is going to be charged.
+fn net_of(draft: &SaleInput) -> Option<Money> {
     let currency = Currency::parse(&draft.currency).ok()?;
     let mut lines = Vec::with_capacity(draft.lines.len());
 
@@ -222,14 +244,14 @@ fn net_of(draft: &OrderInput) -> Option<Money> {
 }
 
 #[component]
-fn order_editor(draft: OrderInput) -> impl IntoView {
+fn sale_editor(draft: SaleInput, state: SaleState) -> impl IntoView {
     let draft = RwSignal::new(draft);
     let saving = RwSignal::new(false);
     let rejected = RwSignal::new(None::<String>);
 
-    let suppliers = Resource::new(
+    let customers = Resource::new(
         || (),
-        |()| async move { list_parties(Some(roles::SUPPLIER.to_owned())).await },
+        |()| async move { list_parties(Some(roles::CUSTOMER.to_owned())).await },
     );
     let warehouses = Resource::new(|| (), |()| async move { selectable_warehouses().await });
     let units = Resource::new(|| (), |()| async move { selectable_units().await });
@@ -242,10 +264,10 @@ fn order_editor(draft: OrderInput) -> impl IntoView {
                 view! { <p class="text-sm text-content-subtle">{l!("common.loading")}</p> }
             }>
                 {move || Suspend::new(async move {
-                    // Empty pickers rather than a failed screen: a workspace with
-                    // no suppliers yet gets a form it cannot submit, which is the
-                    // honest state of affairs.
-                    let suppliers = suppliers.await.unwrap_or_default();
+                    // Empty pickers rather than a failed screen: a workspace
+                    // with no customers yet gets a form it cannot submit, which
+                    // is the honest state of affairs.
+                    let customers = customers.await.unwrap_or_default();
                     let warehouses = warehouses.await.unwrap_or_default();
                     let units = units.await.unwrap_or_default();
 
@@ -268,7 +290,8 @@ fn order_editor(draft: OrderInput) -> impl IntoView {
                     view! {
                         <EditorBody
                             draft=draft
-                            suppliers=suppliers
+                            state=state
+                            customers=customers
                             warehouses=warehouse_options
                             unit_options=unit_options
                             saving=saving
@@ -283,8 +306,9 @@ fn order_editor(draft: OrderInput) -> impl IntoView {
 
 #[component]
 fn editor_body(
-    draft: RwSignal<OrderInput>,
-    suppliers: Vec<PartySummary>,
+    draft: RwSignal<SaleInput>,
+    state: SaleState,
+    customers: Vec<PartySummary>,
     warehouses: Vec<Choice>,
     unit_options: Vec<Choice>,
     saving: RwSignal<bool>,
@@ -306,21 +330,21 @@ fn editor_body(
             let navigate = navigate.clone();
 
             leptos::task::spawn_local(async move {
-                let result = save_purchase_order(submission).await;
+                let result = save_sales_order(submission).await;
                 saving.set(false);
 
                 match result {
                     Ok(Submission::Saved(stored)) => {
                         let id = stored.id;
                         draft.set(stored);
-                        alerts.post(Alert::success(l!("purchase_orders.saved")));
+                        alerts.post(Alert::success(l!("sales_orders.saved")));
 
                         // A new draft has an id now, so its address has changed.
                         // Replacing rather than pushing: back should reach the
                         // list, not a form that no longer exists.
                         if let Some(id) = id {
                             navigate(
-                                &format!("/inventory/orders/{id}"),
+                                &format!("/inventory/sales-orders/{id}"),
                                 leptos_router::NavigateOptions {
                                     replace: true,
                                     ..Default::default()
@@ -337,52 +361,79 @@ fn editor_body(
         }
     };
 
-    let confirm = {
+    // Sending and confirming are the same shape - ask, call, reload - so they
+    // are one closure over which call to make. Two copies of this would be two
+    // places for the reload to be forgotten.
+    let issue = {
         let navigate = navigate.clone();
-        move || {
+
+        move |confirming: bool| {
             let Some(id) = draft.with_untracked(|d| d.id) else {
                 return;
             };
             let navigate = navigate.clone();
 
+            let question = if confirming {
+                l!("sales_orders.confirm.confirm")
+            } else {
+                l!("sales_orders.send.confirm")
+            };
+            let title = if confirming {
+                l!("sales_orders.confirm")
+            } else {
+                l!("sales_orders.send")
+            };
+
             alerts.ask(
-                Confirm::new(l!("purchase_orders.confirm.confirm"), move || {
-                    let navigate = navigate.clone();
-                    saving.set(true);
+                Confirm::new(question, {
+                    let title = title.clone();
 
-                    leptos::task::spawn_local(async move {
-                        let result = confirm_purchase_order(id).await;
-                        saving.set(false);
+                    move || {
+                        let navigate = navigate.clone();
+                        let title = title.clone();
+                        saving.set(true);
 
-                        match result {
-                            Ok(Submission::Saved(order)) => {
-                                alerts.post(
-                                    Alert::success(
-                                            l!("purchase_orders.confirmed", number = order.number),
-                                        )
-                                        .titled(l!("purchase_orders.confirm")),
-                                );
-                                // Reload the route: it is a document now, and
-                                // this screen draws a different thing for one.
-                                navigate(
-                                    &format!("/inventory/orders/{id}"),
-                                    leptos_router::NavigateOptions {
-                                        replace: true,
-                                        ..Default::default()
-                                    },
-                                );
-                            }
-                            Ok(Submission::Rejected(errors)) => {
-                                if let Some(error) = errors.first() {
-                                    alerts.post(Alert::warning(crate::i18n::t(&error.message)));
+                        leptos::task::spawn_local(async move {
+                            let result = if confirming {
+                                confirm_sales_order(id).await
+                            } else {
+                                send_sales_order(id).await
+                            };
+                            saving.set(false);
+
+                            match result {
+                                Ok(Submission::Saved(order)) => {
+                                    let words = if confirming {
+                                        l!("sales_orders.confirmed", number = order.number)
+                                    } else {
+                                        l!("sales_orders.sent", number = order.number)
+                                    };
+
+                                    alerts.post(Alert::success(words).titled(title));
+
+                                    // Reload the route: a confirmed order is a
+                                    // document now, and a sent one has a number
+                                    // this screen has not seen.
+                                    navigate(
+                                        &format!("/inventory/sales-orders/{id}"),
+                                        leptos_router::NavigateOptions {
+                                            replace: true,
+                                            ..Default::default()
+                                        },
+                                    );
                                 }
+                                Ok(Submission::Rejected(errors)) => {
+                                    if let Some(error) = errors.first() {
+                                        alerts.post(Alert::warning(crate::i18n::t(&error.message)));
+                                    }
+                                }
+                                Err(err) => alerts.post(Alert::failure(err.to_string())),
                             }
-                            Err(err) => alerts.post(Alert::failure(err.to_string())),
-                        }
-                    });
+                        });
+                    }
                 })
-                .titled(l!("purchase_orders.confirm"))
-                .confirm_label(l!("purchase_orders.confirm")),
+                .titled(title.clone())
+                .confirm_label(title),
             );
         }
     };
@@ -396,13 +447,13 @@ fn editor_body(
             let navigate = navigate.clone();
 
             alerts.ask(
-                Confirm::new(l!("purchase_orders.delete.confirm"), move || {
+                Confirm::new(l!("sales_orders.delete.confirm"), move || {
                     let navigate = navigate.clone();
 
                     leptos::task::spawn_local(async move {
-                        match delete_purchase_order(id).await {
+                        match delete_sales_order(id).await {
                             Ok(_) => {
-                                alerts.post(Alert::success(l!("purchase_orders.deleted")));
+                                alerts.post(Alert::success(l!("sales_orders.deleted")));
                                 navigate(BACK, leptos_router::NavigateOptions::default());
                             }
                             Err(err) => alerts.post(Alert::failure(err.to_string())),
@@ -417,18 +468,24 @@ fn editor_body(
 
     let saved = move || draft.with(|d| d.id.is_some());
 
+    // Deleting is offered only on a draft. A quotation that has been sent
+    // carries a number somebody outside has been given, so it is cancelled and
+    // kept - the service refuses the delete either way, and a button that is
+    // always refused is worse than no button.
+    let deletable = move || state == SaleState::Draft && saved();
+
     view! {
         <Panel>
-            <Section title=l!("purchase_orders.header")>
-                <HeaderFields draft=draft suppliers=suppliers warehouses=warehouses />
+            <Section title=l!("sales_orders.header")>
+                <HeaderFields draft=draft customers=customers warehouses=warehouses />
             </Section>
 
-            <Section title=l!("purchase_orders.lines") description=l!("purchase_orders.lines.help")>
+            <Section title=l!("sales_orders.lines") description=l!("sales_orders.lines.help")>
                 <LineTable draft=draft unit_options=unit_options />
             </Section>
 
             <div class="grid gap-3 lg:grid-cols-[1fr_22rem] lg:items-start">
-                <Section title=l!("purchase_orders.note") flush=true>
+                <Section title=l!("sales_orders.note") flush=true>
                     <textarea
                         class="w-full"
                         rows="3"
@@ -440,12 +497,12 @@ fn editor_body(
                     />
                 </Section>
 
-                <Section title=l!("purchase_orders.net") flush=true>
+                <Section title=l!("sales_orders.net") flush=true>
                     {move || match net.get() {
                         None => {
                             view! {
                                 <p class="text-sm text-content-subtle">
-                                    {l!("purchase_orders.no_net")}
+                                    {l!("sales_orders.no_net")}
                                 </p>
                             }
                                 .into_any()
@@ -456,7 +513,7 @@ fn editor_body(
                             view! {
                                 <div class="flex items-baseline justify-between gap-4 text-sm font-medium tabular-nums">
                                     <span class="text-content">
-                                        {l!("purchase_orders.net")} " "
+                                        {l!("sales_orders.net")} " "
                                         <span class="text-2xs text-content-subtle">{code}</span>
                                     </span>
                                     <span class="text-content">{amount}</span>
@@ -469,7 +526,7 @@ fn editor_body(
             </div>
 
             <div class="mt-4 flex flex-wrap items-center justify-end gap-2 border-t border-edge pt-4">
-                <Show when=saved fallback=|| ()>
+                <Show when=deletable fallback=|| ()>
                     <GhostButton
                         label=l!("common.delete")
                         icon=Icon::Trash2
@@ -490,15 +547,28 @@ fn editor_body(
                     })
                 />
 
-                // Offered only once there is something saved to number.
+                // Both offered only once there is something saved to number.
+                // Send is a ghost beside Confirm on purpose: an order taken
+                // over the counter goes straight to the stronger one, and the
+                // screen should not make quoting look like the only way
+                // forward.
                 <Show when=saved fallback=|| ()>
+                    <GhostButton
+                        label=l!("sales_orders.send")
+                        icon=Icon::Mail
+                        disabled=Signal::derive(move || saving.get())
+                        on_click=Callback::new({
+                            let issue = issue.clone();
+                            move |()| issue(false)
+                        })
+                    />
                     <PrimaryButton
-                        label=l!("purchase_orders.confirm")
+                        label=l!("sales_orders.confirm")
                         icon=Icon::Check
                         pending=Signal::derive(move || saving.get())
                         on_click=Callback::new({
-                            let confirm = confirm.clone();
-                            move |()| confirm()
+                            let issue = issue.clone();
+                            move |()| issue(true)
                         })
                     />
                 </Show>
@@ -507,14 +577,14 @@ fn editor_body(
     }
 }
 
-/// Who it is with, where it is going, and when.
+/// Who it is with, where it ships from, and when.
 #[component]
 fn header_fields(
-    draft: RwSignal<OrderInput>,
-    suppliers: Vec<PartySummary>,
+    draft: RwSignal<SaleInput>,
+    customers: Vec<PartySummary>,
     warehouses: Vec<Choice>,
 ) -> impl IntoView {
-    let supplier_options = suppliers
+    let customer_options = customers
         .iter()
         .filter(|party| party.is_active)
         .map(|party| {
@@ -529,30 +599,30 @@ fn header_fields(
     view! {
         <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             <div class="block space-y-1">
-                <label for="order-supplier" class="block text-xs font-medium text-content-muted">
-                    {l!("purchase_orders.supplier")}
+                <label for="sale-customer" class="block text-xs font-medium text-content-muted">
+                    {l!("sales_orders.customer")}
                 </label>
                 <SelectField
-                    id="order-supplier"
+                    id="sale-customer"
                     value=Signal::derive(move || {
-                        draft.with(|d| d.supplier_id.map(|id| id.to_string()).unwrap_or_default())
+                        draft.with(|d| d.customer_id.map(|id| id.to_string()).unwrap_or_default())
                     })
                     on_change=Callback::new(move |value: String| {
                         let chosen = value.parse::<Uuid>().ok();
-                        draft.update(|d| d.supplier_id = chosen);
+                        draft.update(|d| d.customer_id = chosen);
                     })
-                    options=supplier_options
+                    options=customer_options
                     placeholder=l!("common.not_set")
                     clearable=true
                 />
             </div>
 
             <div class="block space-y-1">
-                <label for="order-warehouse" class="block text-xs font-medium text-content-muted">
+                <label for="sale-warehouse" class="block text-xs font-medium text-content-muted">
                     {l!("nav.warehouses")}
                 </label>
                 <SelectField
-                    id="order-warehouse"
+                    id="sale-warehouse"
                     value=Signal::derive(move || {
                         draft.with(|d| d.warehouse_id.map(|id| id.to_string()).unwrap_or_default())
                     })
@@ -568,7 +638,7 @@ fn header_fields(
 
             <label class="block space-y-1">
                 <span class="text-xs font-medium text-content-muted">
-                    {l!("purchase_orders.ordered")}
+                    {l!("sales_orders.ordered")}
                 </span>
                 <input
                     type="date"
@@ -584,27 +654,47 @@ fn header_fields(
 
             <label class="block space-y-1">
                 <span class="text-xs font-medium text-content-muted">
-                    {l!("purchase_orders.expected")}
+                    {l!("sales_orders.promised")}
                 </span>
                 <input
                     type="date"
                     class="w-full"
                     prop:value=move || {
-                        draft.with(|d| d.expected_on.map(|on| on.to_string()).unwrap_or_default())
+                        draft.with(|d| d.promised_on.map(|on| on.to_string()).unwrap_or_default())
                     }
                     on:change=move |ev| {
                         let value = event_target_value(&ev);
-                        draft.update(|d| d.expected_on = value.parse().ok());
+                        draft.update(|d| d.promised_on = value.parse().ok());
                     }
                 />
             </label>
 
+            <label class="block space-y-1">
+                <span class="text-xs font-medium text-content-muted">
+                    {l!("sales_orders.valid_until")}
+                </span>
+                <input
+                    type="date"
+                    class="w-full"
+                    prop:value=move || {
+                        draft.with(|d| d.valid_until.map(|on| on.to_string()).unwrap_or_default())
+                    }
+                    on:change=move |ev| {
+                        let value = event_target_value(&ev);
+                        draft.update(|d| d.valid_until = value.parse().ok());
+                    }
+                />
+                <span class="block text-2xs text-content-subtle">
+                    {l!("sales_orders.valid_until.help")}
+                </span>
+            </label>
+
             <div class="block space-y-1">
-                <label for="order-currency" class="block text-xs font-medium text-content-muted">
+                <label for="sale-currency" class="block text-xs font-medium text-content-muted">
                     {l!("field.currency")}
                 </label>
                 <SelectField
-                    id="order-currency"
+                    id="sale-currency"
                     value=Signal::derive(move || draft.with(|d| d.currency.clone()))
                     on_change=Callback::new(move |value: String| {
                         // Unrecognised keeps what was there: a currency silently
@@ -620,19 +710,19 @@ fn header_fields(
 
             <label class="block space-y-1">
                 <span class="text-xs font-medium text-content-muted">
-                    {l!("purchase_orders.reference")}
+                    {l!("sales_orders.reference")}
                 </span>
                 <input
                     type="text"
                     class="w-full"
-                    prop:value=move || draft.with(|d| d.supplier_reference.clone())
+                    prop:value=move || draft.with(|d| d.customer_reference.clone())
                     on:input=move |ev| {
                         let value = event_target_value(&ev);
-                        draft.update(|d| d.supplier_reference = value);
+                        draft.update(|d| d.customer_reference = value);
                     }
                 />
                 <span class="block text-2xs text-content-subtle">
-                    {l!("purchase_orders.reference.help")}
+                    {l!("sales_orders.reference.help")}
                 </span>
             </label>
         </div>
@@ -640,10 +730,7 @@ fn header_fields(
 }
 
 #[component]
-fn line_table(
-    draft: RwSignal<OrderInput>,
-    unit_options: StoredValue<Vec<Choice>>,
-) -> impl IntoView {
+fn line_table(draft: RwSignal<SaleInput>, unit_options: StoredValue<Vec<Choice>>) -> impl IntoView {
     view! {
         <div class="space-y-2">
             // `overflow-x-auto` on the table's own container, never on the page:
@@ -654,14 +741,12 @@ fn line_table(
                     <thead>
                         <tr class="border-b border-edge text-left text-xs text-content-muted">
                             <th class="w-8 py-2 font-medium">"#"</th>
-                            <th class="w-56 py-2 font-medium">{l!("purchase_orders.item")}</th>
+                            <th class="w-56 py-2 font-medium">{l!("sales_orders.item")}</th>
                             <th class="py-2 font-medium">{l!("field.description")}</th>
-                            <th class="w-24 py-2 text-right font-medium">
-                                {l!("field.quantity")}
-                            </th>
+                            <th class="w-24 py-2 text-right font-medium">{l!("field.quantity")}</th>
                             <th class="w-32 py-2 font-medium">{l!("units.title")}</th>
                             <th class="w-32 py-2 text-right font-medium">
-                                {l!("purchase_orders.unit_price")}
+                                {l!("sales_orders.unit_price")}
                             </th>
                             <th class="w-8 py-2"></th>
                         </tr>
@@ -686,10 +771,10 @@ fn line_table(
             </div>
 
             <GhostButton
-                label=l!("purchase_orders.line.add")
+                label=l!("sales_orders.line.add")
                 icon=Icon::Plus
                 on_click=Callback::new(move |()| {
-                    draft.update(|d| d.lines.push(OrderLineInput::blank()));
+                    draft.update(|d| d.lines.push(SaleLineInput::blank()));
                 })
             />
         </div>
@@ -698,14 +783,14 @@ fn line_table(
 
 #[component]
 fn line_row(
-    draft: RwSignal<OrderInput>,
+    draft: RwSignal<SaleInput>,
     index: usize,
     unit_options: StoredValue<Vec<Choice>>,
 ) -> impl IntoView {
     // Every read goes through the index rather than a held clone: a row that
     // cached its own values would stop updating the moment another row was
     // removed and the indexes shifted.
-    let field = move |read: fn(&OrderLineInput) -> String| {
+    let field = move |read: fn(&SaleLineInput) -> String| {
         draft.with(|d| d.lines.get(index).map(read).unwrap_or_default())
     };
 
@@ -729,13 +814,12 @@ fn line_row(
             <td class="py-1 pr-2">
                 <ItemLookup
                     initial=initial
+                    sellable=true
                     on_pick=Callback::new(move |picked: Option<VariantChoice>| {
                         draft
                             .update(|d| {
                                 if let Some(line) = d.lines.get_mut(index) {
-                                    line.variant_id = picked
-                                        .as_ref()
-                                        .map(|variant| variant.id);
+                                    line.variant_id = picked.as_ref().map(|variant| variant.id);
                                     if let Some(picked) = &picked
                                         && line.unit_id.is_none()
                                     {
@@ -814,7 +898,6 @@ fn line_row(
                     inputmode="decimal"
                     class="w-full text-right tabular-nums"
                     prop:value=move || field(|line| line.unit_price.clone())
-                    placeholder=l!("purchase_orders.unit_price.default")
                     on:input=move |ev| {
                         let value = event_target_value(&ev);
                         draft
@@ -840,7 +923,7 @@ fn line_row(
                                 // Never leave the table empty: a form with no
                                 // rows has nothing to type into.
                                 if d.lines.is_empty() {
-                                    d.lines.push(OrderLineInput::blank());
+                                    d.lines.push(SaleLineInput::blank());
                                 }
                             });
                     }
@@ -857,59 +940,46 @@ fn line_row(
 /// A confirmed, closed or cancelled order: read-only, and every figure on it is
 /// what was stored rather than what could be looked up now.
 #[component]
-fn order_document(order: PurchaseOrder, reload: Callback<()>) -> impl IntoView {
+fn sale_document(order: SalesOrder, reload: Callback<()>) -> impl IntoView {
     let alerts = Alerts::get();
-    let navigate = leptos_router::hooks::use_navigate();
     let viewer = crate::ui::viewer::Viewer::get();
 
     let may_cancel = Signal::derive(move || {
         viewer.with(|user| {
             user.as_ref()
-                .is_some_and(|user| user.can(permissions::PURCHASE_ORDERS_CANCEL))
+                .is_some_and(|user| user.can(permissions::SALES_ORDERS_CANCEL))
         })
     });
-    let may_receive = Signal::derive(move || {
+    let may_close = Signal::derive(move || {
         viewer.with(|user| {
             user.as_ref()
-                .is_some_and(|user| user.can(permissions::RECEIPTS_CREATE))
+                .is_some_and(|user| user.can(permissions::SALES_ORDERS_CONFIRM))
         })
     });
 
     let id = order.id;
-    let can_be_received = order.can_be_received();
-    let is_cancellable = order.state == OrderState::Confirmed;
-    let receipt_state = order.receipt_state();
+    let is_open = order.state == SaleState::Confirmed;
+    let delivery_state = order.delivery_state();
+    let invoice_state = order.invoice_state();
 
-    let supplier_name = order.supplier.name.clone();
-    let supplier_code = order.supplier.code.clone();
+    let customer_name = order.customer.name.clone();
+    let customer_code = order.customer.code.clone();
     let warehouse = order.warehouse_name.clone();
     let ordered = order.order_date.to_string();
-    let expected = order.expected_on.map(|on| on.to_string());
-    let reference = order.supplier_reference.clone();
+    let promised = order.promised_on.map(|on| on.to_string());
+    let reference = order.customer_reference.clone();
     let note = order.note.clone();
     let code = order.currency.clone();
     let net = order.net.to_display_string();
     let lines = order.lines.clone();
 
-    let receive = {
-        let navigate = navigate.clone();
-        move || {
-            // The receipt screen opens against this order and prefills what is
-            // still owed; the lines do not need carrying across.
-            navigate(
-                &format!("/inventory/receipts/new?order={id}"),
-                leptos_router::NavigateOptions::default(),
-            );
-        }
-    };
-
     let cancel = move || {
         alerts.ask(
-            Confirm::new(l!("purchase_orders.cancel.confirm"), move || {
+            Confirm::new(l!("sales_orders.cancel.confirm"), move || {
                 leptos::task::spawn_local(async move {
-                    match cancel_purchase_order(id).await {
+                    match cancel_sales_order(id).await {
                         Ok(Submission::Saved(())) => {
-                            alerts.post(Alert::success(l!("purchase_orders.cancelled")));
+                            alerts.post(Alert::success(l!("sales_orders.cancelled")));
                             let _ = reload.try_run(());
                         }
                         Ok(Submission::Rejected(errors)) => {
@@ -921,76 +991,108 @@ fn order_document(order: PurchaseOrder, reload: Callback<()>) -> impl IntoView {
                     }
                 });
             })
-            .titled(l!("purchase_orders.cancel"))
-            .confirm_label(l!("purchase_orders.cancel")),
+            .titled(l!("sales_orders.cancel"))
+            .confirm_label(l!("sales_orders.cancel")),
+        );
+    };
+
+    let close = move || {
+        alerts.ask(
+            Confirm::new(l!("sales_orders.close.confirm"), move || {
+                leptos::task::spawn_local(async move {
+                    match close_sales_order(id).await {
+                        Ok(Submission::Saved(())) => {
+                            alerts.post(Alert::success(l!("sales_orders.closed")));
+                            let _ = reload.try_run(());
+                        }
+                        Ok(Submission::Rejected(errors)) => {
+                            if let Some(error) = errors.first() {
+                                alerts.post(Alert::warning(crate::i18n::t(&error.message)));
+                            }
+                        }
+                        Err(err) => alerts.post(Alert::failure(err.to_string())),
+                    }
+                });
+            })
+            .titled(l!("sales_orders.close"))
+            .confirm_label(l!("sales_orders.close")),
         );
     };
 
     view! {
         <Panel>
             <div class="grid gap-3 lg:grid-cols-2">
-                <Section title=l!("purchase_orders.supplier") flush=true>
+                <Section title=l!("sales_orders.customer") flush=true>
                     <div class="space-y-1 text-sm">
-                        <div class="font-medium text-content">{supplier_name}</div>
-                        <code class="text-2xs text-content-subtle">{supplier_code}</code>
+                        <div class="font-medium text-content">{customer_name}</div>
+                        <code class="text-2xs text-content-subtle">{customer_code}</code>
                         {reference
                             .map(|reference| {
                                 view! {
                                     <div class="text-xs text-content-muted">
-                                        {l!("purchase_orders.reference")} ": " {reference}
+                                        {l!("sales_orders.reference")} ": " {reference}
                                     </div>
                                 }
                             })}
                     </div>
                 </Section>
 
-                <Section title=l!("purchase_orders.header") flush=true>
+                <Section title=l!("sales_orders.header") flush=true>
                     <dl class="space-y-1 text-sm">
                         <div class="flex justify-between gap-4">
                             <dt class="text-content-muted">{l!("nav.warehouses")}</dt>
                             <dd class="text-content">{warehouse}</dd>
                         </div>
                         <div class="flex justify-between gap-4">
-                            <dt class="text-content-muted">{l!("purchase_orders.ordered")}</dt>
+                            <dt class="text-content-muted">{l!("sales_orders.ordered")}</dt>
                             <dd class="tabular-nums text-content">{ordered}</dd>
                         </div>
-                        {expected
-                            .map(|expected| {
+                        {promised
+                            .map(|promised| {
                                 view! {
                                     <div class="flex justify-between gap-4">
                                         <dt class="text-content-muted">
-                                            {l!("purchase_orders.expected")}
+                                            {l!("sales_orders.promised")}
                                         </dt>
-                                        <dd class="tabular-nums text-content">{expected}</dd>
+                                        <dd class="tabular-nums text-content">{promised}</dd>
                                     </div>
                                 }
                             })}
                         <div class="flex items-center justify-between gap-4">
-                            <dt class="text-content-muted">{l!("purchase_orders.received")}</dt>
+                            <dt class="text-content-muted">{l!("sales_orders.delivered")}</dt>
                             <dd>
-                                <ReceiptBadge state=receipt_state />
+                                <ProgressBadge progress=delivery_state invoiced=false />
+                            </dd>
+                        </div>
+                        <div class="flex items-center justify-between gap-4">
+                            <dt class="text-content-muted">{l!("sales_orders.invoiced")}</dt>
+                            <dd>
+                                <ProgressBadge progress=invoice_state invoiced=true />
                             </dd>
                         </div>
                     </dl>
                 </Section>
             </div>
 
-            <Section title=l!("purchase_orders.lines")>
+            <Section title=l!("sales_orders.lines")>
                 <div class="overflow-x-auto">
-                    <table class="w-full min-w-[44rem] text-sm">
+                    <table class="w-full min-w-[48rem] text-sm">
                         <thead>
                             <tr class="border-b border-edge text-left text-xs text-content-muted">
                                 <th class="w-8 py-2 font-medium">"#"</th>
                                 <th class="py-2 font-medium">{l!("field.description")}</th>
                                 <th class="py-2 text-right font-medium">{l!("field.quantity")}</th>
                                 <th class="py-2 text-right font-medium">
-                                    {l!("purchase_orders.received")}
+                                    {l!("sales_orders.delivered")}
                                 </th>
                                 <th class="py-2 text-right font-medium">
-                                    {l!("purchase_orders.unit_price")}
+                                    {l!("sales_orders.invoiced")}
                                 </th>
                                 <th class="py-2 text-right font-medium">
-                                    {l!("purchase_orders.net")}
+                                    {l!("sales_orders.unit_price")}
+                                </th>
+                                <th class="py-2 text-right font-medium">
+                                    {l!("sales_orders.net")}
                                 </th>
                             </tr>
                         </thead>
@@ -1003,11 +1105,12 @@ fn order_document(order: PurchaseOrder, reload: Callback<()>) -> impl IntoView {
                                         line.quantity.to_display_string(),
                                         line.unit_code,
                                     );
-                                    let received = line.received.to_display_string();
+                                    let delivered = line.delivered.to_display_string();
+                                    let invoiced = line.invoiced.to_display_string();
                                     let price = line.unit_price.to_display_string();
                                     let net = line.net.to_display_string();
                                     // A cancelled line stays on the document -
-                                    // it was ordered - and is struck through
+                                    // it was agreed - and is struck through
                                     // rather than removed.
                                     let tone = if line.is_cancelled {
                                         "line-through text-content-subtle"
@@ -1030,7 +1133,10 @@ fn order_document(order: PurchaseOrder, reload: Callback<()>) -> impl IntoView {
                                                 {quantity}
                                             </td>
                                             <td class="py-1.5 text-right tabular-nums text-content-muted">
-                                                {received}
+                                                {delivered}
+                                            </td>
+                                            <td class="py-1.5 text-right tabular-nums text-content-muted">
+                                                {invoiced}
                                             </td>
                                             <td class="py-1.5 text-right tabular-nums text-content-muted">
                                                 {price}
@@ -1051,18 +1157,16 @@ fn order_document(order: PurchaseOrder, reload: Callback<()>) -> impl IntoView {
                 {note
                     .map(|note| {
                         view! {
-                            <Section title=l!("purchase_orders.note")>
-                                <p class="whitespace-pre-wrap text-sm text-content-muted">
-                                    {note}
-                                </p>
+                            <Section title=l!("sales_orders.note")>
+                                <p class="whitespace-pre-wrap text-sm text-content-muted">{note}</p>
                             </Section>
                         }
                     })}
 
-                <Section title=l!("purchase_orders.net") flush=true>
+                <Section title=l!("sales_orders.net") flush=true>
                     <div class="flex items-baseline justify-between gap-4 text-sm font-medium tabular-nums">
                         <span class="text-content">
-                            {l!("purchase_orders.net")} " "
+                            {l!("sales_orders.net")} " "
                             <span class="text-2xs text-content-subtle">{code}</span>
                         </span>
                         <span class="text-content">{net}</span>
@@ -1074,158 +1178,26 @@ fn order_document(order: PurchaseOrder, reload: Callback<()>) -> impl IntoView {
             // whether the act means anything; the permission decides whether this
             // reader may do it - and the service checks it again.
             <div class="mt-4 flex flex-wrap items-center justify-end gap-2 border-t border-edge pt-4">
-                <Show when=move || is_cancellable && may_cancel.get() fallback=|| ()>
+                <Show when=move || is_open && may_cancel.get() fallback=|| ()>
                     <GhostButton
-                        label=l!("purchase_orders.cancel")
+                        label=l!("sales_orders.cancel")
                         icon=Icon::Ban
                         on_click=Callback::new(move |()| cancel())
                     />
                 </Show>
 
-                <Show when=move || can_be_received && may_receive.get() fallback=|| ()>
-                    <PrimaryButton
-                        label=l!("purchase_orders.receive")
-                        icon=Icon::Package
-                        on_click=Callback::new({
-                            let receive = receive.clone();
-                            move |()| receive()
-                        })
+                <Show when=move || is_open && may_close.get() fallback=|| ()>
+                    <GhostButton
+                        label=l!("sales_orders.close")
+                        icon=Icon::Check
+                        on_click=Callback::new(move |()| close())
                     />
                 </Show>
             </div>
 
-            <OrderAllocationPanel order_id=id />
-
             <Section title=l!("common.history")>
-                <RecordHistory kind=kinds::PURCHASE_ORDER id=Some(id.to_string()) />
+                <RecordHistory kind=kinds::SALES_ORDER id=Some(id.to_string()) />
             </Section>
         </Panel>
-    }
-}
-
-/// Which requisitions each line of this order was raised for.
-///
-/// Only drawn where there is something to say - an order a buyer wrote directly
-/// has no sources, and an empty panel on every such order would be furniture.
-///
-/// The unallocated figure is not an error. A buyer rounding 47 reams up to a
-/// case of 50 is the ordinary case, and the three extra belong to no
-/// department: they are stock. See `0008_consolidation.sql`.
-#[component]
-fn order_allocation_panel(order_id: Uuid) -> impl IntoView {
-    let allocation = Resource::new(
-        move || order_id,
-        |order_id| async move { order_allocation(order_id).await },
-    );
-
-    view! {
-        <Transition fallback=|| ()>
-            {move || Suspend::new(async move {
-                let lines = allocation.await.unwrap_or_default();
-                let anything = lines
-                    .iter()
-                    .any(|line| !line.sources.is_empty() || line.unallocated.is_positive());
-
-                if !anything {
-                    return ().into_any();
-                }
-
-                view! {
-                    <Panel
-                        title=l!("consolidations.allocation")
-                        description=l!("consolidations.allocation.help")
-                    >
-                        <div class="space-y-3">
-                            {lines
-                                .into_iter()
-                                .filter(|line| {
-                                    !line.sources.is_empty() || line.unallocated.is_positive()
-                                })
-                                .map(|line| {
-                                    let description = line.description.clone();
-                                    let ordered = line.quantity_stock.to_display_string();
-                                    let spare = line.unallocated;
-                                    let spare_text = spare.to_display_string();
-                                    let empty = line.sources.is_empty();
-
-                                    view! {
-                                        <div class="space-y-1">
-                                            <div class="flex items-baseline justify-between gap-4 border-b border-edge pb-1">
-                                                <span class="text-sm text-content">
-                                                    {description}
-                                                </span>
-                                                <span class="text-xs tabular-nums text-content-muted">
-                                                    {ordered}
-                                                </span>
-                                            </div>
-
-                                            {if empty {
-                                                view! {
-                                                    <p class="text-xs text-content-subtle">
-                                                        {l!("consolidations.allocation.none")}
-                                                    </p>
-                                                }
-                                                    .into_any()
-                                            } else {
-                                                view! {
-                                                    <ul class="space-y-0.5 text-sm">
-                                                        {line
-                                                            .sources
-                                                            .into_iter()
-                                                            .map(|source| {
-                                                                let href = format!(
-                                                                    "/inventory/requisitions/{}",
-                                                                    source.requisition_id,
-                                                                );
-                                                                let quantity = source
-                                                                    .quantity
-                                                                    .to_display_string();
-
-                                                                view! {
-                                                                    <li class="flex items-center justify-between gap-4">
-                                                                        <a
-                                                                            href=href
-                                                                            class="font-mono text-xs text-brand hover:underline"
-                                                                        >
-                                                                            {source.requisition_number}
-                                                                        </a>
-                                                                        <span class="flex-1 truncate text-content-muted">
-                                                                            {source.cost_centre_name}
-                                                                        </span>
-                                                                        <span class="tabular-nums text-content">
-                                                                            {quantity}
-                                                                        </span>
-                                                                    </li>
-                                                                }
-                                                            })
-                                                            .collect_view()}
-                                                    </ul>
-                                                }
-                                                    .into_any()
-                                            }}
-
-                                            <Show
-                                                when=move || spare.is_positive()
-                                                fallback=|| ()
-                                            >
-                                                <div class="flex items-center justify-between gap-4 text-sm">
-                                                    <span class="text-content-subtle">
-                                                        {l!("consolidations.allocation.unallocated")}
-                                                    </span>
-                                                    <span class="tabular-nums text-content-muted">
-                                                        {spare_text.clone()}
-                                                    </span>
-                                                </div>
-                                            </Show>
-                                        </div>
-                                    }
-                                })
-                                .collect_view()}
-                        </div>
-                    </Panel>
-                }
-                    .into_any()
-            })}
-        </Transition>
     }
 }

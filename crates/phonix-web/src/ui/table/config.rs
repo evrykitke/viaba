@@ -52,6 +52,7 @@ pub mod parties;
 pub mod bills;
 pub mod consolidations;
 pub mod requisitions;
+pub mod sales_orders;
 pub mod purchase_orders;
 pub mod receipts;
 pub mod roles;

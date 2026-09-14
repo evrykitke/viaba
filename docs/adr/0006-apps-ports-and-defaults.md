@@ -66,9 +66,20 @@ zero. It posts receivables, revenue and output tax through the same account
 determination Inventory posts through, in the same transaction as the number
 and the freeze; voiding reverses it; and account determination finally has a
 screen, so a role the defaults could not fill is fixable without SQL. See
-*Selling, as built* under section 5 — and the two things still missing on that
-side, which are the documents in front of the invoice and the receipt behind
-it.
+*Selling, as built* under section 5.
+
+And now **the sales order**, which is the first of the documents in front of
+that invoice and the exact mirror of the purchase order: one record that is a
+quotation and then an order, lines in the unit the customer is quoted in with
+the stock-unit quantity beside them, and two running totals - shipped and
+billed - that make "promised and not gone" and "gone and not billed"
+arithmetic rather than an investigation. It lives in Inventory, beside the
+buying chain, because a despatch is a warehouse act and the documents are about
+items and a warehouse. See *The sales order, as built* under section 7.
+
+What is still missing on that side is the **delivery** - the document that
+relieves the stock and posts the cost of it - and the **receipt** of money
+behind the invoice.
 
 `Stock` is still not declared, as section 2 says it should not be: Books does
 not yet put cost of goods sold on an invoice, and that is the caller the port
@@ -848,6 +859,51 @@ is how the quantity is *valued*: FIFO uses each layer's own cost, and standard
 and average use the item's one number. The average is recomputed on receipt and
 never on issue, so the order two pickers happened to work in cannot change what
 the month cost.
+
+### The sales order, as built
+
+Section 7 listed the buying chain and never named its mirror, because at the
+time Books' invoice was the only thing on the sell side and it was a document
+about free text. It is built now, and it is `purchase.rs` reflected: the same
+five states, the same lines-in-a-quoted-unit with `quantity_stock` frozen
+beside them, the same refusal to put tax on an order, and the same `Progress`
+arithmetic over the lines rather than a stored word.
+
+Four things are different, and all four are about selling rather than about
+symmetry.
+
+**The number is spent when the document leaves the building, not at confirm.**
+A purchase order is numbered at confirm because nothing before that has gone
+anywhere. A quotation has: it is read by somebody outside, who quotes it back
+on their own paperwork and on the telephone. So `SO-2026-00042` is allocated at
+*send*, or at a confirmation straight from a draft - which is what an order
+taken over the counter is - and confirming a quotation keeps the number the
+customer was given rather than burning a second. A quotation that is never
+accepted keeps its number too, exactly as a rejected requisition does.
+
+**There are two running totals, not one.** The buying side tracks `received`
+and `billed`; this tracks `delivered` and `invoiced`. The second pair is the
+sell side of section 6.5: goods out on the thirtieth and the invoice on the
+second is a real state, and it is what the goods-delivered-not-invoiced accrual
+exists to carry.
+
+**A line with no price is refused.** The purchase order fills an empty price
+from the item's standing cost, which costs the workspace a conversation with a
+supplier when it is wrong. The same fallback on a sales order is revenue given
+away, so the line opens on the item's `sale_price` where the picker can show it
+and the save refuses a blank. There is no price list - one standing price per
+item - and that is the honest state of it rather than a design.
+
+**It lives in Inventory.** Odoo puts quotations in Sales and delivery orders in
+Inventory; this puts both here, because the documents need items, units,
+warehouses and stock availability, and every one of those is this app's. Books'
+front page links across to it, which is what the boundary permits. The invoice
+stays Books'.
+
+What it does *not* do yet is deliver, and the delivery is where the ledger gets
+involved: `MoveKind::Delivery` and both the roles it needs -
+`goods_delivered_not_invoiced` since 0005, `cost_of_sales` since 0004 - have
+been waiting for a document to raise them.
 
 ### Asking, as built
 

@@ -36,6 +36,7 @@ pub mod purchase;
 pub mod quant;
 pub mod receipt;
 pub mod requisition;
+pub mod sales_order;
 pub mod transfer;
 pub mod unit;
 pub mod valuation;

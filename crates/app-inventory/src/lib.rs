@@ -77,6 +77,7 @@ pub mod quant;
 pub mod quantity;
 pub mod receipt;
 pub mod requisition;
+pub mod sales_order;
 pub mod unit;
 pub mod transfer;
 pub mod valuation;
@@ -94,6 +95,7 @@ pub const APP_ID: &str = "inventory";
 /// allocator would solve it slightly differently. ADR 0006 section 3.
 pub const ITEM: &str = "item";
 pub const PURCHASE_ORDER: &str = "purchase_order";
+pub const SALES_ORDER: &str = "sales_order";
 pub const BILL: &str = "bill";
 pub const RECEIPT: &str = "receipt";
 pub const DELIVERY: &str = "delivery";

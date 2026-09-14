@@ -284,6 +284,29 @@ pub static MENU: &[NavNode] = &[
                     ]),
                 ],
             ),
+            // The selling chain, mirroring the buying one above it. It sits in
+            // this app rather than in Books because the documents on it are
+            // about items, warehouses and stock, all of which live here - and
+            // because a despatch is a warehouse act. The INVOICE is Books', and
+            // Books' front page links across to this.
+            NavNode::group(
+                "inventory-selling",
+                "nav.selling",
+                Icon::Truck,
+                &[
+                    NavNode::leaf(
+                        "sales-orders",
+                        "nav.sales_orders",
+                        Icon::ScrollText,
+                        "/inventory/sales-orders",
+                    )
+                    .require(names::SALES_ORDERS)
+                    .keywords(&[
+                        "so", "quotation", "quote", "selling", "customer", "order",
+                        "proposal", "despatch", "backorder",
+                    ]),
+                ],
+            ),
             // Stock that moves for a reason that is not a purchase: between our
             // own buildings, or because a count disagreed with the record.
             NavNode::group(

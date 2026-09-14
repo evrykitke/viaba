@@ -29,8 +29,8 @@ fn choice_from(row: &sqlx::postgres::PgRow) -> Result<VariantChoice, DbError> {
         code: row.try_get("code").map_err(DbError::Query)?,
         item_name: row.try_get("item_name").map_err(DbError::Query)?,
         combination: row.try_get("combination").map_err(DbError::Query)?,
-        purchase_unit_id: row.try_get("purchase_unit_id").map_err(DbError::Query)?,
-        purchase_unit_code: row.try_get("purchase_unit_code").map_err(DbError::Query)?,
+        unit_id: row.try_get("unit_id").map_err(DbError::Query)?,
+        unit_code: row.try_get("unit_code").map_err(DbError::Query)?,
         rules: rules_from(row).map_err(DbError::Query)?,
     })
 }
@@ -157,12 +157,14 @@ where
     Ok(Selection { lines })
 }
 
-/// The columns and joins behind every purchasable-variant query.
+/// The columns behind every picker query, whichever side it is on.
 ///
 /// A constant rather than inline, so the day a column is added to a picker row
-/// there is one query to change.
-const PURCHASABLE: &str = "SELECT v.id, v.code, i.name AS item_name, i.purchase_unit_id,
-                u.code AS purchase_unit_code,
+/// there is one query to change. `{unit}` is the only difference between the
+/// two sides: a buying line opens on the unit the item is bought in and a
+/// selling line on the unit it is held in, and neither side wants the other's.
+const PICKER_ROW: &str = "SELECT v.id, v.code, i.name AS item_name, i.{unit} AS unit_id,
+                u.code AS unit_code,
                 i.tracking, i.uses_expiry, i.is_tracked, i.kind,
                 (SELECT string_agg(av.name, ' / ' ORDER BY a.position, a.name)
                    FROM inventory.variant_values vv
@@ -171,10 +173,30 @@ const PURCHASABLE: &str = "SELECT v.id, v.code, i.name AS item_name, i.purchase_
                   WHERE vv.variant_id = v.id) AS combination
            FROM inventory.item_variants v
            JOIN inventory.items i ON i.id = v.item_id
-           JOIN inventory.units u ON u.id = i.purchase_unit_id
-          WHERE i.can_be_purchased
+           JOIN inventory.units u ON u.id = i.{unit}
+          WHERE i.{flag}
             AND i.is_active
             AND v.is_active";
+
+/// The purchasable half, with the purchase unit on the row.
+fn purchasable() -> String {
+    PICKER_ROW
+        .replace("{unit}", "purchase_unit_id")
+        .replace("{flag}", "can_be_purchased")
+}
+
+/// The sellable half, with the stock unit on the row.
+///
+/// The stock unit rather than a sales unit, because an item has no sales unit:
+/// this schema has two, what it is held in and what it is bought in, and the
+/// second is the supplier's word. A line may still be quoted in any unit that
+/// measures the same thing - the picker chooses where it opens, not what is
+/// allowed.
+fn sellable() -> String {
+    PICKER_ROW
+        .replace("{unit}", "stock_unit_id")
+        .replace("{flag}", "can_be_sold")
+}
 
 /// Variants matching what somebody has typed, capped.
 ///
@@ -200,8 +222,38 @@ where
 {
     let needle = needle.trim();
 
+    search(executor, &purchasable(), needle, limit).await
+}
+
+/// The same, over what this workspace sells.
+///
+/// A separate entry point rather than a flag, because the two are asked by
+/// different screens for different reasons and a boolean parameter at a call
+/// site reads as neither.
+pub async fn search_sellable<'e, E>(
+    executor: E,
+    needle: &str,
+    limit: i64,
+) -> Result<Vec<VariantChoice>, DbError>
+where
+    E: PgExecutor<'e>,
+{
+    let needle = needle.trim();
+
+    search(executor, &sellable(), needle, limit).await
+}
+
+async fn search<'e, E>(
+    executor: E,
+    columns: &str,
+    needle: &str,
+    limit: i64,
+) -> Result<Vec<VariantChoice>, DbError>
+where
+    E: PgExecutor<'e>,
+{
     let statement = sqlx::AssertSqlSafe(format!(
-        "{PURCHASABLE}
+        "{columns}
             AND ($1 = ''
                  OR v.code ILIKE $2 || '%'
                  OR i.name ILIKE '%' || $2 || '%')

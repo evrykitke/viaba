@@ -185,9 +185,15 @@ pub struct VariantChoice {
     pub code: String,
     pub item_name: String,
     pub combination: Option<String>,
-    /// What the item is bought in, which is what a new order line defaults to.
-    pub purchase_unit_id: Uuid,
-    pub purchase_unit_code: String,
+    /// What a new document line naming this should default its unit to: the
+    /// purchase unit on a buying document, the stock unit on a selling one.
+    ///
+    /// Named for what it is FOR rather than for which one it is, because the
+    /// row is the same row on both sides and the query that built it already
+    /// decided. A field called `purchase_unit_id` on a sales order line is a
+    /// field somebody eventually trusts.
+    pub unit_id: Uuid,
+    pub unit_code: String,
     /// Whether a line naming this has to say which units these are. Answered
     /// with the row rather than asked for afterwards: the line that has just
     /// been given an item is the one that has to decide whether to draw a lot

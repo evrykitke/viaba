@@ -27,6 +27,7 @@ use app_inventory::location::{Location, LocationInput, LocationSummary};
 use app_inventory::lot::{LotRules, LotSummary};
 use app_inventory::movement::{MoveFilter, MoveSummary, StockMove};
 use app_inventory::purchase::{OrderInput, OrderSummary, PurchaseOrder};
+use app_inventory::sales_order::{SaleInput, SaleSummary, SalesOrder};
 use app_inventory::quant::{OnHandFilter, OnHandRow};
 use app_inventory::receipt::{Backorder, Receipt, ReceiptInput, ReceiptSummary};
 use app_inventory::requisition::{
@@ -1115,6 +1116,152 @@ pub async fn orders_awaiting_delivery() -> Result<Vec<OrderSummary>, ServerFnErr
     let (pool, caller) = pool_and_caller().await?;
 
     phonix_services::inventory::purchase::awaiting_delivery(&pool, &caller)
+        .await
+        .map_err(service_error)
+}
+
+// --- Sales orders ---------------------------------------------------------
+//
+// The mirror of the block above, and nothing here posts either. A sales order
+// promises to ship something; nothing has moved, nothing is owed, and the
+// accounting starts at the delivery and the invoice.
+
+#[server(name = ListSalesOrders, prefix = "/api", endpoint = "inventory/sales-orders")]
+pub async fn list_sales_orders() -> Result<Vec<SaleSummary>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::sales_order::list(&pool, &caller)
+        .await
+        .map_err(service_error)
+}
+
+/// The variants matching what somebody typed in a sales line's item box.
+///
+/// What this workspace SELLS, which is a different list from what it buys - an
+/// item marked bought and not sold is a raw material, and offering it on a
+/// quotation is how one gets quoted.
+#[server(name = FindSellableVariants, prefix = "/api", endpoint = "inventory/variants/sellable")]
+pub async fn find_sellable_variants(needle: String) -> Result<Vec<VariantChoice>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::sales_order::find_variants(&pool, &caller, &needle)
+        .await
+        .map_err(service_error)
+}
+
+/// The confirmed orders with something still to ship, for a despatch to open on.
+#[server(name = OrdersAwaitingDespatch, prefix = "/api", endpoint = "inventory/sales-orders/awaiting")]
+pub async fn orders_awaiting_despatch() -> Result<Vec<SaleSummary>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::sales_order::awaiting_despatch(&pool, &caller)
+        .await
+        .map_err(service_error)
+}
+
+#[server(name = SalesOrderDetail, prefix = "/api", endpoint = "inventory/sales-orders/detail")]
+pub async fn sales_order_detail(order_id: Uuid) -> Result<SalesOrder, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::sales_order::detail(&pool, &caller, order_id)
+        .await
+        .map_err(service_error)
+}
+
+#[server(name = SalesOrderEdit, prefix = "/api", endpoint = "inventory/sales-orders/edit")]
+pub async fn sales_order_edit(order_id: Uuid) -> Result<SaleInput, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::sales_order::edit(&pool, &caller, order_id)
+        .await
+        .map_err(service_error)
+}
+
+#[server(name = BlankSalesOrder, prefix = "/api", endpoint = "inventory/sales-orders/blank")]
+pub async fn blank_sales_order() -> Result<SaleInput, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::sales_order::blank(&pool, &caller)
+        .await
+        .map_err(service_error)
+}
+
+#[server(name = SaveSalesOrder, prefix = "/api", endpoint = "inventory/sales-orders/save", input = Json)]
+pub async fn save_sales_order(draft: SaleInput) -> Result<Submission<SaleInput>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::sales_order::save(&pool, &caller, draft)
+        .await
+        .map_err(service_error)
+}
+
+/// Send the quotation. This is where its number is spent.
+#[server(name = SendSalesOrder, prefix = "/api", endpoint = "inventory/sales-orders/send")]
+pub async fn send_sales_order(order_id: Uuid) -> Result<Submission<SalesOrder>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::sales_order::mark_sent(&pool, &caller, order_id)
+        .await
+        .map_err(service_error)
+}
+
+#[server(name = ConfirmSalesOrder, prefix = "/api", endpoint = "inventory/sales-orders/confirm")]
+pub async fn confirm_sales_order(order_id: Uuid) -> Result<Submission<SalesOrder>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::sales_order::confirm(&pool, &caller, order_id)
+        .await
+        .map_err(service_error)
+}
+
+#[server(name = CancelSalesOrder, prefix = "/api", endpoint = "inventory/sales-orders/cancel")]
+pub async fn cancel_sales_order(order_id: Uuid) -> Result<Submission<()>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::sales_order::cancel(&pool, &caller, order_id)
+        .await
+        .map_err(service_error)
+}
+
+/// Close a confirmed order that will never be completed. What went, went.
+#[server(name = CloseSalesOrder, prefix = "/api", endpoint = "inventory/sales-orders/close")]
+pub async fn close_sales_order(order_id: Uuid) -> Result<Submission<()>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::sales_order::close(&pool, &caller, order_id)
+        .await
+        .map_err(service_error)
+}
+
+#[server(name = DeleteSalesOrder, prefix = "/api", endpoint = "inventory/sales-orders/delete")]
+pub async fn delete_sales_order(order_id: Uuid) -> Result<bool, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::sales_order::delete(&pool, &caller, order_id)
         .await
         .map_err(service_error)
 }

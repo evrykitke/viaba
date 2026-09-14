@@ -137,6 +137,17 @@ pub fn sales_home_page() -> impl IntoView {
             Icon::Users,
         )
         .require(permissions::PARTIES),
+        // And the other half: what was agreed before the invoice was raised.
+        // The order lives in Inventory, because it is about items and a
+        // warehouse - see the selling section of `navigation::tree` - and this
+        // is the door to it from the side that bills for it.
+        Shortcut::new(
+            t(&Message::new("nav.sales_orders")),
+            t(&Message::new("books.home.orders_detail")),
+            "/inventory/sales-orders",
+            Icon::ScrollText,
+        )
+        .require(permissions::SALES_ORDERS),
     ];
 
     view! {

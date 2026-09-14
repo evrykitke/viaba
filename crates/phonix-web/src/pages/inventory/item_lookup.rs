@@ -14,6 +14,15 @@
 //! [`LookupField`] over [`Choices::Live`]: what has been typed goes to
 //! `find_variants`, which answers with fifty rows, and the panel shows them.
 //!
+//! # Two catalogues, one field
+//!
+//! A buying document searches what this workspace *buys* and a selling one what
+//! it *sells*, and they are not the same list: an item marked bought and not
+//! sold is a raw material, and offering it on a quotation is how one gets
+//! quoted. `sellable` picks the half, and the row that comes back carries the
+//! unit that half opens on - the purchase unit on one side, the stock unit on
+//! the other.
+//!
 //! # What it answers with
 //!
 //! The whole [`VariantChoice`], not an id. A line that has just been given an
@@ -31,7 +40,7 @@ use app_inventory::variant::VariantChoice;
 use leptos::prelude::*;
 use uuid::Uuid;
 
-use crate::server_fns::inventory_fns::find_variants;
+use crate::server_fns::inventory_fns::{find_sellable_variants, find_variants};
 use crate::ui::form::field::Choice;
 use crate::ui::lookup::{Choices, LookupField};
 
@@ -51,6 +60,10 @@ pub fn item_lookup(
     id: String,
     #[prop(optional, into)] invalid: Signal<bool>,
     #[prop(optional_no_strip)] placeholder: Option<String>,
+    /// Search what this workspace sells rather than what it buys. See the
+    /// module header.
+    #[prop(optional)]
+    sellable: bool,
 ) -> impl IntoView {
     let selected = RwSignal::new(initial.into_iter().collect::<Vec<_>>());
     let found = RwSignal::new(Vec::<VariantChoice>::new());
@@ -70,7 +83,13 @@ pub fn item_lookup(
         };
 
         leptos::task::spawn_local(async move {
-            let Ok(rows) = find_variants(needle).await else {
+            let found_rows = if sellable {
+                find_sellable_variants(needle).await
+            } else {
+                find_variants(needle).await
+            };
+
+            let Ok(rows) = found_rows else {
                 return;
             };
 

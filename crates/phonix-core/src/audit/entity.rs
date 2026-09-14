@@ -432,6 +432,19 @@ pub mod kinds {
         singleton: false,
     };
 
+    /// A sales order.
+    ///
+    /// Recorded because confirming one is a promise to ship stock somebody
+    /// else is counting on, and "who agreed this price" is the first question
+    /// asked about a margin nobody can explain.
+    pub const SALES_ORDER: EntityKind = EntityKind {
+        name: "sales_order",
+        singular_key: "entity.sales_order.singular",
+        plural_key: "entity.sales_order.plural",
+        href: Some("/inventory/sales-orders/{id}"),
+        singleton: false,
+    };
+
     /// A goods receipt.
     ///
     /// The document that puts stock on the balance sheet and creates a

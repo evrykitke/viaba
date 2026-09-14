@@ -367,6 +367,10 @@ pub struct MoveContext {
     /// what this combination adds on top - rather than being blended away the
     /// first time a red one is received.
     pub item_cost: Money,
+    /// What the item is offered at. Not a price list - this workspace has one
+    /// standing price per item - and what a new sales order line opens on
+    /// before anybody negotiates it.
+    pub sale_price: Money,
 }
 
 impl MoveContext {

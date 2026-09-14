@@ -130,7 +130,8 @@ where
                 u.code AS stock_unit_code,
                 c.costing_method, c.valuation, c.removal_strategy,
                 (i.cost + v.cost_extra)::numeric(19, 4)::text AS cost,
-                i.cost::text AS item_cost
+                i.cost::text AS item_cost,
+                i.sale_price::text AS sale_price
            FROM inventory.item_variants v
            JOIN inventory.items i ON i.id = v.item_id
            JOIN inventory.units u ON u.id = i.stock_unit_id
@@ -149,6 +150,7 @@ where
         let removal: String = row.try_get("removal_strategy")?;
         let cost: String = row.try_get("cost")?;
         let item_cost: String = row.try_get("item_cost")?;
+        let sale_price: String = row.try_get("sale_price")?;
 
         Ok(MoveContext {
             variant_id: row.try_get("variant_id")?,
@@ -170,6 +172,7 @@ where
                 .ok_or_else(|| unknown("categories.removal_strategy", &removal))?,
             cost: read_money(&cost, currency, "items.cost")?,
             item_cost: read_money(&item_cost, currency, "items.cost")?,
+            sale_price: read_money(&sale_price, currency, "items.sale_price")?,
         })
     })
     .transpose()

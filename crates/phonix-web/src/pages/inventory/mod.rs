@@ -62,6 +62,7 @@ pub mod landed_cost;
 pub mod pictures;
 pub mod receipt;
 pub mod requisition;
+pub mod sales_order;
 pub mod procurement;
 pub mod purchase_order;
 pub mod stock;
