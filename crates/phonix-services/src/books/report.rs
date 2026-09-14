@@ -85,7 +85,7 @@ pub async fn balance_sheet(
     BalanceSheet::assemble(as_at, opened, profile.currency, &movements).map_err(unusable)
 }
 
-/// What one customer has been invoiced, and how long ago.
+/// What one customer has been invoiced, what they have paid, and how long ago.
 pub async fn customer_statement(
     pool: &PgPool,
     caller: &Caller,
@@ -100,7 +100,12 @@ pub async fn customer_statement(
     };
 
     let currency = crate::workspace::profile::current(pool).await?.currency;
-    let invoices = phonix_db::books::report::billed_to(pool, party_id, to, currency).await?;
+    let entries =
+        phonix_db::books::report::statement_entries(pool, party_id, to, currency).await?;
+    // Asked separately rather than derived from the entries: what is on account
+    // is every payment less every allocation, and the entries carry the
+    // allocation only per invoice.
+    let on_account = phonix_db::books::report::on_account(pool, party_id, to, currency).await?;
 
     CustomerStatement::assemble(
         party.id,
@@ -109,7 +114,8 @@ pub async fn customer_statement(
         from,
         to,
         currency,
-        invoices,
+        entries,
+        on_account,
     )
     .map_err(unusable)
 }

@@ -5,8 +5,9 @@
 //!
 //! [`movements`] is the general ledger one - every account, what it held before
 //! a date and what moved after it - and the trial balance, the balance sheet
-//! and the profit and loss are all arrangements of its answer. [`billed_to`] is
-//! the sales ledger one, for a customer's own statement.
+//! and the profit and loss are all arrangements of its answer.
+//! [`statement_entries`] is the sales ledger one: every invoice and every
+//! payment for one customer, interleaved, for their own statement.
 //!
 //! Aggregating in Postgres rather than summing journal lines in Rust: a year's
 //! ledger is a lot of rows to carry across a connection to add them up, and the
@@ -20,7 +21,7 @@
 //! today's rate would restate a period that was filed months ago.
 
 use app_books::account::AccountType;
-use app_books::report::{AccountMovement, StatementLine};
+use app_books::report::{AccountMovement, EntryKind, StatementLine};
 use chrono::NaiveDate;
 use phonix_core::locale::Currency;
 use phonix_core::money::Money;
@@ -79,7 +80,18 @@ where
 ///
 /// Drafts and voided invoices are not on it. A draft is not a claim on
 /// anybody, and a voided one stopped being.
-pub async fn billed_to<'e, E>(
+/// Every document on one customer's account up to `to`, in date order.
+///
+/// Invoices and payments in one query, because the statement prints them
+/// interleaved and merging two ordered lists in Rust is a merge somebody has to
+/// get right. `UNION ALL` and one `ORDER BY` is the same answer with nothing to
+/// get wrong.
+///
+/// An invoice's `outstanding` is its gross less everything a *posted* payment
+/// has been allocated to it - so an invoice settled last week is on the
+/// statement and off the ageing ladder, which is the difference between ageing
+/// what was billed and ageing what is owed.
+pub async fn statement_entries<'e, E>(
     executor: E,
     party_id: Uuid,
     to: NaiveDate,
@@ -89,14 +101,41 @@ where
     E: PgExecutor<'e>,
 {
     let rows = sqlx::query(
-        "SELECT id, number, issued_on, due_on,
-                currency_code, gross_amount::text AS gross,
-                coalesce(base_gross_amount, gross_amount)::text AS base_gross
-           FROM books.invoices
-          WHERE party_id = $1
-            AND status = 'posted'
-            AND issued_on <= $2
-          ORDER BY issued_on, number",
+        "SELECT i.id,
+                'invoice' AS kind,
+                coalesce(i.number, '') AS number,
+                i.issued_on AS dated_on,
+                i.due_on,
+                i.currency_code,
+                i.gross_amount::text AS document,
+                coalesce(i.base_gross_amount, i.gross_amount)::text AS amount,
+                greatest(
+                    i.gross_amount - coalesce((
+                        SELECT sum(al.amount)
+                          FROM books.payment_allocations al
+                          JOIN books.payments p ON p.id = al.payment_id
+                         WHERE al.invoice_id = i.id AND p.status = 'posted'
+                    ), 0),
+                    0
+                )::text AS outstanding
+           FROM books.invoices i
+          WHERE i.party_id = $1 AND i.status = 'posted' AND i.issued_on <= $2
+
+          UNION ALL
+
+         SELECT p.id,
+                'payment' AS kind,
+                coalesce(p.number, '') AS number,
+                p.received_on AS dated_on,
+                NULL::date AS due_on,
+                p.currency_code,
+                p.amount::text AS document,
+                (-coalesce(p.base_amount, p.amount))::text AS amount,
+                '0' AS outstanding
+           FROM books.payments p
+          WHERE p.party_id = $1 AND p.status = 'posted' AND p.received_on <= $2
+
+          ORDER BY dated_on, number",
     )
     .bind(party_id)
     .bind(to)
@@ -109,18 +148,51 @@ where
         .collect()
 }
 
-/// Every posted invoice, added up.
+/// What this customer has paid that is set against nothing, as at `to`.
 ///
-/// What is owed, for as long as nothing records a customer paying. A voided
-/// invoice is not on it and a draft never was.
+/// A credit belonging to no invoice. It is on the statement as its own line
+/// rather than spread across the ageing buckets, because spreading it would be
+/// guessing which invoice the customer meant.
+pub async fn on_account<'e, E>(
+    executor: E,
+    party_id: Uuid,
+    to: NaiveDate,
+    base: Currency,
+) -> Result<Money, DbError>
+where
+    E: PgExecutor<'e>,
+{
+    let digits: String = sqlx::query_scalar(
+        "SELECT coalesce(sum(
+                    coalesce(p.base_amount, p.amount)
+                    - coalesce((SELECT sum(al.amount)
+                                  FROM books.payment_allocations al
+                                 WHERE al.payment_id = p.id), 0)
+                ), 0)::text
+           FROM books.payments p
+          WHERE p.party_id = $1 AND p.status = 'posted' AND p.received_on <= $2",
+    )
+    .bind(party_id)
+    .bind(to)
+    .fetch_one(executor)
+    .await
+    .map_err(DbError::Query)?;
+
+    Money::parse(base, &digits)
+        .map_err(|err| DbError::CorruptRow(format!("unusable payment total: {err}")))
+}
+
 pub async fn invoiced_outstanding<'e, E>(executor: E, base: Currency) -> Result<Money, DbError>
 where
     E: PgExecutor<'e>,
 {
     let digits: String = sqlx::query_scalar(
-        "SELECT coalesce(sum(coalesce(base_gross_amount, gross_amount)), 0)::text
-           FROM books.invoices
-          WHERE status = 'posted'",
+        "SELECT (
+                  coalesce((SELECT sum(coalesce(i.base_gross_amount, i.gross_amount))
+                              FROM books.invoices i WHERE i.status = 'posted'), 0)
+                  - coalesce((SELECT sum(coalesce(p.base_amount, p.amount))
+                                FROM books.payments p WHERE p.status = 'posted'), 0)
+                )::text",
     )
     .fetch_one(executor)
     .await
@@ -164,19 +236,29 @@ fn read_statement_line(
     base: Currency,
 ) -> Result<StatementLine, DbError> {
     let code: String = row.try_get("currency_code").map_err(DbError::Query)?;
-    let invoiced_in = Currency::parse(&code)
-        .map_err(|err| DbError::CorruptRow(format!("unusable currency on an invoice: {err}")))?;
+    let raised_in = Currency::parse(&code)
+        .map_err(|err| DbError::CorruptRow(format!("unusable currency on a document: {err}")))?;
+
+    let kind: String = row.try_get("kind").map_err(DbError::Query)?;
+    let kind = match kind.as_str() {
+        "invoice" => EntryKind::Invoice,
+        "payment" => EntryKind::Payment,
+        other => {
+            return Err(DbError::CorruptRow(format!(
+                "a statement row calls itself '{other}'"
+            )));
+        }
+    };
 
     Ok(StatementLine {
-        invoice_id: row.try_get("id").map_err(DbError::Query)?,
-        number: row
-            .try_get::<Option<String>, _>("number")
-            .map_err(DbError::Query)?
-            .unwrap_or_default(),
-        issued_on: row.try_get("issued_on").map_err(DbError::Query)?,
+        id: row.try_get("id").map_err(DbError::Query)?,
+        kind,
+        number: row.try_get("number").map_err(DbError::Query)?,
+        dated_on: row.try_get("dated_on").map_err(DbError::Query)?,
         due_on: row.try_get("due_on").map_err(DbError::Query)?,
-        invoiced: money_of(row, "gross", invoiced_in)?,
-        amount: money_of(row, "base_gross", base)?,
+        document: money_of(row, "document", raised_in)?,
+        amount: money_of(row, "amount", base)?,
+        outstanding: money_of(row, "outstanding", base)?,
         // Filled in as the statement is assembled, which is where the order of
         // the lines is known.
         running: Money::zero(base),

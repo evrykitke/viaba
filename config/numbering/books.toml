@@ -25,6 +25,20 @@ reset    = "fiscal_year"
 start_at = 1
 
 [[series]]
+doc_type = "payment"
+label    = "books.doc_type.payment"
+
+# `RCT-{YYYY}-#####` renders `RCT-2026-00042`. A receipt number, because that is
+# what a customer is given for money handed over, and one that names its year
+# for the reason an invoice number does.
+#
+# Allocated at POST, not at create: a draft somebody keyed off a bank statement
+# and then abandoned must not leave a hole in a series an auditor reads.
+mask     = "RCT-{YYYY}-#####"
+reset    = "fiscal_year"
+start_at = 1
+
+[[series]]
 doc_type = "journal"
 label    = "books.doc_type.journal"
 

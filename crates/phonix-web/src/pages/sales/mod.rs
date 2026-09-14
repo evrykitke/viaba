@@ -14,6 +14,9 @@
 //! /sales/invoices          the list          a grid
 //! /sales/invoices/new      raise one         the editor
 //! /sales/invoices/:id      one invoice       the editor, or the document
+//! /sales/payments          money in          a grid
+//! /sales/payments/new      record one        the editor
+//! /sales/payments/:id      one payment       the editor, or the document
 //! ```
 //!
 //! # One route, two screens
@@ -31,6 +34,7 @@ pub mod home;
 pub mod journal;
 pub mod journal_new;
 pub mod journals;
+pub mod payment;
 pub mod periods;
 pub mod reports;
 pub mod invoice;

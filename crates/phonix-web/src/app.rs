@@ -78,6 +78,7 @@ use crate::pages::sales::home::SalesHomePage;
 use crate::pages::sales::journal::JournalPage;
 use crate::pages::sales::journal_new::JournalNewPage;
 use crate::pages::sales::journals::JournalsPage;
+use crate::pages::sales::payment::{PaymentNewPage, PaymentPage, PaymentsPage};
 use crate::pages::sales::periods::PeriodsPage;
 use crate::pages::sales::reports::balance_sheet::BalanceSheetPage;
 use crate::pages::sales::reports::customer_statement::CustomerStatementPage;
@@ -254,6 +255,9 @@ pub fn app() -> impl IntoView {
                     <Route path=path!("/sales/reports/balance-sheet") view=BalanceSheetPage />
                     <Route path=path!("/sales/reports/profit-and-loss") view=ProfitAndLossPage />
                     <Route path=path!("/sales/reports/statement") view=CustomerStatementPage />
+                    <Route path=path!("/sales/payments") view=PaymentsPage />
+                    <Route path=path!("/sales/payments/new") view=PaymentNewPage />
+                    <Route path=path!("/sales/payments/:id") view=PaymentPage />
                     <Route path=path!("/sales/invoices") view=InvoicesPage />
                     // Before the parameter, so "new" is a screen rather than an
                     // invoice id that fails to parse.

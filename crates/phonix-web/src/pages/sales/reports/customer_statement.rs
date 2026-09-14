@@ -1,4 +1,5 @@
-//! One customer's account: what they were invoiced, and how long ago.
+//! One customer's account: what they were invoiced, what they have paid, and
+//! how long the rest has been owed.
 
 use app_books::report::CustomerStatement;
 use leptos::prelude::*;
@@ -116,9 +117,6 @@ fn statement(statement: CustomerStatement) -> impl IntoView {
             <Panel title=party>
                 <div class="space-y-3">
                     <ReportNote currency=currency />
-                    <p class="text-xs text-content-subtle">
-                        {l!("reports.statement.no_payments")}
-                    </p>
 
                     <div class="overflow-x-auto">
                         <table class="w-full min-w-[40rem] text-sm">
@@ -126,6 +124,7 @@ fn statement(statement: CustomerStatement) -> impl IntoView {
                                 <tr class="border-b border-edge text-left text-xs text-content-muted">
                                     <th class="py-2 font-medium">{l!("reports.column.date")}</th>
                                     <th class="py-2 font-medium">{l!("reports.column.document")}</th>
+                                    <th class="py-2 font-medium">{l!("field.type")}</th>
                                     <th class="py-2 font-medium">{l!("reports.column.due")}</th>
                                     <th class=MONEY_HEAD>{l!("reports.column.amount")}</th>
                                     <th class=MONEY_HEAD>{l!("reports.column.balance")}</th>
@@ -133,7 +132,7 @@ fn statement(statement: CustomerStatement) -> impl IntoView {
                             </thead>
                             <tbody>
                                 <tr class="border-b border-edge/60">
-                                    <td class="py-1.5 text-content-muted" colspan="3">
+                                    <td class="py-1.5 text-content-muted" colspan="4">
                                         {l!("reports.statement.opening")}
                                     </td>
                                     <td class=MONEY_CELL></td>
@@ -146,14 +145,15 @@ fn statement(statement: CustomerStatement) -> impl IntoView {
                                     .map(|line| {
                                         // What the document says, where that is not
                                         // what it is worth in the books.
-                                        let foreign = (line.invoiced.currency()
+                                        let foreign = (line.document.currency()
                                             != statement.currency)
-                                            .then(|| line.invoiced.to_string());
+                                            .then(|| line.document.to_string());
+                                        let kind = crate::i18n::t(&line.kind.label());
 
                                         view! {
                                             <tr class="border-b border-edge/60">
                                                 <td class="py-1.5 text-content-muted">
-                                                    {line.issued_on.to_string()}
+                                                    {line.dated_on.to_string()}
                                                 </td>
                                                 <td class="py-1.5 text-content">
                                                     {line.number.clone()}
@@ -163,6 +163,9 @@ fn statement(statement: CustomerStatement) -> impl IntoView {
                                                                 <div class="text-2xs text-content-subtle">{text}</div>
                                                             }
                                                         })}
+                                                </td>
+                                                <td class="py-1.5 text-xs text-content-subtle">
+                                                    {kind}
                                                 </td>
                                                 <td class="py-1.5 text-content-muted">
                                                     {line
@@ -181,7 +184,7 @@ fn statement(statement: CustomerStatement) -> impl IntoView {
                                     <tr>
                                         <td
                                             class="py-6 text-center text-sm text-content-muted"
-                                            colspan="5"
+                                            colspan="6"
                                         >
                                             {l!("reports.empty")}
                                         </td>
@@ -190,14 +193,21 @@ fn statement(statement: CustomerStatement) -> impl IntoView {
                             </tbody>
                             <tfoot>
                                 <tr class="border-t border-edge">
-                                    <td class="py-1.5 text-sm text-content-muted" colspan="3">
+                                    <td class="py-1.5 text-sm text-content-muted" colspan="4">
                                         {l!("reports.statement.billed")}
                                     </td>
                                     <td class=MONEY_CELL></td>
                                     <td class=MONEY_TOTAL>{amount(statement.billed)}</td>
                                 </tr>
+                                <tr>
+                                    <td class="py-1.5 text-sm text-content-muted" colspan="4">
+                                        {l!("reports.statement.received")}
+                                    </td>
+                                    <td class=MONEY_CELL></td>
+                                    <td class=MONEY_TOTAL>{amount(statement.received)}</td>
+                                </tr>
                                 <tr class="border-t-2 border-edge">
-                                    <td class="py-2 text-sm font-medium text-content" colspan="3">
+                                    <td class="py-2 text-sm font-medium text-content" colspan="4">
                                         {l!("reports.statement.closing")}
                                     </td>
                                     <td class=MONEY_CELL></td>
@@ -211,13 +221,16 @@ fn statement(statement: CustomerStatement) -> impl IntoView {
                 </div>
             </Panel>
 
-            <Panel title=l!("reports.ageing")>
-                <div class="grid gap-3 sm:grid-cols-5">
+            <Panel title=l!("reports.ageing") description=l!("reports.ageing.help")>
+                <div class="grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
                     <Bucket label=l!("reports.ageing.not_due") amount=ageing.not_yet_due />
                     <Bucket label=l!("reports.ageing.to_30") amount=ageing.to_30 />
                     <Bucket label=l!("reports.ageing.to_60") amount=ageing.to_60 />
                     <Bucket label=l!("reports.ageing.to_90") amount=ageing.to_90 />
                     <Bucket label=l!("reports.ageing.over_90") amount=ageing.over_90 />
+                    // Not a rung: a credit belonging to no invoice, subtracted
+                    // from the five rather than sitting among them.
+                    <Bucket label=l!("reports.ageing.on_account") amount=ageing.on_account />
                 </div>
             </Panel>
         </div>

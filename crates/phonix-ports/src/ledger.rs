@@ -75,6 +75,11 @@ pub enum AccountRole {
     /// Tax charged on a sale and owed to the collecting authority. Not income:
     /// it was never the workspace's money.
     TaxPayable,
+    /// Where money actually sits: the bank, the till, the card merchant's
+    /// float. A document that moves money names the exact account and this is
+    /// the role behind it - which is what a reader and a cash-flow report
+    /// understand, where an account id is a number they have to look up.
+    Cash,
 }
 
 impl AccountRole {
@@ -91,6 +96,7 @@ impl AccountRole {
         Self::Revenue,
         Self::AccountsReceivable,
         Self::TaxPayable,
+        Self::Cash,
     ];
 
     pub const fn as_str(self) -> &'static str {
@@ -107,6 +113,7 @@ impl AccountRole {
             Self::Revenue => "revenue",
             Self::AccountsReceivable => "accounts_receivable",
             Self::TaxPayable => "tax_payable",
+            Self::Cash => "cash",
         }
     }
 

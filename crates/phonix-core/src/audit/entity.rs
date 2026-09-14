@@ -216,6 +216,20 @@ pub mod kinds {
         singleton: false,
     };
 
+    /// A customer's payment.
+    ///
+    /// The other side of the invoice, and audited for the same reason: posting
+    /// one takes a receivable off the books, withdrawing one puts it back, and
+    /// "who said this cheque cleared" is the question a disputed balance
+    /// provokes.
+    pub const PAYMENT: EntityKind = EntityKind {
+        name: "payment",
+        singular_key: "entity.payment.singular",
+        plural_key: "entity.payment.plural",
+        href: Some("/sales/payments/{id}"),
+        singleton: false,
+    };
+
     /// A posting to the general ledger.
     ///
     /// Recorded even though a journal is already append-only, because the trail

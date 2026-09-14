@@ -50,6 +50,7 @@ pub mod landed_costs;
 pub mod journals;
 pub mod numbering;
 pub mod parties;
+pub mod payments;
 pub mod bills;
 pub mod consolidations;
 pub mod requisitions;

@@ -73,6 +73,9 @@ pub fn sales_home_page() -> impl IntoView {
                 format!("{} {}", amount.to_display_string(), summary.currency.code())
             };
 
+            // Invoiced less received. Before payments existed this was every
+            // posted invoice ever raised, which is a figure that only ever
+            // grows and that nobody could act on.
             stats.push(Stat::new(
                 t(&Message::new("books.home.owed")),
                 money(summary.owed_by_customers),

@@ -84,6 +84,20 @@ pub static MENU: &[NavNode] = &[
             )
             .require(names::INVOICES)
             .keywords(&["bill", "billing", "receivable", "sales", "customer"]),
+            // Beside the invoices rather than under the chart: the person who
+            // keys a bank statement is the person who raised the invoices it
+            // settles, and they are looking at the same customer either way.
+            NavNode::leaf(
+                "payments",
+                "nav.payments",
+                Icon::Receipt,
+                "/sales/payments",
+            )
+            .require(names::PAYMENTS)
+            .keywords(&[
+                "receipt", "cash", "remittance", "settle", "allocate", "paid",
+                "bank", "cheque", "check", "on account",
+            ]),
             NavNode::leaf(
                 "accounts",
                 "nav.accounts",

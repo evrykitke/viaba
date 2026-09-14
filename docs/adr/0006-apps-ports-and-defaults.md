@@ -86,10 +86,20 @@ two differences the sell side forces: the batch is *chosen* from what is held
 rather than typed, and the cost is not known until the move has decided it. See
 *The delivery, as built* under section 7.
 
-With it the sell-side chain runs end to end: quote, order, despatch, invoice.
-What is still missing behind it is the **receipt of money**, and the link that
-would let an invoice bill a *delivery* rather than free text - which is also
-what the goods-delivered-not-invoiced accrual is waiting for.
+And now **the payment**, which is the document this ledger had never had. An
+invoice created a receivable and nothing in the workspace could take it off
+again, so "what are we owed" was every invoice ever raised, the ageing ladder
+aged documents settled months ago, and the statement said so on its own face
+because there was nothing else it could honestly say. A payment lands in a bank
+or cash account, is allocated across invoices as a *relation* rather than as a
+`paid` column, and what is left over sits on the customer's account. See *Being
+paid, as built* under section 5.
+
+With it the sell side runs end to end: quote, order, despatch, invoice, receipt.
+What is still missing is the link that would let an invoice bill a *delivery*
+rather than free text - which is also what the goods-delivered-not-invoiced
+accrual is waiting for - and the mirror of all of it on the buying side, where
+`payments.direction` is already named and refused.
 
 `Stock` is still not declared, as section 2 says it should not be: Books does
 not yet put cost of goods sold on an invoice, and that is the caller the port
@@ -448,6 +458,53 @@ invoice is the easy half.
 6. **Currency is the six-column snapshot**, exactly as 0001 §3 specifies, on
    every journal line.
 
+### Being paid, as built
+
+The sentence under *Selling, as built* said the statement was an invoiced
+statement rather than a settled one, because nothing recorded a customer paying.
+Something does now.
+
+**Allocation is a relation.** One cheque settles four invoices; one invoice is
+settled by three instalments; a payment on account settles nothing yet. A
+`paid_amount` column on the invoice is the obvious shortcut and cannot express
+any of the three, and would stop reconciling the first time anything was
+corrected. So `payment_allocations` is a table, what is outstanding is a
+subtraction across two tables in one statement, and what is left over is the
+difference rather than a second number to keep in step.
+
+**Only a posted payment settles anything.** Every query that adds allocations up
+filters on `status = 'posted'`. That is what makes withdrawing one - a cheque
+that bounced - put the invoices back into arrears without touching a row of
+theirs: the payment keeps its number and its allocations, reverses its journal,
+and stops counting.
+
+**It posts through the same door.** `DR` the account named on the document, `CR`
+receivables, in one transaction with the number and the freeze, through
+`BooksLedger::assemble` - so the refusals are the same refusals an invoice gets
+and the account determination is the same determination. The debit names the new
+`Cash` role *and* the account chosen on the payment: the role is what a reader
+and a cash-flow report understand, the override is the workspace saying which of
+its four bank accounts this one landed in, and that is exactly what
+`Posting::account_id` has been for since Inventory needed it.
+
+**One refusal worth naming.** A payment may only settle an invoice raised in the
+same currency. Settling a dollar invoice with a euro cheque realises an exchange
+difference, which is a posting this ledger does not make - and storing the
+number without the posting is a loss nobody ever sees. It is a sentence on the
+screen rather than a silent conversion.
+
+The statement is now billed less received, with the two interleaved in date
+order and a running balance down the page; the ageing ladder ages what is *left*
+on each invoice rather than what it was raised for, so an invoice settled last
+week is on the statement and off the ladder; and money on account is a sixth
+figure beside the five buckets rather than spread across them, because spreading
+it would be guessing which invoice the customer meant.
+
+`payments.direction` carries `in` and `out` and only `in` is built. The column
+exists because a table called `payments` that can only be a receipt is a table
+named wrongly, and so that the day the purchase ledger wants the mirror it is a
+value rather than a second table with the same six columns.
+
 ### Selling, as built
 
 The sentence above — "Books currently has an invoice and no ledger" — had a
@@ -498,10 +555,14 @@ applies, from the same place — the ledger says which accounts carry a role and
 the rest are shown unselectable, because two hundred accounts any of which
 balances is how revenue ends up in petty cash.
 
-What is still not built on this side is the chain **in front of** the invoice —
-the quotation, the sales order and the delivery — and the **receipt** behind it.
-Until a customer paying is a document, the statement in §5's reports is an
-*invoiced* statement rather than a settled one, and it says so on screen.
+That was the state of it when this paragraph was first written: the chain in
+front of the invoice did not exist and neither did the receipt behind it, so the
+statement was an *invoiced* statement rather than a settled one. Both are built
+now — see *Being paid, as built* above and *The sales order* and *The delivery*
+under section 7. What the invoice still cannot do is bill a **delivery**: its
+lines are free text, so nothing connects what went out of the door to what was
+charged for it, and until something does, the goods-delivered-not-invoiced
+accrual has no caller.
 
 ---
 

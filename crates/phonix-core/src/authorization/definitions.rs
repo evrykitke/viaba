@@ -19,6 +19,8 @@
 //!  |   |   +- .Manage
 //!  |   +- Pages.Sales.Reports
 //!  |   +- Pages.Sales.Invoices
+//!  |   |   +- .Create  .Edit  .Post  .Void
+//!  |   +- Pages.Sales.Payments
 //!  |       +- .Create  .Edit  .Post  .Void
 //!  +- Pages.Inventory
 //!  |   +- Pages.Inventory.Items
@@ -100,6 +102,12 @@ pub mod names {
     pub const INVOICES_EDIT: &str = "Pages.Sales.Invoices.Edit";
     pub const INVOICES_POST: &str = "Pages.Sales.Invoices.Post";
     pub const INVOICES_VOID: &str = "Pages.Sales.Invoices.Void";
+
+    pub const PAYMENTS: &str = "Pages.Sales.Payments";
+    pub const PAYMENTS_CREATE: &str = "Pages.Sales.Payments.Create";
+    pub const PAYMENTS_EDIT: &str = "Pages.Sales.Payments.Edit";
+    pub const PAYMENTS_POST: &str = "Pages.Sales.Payments.Post";
+    pub const PAYMENTS_VOID: &str = "Pages.Sales.Payments.Void";
 
     pub const PEOPLE: &str = "Pages.People";
 
@@ -395,6 +403,45 @@ pub const DEFINITIONS: &[PermissionDefinition] = &[
         display_name: "Open and close",
         description: Some("Open a financial year, and close or reopen a period."),
         parent: Some(names::PERIODS),
+        default_for_user: false,
+    },
+    PermissionDefinition {
+        name: names::PAYMENTS,
+        display_name: "Payments received",
+        description: Some("View what customers have paid, and what it settled."),
+        parent: Some(names::SALES),
+        default_for_user: false,
+    },
+    PermissionDefinition {
+        name: names::PAYMENTS_CREATE,
+        display_name: "Create",
+        description: Some("Record a payment."),
+        parent: Some(names::PAYMENTS),
+        default_for_user: false,
+    },
+    PermissionDefinition {
+        name: names::PAYMENTS_EDIT,
+        display_name: "Edit",
+        description: Some("Change a payment that has not been posted."),
+        parent: Some(names::PAYMENTS),
+        default_for_user: false,
+    },
+    PermissionDefinition {
+        name: names::PAYMENTS_POST,
+        display_name: "Post",
+        // Its own permission, on the same terms as posting an invoice: this is
+        // where the money reaches the ledger and stops being somebody's note
+        // about a bank statement. Whoever keys the statement and whoever agrees
+        // it is right are routinely two people.
+        description: Some("Post a payment: the money reaches the ledger and the invoices it settles stop being owed."),
+        parent: Some(names::PAYMENTS),
+        default_for_user: false,
+    },
+    PermissionDefinition {
+        name: names::PAYMENTS_VOID,
+        display_name: "Withdraw",
+        description: Some("Withdraw a posted payment - a cheque that bounced. Its entry is reversed."),
+        parent: Some(names::PAYMENTS),
         default_for_user: false,
     },
     PermissionDefinition {

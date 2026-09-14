@@ -151,6 +151,11 @@ const fn suited(role: AccountRole) -> (&'static [AccountType], &'static [Account
         // it in accounts payable is not, because that account is reconciled
         // against supplier statements.
         AccountRole::TaxPayable => (&[T::TaxPayable], &[T::OtherCurrentLiability]),
+        // Both, equally: a workspace banking a cheque and one taking notes over
+        // a counter are doing the same thing to the same kind of account, and
+        // calling one of them "less usual" would be a preference rather than a
+        // rule.
+        AccountRole::Cash => (&[T::Bank, T::Cash], &[T::OtherCurrentAsset]),
     }
 }
 

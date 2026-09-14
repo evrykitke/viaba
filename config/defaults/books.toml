@@ -1312,6 +1312,14 @@ type = "contra_equity"
 # that has remapped a role keeps its choice, and a role added by a later release
 # reaches the workspaces that already have Books.
 
+# 1030 Bank current account, not 1000 Petty cash. Most money arrives by
+# transfer, and the role is only what a NEW payment opens on - the document
+# names the account it actually landed in, and that override is what the
+# journal posts to.
+[[role]]
+role = "cash"
+number = "1030"
+
 # The sales ledger's control account. Every posted invoice debits it and every
 # receipt credits it, which is what makes "what are we owed" a balance rather
 # than a query over documents.

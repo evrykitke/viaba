@@ -34,6 +34,7 @@
 
 use chrono::NaiveDate;
 use phonix_core::locale::Currency;
+use phonix_core::{Message, msg};
 use phonix_core::money::{Money, MoneyError};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -418,18 +419,53 @@ impl BalanceSheet {
 
 // --- Customer statement ---------------------------------------------------
 
+/// Which kind of document a statement line is.
+///
+/// Two, and they move the balance in opposite directions. Kept as a value
+/// rather than as the sign of the amount, because a screen prints them
+/// differently and "is this negative" is a question about arithmetic rather
+/// than about what happened.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum EntryKind {
+    Invoice,
+    Payment,
+}
+
+impl EntryKind {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Invoice => "invoice",
+            Self::Payment => "payment",
+        }
+    }
+
+    pub fn label(self) -> Message {
+        match self {
+            Self::Invoice => msg!("reports.entry.invoice"),
+            Self::Payment => msg!("reports.entry.payment"),
+        }
+    }
+}
+
 /// One document on a customer's statement.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct StatementLine {
-    pub invoice_id: Uuid,
+    pub id: Uuid,
+    pub kind: EntryKind,
     pub number: String,
-    pub issued_on: NaiveDate,
+    /// The day it happened: an invoice's issue date, a payment's receipt date.
+    pub dated_on: NaiveDate,
+    /// Only an invoice has one.
     pub due_on: Option<NaiveDate>,
     /// What the document says, in the currency it was raised in.
-    pub invoiced: Money,
-    /// What that was worth in the workspace's own currency on the day. Equal
-    /// to `invoiced` where the two currencies are the same.
+    pub document: Money,
+    /// What it did to the balance, in the workspace's own currency: positive
+    /// for an invoice, negative for a payment.
     pub amount: Money,
+    /// For an invoice, what is still owed on it after everything allocated
+    /// against it. Zero for a payment, which owes nothing.
+    pub outstanding: Money,
     /// The balance after this line.
     pub running: Money,
 }
@@ -440,20 +476,26 @@ impl StatementLine {
     pub const fn owed_from(&self) -> NaiveDate {
         match self.due_on {
             Some(due) => due,
-            None => self.issued_on,
+            None => self.dated_on,
         }
     }
 }
 
 /// How overdue the balance is, at the statement's own date.
 ///
-/// Five buckets, by how long past due each document is. The usual ladder, and
-/// the reason anybody prints a statement rather than a balance.
+/// Five buckets by how long past due each invoice is, over what is still owed
+/// on it rather than what it was raised for - an invoice settled last week does
+/// not belong in the ninety-day column.
 ///
-/// Every outstanding document is on it, including the ones that fall before
-/// the span and make up the opening balance - so the five add up to the
-/// closing balance. An ageing of only the current month would put nothing in
-/// the far column, which is the one column anybody reads it for.
+/// Every outstanding invoice is on it, including the ones that fall before the
+/// span and make up the opening balance. An ageing of only the current month
+/// would put nothing in the far column, which is the one column anybody reads
+/// it for.
+///
+/// [`Ageing::on_account`] is the sixth figure and is not a bucket: money
+/// received and not yet set against anything. The five buckets less that is the
+/// closing balance, which is the arithmetic every printed statement does at the
+/// bottom.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Ageing {
     pub not_yet_due: Money,
@@ -461,6 +503,8 @@ pub struct Ageing {
     pub to_60: Money,
     pub to_90: Money,
     pub over_90: Money,
+    /// Paid and unallocated. A credit, carried positive and subtracted.
+    pub on_account: Money,
 }
 
 impl Ageing {
@@ -468,11 +512,16 @@ impl Ageing {
         currency: Currency,
         as_at: NaiveDate,
         lines: &[StatementLine],
+        on_account: Money,
     ) -> Result<Self, MoneyError> {
         let zero = Money::zero(currency);
         let mut buckets = [zero; 5];
 
         for line in lines {
+            if line.kind != EntryKind::Invoice || line.outstanding.is_zero() {
+                continue;
+            }
+
             let days = (as_at - line.owed_from()).num_days();
             let index = match days {
                 ..=0 => 0,
@@ -483,7 +532,7 @@ impl Ageing {
             };
 
             if let Some(bucket) = buckets.get_mut(index) {
-                *bucket = bucket.checked_add(line.amount)?;
+                *bucket = bucket.checked_add(line.outstanding)?;
             }
         }
 
@@ -495,20 +544,27 @@ impl Ageing {
             to_60: at(2),
             to_90: at(3),
             over_90: at(4),
+            on_account,
         })
     }
 }
 
-/// What one customer was invoiced, and what of it is still outstanding.
+/// What one customer was invoiced, what they have paid, and what is left.
 ///
-/// # This is an invoiced statement, not a settled one
+/// # The balance is billed less received
 ///
-/// Nothing in this workspace records a customer paying: there is no cash book
-/// and no allocation, so every posted invoice counts as outstanding until one
-/// exists. The balance here is therefore what has been *billed* in the span,
-/// and the ageing is how long ago it was billed. Said plainly on the screen as
-/// well, because a statement that quietly meant something other than "this is
-/// what you owe" would be worse than no statement.
+/// Both halves are documents this workspace posted: an invoice puts money on
+/// the balance and a payment takes it off, and the running balance down the
+/// page is the two interleaved in date order. What is *outstanding* per invoice
+/// is what has been allocated against it, which is a relation rather than a
+/// column - see `app_books::payment`.
+///
+/// # Money on account is not netted into the ageing
+///
+/// A customer who pays a round sum against nothing in particular has a credit
+/// that belongs to no invoice, and spreading it across the buckets would be
+/// guessing which one they meant. It sits on its own line, and the closing
+/// balance is the buckets less it.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CustomerStatement {
     pub party_id: Uuid,
@@ -517,17 +573,22 @@ pub struct CustomerStatement {
     pub from: NaiveDate,
     pub to: NaiveDate,
     pub currency: Currency,
-    /// Billed before the span opened.
+    /// The balance before the span opened: billed less received.
     pub opening: Money,
     pub lines: Vec<StatementLine>,
+    /// Invoiced inside the span.
     pub billed: Money,
+    /// Received inside the span, carried positive.
+    pub received: Money,
     pub closing: Money,
     pub ageing: Ageing,
 }
 
 impl CustomerStatement {
-    /// Assemble from every posted invoice up to `to`, in date order. The ones
+    /// Assemble from every posted document up to `to`, in date order. The ones
     /// before `from` make the opening balance and do not print.
+    ///
+    /// `on_account` is what has been received and not allocated, as at `to`.
     pub fn assemble(
         party_id: Uuid,
         party_code: String,
@@ -535,17 +596,18 @@ impl CustomerStatement {
         from: NaiveDate,
         to: NaiveDate,
         currency: Currency,
-        invoices: Vec<StatementLine>,
+        entries: Vec<StatementLine>,
+        on_account: Money,
     ) -> Result<Self, MoneyError> {
         let mut opening = Money::zero(currency);
         let mut lines = Vec::new();
 
-        // Over everything outstanding, which is everything: what fell before
-        // the span is in the opening balance and is still owed.
-        let ageing = Ageing::assemble(currency, to, &invoices)?;
+        // Over everything, which is the point: what fell before the span is in
+        // the opening balance and is still owed.
+        let ageing = Ageing::assemble(currency, to, &entries, on_account)?;
 
-        for mut line in invoices {
-            if line.issued_on < from {
+        for mut line in entries {
+            if line.dated_on < from {
                 opening = opening.checked_add(line.amount)?;
                 continue;
             }
@@ -558,8 +620,22 @@ impl CustomerStatement {
             lines.push(line);
         }
 
-        let billed = Money::total(currency, lines.iter().map(|line| line.amount))?;
-        let closing = opening.checked_add(billed)?;
+        let of_kind = |kind: EntryKind| {
+            Money::total(
+                currency,
+                lines
+                    .iter()
+                    .filter(|line| line.kind == kind)
+                    .map(|line| line.amount),
+            )
+        };
+
+        let billed = of_kind(EntryKind::Invoice)?;
+        // Carried positive: the lines hold it negative because that is what it
+        // does to the balance, and a figure printed under "received" should
+        // read as an amount rather than as a deduction.
+        let received = of_kind(EntryKind::Payment)?.negate();
+        let closing = opening.checked_add(billed)?.checked_sub(received)?;
 
         Ok(Self {
             party_id,
@@ -570,6 +646,7 @@ impl CustomerStatement {
             currency,
             opening,
             billed,
+            received,
             closing,
             ageing,
             lines,
@@ -595,8 +672,9 @@ pub struct LedgerSummary {
     /// What is left of it after everything it cost.
     pub result: Money,
     pub total_assets: Money,
-    /// Posted invoices, the lot of them: nothing here records a customer
-    /// paying, so none of them has been settled. See [`CustomerStatement`].
+    /// Posted invoices less posted payments. The receivables control account
+    /// says the same thing from the other direction, and the two agreeing is
+    /// what a reconciliation checks.
     pub owed_by_customers: Money,
 }
 
@@ -701,32 +779,72 @@ mod tests {
 
     fn invoice(number: &str, issued: NaiveDate, due: NaiveDate, amount: &str) -> StatementLine {
         StatementLine {
-            invoice_id: Uuid::from_u128(u128::from(number.len() as u32)),
+            id: Uuid::from_u128(u128::from(number.len() as u32)),
+            kind: EntryKind::Invoice,
             number: number.to_owned(),
-            issued_on: issued,
+            dated_on: issued,
             due_on: Some(due),
-            invoiced: money(amount),
+            document: money(amount),
             amount: money(amount),
+            outstanding: money(amount),
             running: Money::zero(CURRENCY),
         }
     }
 
-    #[test]
-    fn what_was_billed_before_the_span_is_the_opening_balance() {
-        let statement = CustomerStatement::assemble(
+    /// A payment moves the balance the other way and owes nothing, so it is
+    /// never on the ladder.
+    fn payment(number: &str, received: NaiveDate, amount: &str) -> StatementLine {
+        StatementLine {
+            id: Uuid::from_u128(u128::from(number.len() as u32) + 100),
+            kind: EntryKind::Payment,
+            number: number.to_owned(),
+            dated_on: received,
+            due_on: None,
+            document: money(amount),
+            amount: money(amount).negate(),
+            outstanding: Money::zero(CURRENCY),
+            running: Money::zero(CURRENCY),
+        }
+    }
+
+    /// An invoice with nothing left on it.
+    fn settled_invoice(
+        number: &str,
+        issued: NaiveDate,
+        due: NaiveDate,
+        amount: &str,
+    ) -> StatementLine {
+        StatementLine {
+            outstanding: Money::zero(CURRENCY),
+            ..invoice(number, issued, due, amount)
+        }
+    }
+
+    fn statement(entries: Vec<StatementLine>, from: NaiveDate, to: NaiveDate) -> CustomerStatement {
+        CustomerStatement::assemble(
             Uuid::nil(),
             "C-1".to_owned(),
             "A customer".to_owned(),
-            day(3, 1),
-            day(3, 31),
+            from,
+            to,
             CURRENCY,
+            entries,
+            Money::zero(CURRENCY),
+        )
+        .unwrap()
+    }
+
+    #[test]
+    fn what_was_billed_before_the_span_is_the_opening_balance() {
+        let statement = statement(
             vec![
                 invoice("INV-1", day(1, 10), day(2, 9), "100"),
                 invoice("INV-2", day(3, 5), day(4, 4), "250"),
                 invoice("INV-3", day(3, 20), day(4, 19), "50"),
             ],
-        )
-        .unwrap();
+            day(3, 1),
+            day(3, 31),
+        );
 
         assert_eq!(statement.opening, money("100"));
         assert_eq!(statement.lines.len(), 2);
@@ -734,8 +852,14 @@ mod tests {
         assert_eq!(statement.closing, money("400"));
 
         // The running balance opens where the opening balance left off.
-        assert_eq!(statement.lines.first().map(|line| line.running), Some(money("350")));
-        assert_eq!(statement.lines.last().map(|line| line.running), Some(money("400")));
+        assert_eq!(
+            statement.lines.first().map(|line| line.running),
+            Some(money("350"))
+        );
+        assert_eq!(
+            statement.lines.last().map(|line| line.running),
+            Some(money("400"))
+        );
 
         // Neither of the two in the span is due yet on the 31st of March. The
         // one behind the opening balance fell due on the 9th of February, and
@@ -746,22 +870,96 @@ mod tests {
 
     #[test]
     fn ageing_counts_from_the_day_it_fell_due() {
-        let statement = CustomerStatement::assemble(
-            Uuid::nil(),
-            "C-1".to_owned(),
-            "A customer".to_owned(),
-            day(1, 1),
-            day(4, 30),
-            CURRENCY,
+        let statement = statement(
             vec![
                 // Due 20 days ago, and due 110 days ago.
                 invoice("INV-1", day(3, 11), day(4, 10), "100"),
                 invoice("INV-2", day(1, 1), day(1, 10), "200"),
             ],
-        )
-        .unwrap();
+            day(1, 1),
+            day(4, 30),
+        );
 
         assert_eq!(statement.ageing.to_30, money("100"));
         assert_eq!(statement.ageing.over_90, money("200"));
+    }
+
+    /// The whole point of the rewrite: a payment takes the balance down, and
+    /// the running column shows it going down.
+    #[test]
+    fn a_payment_reduces_the_balance() {
+        let statement = statement(
+            vec![
+                invoice("INV-1", day(3, 1), day(3, 31), "250"),
+                payment("RCT-1", day(3, 20), "100"),
+            ],
+            day(3, 1),
+            day(3, 31),
+        );
+
+        assert_eq!(statement.billed, money("250"));
+        assert_eq!(statement.received, money("100"));
+        assert_eq!(statement.closing, money("150"));
+        assert_eq!(
+            statement.lines.last().map(|line| line.running),
+            Some(money("150"))
+        );
+    }
+
+    /// An invoice that has been settled is not owed, so it is not on the
+    /// ladder - which is the difference between ageing what was billed and
+    /// ageing what is left.
+    #[test]
+    fn a_settled_invoice_drops_off_the_ageing() {
+        let statement = statement(
+            vec![
+                settled_invoice("INV-1", day(1, 1), day(1, 10), "200"),
+                payment("RCT-1", day(1, 15), "200"),
+                invoice("INV-2", day(3, 11), day(4, 10), "100"),
+            ],
+            day(1, 1),
+            day(4, 30),
+        );
+
+        assert_eq!(statement.ageing.over_90, Money::zero(CURRENCY));
+        assert_eq!(statement.ageing.to_30, money("100"));
+        assert_eq!(statement.closing, money("100"));
+    }
+
+    /// Money received against nothing in particular belongs to no bucket.
+    /// Spreading it across them would be guessing which invoice was meant.
+    #[test]
+    fn money_on_account_sits_beside_the_buckets_rather_than_in_them() {
+        let statement = CustomerStatement::assemble(
+            Uuid::nil(),
+            "C-1".to_owned(),
+            "A customer".to_owned(),
+            day(3, 1),
+            day(3, 31),
+            CURRENCY,
+            vec![
+                // Four hundred against a two-fifty invoice: the invoice is
+                // settled and the rest belongs to nothing yet.
+                settled_invoice("INV-1", day(3, 1), day(3, 31), "250"),
+                payment("RCT-1", day(3, 20), "400"),
+            ],
+            money("150"),
+        )
+        .unwrap();
+
+        assert_eq!(statement.ageing.not_yet_due, Money::zero(CURRENCY));
+        assert_eq!(statement.ageing.on_account, money("150"));
+
+        // The customer is in credit, and the five buckets less what is on
+        // account is exactly that.
+        assert_eq!(statement.closing, money("150").negate());
+
+        let owed = statement
+            .ageing
+            .not_yet_due
+            .checked_sub(statement.ageing.on_account)
+            .unwrap();
+
+        assert_eq!(owed, statement.closing);
     }
 }

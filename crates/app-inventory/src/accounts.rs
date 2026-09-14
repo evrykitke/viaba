@@ -95,6 +95,7 @@ impl AccountOverrides {
             AccountRole::AccountsPayable
             | AccountRole::AccountsReceivable
             | AccountRole::TaxPayable
+            | AccountRole::Cash
             | AccountRole::LandedCost
             | AccountRole::InventoryAdjustment
             | AccountRole::InventoryInTransit => None,
@@ -215,6 +216,7 @@ mod tests {
             AccountRole::AccountsPayable,
             AccountRole::AccountsReceivable,
             AccountRole::TaxPayable,
+            AccountRole::Cash,
             AccountRole::LandedCost,
             AccountRole::InventoryAdjustment,
             AccountRole::InventoryInTransit,

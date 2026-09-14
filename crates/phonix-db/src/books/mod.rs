@@ -25,5 +25,6 @@ pub mod account;
 pub mod account_role;
 pub mod invoice;
 pub mod journal;
+pub mod payment;
 pub mod period;
 pub mod report;

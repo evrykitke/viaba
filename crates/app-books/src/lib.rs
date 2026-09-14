@@ -13,6 +13,7 @@
 //! | [`invoice`] | What is on the document, and what state is it in? |
 //! | [`pricing`] | What does it come to? |
 //! | [`posting`] | Which accounts does it move, and which way? |
+//! | [`payment`] | What has been paid, and what did it settle? |
 //! | [`report`] | What do the four statements say? |
 //!
 //! # An invoice is a draft until it is posted
@@ -57,6 +58,7 @@
 pub mod account;
 pub mod invoice;
 pub mod journal;
+pub mod payment;
 pub mod period;
 pub mod posting;
 pub mod pricing;
@@ -69,6 +71,9 @@ pub const APP_ID: &str = "books";
 
 /// The document type this app numbers. One, so far.
 pub const SALES_INVOICE: &str = "sales_invoice";
+
+/// Money coming in. Numbered at post, from the same allocator.
+pub const PAYMENT: &str = "payment";
 
 /// The other. A journal takes a number at the moment it is posted, from the
 /// same allocator and in the same transaction as the write.

@@ -142,6 +142,8 @@ pub mod doc_types {
     pub const REVERSAL: &str = "reversal";
     /// Raised by posting a sales invoice.
     pub const SALES_INVOICE: &str = "sales_invoice";
+    /// Raised by posting a customer's payment.
+    pub const PAYMENT: &str = "payment";
 }
 
 /// A line as a caller offers it, before the journal has been assembled.

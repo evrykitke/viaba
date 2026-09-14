@@ -12,13 +12,14 @@
 //! the document's date and on a rate table it cannot see. [`tax_treatments`]
 //! hands them over once, and everything after that is local.
 
-use app_books::account::{Account, AccountInput, RoleMapping};
+use app_books::account::{Account, AccountInput, AccountSummary, RoleMapping};
 use app_books::journal::{JournalDraft, JournalSummary, Posted};
 use app_books::period::Period;
 use app_books::report::{
     BalanceSheet, CustomerStatement, IncomeStatement, LedgerSummary, TrialBalance,
 };
 use app_books::invoice::{Invoice, InvoiceInput, InvoiceStatus, InvoiceSummary, PostOutcome};
+use app_books::payment::{Payment, PaymentInput, PaymentSummary, Settleable};
 use chrono::NaiveDate;
 use leptos::prelude::*;
 use leptos::server_fn::codec::Json;
@@ -557,6 +558,151 @@ pub async fn delete_invoice(invoice_id: Uuid) -> Result<(), ServerFnError> {
     let (pool, caller) = pool_and_caller().await?;
 
     phonix_services::books::invoice::delete(&pool, &caller, invoice_id)
+        .await
+        .map_err(service_error)
+}
+
+// --- Payments -------------------------------------------------------------
+//
+// The other side of the invoice. Posting one is an accounting event on the
+// same terms - one transaction for the number, the freeze and the journal -
+// and it is what makes "what are we owed" a balance rather than the sum of
+// every invoice ever raised.
+
+#[server(name = ListPayments, prefix = "/api", endpoint = "books/payments")]
+pub async fn list_payments() -> Result<Vec<PaymentSummary>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::books::payment::list(&pool, &caller)
+        .await
+        .map_err(service_error)
+}
+
+#[server(name = PaymentDetail, prefix = "/api", endpoint = "books/payments/detail")]
+pub async fn payment_detail(payment_id: Uuid) -> Result<Payment, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::books::payment::find(&pool, &caller, payment_id)
+        .await
+        .map_err(service_error)
+}
+
+#[server(name = PaymentEdit, prefix = "/api", endpoint = "books/payments/edit")]
+pub async fn payment_edit(payment_id: Uuid) -> Result<PaymentInput, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::books::payment::edit(&pool, &caller, payment_id)
+        .await
+        .map_err(service_error)
+}
+
+/// A blank payment: today, the workspace's currency, and the account the `cash`
+/// role names. The account is a default, not a decision.
+#[server(name = BlankPayment, prefix = "/api", endpoint = "books/payments/blank")]
+pub async fn blank_payment() -> Result<PaymentInput, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::books::payment::blank(&pool, &caller)
+        .await
+        .map_err(service_error)
+}
+
+/// The invoices one customer still owes, for the allocation half of the screen.
+#[server(name = SettleableInvoices, prefix = "/api", endpoint = "books/payments/settleable")]
+pub async fn settleable_invoices(
+    party_id: Uuid,
+    currency: String,
+    editing: Option<Uuid>,
+) -> Result<Vec<Settleable>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+    let currency = phonix_core::locale::Currency::parse(&currency)
+        .map_err(|err| ServerFnError::new(err.to_string()))?;
+
+    phonix_services::books::payment::settleable(&pool, &caller, party_id, currency, editing)
+        .await
+        .map_err(service_error)
+}
+
+/// Every account money may land in: the bank and cash accounts of the chart.
+#[server(name = CashAccounts, prefix = "/api", endpoint = "books/payments/accounts")]
+pub async fn cash_accounts() -> Result<Vec<AccountSummary>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::books::payment::cash_accounts(&pool, &caller)
+        .await
+        .map_err(service_error)
+}
+
+#[server(name = SavePayment, prefix = "/api", endpoint = "books/payments/save", input = Json)]
+pub async fn save_payment(
+    draft: PaymentInput,
+) -> Result<Submission<PaymentInput>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::books::payment::save(&pool, &caller, draft)
+        .await
+        .map_err(service_error)
+}
+
+/// Number a draft and post it. The money reaches the ledger here.
+#[server(name = PostPayment, prefix = "/api", endpoint = "books/payments/post")]
+pub async fn post_payment(
+    payment_id: Uuid,
+) -> Result<app_books::payment::PostOutcome, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::books::payment::post(&pool, &caller, payment_id)
+        .await
+        .map_err(service_error)
+}
+
+/// Withdraw a posted payment - a cheque that bounced. It keeps its number.
+#[server(name = VoidPayment, prefix = "/api", endpoint = "books/payments/void")]
+pub async fn void_payment(payment_id: Uuid) -> Result<(), ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::books::payment::void(&pool, &caller, payment_id)
+        .await
+        .map_err(service_error)
+}
+
+#[server(name = DeletePayment, prefix = "/api", endpoint = "books/payments/delete")]
+pub async fn delete_payment(payment_id: Uuid) -> Result<(), ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::books::payment::delete(&pool, &caller, payment_id)
+        .await
+        .map_err(service_error)
+}
+
+/// The journal a posted payment raised: its id, and its number.
+#[server(name = PaymentJournal, prefix = "/api", endpoint = "books/payments/journal")]
+pub async fn payment_journal(payment_id: Uuid) -> Result<Option<(Uuid, String)>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::books::payment::journal_of(&pool, &caller, payment_id)
         .await
         .map_err(service_error)
 }
