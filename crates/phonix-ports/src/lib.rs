@@ -43,6 +43,6 @@ pub mod ledger;
 pub use cost_centre::{CostCentre, CostCentres};
 pub use error::PortError;
 pub use ledger::{
-    AccountRole, JournalRequest, Ledger, LedgerAccount, LedgerError, NoLedger, PostedRef, Posting,
-    Side,
+    AccountRole, Fit, JournalRequest, Ledger, LedgerAccount, LedgerError, NoLedger, PostedRef,
+    Posting, Side,
 };

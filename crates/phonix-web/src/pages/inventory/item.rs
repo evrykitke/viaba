@@ -15,7 +15,7 @@ use leptos_meta::Title;
 use phonix_core::audit::kinds;
 use phonix_core::i18n::Message;
 use phonix_core::permissions;
-use phonix_ports::ledger::{AccountRole, LedgerAccount};
+use phonix_ports::ledger::{AccountRole, Fit, LedgerAccount};
 use uuid::Uuid;
 
 use app_inventory::accounts::{AccountOverrides, AccountRef};
@@ -26,8 +26,8 @@ use crate::components::page::{Badge, Notice, PageHeader, Panel, Tone};
 use crate::icons::Icon;
 use crate::l;
 use crate::server_fns::inventory_fns::{
-    item_accounts, item_edit, postable_accounts, selectable_categories, selectable_units,
-    set_item_account,
+    item_accounts, item_edit, mapped_roles, postable_accounts, selectable_categories,
+    selectable_units, set_item_account,
 };
 use crate::ui::alert::{Alert, Alerts};
 use crate::ui::form::EntityForm;
@@ -184,6 +184,7 @@ fn accounts_panel(item_id: Uuid) -> impl IntoView {
     let alerts = Alerts::get();
     let mapping = RwSignal::new((AccountOverrides::default(), AccountOverrides::default()));
     let chart = Resource::new(|| (), |()| async move { postable_accounts().await });
+    let mapped = Resource::new(|| (), |()| async move { mapped_roles().await });
 
     let reload = Callback::new(move |()| {
         leptos::task::spawn_local(async move {
@@ -222,6 +223,10 @@ fn accounts_panel(item_id: Uuid) -> impl IntoView {
                         // is what it would have done anyway.
                         let chart = chart.await.unwrap_or_default();
                         let chart = StoredValue::new(chart);
+                        // Which roles the chart answers for on its own. A role
+                        // missing from this list is the receipt that posts
+                        // nothing and refuses at the worst moment.
+                        let mapped = StoredValue::new(mapped.await.unwrap_or_default());
 
                         view! {
                             <div class="space-y-3">
@@ -234,6 +239,7 @@ fn accounts_panel(item_id: Uuid) -> impl IntoView {
                                                 role=role
                                                 mapping=mapping
                                                 chart=chart
+                                                mapped=mapped
                                                 choose=choose
                                             />
                                         }
@@ -252,15 +258,43 @@ fn accounts_panel(item_id: Uuid) -> impl IntoView {
     }
 }
 
-/// One role: what it posts to now, and where that answer came from.
+/// One role: what it posts to now, where that answer came from, and what kind
+/// of account it needs.
+///
+/// # Most of the chart is greyed out, on purpose
+///
+/// Two hundred accounts in a list, any of which posts, is how revenue ends up
+/// in petty cash - and the ledger only discovers it much later, because a wrong
+/// account balances exactly as well as a right one. So the ledger says which
+/// accounts carry this role and the rest are shown and not selectable: still
+/// findable, so somebody looking for the account they expected can see it is
+/// there and see that it does not fit.
 #[component]
 fn account_row(
     role: AccountRole,
     mapping: RwSignal<(AccountOverrides, AccountOverrides)>,
     chart: StoredValue<Vec<LedgerAccount>>,
+    mapped: StoredValue<Vec<AccountRole>>,
     choose: Callback<(AccountRole, Option<AccountRef>)>,
 ) -> impl IntoView {
     let label = crate::i18n::t(&Message::new(format!("ledger.role.{}", role.as_str())));
+    let wants = crate::i18n::t(&Message::new(format!("ledger.role.{}.wants", role.as_str())));
+
+    // Nothing anywhere: no override here, none on the category, and no account
+    // in the chart for the role. Said now, on the screen that can fix it,
+    // rather than at post with the goods already on the floor.
+    //
+    // Silent where there is no chart to read, which is a workspace without
+    // Books: stock moves there and no journal is written at all, so a warning
+    // about an account would be a warning about nothing.
+    let nowhere = move || {
+        let (item, category) = mapping.get();
+
+        !chart.with_value(Vec::is_empty)
+            && item.for_role(role).is_none()
+            && category.for_role(role).is_none()
+            && !mapped.with_value(|roles| roles.contains(&role))
+    };
 
     // Where the answer comes from, in the order a posting resolves it.
     let source = move || {
@@ -284,11 +318,52 @@ fn account_row(
             .unwrap_or_default()
     };
 
+    // The three groups, in the order somebody reads them: what fits, what is
+    // defensible, and what the ledger will not take.
+    let group = move |title: String, fit: Option<Fit>| {
+        let accounts: Vec<LedgerAccount> = chart
+            .get_value()
+            .into_iter()
+            .filter(|account| account.fit_for(role) == fit)
+            .collect();
+
+        (!accounts.is_empty())
+            .then(|| {
+                let unsuited = fit.is_none();
+
+                view! {
+                    <optgroup label=title>
+                        {accounts
+                            .into_iter()
+                            .map(|account| {
+                                let id = account.id.to_string();
+                                let text = format!(
+                                    "{} \u{b7} {}",
+                                    account.number,
+                                    account.name,
+                                );
+
+                                view! {
+                                    <option value=id disabled=unsuited>
+                                        {text}
+                                    </option>
+                                }
+                            })
+                            .collect_view()}
+                    </optgroup>
+                }
+            })
+    };
+
     view! {
-        <div class="grid gap-1.5 border-b border-edge pb-3 last:border-0 last:pb-0 sm:grid-cols-[1fr_2fr] sm:items-center sm:gap-3">
+        <div class="grid gap-1.5 border-b border-edge pb-3 last:border-0 last:pb-0 sm:grid-cols-[1fr_2fr] sm:items-start sm:gap-3">
             <div class="min-w-0">
                 <p class="text-sm text-content">{label}</p>
+                <p class="text-xs text-content-subtle">{wants}</p>
                 <p class="text-xs text-content-subtle">{source}</p>
+                <Show when=nowhere fallback=|| ()>
+                    <p class="text-xs text-danger">{l!("items.accounts.unmapped")}</p>
+                </Show>
             </div>
 
             <select
@@ -310,16 +385,9 @@ fn account_row(
                 }
             >
                 <option value="">{l!("items.accounts.default")}</option>
-                {chart
-                    .get_value()
-                    .into_iter()
-                    .map(|account| {
-                        let id = account.id.to_string();
-                        let text = format!("{} \u{b7} {}", account.number, account.name);
-
-                        view! { <option value=id>{text}</option> }
-                    })
-                    .collect_view()}
+                {group(l!("items.accounts.suited"), Some(Fit::Best))}
+                {group(l!("items.accounts.possible"), Some(Fit::Allowed))}
+                {group(l!("items.accounts.not_suited"), None)}
             </select>
         </div>
     }

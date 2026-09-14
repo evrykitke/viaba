@@ -30,7 +30,7 @@ use phonix_db::inventory::account_mapping::{self, Owner};
 use phonix_db::inventory::{image as images, item as store, variant as variants};
 use phonix_db::numbering::SequenceKey;
 use phonix_db::sqlx::PgPool;
-use phonix_ports::ledger::AccountRole;
+use phonix_ports::ledger::{AccountRole, Ledger, LedgerError};
 use uuid::Uuid;
 
 use crate::audit::{self, Target, kinds};
@@ -526,14 +526,54 @@ pub async fn account_overrides(
     ))
 }
 
+/// Which of the six the chart itself answers for.
+///
+/// Advisory, as [`Ledger::is_mapped`] says it is - between this answer and the
+/// posting somebody may retire the account. It is what lets the accounting tab
+/// say "nothing is set up for this role" on the screen that can fix it, rather
+/// than leaving it to be discovered by a goods receipt with the lorry already
+/// unloaded.
+///
+/// A ledger that cannot answer counts as mapped. Not knowing is not evidence
+/// that a role has no account, and a warning shown wrongly teaches people to
+/// ignore the ones shown rightly.
+pub async fn mapped_roles(
+    caller: &Caller,
+    ledger: &dyn Ledger,
+) -> ServiceResult<Vec<AccountRole>> {
+    caller.require(permissions::ITEMS)?;
+
+    let mut mapped = Vec::new();
+
+    for role in AccountOverrides::OVERRIDABLE.iter().copied() {
+        if ledger.is_mapped(role).await.unwrap_or(true) {
+            mapped.push(role);
+        }
+    }
+
+    Ok(mapped)
+}
+
 /// Point one of this item's roles at an account, or stop overriding it.
 ///
 /// `chosen` absent clears the override, so the posting falls back to the
 /// category's and then to Books' own default - which is where almost every item
 /// should be.
+///
+/// # An account that does not suit the role is refused here
+///
+/// The screen offers the suited ones and greys out the rest, and that is where
+/// somebody finds out. This is the same question asked again of whatever
+/// actually arrived, because a picker is a courtesy and not a control: revenue
+/// pointed at the petty cash account posts, balances, and is discovered by an
+/// accountant months later.
+///
+/// Asked through the `Ledger` port, so the judgement is Books' own - see
+/// [`Ledger::account_fit`].
 pub async fn set_account(
     pool: &PgPool,
     caller: &Caller,
+    ledger: &dyn Ledger,
     owner: Owner,
     owner_id: Uuid,
     role: AccountRole,
@@ -554,6 +594,10 @@ pub async fn set_account(
         ));
     }
 
+    if let Some(chosen) = chosen.as_ref() {
+        check_suits(ledger, role, chosen).await?;
+    }
+
     match chosen {
         None => {
             account_mapping::clear(pool, owner, owner_id, role).await?;
@@ -564,6 +608,38 @@ pub async fn set_account(
     }
 
     Ok(())
+}
+
+/// Refuse an account the role may not post to.
+///
+/// The account label goes into the message rather than "that account": a person
+/// who has just picked one wants to read back the one they picked.
+async fn check_suits(
+    ledger: &dyn Ledger,
+    role: AccountRole,
+    chosen: &AccountRef,
+) -> ServiceResult<()> {
+    let named = || format!("{} \u{b7} {}", chosen.number, chosen.name);
+
+    match ledger.account_fit(chosen.account_id, role).await {
+        Ok(Some(_)) => Ok(()),
+        Ok(None) => Err(ServiceError::rejected(
+            "account_id",
+            msg!("items.error.account_not_suited", account = named()),
+        )),
+        Err(LedgerError::UnpostableAccount(_)) => Err(ServiceError::rejected(
+            "account_id",
+            msg!("items.error.account_unpostable", account = named()),
+        )),
+        // No ledger here at all: nothing to check against, and nothing to post
+        // either. The mapping is kept, because the workspace may switch Books
+        // on tomorrow and the choice was somebody's decision.
+        Err(LedgerError::NoLedger) => Ok(()),
+        Err(err) => Err(ServiceError::rejected(
+            "account_id",
+            msg!("moves.error.not_posted", detail = err.to_string()),
+        )),
+    }
 }
 
 // --- Shared ---------------------------------------------------------------

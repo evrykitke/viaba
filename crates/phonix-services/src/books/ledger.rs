@@ -19,13 +19,14 @@
 //! this workspace. An unmapped role is refused by name, because the fix is a
 //! setting somebody can change rather than anything the caller did wrong.
 
+use app_books::account::AccountType;
 use app_books::journal::{DimensionValue, Dimension, JournalEntry, JournalLineInput, Source};
 use phonix_core::locale::Currency;
 use phonix_core::money::{Money, Rounding};
 use phonix_db::books::account_role as roles;
 use phonix_db::sqlx::PgPool;
 use phonix_ports::ledger::{
-    AccountRole, JournalRequest, Ledger, LedgerAccount, LedgerError, PostedRef, Side,
+    AccountRole, Fit, JournalRequest, Ledger, LedgerAccount, LedgerError, PostedRef, Side,
 };
 
 use crate::caller::Caller;
@@ -182,9 +183,89 @@ impl Ledger for BooksLedger {
                 number: account.number,
                 name: account.name,
                 class: account.account_type.class().as_str().to_owned(),
+                fits: fits_of(account.account_type),
             })
             .collect())
     }
+
+    async fn account_fit(
+        &self,
+        account_id: uuid::Uuid,
+        role: AccountRole,
+    ) -> Result<Option<Fit>, LedgerError> {
+        let account = phonix_db::books::account::find(&self.pool, account_id)
+            .await
+            .map_err(|err| LedgerError::Unavailable(err.to_string()))?;
+
+        match account {
+            Some(account) if account.is_active => Ok(fit(role, account.account_type)),
+            _ => Err(LedgerError::UnpostableAccount(account_id)),
+        }
+    }
+}
+
+/// What kind of account each role posts to.
+///
+/// Here rather than in the app that asks, and that is the point of the port:
+/// whether stock belongs in this account is a question about Books' chart, and
+/// Inventory answering it would be Inventory reading the chart. The left list
+/// is the account type the role *is*; the right is what a workspace may use
+/// instead without anybody having to explain it the following March. Anything
+/// else is refused - a stock receipt credited to the petty cash account is not
+/// a preference.
+///
+/// Types, not numbers. A workspace numbering its revenue in the 7000s is
+/// unusual rather than wrong, and nothing here reads meaning out of a digit.
+const fn suited(role: AccountRole) -> (&'static [AccountType], &'static [AccountType]) {
+    use AccountType as T;
+
+    match role {
+        AccountRole::Inventory | AccountRole::InventoryInTransit => {
+            (&[T::Inventory], &[T::OtherCurrentAsset])
+        }
+        AccountRole::GoodsReceivedNotInvoiced => (
+            &[T::GoodsReceivedNotInvoiced],
+            &[T::AccruedLiability, T::OtherCurrentLiability],
+        ),
+        AccountRole::AccountsPayable => (&[T::AccountsPayable], &[T::OtherCurrentLiability]),
+        // Stock has gone and the customer has not been billed. The default
+        // chart calls that an accrued asset; a workspace that treats it as a
+        // deferral files it under liabilities, and both are in use.
+        AccountRole::GoodsDeliveredNotInvoiced => (
+            &[T::OtherCurrentAsset],
+            &[T::AccruedLiability, T::OtherCurrentLiability],
+        ),
+        AccountRole::CostOfSales => (&[T::CostOfSales], &[T::OperatingExpense]),
+        AccountRole::PurchasePriceVariance
+        | AccountRole::LandedCost
+        | AccountRole::InventoryAdjustment => {
+            (&[T::CostOfSales], &[T::OperatingExpense, T::OtherExpense])
+        }
+        AccountRole::Revenue => (&[T::Revenue], &[T::OtherIncome]),
+    }
+}
+
+/// How well one account type carries one role.
+fn fit(role: AccountRole, account_type: AccountType) -> Option<Fit> {
+    let (best, allowed) = suited(role);
+
+    if best.contains(&account_type) {
+        Some(Fit::Best)
+    } else if allowed.contains(&account_type) {
+        Some(Fit::Allowed)
+    } else {
+        None
+    }
+}
+
+/// Every role one account may carry, attached to the row itself so a picker
+/// with the whole chart in front of it groups what it already has rather than
+/// asking again for each role.
+fn fits_of(account_type: AccountType) -> Vec<(AccountRole, Fit)> {
+    AccountRole::ALL
+        .iter()
+        .filter_map(|&role| fit(role, account_type).map(|fit| (role, fit)))
+        .collect()
 }
 
 impl BooksLedger {

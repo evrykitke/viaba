@@ -552,8 +552,28 @@ pub async fn set_item_account(
     };
 
     let role = AccountRole::parse(&role).ok_or_else(|| ServerFnError::new("unknown role"))?;
+    let ledger = phonix_services::books::BooksLedger::new(pool.clone(), caller.clone());
 
-    phonix_services::inventory::item::set_account(&pool, &caller, owner, owner_id, role, chosen)
+    phonix_services::inventory::item::set_account(
+        &pool, &caller, &ledger, owner, owner_id, role, chosen,
+    )
+    .await
+    .map_err(service_error)
+}
+
+/// Which roles the chart itself answers for.
+///
+/// Advisory, and the reason the accounting tab can say "nothing is set up for
+/// this role" before somebody receives a lorry and finds out at post. A role
+/// missing here posts nowhere unless the item or its category names an account.
+#[server(name = MappedRoles, prefix = "/api", endpoint = "inventory/accounts/roles")]
+pub async fn mapped_roles() -> Result<Vec<phonix_ports::ledger::AccountRole>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+    let ledger = phonix_services::books::BooksLedger::new(pool, caller.clone());
+
+    phonix_services::inventory::item::mapped_roles(&caller, &ledger)
         .await
         .map_err(service_error)
 }

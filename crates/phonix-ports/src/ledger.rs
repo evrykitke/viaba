@@ -173,6 +173,21 @@ pub struct JournalRequest {
     pub postings: Vec<Posting>,
 }
 
+/// How well an account matches what a role posts.
+///
+/// Two strengths rather than a yes: "the account this role is for" and "one a
+/// workspace may defensibly use instead" are different answers, and a screen
+/// that offered them as one would recommend the second as loudly as the first.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Fit {
+    /// The kind of account the role names. What a chart is expected to use.
+    Best,
+    /// Not the usual one, and not wrong. A workspace keeping its goods-received
+    /// accrual in a general accruals account is doing something ordinary.
+    Allowed,
+}
+
 /// One account a caller may point a posting at.
 ///
 /// The whole of what crosses this boundary: an id, what it is called, and
@@ -188,6 +203,29 @@ pub struct LedgerAccount {
     /// than an enum because the five classes belong to Books' chart and naming
     /// them here would make this port know its implementation.
     pub class: String,
+
+    /// Which roles this account is fit to carry, and how well.
+    ///
+    /// Decided by the ledger, for the same reason the class arrives as a
+    /// string: whether stock belongs in this account is a question about Books'
+    /// own chart, and a caller answering it from the number or the name would
+    /// be guessing at somebody else's filing.
+    ///
+    /// A role absent is one this account must not be pointed at. Empty where
+    /// nobody judged, which is what an absent ledger answers.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub fits: Vec<(AccountRole, Fit)>,
+}
+
+impl LedgerAccount {
+    /// How well this account suits one role, or `None` for one it must not
+    /// carry.
+    pub fn fit_for(&self, role: AccountRole) -> Option<Fit> {
+        self.fits
+            .iter()
+            .find(|(against, _)| *against == role)
+            .map(|(_, fit)| *fit)
+    }
 }
 
 /// Where the ledger filed it.
@@ -273,6 +311,22 @@ pub trait Ledger: Send + Sync {
     /// Empty where there is no ledger, so a picker renders as "the default for
     /// this role" and the screen still works.
     async fn postable_accounts(&self) -> Result<Vec<LedgerAccount>, LedgerError>;
+
+    /// Whether one account may carry one role's postings.
+    ///
+    /// The same judgement [`Self::postable_accounts`] attaches to every row,
+    /// asked about a single account - so a screen can draw the list and a
+    /// service can refuse a choice that did not come from it, without the two
+    /// deciding separately and disagreeing.
+    ///
+    /// `None` is "not this role's kind of account". An id naming nothing, or a
+    /// retired account, is [`LedgerError::UnpostableAccount`] rather than
+    /// `None`: a different thing is wrong and somebody has to be told which.
+    async fn account_fit(
+        &self,
+        account_id: Uuid,
+        role: AccountRole,
+    ) -> Result<Option<Fit>, LedgerError>;
 }
 
 /// A port with nobody behind it: Books is not compiled in, or the workspace has
@@ -296,6 +350,14 @@ impl Ledger for NoLedger {
 
     async fn postable_accounts(&self) -> Result<Vec<LedgerAccount>, LedgerError> {
         Ok(Vec::new())
+    }
+
+    async fn account_fit(
+        &self,
+        _account_id: Uuid,
+        _role: AccountRole,
+    ) -> Result<Option<Fit>, LedgerError> {
+        Ok(None)
     }
 }
 
