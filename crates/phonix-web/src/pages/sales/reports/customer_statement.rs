@@ -11,15 +11,12 @@ use crate::icons::Icon;
 use crate::l;
 use crate::server_fns::books_fns::{customer_statement, statement_customers};
 
-use super::shared::{DateField, MONEY_CELL, MONEY_HEAD, MONEY_TOTAL, ReportNote, amount};
+use super::shared::{MONEY_CELL, MONEY_HEAD, MONEY_TOTAL, ReportNote, SpanPicker, amount};
 
 #[component]
 pub fn customer_statement_page() -> impl IntoView {
     let span = super::shared::opening_span();
     let customer = RwSignal::new(None::<Uuid>);
-
-    let from = Signal::derive(move || span.get().map(|(from, _)| from));
-    let to = Signal::derive(move || span.get().map(|(_, to)| to));
 
     let customers = Resource::new(
         || (),
@@ -81,28 +78,7 @@ pub fn customer_statement_page() -> impl IntoView {
                     })}
                 </Transition>
 
-                <DateField
-                    label=l!("reports.from")
-                    value=from
-                    on_pick=Callback::new(move |picked| {
-                        span.update(|span| {
-                            if let Some((from, _)) = span.as_mut() {
-                                *from = picked;
-                            }
-                        });
-                    })
-                />
-                <DateField
-                    label=l!("reports.to")
-                    value=to
-                    on_pick=Callback::new(move |picked| {
-                        span.update(|span| {
-                            if let Some((_, to)) = span.as_mut() {
-                                *to = picked;
-                            }
-                        });
-                    })
-                />
+                <SpanPicker span=span />
             </div>
         </PageHeader>
 

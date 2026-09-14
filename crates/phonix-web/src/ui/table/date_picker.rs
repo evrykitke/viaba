@@ -106,7 +106,12 @@ impl At {
     }
 }
 
-/// A span of time, as a button and a panel.
+/// The control a [`DateFilter`](super::DateFilter) is drawn as, bound to the
+/// grid holding the span.
+///
+/// Everything below the binding is [`DateSpanPicker`], which is where the
+/// panel actually lives. A grid is one caller; a financial report, which has a
+/// span and no grid under it, is another.
 #[component]
 pub fn date_range_picker(state: GridState, control: DateControl) -> impl IntoView {
     let DateControl {
@@ -116,6 +121,37 @@ pub fn date_range_picker(state: GridState, control: DateControl) -> impl IntoVie
         with_time,
     } = control;
 
+    let range = Signal::derive(move || state.range(key));
+
+    view! {
+        <DateSpanPicker
+            key=key
+            label=label
+            presets=presets
+            with_time=with_time
+            clearable=true
+            range=range
+            on_change=Callback::new(move |chosen: DateRange| state.set_range(key, chosen))
+        />
+    }
+}
+
+/// A span of time, as a button and a panel, over whatever is holding it.
+#[component]
+pub fn date_span_picker(
+    /// Tells this control's two fields apart from another's on the same page.
+    key: &'static str,
+    #[prop(into)] label: String,
+    presets: &'static [DatePreset],
+    /// Whether the viewer may pick a time of day as well as a date.
+    #[prop(optional)] with_time: bool,
+    /// Whether the span may be dropped altogether. A grid opens unnarrowed and
+    /// has to be able to go back to it; a report is always over something, and
+    /// offering to clear its dates would offer a state it cannot render.
+    #[prop(optional)] clearable: bool,
+    range: Signal<DateRange>,
+    on_change: Callback<DateRange>,
+) -> impl IntoView {
     let open = RwSignal::new(false);
     let at = RwSignal::new(At::default());
     // Read on the server too, and deliberately never observable there: the
@@ -129,58 +165,16 @@ pub fn date_range_picker(state: GridState, control: DateControl) -> impl IntoVie
     let trigger = NodeRef::<leptos::html::Button>::new();
     let panel = NodeRef::<leptos::html::Div>::new();
 
-    let range = Signal::derive(move || state.range(key));
     let narrowed = Signal::derive(move || !range.get().is_any());
 
-    // Everything that closes it, exactly as the row menu does it: a pointer
-    // down that is neither the button nor the panel, Escape, and anything that
-    // would move a fixed panel out from under its trigger.
-    Effect::new(move |_| {
-        if !open.get() {
-            return;
-        }
-
-        let outside = window_event_listener(leptos::ev::pointerdown, move |event| {
-            let Some(target) = event.target() else {
-                return;
-            };
-            let node = target.dyn_ref::<web_sys::Node>();
-
-            let within = panel
-                .get_untracked()
-                .is_some_and(|panel| panel.contains(node))
-                || trigger
-                    .get_untracked()
-                    .is_some_and(|trigger| trigger.contains(node));
-
-            if !within {
-                open.set(false);
-            }
-        });
-
-        let escape = window_event_listener(leptos::ev::keydown, move |event| {
-            if event.key() == "Escape" {
-                open.set(false);
-            }
-        });
-
-        let scrolled = window_event_listener(leptos::ev::wheel, move |_| open.set(false));
-        let resized = window_event_listener(leptos::ev::resize, move |_| open.set(false));
-
-        on_cleanup(move || {
-            outside.remove();
-            escape.remove();
-            scrolled.remove();
-            resized.remove();
-        });
-    });
+    dismiss(open, panel, trigger);
 
     // Committing anything closes the half-finished calendar pick with it: a
     // typed date or a pressed name replaces the span, and an anchor left over
     // from before would join the next click to a span that is no longer there.
     let commit = Callback::new(move |chosen: DateRange| {
         anchor.set(None);
-        state.set_range(key, chosen.normalised());
+        on_change.run(chosen.normalised());
     });
 
     let choose_day = Callback::new(move |day: NaiveDate| match anchor.get_untracked() {
@@ -318,15 +312,24 @@ pub fn date_range_picker(state: GridState, control: DateControl) -> impl IntoVie
 
                     <Ends key=key range=range with_time=with_time commit=commit />
 
-                    <div class="flex items-center justify-between gap-2 pt-2">
-                        <button
-                            type="button"
-                            class="text-xs font-medium text-brand hover:underline disabled:text-content-subtle disabled:no-underline"
-                            disabled=move || !narrowed.get()
-                            on:click=move |_| commit.run(DateRange::ANY)
-                        >
-                            {l!("date.any")}
-                        </button>
+                    <div class=if clearable {
+                        "flex items-center justify-between gap-2 pt-2"
+                    } else {
+                        "flex items-center justify-end gap-2 pt-2"
+                    }>
+                        {clearable
+                            .then(|| {
+                                view! {
+                                    <button
+                                        type="button"
+                                        class="text-xs font-medium text-brand hover:underline disabled:text-content-subtle disabled:no-underline"
+                                        disabled=move || !narrowed.get()
+                                        on:click=move |_| commit.run(DateRange::ANY)
+                                    >
+                                        {l!("date.any")}
+                                    </button>
+                                }
+                            })}
                         <button
                             type="button"
                             class="inline-flex h-7 items-center rounded-control border border-edge px-2.5 text-xs text-content-muted hover:bg-surface-hover hover:text-content"
@@ -506,7 +509,7 @@ fn days(from: NaiveDate, to: NaiveDate) -> DateRange {
 /// morning ends on that day. One subtraction covers both, and it is the reason
 /// the exclusive edge never has to be explained to anybody looking at the
 /// panel.
-fn last_day(range: DateRange) -> Option<NaiveDate> {
+pub fn last_day(range: DateRange) -> Option<NaiveDate> {
     range
         .to
         .and_then(|at| at.checked_sub_signed(TimeDelta::nanoseconds(1)))
@@ -643,6 +646,214 @@ fn place(trigger: NodeRef<leptos::html::Button>) -> At {
 #[cfg(not(feature = "hydrate"))]
 fn place(_trigger: NodeRef<leptos::html::Button>) -> At {
     At::default()
+}
+
+/// Everything that closes a panel, exactly as the row menu does it: a pointer
+/// down that is neither the button nor the panel, Escape, and anything that
+/// would move a fixed panel out from under its trigger.
+fn dismiss(
+    open: RwSignal<bool>,
+    panel: NodeRef<leptos::html::Div>,
+    trigger: NodeRef<leptos::html::Button>,
+) {
+    Effect::new(move |_| {
+        if !open.get() {
+            return;
+        }
+
+        let outside = window_event_listener(leptos::ev::pointerdown, move |event| {
+            let Some(target) = event.target() else {
+                return;
+            };
+            let node = target.dyn_ref::<web_sys::Node>();
+
+            let within = panel
+                .get_untracked()
+                .is_some_and(|panel| panel.contains(node))
+                || trigger
+                    .get_untracked()
+                    .is_some_and(|trigger| trigger.contains(node));
+
+            if !within {
+                open.set(false);
+            }
+        });
+
+        let escape = window_event_listener(leptos::ev::keydown, move |event| {
+            if event.key() == "Escape" {
+                open.set(false);
+            }
+        });
+
+        let scrolled = window_event_listener(leptos::ev::wheel, move |_| open.set(false));
+        let resized = window_event_listener(leptos::ev::resize, move |_| open.set(false));
+
+        on_cleanup(move || {
+            outside.remove();
+            escape.remove();
+            scrolled.remove();
+            resized.remove();
+        });
+    });
+}
+
+/// One day, as a button and a panel.
+///
+/// The span picker's sibling, for the questions asked *at* a date rather than
+/// *over* one - a balance sheet, a stock valuation. It shares the calendar and
+/// the popover rather than the whole control: a span panel bound to a single
+/// day would offer a second end that changes nothing, and a control with a
+/// dead half is worse than two controls.
+///
+/// The three named days are the ones a balance sheet is actually drawn at.
+/// Anything else is two clicks away on the calendar, and the field underneath
+/// reaches the ones that are years back.
+#[component]
+pub fn date_point_picker(
+    #[prop(into)] label: String,
+    /// `None` until whatever supplies the date has answered. The button says so
+    /// rather than showing a blank, and the panel opens on this month.
+    day: Signal<Option<NaiveDate>>,
+    on_pick: Callback<NaiveDate>,
+) -> impl IntoView {
+    let open = RwSignal::new(false);
+    let at = RwSignal::new(At::default());
+    let month = RwSignal::new(month_of(today()));
+
+    let trigger = NodeRef::<leptos::html::Button>::new();
+    let panel = NodeRef::<leptos::html::Div>::new();
+
+    dismiss(open, panel, trigger);
+
+    let choose = Callback::new(move |picked: NaiveDate| {
+        on_pick.run(picked);
+        open.set(false);
+    });
+
+    view! {
+        <div class="inline-flex">
+            <button
+                type="button"
+                node_ref=trigger
+                class="inline-flex h-10 max-w-[13rem] shrink-0 items-center gap-1.5 rounded-control border border-brand bg-brand-subtle px-2.5 text-sm text-content"
+                aria-haspopup="dialog"
+                aria-expanded=move || if open.get() { "true" } else { "false" }
+                aria-label=label.clone()
+                on:click=move |_| {
+                    if open.get_untracked() {
+                        open.set(false);
+                        return;
+                    }
+                    month.set(month_of(day.get_untracked().unwrap_or_else(today)));
+                    at.set(place(trigger));
+                    open.set(true);
+                }
+            >
+                <Icon icon=Icon::Calendar size=IconSize::Xs class="shrink-0" />
+                <span class="min-w-0 text-left">
+                    <span class="block truncate text-2xs leading-none text-content-subtle">
+                        {label.clone()}
+                    </span>
+                    <span class="truncate-fade block">
+                        {
+                            let words = Locale::get().shared();
+
+                            move || match day.get() {
+                                Some(day) => datetime::day_short(&words, day),
+                                None => t(&Message::new(ANY)),
+                            }
+                        }
+                    </span>
+                </span>
+            </button>
+
+            <Show when=move || open.get() fallback=|| ()>
+                <div
+                    node_ref=panel
+                    role="dialog"
+                    aria-label=label.clone()
+                    class="alert-enter z-[55] w-[min(20rem,calc(100vw-1rem))] rounded-card border border-edge bg-surface-raised p-2 shadow-pop sm:w-auto"
+                    style=move || at.get().style()
+                >
+                    <div class="flex flex-col gap-2 sm:flex-row sm:gap-3">
+                        <NamedDays month=month on_pick=choose />
+
+                        <MonthCalendar
+                            month=month
+                            start=day
+                            end=day
+                            today=today()
+                            on_pick=choose
+                        />
+                    </div>
+
+                    <div class="mt-2 border-t border-edge pt-2">
+                        <input
+                            type="date"
+                            class="h-7 w-full text-xs"
+                            aria-label=label.clone()
+                            prop:value=move || {
+                                day.get().map(|day| day.to_string()).unwrap_or_default()
+                            }
+                            on:change=move |event| {
+                                if let Ok(picked) = NaiveDate::parse_from_str(
+                                    &event_target_value(&event),
+                                    DATE_FORMAT,
+                                ) {
+                                    choose.run(picked);
+                                }
+                            }
+                        />
+                    </div>
+                </div>
+            </Show>
+        </div>
+    }
+}
+
+/// The named days, down the side of the point panel.
+#[component]
+fn named_days(month: RwSignal<NaiveDate>, on_pick: Callback<NaiveDate>) -> impl IntoView {
+    // Resolved when the button is pressed rather than when the panel is built,
+    // for the reason the spans are: a screen is left open across midnight.
+    let named: [(Message, fn(NaiveDate) -> Option<NaiveDate>); 3] = [
+        (msg!("date.point.today"), |today| Some(today)),
+        (msg!("date.point.last_month_end"), |today| {
+            today
+                .with_day(1)
+                .and_then(|first| first.checked_sub_days(Days::new(1)))
+        }),
+        (msg!("date.point.last_year_end"), |today| {
+            today
+                .with_month(1)
+                .and_then(|date| date.with_day(1))
+                .and_then(|first| first.checked_sub_days(Days::new(1)))
+        }),
+    ];
+
+    view! {
+        <div class="flex flex-wrap gap-1 sm:w-[7.5rem] sm:flex-col sm:flex-nowrap">
+            {named
+                .into_iter()
+                .map(|(label, resolve)| {
+                    view! {
+                        <button
+                            type="button"
+                            class="rounded-control px-2 py-1 text-start text-xs text-content-muted hover:bg-surface-hover hover:text-content"
+                            on:click=move |_| {
+                                if let Some(picked) = resolve(today()) {
+                                    month.set(month_of(picked));
+                                    on_pick.run(picked);
+                                }
+                            }
+                        >
+                            {t(&label)}
+                        </button>
+                    }
+                })
+                .collect::<Vec<_>>()}
+        </div>
+    }
 }
 
 #[cfg(test)]

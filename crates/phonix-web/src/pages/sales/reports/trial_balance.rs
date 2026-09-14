@@ -9,14 +9,11 @@ use crate::icons::Icon;
 use crate::l;
 use crate::server_fns::books_fns::trial_balance;
 
-use super::shared::{DateField, ReportNote, MONEY_CELL, MONEY_HEAD, MONEY_TOTAL, amount};
+use super::shared::{ReportNote, SpanPicker, MONEY_CELL, MONEY_HEAD, MONEY_TOTAL, amount};
 
 #[component]
 pub fn trial_balance_page() -> impl IntoView {
     let span = super::shared::opening_span();
-
-    let from = Signal::derive(move || span.get().map(|(from, _)| from));
-    let to = Signal::derive(move || span.get().map(|(_, to)| to));
 
     let report = Resource::new(
         move || span.get(),
@@ -37,30 +34,7 @@ pub fn trial_balance_page() -> impl IntoView {
             icon=Icon::Table
             back=("/sales", l!("nav.sales"))
         >
-            <div class="flex flex-wrap items-center gap-3">
-                <DateField
-                    label=l!("reports.from")
-                    value=from
-                    on_pick=Callback::new(move |picked| {
-                        span.update(|span| {
-                            if let Some((from, _)) = span.as_mut() {
-                                *from = picked;
-                            }
-                        });
-                    })
-                />
-                <DateField
-                    label=l!("reports.to")
-                    value=to
-                    on_pick=Callback::new(move |picked| {
-                        span.update(|span| {
-                            if let Some((_, to)) = span.as_mut() {
-                                *to = picked;
-                            }
-                        });
-                    })
-                />
-            </div>
+            <SpanPicker span=span />
         </PageHeader>
 
         <Transition fallback=|| {

@@ -10,7 +10,7 @@ use crate::icons::Icon;
 use crate::l;
 use crate::server_fns::books_fns::balance_sheet;
 
-use super::shared::{DateField, MONEY_CELL, MONEY_TOTAL, ReportNote, amount};
+use super::shared::{AsAtPicker, MONEY_CELL, MONEY_TOTAL, ReportNote, amount};
 
 #[component]
 pub fn balance_sheet_page() -> impl IntoView {
@@ -39,17 +39,7 @@ pub fn balance_sheet_page() -> impl IntoView {
             icon=Icon::ClipboardList
             back=("/sales", l!("nav.sales"))
         >
-            <DateField
-                label=l!("reports.as_at")
-                value=as_at
-                on_pick=Callback::new(move |picked| {
-                    span.update(|span| {
-                        if let Some((_, to)) = span.as_mut() {
-                            *to = picked;
-                        }
-                    });
-                })
-            />
+            <AsAtPicker span=span />
         </PageHeader>
 
         <Transition fallback=|| {
