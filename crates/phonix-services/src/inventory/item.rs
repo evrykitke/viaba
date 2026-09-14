@@ -25,6 +25,7 @@ use app_inventory::variant::{self, Selection, VariantSummary};
 use phonix_core::form::Submission;
 use phonix_core::msg;
 use phonix_core::permissions;
+use phonix_core::query::{Page, PageRequest};
 use phonix_db::error::DbError;
 use phonix_db::inventory::account_mapping::{self, Owner};
 use phonix_db::inventory::{image as images, item as store, variant as variants};
@@ -38,12 +39,16 @@ use crate::caller::{Caller, acting_user};
 use crate::error::{ServiceError, ServiceResult};
 
 /// Every item, with the picture each one shows.
-pub async fn list(pool: &PgPool, caller: &Caller) -> ServiceResult<Vec<ItemSummary>> {
+pub async fn list(
+    pool: &PgPool,
+    caller: &Caller,
+    request: PageRequest,
+) -> ServiceResult<Page<ItemSummary>> {
     caller.require(permissions::ITEMS)?;
 
     // The column holds a number; the workspace holds what it is denominated in.
     let currency = crate::workspace::profile::current(pool).await?.currency;
-    Ok(store::list(pool, currency).await?)
+    Ok(store::page(pool, currency, &request).await?)
 }
 
 /// The one picture each of a set of items shows, for a grid or a till page.

@@ -17,11 +17,13 @@
 use app_inventory::item::{Checked, Item, ItemKind, ItemSummary, Tracking};
 use phonix_core::identity::UserId;
 use phonix_core::locale::Currency;
+use phonix_core::query::{Page, PageRequest};
 use phonix_core::money::Money;
-use sqlx::{PgConnection, PgExecutor, Row};
+use sqlx::{AssertSqlSafe, PgConnection, PgExecutor, Row};
 use uuid::Uuid;
 
 use crate::error::DbError;
+use crate::listing::{self, Sortable};
 
 const CODE_INDEX: &str = "items_code";
 const BARCODE_INDEX: &str = "items_barcode";
@@ -90,16 +92,86 @@ fn read_item(row: &sqlx::postgres::PgRow, currency: Currency) -> Result<Item, sq
     })
 }
 
-/// Every item, with the names a grid draws without a join per row.
+/// Request item-kind filter key.
+pub const KIND: &str = "kind";
+
+/// Request tracking filter key.
+pub const TRACKING: &str = "tracking";
+
+/// Request active-state filter key.
+pub const STATUS: &str = "status";
+
+/// Fields allowed in `ORDER BY`.
+const SORTABLE: &[Sortable] = &[
+    ("code", "i.code"),
+    ("name", "i.name"),
+    ("barcode", "i.barcode"),
+    ("category", "c.name"),
+    ("tracking", "i.tracking"),
+    ("unit", "u.code"),
+    ("cost", "i.cost"),
+    ("is_active", "i.is_active"),
+];
+
+const FROM: &str = "FROM inventory.items i
+           JOIN inventory.categories c ON c.id = i.category_id
+           JOIN inventory.units u ON u.id = i.stock_unit_id";
+
+/// Optional filters, bound as parameters.
 ///
-/// `on_hand` is what is at every *internal* location: what somebody could walk
-/// up to and pick. `None` for an item nobody counts, which is different from
-/// zero and says so.
-pub async fn list<'e, E>(executor: E, currency: Currency) -> Result<Vec<ItemSummary>, DbError>
-where
-    E: PgExecutor<'e>,
-{
-    let rows = sqlx::query(
+/// Tracking filters mapped to stock and serial values.
+const WHERE: &str = "WHERE ($1::text IS NULL
+                 OR i.code ILIKE $1
+                 OR i.name ILIKE $1
+                 OR i.barcode ILIKE $1
+                 OR c.name ILIKE $1)
+            AND ($2::text IS NULL OR i.kind = $2)
+            AND ($3::bool IS NULL OR i.is_tracked = $3)
+            AND ($4::text IS NULL OR i.tracking = $4)
+            AND ($5::bool IS NULL OR i.is_active = $5)";
+
+/// Returns a filtered, sorted page of items.
+pub async fn page(
+    pool: &sqlx::PgPool,
+    currency: Currency,
+    request: &PageRequest,
+) -> Result<Page<ItemSummary>, DbError> {
+    let request = request.sanitised();
+    let needle = request.needle().map(|needle| crate::search::contains(&needle));
+    let kind = request.filter(KIND).and_then(ItemKind::parse);
+
+    let (tracked, tracking) = match request.filter(TRACKING) {
+        Some("tracked") => (Some(true), None),
+        Some("untracked") => (Some(false), None),
+        Some(other) => (None, Tracking::parse(other)),
+        None => (None, None),
+    };
+
+    let active = match request.filter(STATUS) {
+        Some("active") => Some(true),
+        Some("inactive") => Some(false),
+        _ => None,
+    };
+
+    let counting = AssertSqlSafe(format!("SELECT count(*) {FROM} {WHERE}"));
+
+    let total: i64 = sqlx::query_scalar(counting)
+        .bind(needle.as_deref())
+        .bind(kind.map(ItemKind::as_str))
+        .bind(tracked)
+        .bind(tracking.map(Tracking::as_str))
+        .bind(active)
+        .fetch_one(pool)
+        .await
+        .map_err(DbError::Query)?;
+
+    let total = u64::try_from(total).unwrap_or(0);
+    let request = request.clamped_to(total);
+
+    // Catalog order.
+    let order = listing::order_by(request.sort.as_ref(), SORTABLE, "i.code");
+
+    let selecting = AssertSqlSafe(format!(
         "SELECT i.id, i.code, i.name, i.barcode, i.kind, i.is_tracked, i.tracking,
                 i.cost::text AS cost, i.is_active,
                 c.name AS category_name,
@@ -111,16 +183,26 @@ where
                       JOIN inventory.locations l ON l.id = q.location_id
                      WHERE v.item_id = i.id AND l.kind = 'internal'
                 ), 0)::text AS on_hand
-           FROM inventory.items i
-           JOIN inventory.categories c ON c.id = i.category_id
-           JOIN inventory.units u ON u.id = i.stock_unit_id
-          ORDER BY i.code",
-    )
-    .fetch_all(executor)
-    .await
-    .map_err(DbError::Query)?;
+           {FROM}
+           {WHERE}
+          ORDER BY {order}, i.code
+          LIMIT $6 OFFSET $7"
+    ));
 
-    rows.iter()
+    let rows = sqlx::query(selecting)
+        .bind(needle.as_deref())
+        .bind(kind.map(ItemKind::as_str))
+        .bind(tracked)
+        .bind(tracking.map(Tracking::as_str))
+        .bind(active)
+        .bind(request.limit() as i64)
+        .bind(request.offset() as i64)
+        .fetch_all(pool)
+        .await
+        .map_err(DbError::Query)?;
+
+    let summaries = rows
+        .iter()
         .map(|row| {
             let kind: String = row.try_get("kind").map_err(DbError::Query)?;
             let tracking: String = row.try_get("tracking").map_err(DbError::Query)?;
@@ -151,8 +233,11 @@ where
                     .transpose()?,
             })
         })
-        .collect()
+        .collect::<Result<Vec<_>, DbError>>()?;
+
+    Ok(Page::new(summaries, total, &request))
 }
+
 
 /// One item, with everything a detail screen shows above its tabs.
 pub async fn find<'e, E>(

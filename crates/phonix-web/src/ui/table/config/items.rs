@@ -20,7 +20,7 @@ use crate::ui::table::{Align, Cell, Column, Filter, FilterChoice, RowAction, Sou
 
 /// What this workspace stocks, buys and sells.
 pub fn items_grid() -> GridConfig<ItemSummary> {
-    GridConfig::new("items", Source::in_memory(list_items))
+    GridConfig::new("items", Source::paged(list_items))
         .searching(l!("items.search"))
         .exports_as("items")
         .min_width("sm:min-w-[52rem]")
@@ -98,8 +98,7 @@ pub fn items_grid() -> GridConfig<ItemSummary> {
                     FilterChoice::new("goods", l!("items.kind.goods")),
                     FilterChoice::new("service", l!("items.kind.service")),
                 ],
-            )
-            .matching(|row: &ItemSummary, wanted| row.kind.as_str() == wanted),
+            ),
         )
         .filter(
             Filter::new(
@@ -112,12 +111,7 @@ pub fn items_grid() -> GridConfig<ItemSummary> {
                     FilterChoice::new("lot", l!("items.tracking.lot")),
                     FilterChoice::new("serial", l!("items.tracking.serial")),
                 ],
-            )
-            .matching(|row: &ItemSummary, wanted| match wanted {
-                "tracked" => row.is_tracked,
-                "untracked" => !row.is_tracked,
-                other => row.tracking.as_str() == other,
-            }),
+            ),
         )
         .filter(
             Filter::new(
@@ -128,12 +122,7 @@ pub fn items_grid() -> GridConfig<ItemSummary> {
                     FilterChoice::new("active", l!("common.active")),
                     FilterChoice::new("inactive", l!("common.inactive")),
                 ],
-            )
-            .matching(|row: &ItemSummary, wanted| match wanted {
-                "active" => row.is_active,
-                "inactive" => !row.is_active,
-                _ => true,
-            }),
+            ),
         )
         .toolbar(
             ToolbarAction::link(l!("items.new"), Icon::Plus, "/inventory/items/new")
@@ -221,5 +210,89 @@ fn status_cell(row: &ItemSummary) -> impl IntoView {
         >
             <Badge tone=Tone::Success label=l!("common.active") />
         </Show>
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use leptos::prelude::Owner;
+
+    use super::*;
+
+    fn grid() -> GridConfig<ItemSummary> {
+        Owner::new().with(items_grid)
+    }
+
+    /// Literals rather than imports: `phonix-web` does not depend on
+    /// `phonix-db`, and the point is that the two were written to agree. The
+    /// source is `phonix_db::inventory::item::SORTABLE`.
+    const SERVER_SORTS: &[&str] = &[
+        "code",
+        "name",
+        "barcode",
+        "category",
+        "tracking",
+        "unit",
+        "cost",
+        "is_active",
+    ];
+
+    /// The columns the `WHERE` looks inside. Same reasoning.
+    const SERVER_SEARCHES: &[&str] = &["code", "name", "barcode", "category"];
+
+    #[test]
+    fn every_sortable_column_is_one_the_server_can_order_by() {
+        for column in grid().columns.iter().filter(|column| column.sortable) {
+            assert!(
+                SERVER_SORTS.contains(&column.field()),
+                "{} offers a sort the reader will ignore",
+                column.field(),
+            );
+        }
+    }
+
+    #[test]
+    fn every_searchable_column_is_one_the_server_looks_inside() {
+        for column in grid().columns.iter().filter(|column| column.searchable) {
+            assert!(
+                SERVER_SEARCHES.contains(&column.field()),
+                "{} is offered to the search box and never searched",
+                column.field(),
+            );
+        }
+    }
+
+    #[test]
+    fn every_filter_leaves_the_answering_to_the_server() {
+        for filter in &grid().filters {
+            assert!(
+                !filter.is_local(),
+                "{} is answered in the wrong place",
+                filter.key()
+            );
+            assert_eq!(filter.default_value(), "");
+        }
+    }
+
+    #[test]
+    fn the_tracking_filter_offers_both_questions_it_asks() {
+        // Two of the five ask whether anything is tracked at all; three name
+        // the depth. `phonix_db::inventory::item::page` splits them the same
+        // way, over two columns.
+        let grid = grid();
+        let tracking = grid.filters.iter().find(|f| f.key() == "tracking").unwrap();
+
+        let offered: Vec<&str> = tracking
+            .choices
+            .iter()
+            .map(|choice| choice.value)
+            .filter(|value| !value.is_empty())
+            .collect();
+
+        assert_eq!(offered, ["tracked", "untracked", "lot", "serial"]);
+
+        for depth in ["lot", "serial"] {
+            assert!(Tracking::parse(depth).is_some(), "{depth}");
+        }
     }
 }

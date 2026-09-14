@@ -294,13 +294,13 @@ pub async fn delete_item_category(
 
 // --- Items ---------------------------------------------------------------
 
-#[server(name = ListItems, prefix = "/api", endpoint = "inventory/items")]
-pub async fn list_items() -> Result<Vec<ItemSummary>, ServerFnError> {
+#[server(name = ListItems, prefix = "/api", endpoint = "inventory/items", input = Json)]
+pub async fn list_items(request: PageRequest) -> Result<Page<ItemSummary>, ServerFnError> {
     use crate::state::{pool_and_caller, service_error};
 
     let (pool, caller) = pool_and_caller().await?;
 
-    phonix_services::inventory::item::list(&pool, &caller)
+    phonix_services::inventory::item::list(&pool, &caller, request)
         .await
         .map_err(service_error)
 }
@@ -516,15 +516,18 @@ pub async fn item_accounts(
 #[server(name = PostableAccounts, prefix = "/api", endpoint = "inventory/accounts")]
 pub async fn postable_accounts()
 -> Result<Vec<phonix_ports::ledger::LedgerAccount>, ServerFnError> {
+    use phonix_core::permissions;
     use phonix_ports::Ledger;
 
     use crate::state::{pool_and_caller, service_error};
 
     let (pool, caller) = pool_and_caller().await?;
 
-    phonix_services::inventory::item::list(&pool, &caller)
-        .await
-        .map_err(service_error)?;
+    // Whoever may see items may see the accounts they can be pointed at. This
+    // used to be spelled as a call to `item::list` whose result was dropped -
+    // which is to say it read the whole catalogue to answer a question about
+    // one permission.
+    caller.require(permissions::ITEMS).map_err(service_error)?;
 
     phonix_services::books::BooksLedger::new(pool, caller)
         .postable_accounts()
@@ -2052,17 +2055,24 @@ pub async fn delete_transfer(transfer_id: Uuid) -> Result<bool, ServerFnError> {
 
 /// Items, and how many of them are counted. The gap between the two is the
 /// interesting one.
+///
+/// Two pages of one row each, read for the totals beside them. What this did
+/// before was fetch the whole catalogue to count it.
 #[server(name = InventoryCounts, prefix = "/api", endpoint = "inventory/counts")]
 pub async fn inventory_counts() -> Result<(i64, i64), ServerFnError> {
     use crate::state::{pool_and_caller, service_error};
 
     let (pool, caller) = pool_and_caller().await?;
 
-    let items = phonix_services::inventory::item::list(&pool, &caller)
-        .await
-        .map_err(service_error)?;
+    let counted = async |request: PageRequest| {
+        phonix_services::inventory::item::list(&pool, &caller, request)
+            .await
+            .map(|page| page.total as i64)
+            .map_err(service_error)
+    };
 
-    let tracked = items.iter().filter(|item| item.is_tracked).count() as i64;
+    let all = counted(PageRequest::first(1)).await?;
+    let tracked = counted(PageRequest::first(1).filtered_by("tracking", "tracked")).await?;
 
-    Ok((items.len() as i64, tracked))
+    Ok((all, tracked))
 }
