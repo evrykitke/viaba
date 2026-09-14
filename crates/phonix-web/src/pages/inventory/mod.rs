@@ -53,6 +53,7 @@ pub mod adjust;
 pub mod adjustment_types;
 pub mod bill;
 pub mod consolidation;
+pub mod delivery;
 pub mod home;
 pub mod item;
 pub mod item_categories;

@@ -39,6 +39,7 @@ pub mod api_keys;
 pub mod audit;
 pub mod changes;
 pub mod currencies;
+pub mod deliveries;
 pub mod departments;
 pub mod employees;
 pub mod invoices;

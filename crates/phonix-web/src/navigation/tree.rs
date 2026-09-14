@@ -303,7 +303,18 @@ pub static MENU: &[NavNode] = &[
                     .require(names::SALES_ORDERS)
                     .keywords(&[
                         "so", "quotation", "quote", "selling", "customer", "order",
-                        "proposal", "despatch", "backorder",
+                        "proposal", "backorder",
+                    ]),
+                    NavNode::leaf(
+                        "deliveries",
+                        "nav.deliveries",
+                        Icon::Truck,
+                        "/inventory/deliveries",
+                    )
+                    .require(names::DELIVERIES)
+                    .keywords(&[
+                        "goods out", "despatch", "dispatch", "shipping", "shipment",
+                        "picking", "consignment", "carrier", "outgoing",
                     ]),
                 ],
             ),

@@ -13,6 +13,7 @@ use crate::icons::Icon;
 use crate::l;
 use crate::ui::table::DataGrid;
 use crate::ui::table::config::consolidations::consolidations_grid;
+use crate::ui::table::config::deliveries::deliveries_grid;
 use crate::ui::table::config::purchase_orders::purchase_orders_grid;
 use crate::ui::table::config::requisitions::requisitions_grid;
 use crate::ui::table::config::sales_orders::sales_orders_grid;
@@ -46,6 +47,22 @@ pub fn sales_orders_page() -> impl IntoView {
         />
 
         <DataGrid config=sales_orders_grid() />
+    }
+}
+
+/// The mirror of the receipts screen: what has gone out.
+#[component]
+pub fn deliveries_page() -> impl IntoView {
+    view! {
+        <Title text=format!("{} | Phonix", l!("deliveries.title")) />
+
+        <PageHeader
+            title=l!("deliveries.title")
+            subtitle=l!("deliveries.subtitle")
+            icon=Icon::Truck
+        />
+
+        <DataGrid config=deliveries_grid() />
     }
 }
 

@@ -25,6 +25,7 @@ pub mod adjustment;
 pub mod category;
 pub mod consolidation;
 pub mod defaults;
+pub mod delivery;
 pub mod image;
 pub mod bill;
 pub mod item;

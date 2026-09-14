@@ -52,8 +52,8 @@ use crate::l;
 use crate::pages::inventory::item_lookup::ItemLookup;
 use crate::server_fns::inventory_fns::{
     blank_sales_order, cancel_sales_order, close_sales_order, confirm_sales_order,
-    delete_sales_order, sales_order_detail, save_sales_order, selectable_units,
-    selectable_warehouses, send_sales_order,
+    delete_sales_order, order_outstanding, sales_order_detail, save_sales_order,
+    selectable_units, selectable_warehouses, send_sales_order,
 };
 use crate::server_fns::master_fns::list_parties;
 use crate::ui::alert::{Alert, Alerts, Confirm};
@@ -942,6 +942,7 @@ fn line_row(
 #[component]
 fn sale_document(order: SalesOrder, reload: Callback<()>) -> impl IntoView {
     let alerts = Alerts::get();
+    let navigate = leptos_router::hooks::use_navigate();
     let viewer = crate::ui::viewer::Viewer::get();
 
     let may_cancel = Signal::derive(move || {
@@ -956,9 +957,16 @@ fn sale_document(order: SalesOrder, reload: Callback<()>) -> impl IntoView {
                 .is_some_and(|user| user.can(permissions::SALES_ORDERS_CONFIRM))
         })
     });
+    let may_ship = Signal::derive(move || {
+        viewer.with(|user| {
+            user.as_ref()
+                .is_some_and(|user| user.can(permissions::DELIVERIES_CREATE))
+        })
+    });
 
     let id = order.id;
     let is_open = order.state == SaleState::Confirmed;
+    let can_be_delivered = order.can_be_delivered();
     let delivery_state = order.delivery_state();
     let invoice_state = order.invoice_state();
 
@@ -972,6 +980,18 @@ fn sale_document(order: SalesOrder, reload: Callback<()>) -> impl IntoView {
     let code = order.currency.clone();
     let net = order.net.to_display_string();
     let lines = order.lines.clone();
+
+    let ship = {
+        let navigate = navigate.clone();
+        move || {
+            // The delivery screen opens against this order and prefills what is
+            // still owed; the lines do not need carrying across.
+            navigate(
+                &format!("/inventory/deliveries/new?order={id}"),
+                leptos_router::NavigateOptions::default(),
+            );
+        }
+    };
 
     let cancel = move || {
         alerts.ask(
@@ -1193,11 +1213,78 @@ fn sale_document(order: SalesOrder, reload: Callback<()>) -> impl IntoView {
                         on_click=Callback::new(move |()| close())
                     />
                 </Show>
+
+                <Show when=move || can_be_delivered && may_ship.get() fallback=|| ()>
+                    <PrimaryButton
+                        label=l!("sales_orders.ship")
+                        icon=Icon::Truck
+                        on_click=Callback::new({
+                            let ship = ship.clone();
+                            move |()| ship()
+                        })
+                    />
+                </Show>
             </div>
+
+            <OutstandingPanel order_id=id />
 
             <Section title=l!("common.history")>
                 <RecordHistory kind=kinds::SALES_ORDER id=Some(id.to_string()) />
             </Section>
         </Panel>
+    }
+}
+
+/// What this order still owes, and what has already gone.
+///
+/// Only drawn where something is outstanding. An order everything has left on
+/// is complete, and a panel saying "nothing" on every finished order is
+/// furniture - the same rule the purchase order's allocation panel follows.
+#[component]
+fn outstanding_panel(order_id: Uuid) -> impl IntoView {
+    let outstanding = Resource::new(
+        move || order_id,
+        |order_id| async move { order_outstanding(order_id).await.ok().flatten() },
+    );
+
+    view! {
+        <Transition fallback=|| ()>
+            {move || Suspend::new(async move {
+                let Some(outstanding) = outstanding.await else {
+                    return ().into_any();
+                };
+
+                view! {
+                    <Section title=l!("deliveries.outstanding")>
+                        <table class="w-full text-sm">
+                            <tbody>
+                                {outstanding
+                                    .lines
+                                    .into_iter()
+                                    .map(|line| {
+                                        let quantity = line.outstanding.to_display_string();
+
+                                        view! {
+                                            <tr class="border-b border-edge/60">
+                                                <td class="py-1.5 text-content">
+                                                    {line.description}
+                                                    <div class="text-2xs text-content-subtle">
+                                                        {line.variant_code}
+                                                    </div>
+                                                </td>
+                                                <td class="py-1.5 pl-3 text-right tabular-nums text-content">
+                                                    {quantity}
+                                                </td>
+                                            </tr>
+                                        }
+                                    })
+                                    .collect_view()}
+                            </tbody>
+                        </table>
+                    </Section>
+                }
+                    .into_any()
+            })}
+        </Transition>
     }
 }

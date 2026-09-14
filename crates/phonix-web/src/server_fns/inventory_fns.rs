@@ -27,6 +27,7 @@ use app_inventory::location::{Location, LocationInput, LocationSummary};
 use app_inventory::lot::{LotRules, LotSummary};
 use app_inventory::movement::{MoveFilter, MoveSummary, StockMove};
 use app_inventory::purchase::{OrderInput, OrderSummary, PurchaseOrder};
+use app_inventory::delivery::{Delivery, DeliveryInput, DeliverySummary, Outstanding};
 use app_inventory::sales_order::{SaleInput, SaleSummary, SalesOrder};
 use app_inventory::quant::{OnHandFilter, OnHandRow};
 use app_inventory::receipt::{Backorder, Receipt, ReceiptInput, ReceiptSummary};
@@ -1262,6 +1263,130 @@ pub async fn delete_sales_order(order_id: Uuid) -> Result<bool, ServerFnError> {
     let (pool, caller) = pool_and_caller().await?;
 
     phonix_services::inventory::sales_order::delete(&pool, &caller, order_id)
+        .await
+        .map_err(service_error)
+}
+
+// --- Deliveries -----------------------------------------------------------
+//
+// The mirror of the receipts block. `post_delivery` is the only thing here
+// that moves anything: it builds the ledger the same way every posting screen
+// does, because a despatch credits stock and debits cost of sales.
+
+#[server(name = ListDeliveries, prefix = "/api", endpoint = "inventory/deliveries")]
+pub async fn list_deliveries() -> Result<Vec<DeliverySummary>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::delivery::list(&pool, &caller)
+        .await
+        .map_err(service_error)
+}
+
+#[server(name = DeliveryDetail, prefix = "/api", endpoint = "inventory/deliveries/detail")]
+pub async fn delivery_detail(delivery_id: Uuid) -> Result<Delivery, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::delivery::detail(&pool, &caller, delivery_id)
+        .await
+        .map_err(service_error)
+}
+
+#[server(name = DeliveryEdit, prefix = "/api", endpoint = "inventory/deliveries/edit")]
+pub async fn delivery_edit(delivery_id: Uuid) -> Result<DeliveryInput, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::delivery::edit(&pool, &caller, delivery_id)
+        .await
+        .map_err(service_error)
+}
+
+#[server(name = BlankDelivery, prefix = "/api", endpoint = "inventory/deliveries/blank")]
+pub async fn blank_delivery() -> Result<DeliveryInput, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::delivery::blank(&pool, &caller)
+        .await
+        .map_err(service_error)
+}
+
+/// A delivery prefilled with everything an order still owes.
+#[server(name = DeliveryAgainstOrder, prefix = "/api", endpoint = "inventory/deliveries/against")]
+pub async fn delivery_against_order(
+    order_id: Uuid,
+) -> Result<Submission<DeliveryInput>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::delivery::against_order(&pool, &caller, order_id)
+        .await
+        .map_err(service_error)
+}
+
+/// What an order still owes after everything shipped against it.
+#[server(name = OrderOutstanding, prefix = "/api", endpoint = "inventory/sales-orders/outstanding")]
+pub async fn order_outstanding(order_id: Uuid) -> Result<Option<Outstanding>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::delivery::outstanding(&pool, &caller, order_id)
+        .await
+        .map_err(service_error)
+}
+
+#[server(name = SaveDelivery, prefix = "/api", endpoint = "inventory/deliveries/save", input = Json)]
+pub async fn save_delivery(
+    draft: DeliveryInput,
+) -> Result<Submission<DeliveryInput>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::delivery::save(&pool, &caller, draft)
+        .await
+        .map_err(service_error)
+}
+
+/// Despatch it: the stock leaves and the cost of it is posted.
+#[server(name = PostDelivery, prefix = "/api", endpoint = "inventory/deliveries/post")]
+pub async fn post_delivery(delivery_id: Uuid) -> Result<Submission<Delivery>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+    let ledger = phonix_services::books::BooksLedger::new(pool.clone(), caller.clone());
+
+    phonix_services::inventory::delivery::post(&pool, &caller, &ledger, delivery_id)
+        .await
+        .map_err(service_error)
+}
+
+#[server(name = CancelDelivery, prefix = "/api", endpoint = "inventory/deliveries/cancel")]
+pub async fn cancel_delivery(delivery_id: Uuid) -> Result<Submission<()>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::delivery::cancel(&pool, &caller, delivery_id)
+        .await
+        .map_err(service_error)
+}
+
+#[server(name = DeleteDelivery, prefix = "/api", endpoint = "inventory/deliveries/delete")]
+pub async fn delete_delivery(delivery_id: Uuid) -> Result<bool, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::delivery::delete(&pool, &caller, delivery_id)
         .await
         .map_err(service_error)
 }

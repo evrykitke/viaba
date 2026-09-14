@@ -24,6 +24,7 @@ pub mod adjustment;
 pub mod bill;
 pub mod category;
 pub mod consolidation;
+pub mod delivery;
 pub mod item;
 pub mod landed_cost;
 pub mod location;

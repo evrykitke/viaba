@@ -451,6 +451,20 @@ pub mod kinds {
     /// liability before the supplier's invoice has been seen. Who posted it,
     /// and when, is a fact about a person rather than about a shelf - which is
     /// why it is here as well as in the stock moves it created.
+    /// A delivery.
+    ///
+    /// The mirror of a receipt: the document that takes stock off the balance
+    /// sheet and puts its cost in the profit and loss. Who despatched it, and
+    /// when, is a fact about a person rather than about a shelf - which is why
+    /// it is here as well as in the stock moves it created.
+    pub const DELIVERY: EntityKind = EntityKind {
+        name: "delivery",
+        singular_key: "entity.delivery.singular",
+        plural_key: "entity.delivery.plural",
+        href: Some("/inventory/deliveries/{id}"),
+        singleton: false,
+    };
+
     /// A supplier bill. Recorded because posting one creates a payable, and a
     /// match that was overridden is a decision somebody made.
     pub const BILL: EntityKind = EntityKind {

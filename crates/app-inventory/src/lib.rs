@@ -66,6 +66,7 @@ pub mod bill;
 pub mod consolidation;
 pub mod category;
 pub mod defaults;
+pub mod delivery;
 pub mod image;
 pub mod item;
 pub mod landed_cost;

@@ -341,3 +341,39 @@ where
 
     Ok(input.unwrap_or(warehouse.stock_location_id))
 }
+
+/// Where goods leave from when they are despatched.
+///
+/// The mirror of [`receiving_location`]: the `Output` location for a two- or
+/// three-step warehouse and the stock location for a one-step one. The pick
+/// that puts goods into `Output` - through `Packing Zone` where there is one -
+/// is an internal transfer, which is a separate document for the reason Odoo
+/// makes it one: what has been picked and what has actually gone are different
+/// questions.
+///
+/// Falls back to the stock location where `Output` is missing, on the same
+/// terms and for the same reason.
+pub async fn despatch_location<'e, E>(
+    executor: E,
+    warehouse: &Warehouse,
+) -> Result<Uuid, DbError>
+where
+    E: PgExecutor<'e>,
+{
+    if warehouse.delivery_steps == DeliverySteps::One {
+        return Ok(warehouse.stock_location_id);
+    }
+
+    let output: Option<Uuid> = sqlx::query_scalar(
+        "SELECT id FROM inventory.locations
+          WHERE warehouse_id = $1 AND kind = 'internal' AND name = 'Output' AND is_active
+          ORDER BY path
+          LIMIT 1",
+    )
+    .bind(warehouse.id)
+    .fetch_optional(executor)
+    .await
+    .map_err(DbError::Query)?;
+
+    Ok(output.unwrap_or(warehouse.stock_location_id))
+}

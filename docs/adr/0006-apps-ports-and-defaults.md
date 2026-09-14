@@ -77,9 +77,19 @@ arithmetic rather than an investigation. It lives in Inventory, beside the
 buying chain, because a despatch is a warehouse act and the documents are about
 items and a warehouse. See *The sales order, as built* under section 7.
 
-What is still missing on that side is the **delivery** - the document that
-relieves the stock and posts the cost of it - and the **receipt** of money
-behind the invoice.
+And now **the delivery**, which is where a sales order stops being a promise:
+stock leaves, the balance sheet loses it, and the cost of it lands in the
+profit and loss the day the van goes. It is the receipt in a mirror - one
+document over N stock moves, each its own transaction, each written back
+against its line immediately so despatching twice moves each line once - with
+two differences the sell side forces: the batch is *chosen* from what is held
+rather than typed, and the cost is not known until the move has decided it. See
+*The delivery, as built* under section 7.
+
+With it the sell-side chain runs end to end: quote, order, despatch, invoice.
+What is still missing behind it is the **receipt of money**, and the link that
+would let an invoice bill a *delivery* rather than free text - which is also
+what the goods-delivered-not-invoiced accrual is waiting for.
 
 `Stock` is still not declared, as section 2 says it should not be: Books does
 not yet put cost of goods sold on an invoice, and that is the caller the port
@@ -904,6 +914,46 @@ What it does *not* do yet is deliver, and the delivery is where the ledger gets
 involved: `MoveKind::Delivery` and both the roles it needs -
 `goods_delivered_not_invoiced` since 0005, `cost_of_sales` since 0004 - have
 been waiting for a document to raise them.
+
+### The delivery, as built
+
+The last document on the sell side, and the first one on it with an accounting
+consequence. `MoveKind::Delivery` and the `Customer` location kind have existed
+since the stock ledger; what did not exist was anything that raised one. A
+despatch was a stock move somebody keyed by hand, with no row to hang the
+carrier's reference on and nothing to reconcile an order against.
+
+It is `receipt.rs` reflected, including the part that matters most: **each line
+is its own `stock::apply`, and each is its own transaction.** `apply` posts a
+journal through a port, and holding one transaction open across every line's
+port call would make the ledger's implementation a participant in Inventory's
+locking. The price is that a line failing halfway leaves the ones before it
+posted; what makes that recoverable rather than a double count is that each
+move is written back against its line *immediately*, and a line already
+carrying a `move_id` is skipped on the next attempt.
+
+Three things differ from the receipt, and all three are about direction.
+
+**The batch is chosen, not typed.** A receipt types a lot number because the
+number is the supplier's and is new to this workspace. A delivery can only send
+stock it already holds, so the field is the batches on hand with the quantity on
+each beside them - which is how somebody actually decides which one goes.
+
+**The cost is not known until the move is made.** A receipt knows what its
+lines cost before it posts; the supplier said so. Under average or FIFO the cost
+of units *leaving* is decided by the layers, and only the move knows which it
+consumed. So the line stores no cost, the move decides it, and the id and the
+cost are written back in one statement - a posted line claiming the goods were
+free is the shape that would otherwise exist for a moment.
+
+**It posts cost of sales, not the accrual.** `AccountRole` has carried
+`goods_delivered_not_invoiced` since books 0005, and it is the right answer: a
+despatch on the thirtieth and its invoice on the second belong in the same
+month, and posting cost of sales at despatch puts them in different ones. Using
+it needs the invoice to know which delivery it bills, and that link does not
+exist - Books' invoice is still free text. So the cost lands the day the goods
+leave, which is the ordinary answer and wrong only across a month end, and the
+service says so where somebody will read it.
 
 ### Asking, as built
 

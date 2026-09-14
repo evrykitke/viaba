@@ -40,6 +40,8 @@
 //!  |   |   +- .Create  .Edit  .Confirm  .Cancel
 //!  |   +- Pages.Inventory.Receipts
 //!  |   |   +- .Create  .Post
+//!  |   +- Pages.Inventory.Deliveries
+//!  |   |   +- .Create  .Post
 //!  |   +- Pages.Inventory.Bills
 //!  |   |   +- .Create  .Edit  .Post  .Override
 //!  |   +- Pages.Inventory.Units
@@ -161,6 +163,10 @@ pub mod names {
     pub const RECEIPTS: &str = "Pages.Inventory.Receipts";
     pub const RECEIPTS_CREATE: &str = "Pages.Inventory.Receipts.Create";
     pub const RECEIPTS_POST: &str = "Pages.Inventory.Receipts.Post";
+
+    pub const DELIVERIES: &str = "Pages.Inventory.Deliveries";
+    pub const DELIVERIES_CREATE: &str = "Pages.Inventory.Deliveries.Create";
+    pub const DELIVERIES_POST: &str = "Pages.Inventory.Deliveries.Post";
 
     pub const BILLS: &str = "Pages.Inventory.Bills";
     pub const BILLS_CREATE: &str = "Pages.Inventory.Bills.Create";
@@ -805,6 +811,31 @@ pub const DEFINITIONS: &[PermissionDefinition] = &[
             "Post a receipt: move the stock, value it, and record what is owed for it.",
         ),
         parent: Some(names::RECEIPTS),
+        default_for_user: false,
+    },
+    PermissionDefinition {
+        name: names::DELIVERIES,
+        display_name: "Deliveries",
+        description: Some("View what has gone out, and to whom."),
+        parent: Some(names::INVENTORY),
+        default_for_user: false,
+    },
+    PermissionDefinition {
+        name: names::DELIVERIES_CREATE,
+        display_name: "Create",
+        description: Some("Write a delivery, or change one that has not gone."),
+        parent: Some(names::DELIVERIES),
+        default_for_user: false,
+    },
+    PermissionDefinition {
+        name: names::DELIVERIES_POST,
+        display_name: "Despatch",
+        // Its own permission for the reason posting a receipt has one: this is
+        // the act that moves stock and posts the cost of it, and it is not
+        // undoable. Whoever picks the order and whoever signs it out of the
+        // building are routinely two people.
+        description: Some("Despatch a delivery: the stock leaves and its cost is posted."),
+        parent: Some(names::DELIVERIES),
         default_for_user: false,
     },
     PermissionDefinition {
