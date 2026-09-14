@@ -41,6 +41,7 @@ use phonix_core::locale::Currency;
 use phonix_core::money::{Money, Rounding};
 use phonix_core::msg;
 use phonix_core::permissions;
+use phonix_core::query::{Page, PageRequest};
 use phonix_db::error::DbError;
 use phonix_db::inventory::sales_order as store;
 use phonix_db::inventory::variant as variants;
@@ -52,9 +53,13 @@ use crate::audit::{self, Target, kinds};
 use crate::caller::{Caller, acting_user};
 use crate::error::{ServiceError, ServiceResult};
 
-pub async fn list(pool: &PgPool, caller: &Caller) -> ServiceResult<Vec<SaleSummary>> {
+pub async fn list(
+    pool: &PgPool,
+    caller: &Caller,
+    request: PageRequest,
+) -> ServiceResult<Page<SaleSummary>> {
     caller.require(permissions::SALES_ORDERS)?;
-    Ok(store::list(pool).await?)
+    Ok(store::page(pool, &request).await?)
 }
 
 /// The variants matching what somebody has typed in a line's item box.

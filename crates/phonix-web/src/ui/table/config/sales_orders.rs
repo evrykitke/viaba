@@ -9,6 +9,16 @@
 //! nothing shipped is a despatch waiting to happen; one fully shipped and
 //! nothing billed is an invoice waiting to be raised, and it is the second that
 //! quietly costs money.
+//!
+//! # Paged
+//!
+//! Nothing deletes from this list - a quotation nobody accepted is still what
+//! was quoted - so it grows for as long as the workspace trades. It is a
+//! [`Source::paged`], and what follows is what [`audit`](super::audit) sets
+//! out: only columns the reader can order by are sortable, only columns it
+//! searches are searchable, and the three filters and the span carry a key
+//! rather than a closure. The lists live in
+//! `phonix_db::inventory::sales_order` and are checked against this file below.
 
 use app_inventory::sales_order::{Progress, SaleState, SaleSummary};
 use leptos::prelude::*;
@@ -20,10 +30,12 @@ use crate::components::page::{Badge, Tone};
 use crate::icons::Icon;
 use crate::l;
 use crate::server_fns::inventory_fns::list_sales_orders;
-use crate::ui::table::{Align, Cell, Column, Filter, FilterChoice, RowAction, Source, ToolbarAction};
+use crate::ui::table::{
+    Align, Cell, Column, DateFilter, Filter, FilterChoice, RowAction, Source, ToolbarAction,
+};
 
 pub fn sales_orders_grid() -> GridConfig<SaleSummary> {
-    GridConfig::new("sales-orders", Source::in_memory(list_sales_orders))
+    GridConfig::new("sales-orders", Source::paged(list_sales_orders))
         .searching(l!("sales_orders.search"))
         .exports_as("sales-orders")
         .sorted_by(Sort::descending("order_date"))
@@ -148,31 +160,28 @@ pub fn sales_orders_grid() -> GridConfig<SaleSummary> {
             .align(Align::End)
             .class("tabular-nums text-content-muted"),
         )
-        .filter(
-            Filter::new(
-                "state",
-                l!("field.status"),
-                vec![
-                    FilterChoice::all(l!("common.all")),
-                    FilterChoice::new("open", l!("sales_orders.state.confirmed")),
-                    FilterChoice::new("quoted", l!("sales_orders.state.sent")),
-                    FilterChoice::new("draft", l!("sales_orders.state.draft")),
-                    FilterChoice::new("done", l!("sales_orders.state.done")),
-                    FilterChoice::new("cancelled", l!("sales_orders.state.cancelled")),
-                ],
-            )
-            .matching(|row: &SaleSummary, wanted| match wanted {
-                "open" => matches!(row.state, SaleState::Confirmed),
-                "quoted" => matches!(row.state, SaleState::Sent),
-                "draft" => matches!(row.state, SaleState::Draft),
-                "done" => matches!(row.state, SaleState::Done),
-                "cancelled" => matches!(row.state, SaleState::Cancelled),
-                _ => true,
-            }),
-        )
+        // The values are groups rather than states, and the grouping is
+        // `SaleState::group` - so the reader turns each back into the states it
+        // covers rather than the list being written out twice. A quotation is
+        // its own group here and a purchase order's is not, because "what have
+        // we quoted that nobody has said yes to" is a list somebody chases.
+        .filter(Filter::new(
+            "state",
+            l!("field.status"),
+            vec![
+                FilterChoice::all(l!("common.all")),
+                FilterChoice::new("open", l!("sales_orders.state.confirmed")),
+                FilterChoice::new("quoted", l!("sales_orders.state.sent")),
+                FilterChoice::new("draft", l!("sales_orders.state.draft")),
+                FilterChoice::new("done", l!("sales_orders.state.done")),
+                FilterChoice::new("cancelled", l!("sales_orders.state.cancelled")),
+            ],
+        ))
         .filter(
             // The despatch list, as a filter. "Confirmed and not fully shipped"
-            // is the question a warehouse asks every morning.
+            // is the question a warehouse asks every morning, and it is now one
+            // the database answers rather than one the browser answers over
+            // whatever it happened to have fetched.
             Filter::new(
                 "delivered",
                 l!("sales_orders.delivered"),
@@ -181,12 +190,7 @@ pub fn sales_orders_grid() -> GridConfig<SaleSummary> {
                     FilterChoice::new("outstanding", l!("sales_orders.delivered.partly")),
                     FilterChoice::new("complete", l!("sales_orders.delivered.everything")),
                 ],
-            )
-            .matching(|row: &SaleSummary, wanted| match wanted {
-                "outstanding" => matches!(row.delivery_state, Progress::Nothing | Progress::Partly),
-                "complete" => matches!(row.delivery_state, Progress::Everything | Progress::Over),
-                _ => true,
-            }),
+            ),
         )
         .filter(
             // And the one the sales ledger asks: what has gone out and has not
@@ -199,13 +203,9 @@ pub fn sales_orders_grid() -> GridConfig<SaleSummary> {
                     FilterChoice::new("outstanding", l!("sales_orders.invoiced.partly")),
                     FilterChoice::new("complete", l!("sales_orders.invoiced.everything")),
                 ],
-            )
-            .matching(|row: &SaleSummary, wanted| match wanted {
-                "outstanding" => matches!(row.invoice_state, Progress::Nothing | Progress::Partly),
-                "complete" => matches!(row.invoice_state, Progress::Everything | Progress::Over),
-                _ => true,
-            }),
+            ),
         )
+        .date_filter(DateFilter::new("ordered", l!("sales_orders.ordered")))
         .toolbar(
             ToolbarAction::link(
                 l!("sales_orders.new"),
@@ -283,5 +283,130 @@ const fn progress_tone(progress: Progress) -> Tone {
         Progress::Partly => Tone::Brand,
         Progress::Everything => Tone::Success,
         Progress::Over => Tone::Warning,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use leptos::prelude::Owner;
+
+    use super::*;
+
+    fn grid() -> GridConfig<SaleSummary> {
+        Owner::new().with(sales_orders_grid)
+    }
+
+    /// Written as literals rather than imported: `phonix-web` does not depend
+    /// on `phonix-db`, and the point of the test is that the two lists were
+    /// written to agree. The source is
+    /// `phonix_db::inventory::sales_order::SORTABLE`.
+    const SERVER_SORTS: &[&str] = &[
+        "number",
+        "customer",
+        "order_date",
+        "promised_on",
+        "net",
+        "line_count",
+    ];
+
+    /// The columns the `WHERE` actually looks inside. Same reasoning.
+    const SERVER_SEARCHES: &[&str] = &["number", "customer", "warehouse"];
+
+    #[test]
+    fn every_sortable_column_is_one_the_server_can_order_by() {
+        for column in grid().columns.iter().filter(|column| column.sortable) {
+            assert!(
+                SERVER_SORTS.contains(&column.field()),
+                "{} offers a sort the reader will ignore",
+                column.field(),
+            );
+        }
+    }
+
+    #[test]
+    fn every_searchable_column_is_one_the_server_looks_inside() {
+        for column in grid().columns.iter().filter(|column| column.searchable) {
+            assert!(
+                SERVER_SEARCHES.contains(&column.field()),
+                "{} is offered to the search box and never searched",
+                column.field(),
+            );
+        }
+    }
+
+    #[test]
+    fn it_opens_newest_first_by_a_column_the_server_can_order_by() {
+        let sort = grid().initial_request().sort.expect("an opening order");
+
+        assert_eq!(sort, Sort::descending("order_date"));
+        assert!(SERVER_SORTS.contains(&sort.field.as_str()));
+    }
+
+    #[test]
+    fn the_filters_and_the_span_leave_the_answering_to_the_server() {
+        let grid = grid();
+
+        for filter in &grid.filters {
+            assert!(
+                !filter.is_local(),
+                "{} is answered in the wrong place",
+                filter.key()
+            );
+            assert_eq!(filter.default_value(), "");
+        }
+
+        let range = grid.date_filters.first().expect("the grid offers a span");
+
+        // `phonix_db::inventory::sales_order::ORDERED`.
+        assert_eq!(range.key(), "ordered");
+        assert!(!range.is_local());
+    }
+
+    #[test]
+    fn every_state_group_offered_covers_at_least_one_state() {
+        let grid = grid();
+        let states = grid.filters.iter().find(|f| f.key() == "state").unwrap();
+
+        for choice in states.choices.iter().filter(|c| !c.value.is_empty()) {
+            assert!(
+                !SaleState::in_group(choice.value).is_empty(),
+                "{} is offered and covers nothing",
+                choice.value,
+            );
+        }
+    }
+
+    #[test]
+    fn every_state_is_offered_under_some_group() {
+        let grid = grid();
+        let states = grid.filters.iter().find(|f| f.key() == "state").unwrap();
+
+        for state in SaleState::ALL {
+            assert!(
+                states.choices.iter().any(|c| c.value == state.group()),
+                "{} is in no group the grid offers",
+                state.as_str(),
+            );
+        }
+    }
+
+    #[test]
+    fn both_progress_filters_offer_the_two_words_the_reader_answers() {
+        let grid = grid();
+
+        for key in ["delivered", "invoiced"] {
+            let filter = grid.filters.iter().find(|f| f.key() == key).unwrap();
+
+            let offered: Vec<&str> = filter
+                .choices
+                .iter()
+                .map(|choice| choice.value)
+                .filter(|value| !value.is_empty())
+                .collect();
+
+            // `progress_names` in the reader matches these two and treats
+            // anything else as unfiltered.
+            assert_eq!(offered, ["outstanding", "complete"], "{key}");
+        }
     }
 }

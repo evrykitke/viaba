@@ -90,6 +90,30 @@ impl OrderState {
         Self::ALL.iter().copied().find(|s| s.as_str() == raw)
     }
 
+    /// Which group of states a list offers this one under.
+    ///
+    /// Not one choice per state: an order that is drafted and one that has been
+    /// sent are both "not an order yet" to somebody scanning the list, and
+    /// offering five choices where there are four questions makes the reader do
+    /// the grouping instead.
+    pub const fn group(self) -> &'static str {
+        match self {
+            Self::Draft | Self::Sent => "draft",
+            Self::Confirmed => "open",
+            Self::Done => "done",
+            Self::Cancelled => "cancelled",
+        }
+    }
+
+    /// Every state that group covers. Empty for a name nothing offers.
+    pub fn in_group(group: &str) -> Vec<Self> {
+        Self::ALL
+            .iter()
+            .copied()
+            .filter(|state| state.group() == group)
+            .collect()
+    }
+
     /// Whether the lines may still be changed.
     pub const fn is_editable(self) -> bool {
         matches!(self, Self::Draft | Self::Sent)
@@ -132,6 +156,43 @@ pub enum ReceiptState {
 }
 
 impl ReceiptState {
+    pub const ALL: &'static [Self] = &[Self::Nothing, Self::Partly, Self::Everything, Self::Over];
+
+    /// What a reader stores and reads it back as. The `CASE` in
+    /// `phonix_db::inventory::purchase` writes these four words.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Nothing => "nothing",
+            Self::Partly => "partly",
+            Self::Everything => "everything",
+            Self::Over => "over",
+        }
+    }
+
+    pub fn parse(raw: &str) -> Option<Self> {
+        Self::ALL.iter().copied().find(|state| state.as_str() == raw)
+    }
+
+    /// Whether everything ordered has arrived.
+    ///
+    /// Over-shipped counts: the question a chase list asks is whether there is
+    /// anything still to come, and there is not.
+    pub const fn is_complete(self) -> bool {
+        matches!(self, Self::Everything | Self::Over)
+    }
+
+    /// The states on one side of [`is_complete`](Self::is_complete).
+    ///
+    /// What a list filtered to "still outstanding" is asking for, derived here
+    /// rather than listed again wherever the question is answered.
+    pub fn complete_or_not(complete: bool) -> Vec<Self> {
+        Self::ALL
+            .iter()
+            .copied()
+            .filter(|state| state.is_complete() == complete)
+            .collect()
+    }
+
     pub fn label(self) -> Message {
         match self {
             Self::Nothing => msg!("purchase_orders.received.nothing"),

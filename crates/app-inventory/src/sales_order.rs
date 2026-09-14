@@ -109,6 +109,29 @@ impl SaleState {
         matches!(self, Self::Confirmed)
     }
 
+    /// Which group of states a list offers this one under.
+    ///
+    /// A quotation is its own question here, unlike a purchase order's: "what
+    /// have we quoted that nobody has said yes to" is the list somebody chases.
+    pub const fn group(self) -> &'static str {
+        match self {
+            Self::Draft => "draft",
+            Self::Sent => "quoted",
+            Self::Confirmed => "open",
+            Self::Done => "done",
+            Self::Cancelled => "cancelled",
+        }
+    }
+
+    /// Every state that group covers. Empty for a name nothing offers.
+    pub fn in_group(group: &str) -> Vec<Self> {
+        Self::ALL
+            .iter()
+            .copied()
+            .filter(|state| state.group() == group)
+            .collect()
+    }
+
     /// Whether it has left the building, which is what decides whether it
     /// carries a number.
     pub const fn is_numbered(self) -> bool {
@@ -140,6 +163,39 @@ pub enum Progress {
 }
 
 impl Progress {
+    pub const ALL: &'static [Self] = &[Self::Nothing, Self::Partly, Self::Everything, Self::Over];
+
+    /// What a reader stores and reads it back as. The two `CASE`s in
+    /// `phonix_db::inventory::sales_order` write these four words.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Nothing => "nothing",
+            Self::Partly => "partly",
+            Self::Everything => "everything",
+            Self::Over => "over",
+        }
+    }
+
+    pub fn parse(raw: &str) -> Option<Self> {
+        Self::ALL.iter().copied().find(|state| state.as_str() == raw)
+    }
+
+    /// Whether everything agreed has happened. Over counts, for the reason
+    /// `Over` exists: there is nothing left to do.
+    pub const fn is_complete(self) -> bool {
+        matches!(self, Self::Everything | Self::Over)
+    }
+
+    /// The states on one side of [`is_complete`](Self::is_complete), derived
+    /// here rather than listed again wherever the question is answered.
+    pub fn complete_or_not(complete: bool) -> Vec<Self> {
+        Self::ALL
+            .iter()
+            .copied()
+            .filter(|state| state.is_complete() == complete)
+            .collect()
+    }
+
     /// Over a set of quantities: how far `done` has got towards `agreed`.
     fn of(lines: &[SaleLine], done: fn(&SaleLine) -> Quantity) -> Self {
         let live: Vec<&SaleLine> = lines.iter().filter(|line| !line.is_cancelled).collect();

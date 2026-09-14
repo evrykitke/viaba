@@ -26,10 +26,12 @@ use app_inventory::sales_order::{
 use phonix_core::identity::UserId;
 use phonix_core::locale::Currency;
 use phonix_core::money::Money;
-use sqlx::{PgConnection, PgExecutor, Row};
+use phonix_core::query::{MAX_PER_PAGE, Page, PageRequest};
+use sqlx::{AssertSqlSafe, PgConnection, PgExecutor, Row};
 use uuid::Uuid;
 
 use crate::error::DbError;
+use crate::listing::{self, Sortable};
 
 fn unknown(column: &str, raw: &str) -> sqlx::Error {
     sqlx::Error::Decode(
@@ -51,48 +53,173 @@ fn read_quantity(raw: &str, column: &str) -> Result<Quantity, sqlx::Error> {
         .map_err(|err| sqlx::Error::Decode(format!("{column} holds '{raw}': {err}").into()))
 }
 
-/// Every order, newest first, with what a grid draws without a join per row.
-pub async fn list<'e, E>(executor: E) -> Result<Vec<SaleSummary>, DbError>
-where
-    E: PgExecutor<'e>,
-{
-    let rows = sqlx::query(
+/// The range key the order grid declares, and so the pair of filter keys -
+/// `ordered_from` and `ordered_to` - that arrive with a request.
+///
+/// A constant because it is written in two crates that must agree and do not
+/// depend on each other: here, and `ui::table::config::sales_orders`.
+pub const ORDERED: &str = "ordered";
+
+/// The filter key naming which states to show, by group rather than one each -
+/// see [`SaleState::group`].
+pub const STATE: &str = "state";
+
+/// The filter key naming whether everything has gone out.
+pub const DELIVERED: &str = "delivered";
+
+/// The filter key naming whether everything has been charged for.
+pub const INVOICED: &str = "invoiced";
+
+/// The columns the order grid may order by.
+const SORTABLE: &[Sortable] = &[
+    ("number", "o.number"),
+    ("customer", "o.customer_name"),
+    ("order_date", "o.order_date"),
+    ("promised_on", "o.promised_on"),
+    ("net", "o.net"),
+    ("line_count", "line_count"),
+];
+
+/// How far one column of a line has got towards what was agreed.
+///
+/// Written once and used four times - the select shows both figures and the
+/// `WHERE` narrows by both - because two copies of this `CASE` would eventually
+/// disagree, and the one that disagreed would be the one nobody was reading.
+/// The order matters: over beats everything, which beats partly.
+fn progress_of(column: &str) -> String {
+    format!(
+        "COALESCE((
+                    SELECT CASE
+                        WHEN bool_or(l.{column} > l.quantity_stock) THEN 'over'
+                        WHEN bool_and(l.{column} >= l.quantity_stock) THEN 'everything'
+                        WHEN bool_or(l.{column} > 0) THEN 'partly'
+                        ELSE 'nothing' END
+                      FROM inventory.sales_order_lines l
+                     WHERE l.order_id = o.id AND NOT l.is_cancelled
+                ), 'nothing')"
+    )
+}
+
+/// The states one side of a progress question covers, as the bind wants them.
+fn progress_names(wanted: Option<&str>) -> Option<Vec<String>> {
+    match wanted {
+        Some("complete") => Some(true),
+        Some("outstanding") => Some(false),
+        _ => None,
+    }
+    .map(|complete| {
+        Progress::complete_or_not(complete)
+            .into_iter()
+            .map(|state| state.as_str().to_owned())
+            .collect()
+    })
+}
+
+/// One page of the order list, newest first.
+///
+/// Paged in SQL because a sales ledger is a list nothing deletes from - a
+/// quotation nobody accepted is still what was quoted - so it only grows.
+///
+/// Two statements, a count and a select, so the page can be pulled back to one
+/// that exists before the rows are fetched.
+pub async fn page(pool: &sqlx::PgPool, request: &PageRequest) -> Result<Page<SaleSummary>, DbError> {
+    let request = request.sanitised();
+    let needle = request.needle().map(|needle| crate::search::contains(&needle));
+    let ordered = request.range(ORDERED);
+
+    let delivery = progress_of("delivered");
+    let invoicing = progress_of("invoiced");
+
+    // Groups rather than states: see `SaleState::group`. A name this build does
+    // not know covers no states, which would match nothing, so it narrows
+    // nothing instead - a browser running a newer screen must not empty a list.
+    let states: Option<Vec<String>> = request.filter(STATE).and_then(|group| {
+        let states = SaleState::in_group(group);
+
+        (!states.is_empty()).then(|| {
+            states
+                .into_iter()
+                .map(|state| state.as_str().to_owned())
+                .collect()
+        })
+    });
+
+    let delivered = progress_names(request.filter(DELIVERED));
+    let invoiced = progress_names(request.filter(INVOICED));
+
+    let where_clause = format!(
+        "WHERE ($1::text IS NULL
+                 OR o.number ILIKE $1
+                 OR o.customer_name ILIKE $1
+                 OR w.name ILIKE $1)
+            AND ($2::date IS NULL OR o.order_date >= $2)
+            AND ($3::date IS NULL OR o.order_date <= $3)
+            AND ($4::text[] IS NULL OR o.state = ANY($4::text[]))
+            AND ($5::text[] IS NULL OR {delivery} = ANY($5::text[]))
+            AND ($6::text[] IS NULL OR {invoicing} = ANY($6::text[]))"
+    );
+
+    // `AssertSqlSafe` because these statements are composed rather than
+    // written: every piece is written by this file - `progress_of` takes a
+    // column name from two call sites below and nowhere else - and `order` can
+    // only be a string it put in `SORTABLE`. Nothing from a browser reaches the
+    // text of the query.
+    let counting = AssertSqlSafe(format!(
+        "SELECT count(*)
+           FROM inventory.sales_orders o
+           JOIN inventory.warehouses w ON w.id = o.warehouse_id
+           {where_clause}"
+    ));
+
+    let total: i64 = sqlx::query_scalar(counting)
+        .bind(needle.as_deref())
+        .bind(ordered.first_day())
+        .bind(ordered.last_day())
+        .bind(states.as_deref())
+        .bind(delivered.as_deref())
+        .bind(invoiced.as_deref())
+        .fetch_one(pool)
+        .await
+        .map_err(DbError::Query)?;
+
+    let total = u64::try_from(total).unwrap_or(0);
+    let request = request.clamped_to(total);
+
+    // Newest first, and `created_at` after it whatever the sort: two orders
+    // taken on the same day would otherwise swap places between one page and
+    // the next, which shows up as a row that appears twice.
+    let order = listing::order_by(request.sort.as_ref(), SORTABLE, "o.order_date DESC");
+
+    let selecting = AssertSqlSafe(format!(
         "SELECT o.id, o.number, o.state, o.customer_name, o.order_date, o.promised_on,
                 o.valid_until, o.currency, o.net::text AS net,
                 w.name AS warehouse_name,
                 (SELECT count(*) FROM inventory.sales_order_lines l
                   WHERE l.order_id = o.id AND NOT l.is_cancelled) AS line_count,
-                -- Both progress figures, worked out here so a grid of two
-                -- hundred rows is one query rather than four hundred line
-                -- reads. The CASE order matters: over beats everything, which
-                -- beats partly.
-                COALESCE((
-                    SELECT CASE
-                        WHEN bool_or(l.delivered > l.quantity_stock) THEN 'over'
-                        WHEN bool_and(l.delivered >= l.quantity_stock) THEN 'everything'
-                        WHEN bool_or(l.delivered > 0) THEN 'partly'
-                        ELSE 'nothing' END
-                      FROM inventory.sales_order_lines l
-                     WHERE l.order_id = o.id AND NOT l.is_cancelled
-                ), 'nothing') AS delivery_state,
-                COALESCE((
-                    SELECT CASE
-                        WHEN bool_or(l.invoiced > l.quantity_stock) THEN 'over'
-                        WHEN bool_and(l.invoiced >= l.quantity_stock) THEN 'everything'
-                        WHEN bool_or(l.invoiced > 0) THEN 'partly'
-                        ELSE 'nothing' END
-                      FROM inventory.sales_order_lines l
-                     WHERE l.order_id = o.id AND NOT l.is_cancelled
-                ), 'nothing') AS invoice_state
+                {delivery} AS delivery_state,
+                {invoicing} AS invoice_state
            FROM inventory.sales_orders o
            JOIN inventory.warehouses w ON w.id = o.warehouse_id
-          ORDER BY o.order_date DESC, o.created_at DESC",
-    )
-    .fetch_all(executor)
-    .await
-    .map_err(DbError::Query)?;
+           {where_clause}
+          ORDER BY {order}, o.created_at DESC
+          LIMIT $7 OFFSET $8"
+    ));
 
-    rows.into_iter()
+    let rows = sqlx::query(selecting)
+        .bind(needle.as_deref())
+        .bind(ordered.first_day())
+        .bind(ordered.last_day())
+        .bind(states.as_deref())
+        .bind(delivered.as_deref())
+        .bind(invoiced.as_deref())
+        .bind(request.limit() as i64)
+        .bind(request.offset() as i64)
+        .fetch_all(pool)
+        .await
+        .map_err(DbError::Query)?;
+
+    let summaries = rows
+        .into_iter()
         .map(|row| {
             let state: String = row.try_get("state")?;
             let currency: String = row.try_get("currency")?;
@@ -106,9 +233,9 @@ where
                 id: row.try_get("id")?,
                 number: row.try_get("number")?,
                 state: SaleState::parse(&state).ok_or_else(|| unknown("state", &state))?,
-                delivery_state: parse_progress(&delivered)
+                delivery_state: Progress::parse(&delivered)
                     .ok_or_else(|| unknown("delivery_state", &delivered))?,
-                invoice_state: parse_progress(&invoiced)
+                invoice_state: Progress::parse(&invoiced)
                     .ok_or_else(|| unknown("invoice_state", &invoiced))?,
                 customer_name: row.try_get("customer_name")?,
                 warehouse_name: row.try_get("warehouse_name")?,
@@ -121,17 +248,9 @@ where
             })
         })
         .collect::<Result<Vec<_>, sqlx::Error>>()
-        .map_err(DbError::Query)
-}
+        .map_err(DbError::Query)?;
 
-const fn parse_progress(raw: &str) -> Option<Progress> {
-    match raw.as_bytes() {
-        b"nothing" => Some(Progress::Nothing),
-        b"partly" => Some(Progress::Partly),
-        b"everything" => Some(Progress::Everything),
-        b"over" => Some(Progress::Over),
-        _ => None,
-    }
+    Ok(Page::new(summaries, total, &request))
 }
 
 /// One order, with its lines.
@@ -503,19 +622,22 @@ pub async fn delete(conn: &mut PgConnection, id: Uuid) -> Result<bool, DbError> 
 
 /// The confirmed orders with something still to ship, for a delivery screen to
 /// open on.
-pub async fn awaiting_despatch<'e, E>(executor: E) -> Result<Vec<SaleSummary>, DbError>
-where
-    E: PgExecutor<'e>,
-{
-    Ok(list(executor)
-        .await?
-        .into_iter()
-        .filter(|order| {
-            order.state == SaleState::Confirmed
-                && !matches!(
-                    order.delivery_state,
-                    Progress::Everything | Progress::Over
-                )
-        })
-        .collect())
+///
+/// The same two questions the grid's filters ask, asked of the same `WHERE`
+/// rather than by fetching every order ever taken and sifting it here - which
+/// is what this did, and what it cost grew with the ledger rather than with the
+/// backlog.
+///
+/// Capped at one page, and that is a picker's list rather than a ledger: five
+/// hundred confirmed orders with nothing shipped against them is a problem no
+/// dropdown is going to solve.
+pub async fn awaiting_despatch(pool: &sqlx::PgPool) -> Result<Vec<SaleSummary>, DbError> {
+    page(
+        pool,
+        &PageRequest::first(MAX_PER_PAGE)
+            .filtered_by(STATE, "open")
+            .filtered_by(DELIVERED, "outstanding"),
+    )
+    .await
+    .map(|page| page.rows)
 }

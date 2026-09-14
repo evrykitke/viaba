@@ -17,16 +17,19 @@
 //! worse than neither.
 
 use app_inventory::purchase::{
-    Checked, CheckedLine, OrderLine, OrderState, OrderSummary, PurchaseOrder, SupplierSnapshot,
+    Checked, CheckedLine, OrderLine, OrderState, OrderSummary, PurchaseOrder, ReceiptState,
+    SupplierSnapshot,
 };
 use app_inventory::quantity::Quantity;
 use phonix_core::identity::UserId;
 use phonix_core::locale::Currency;
 use phonix_core::money::Money;
-use sqlx::{PgConnection, PgExecutor, Row};
+use phonix_core::query::{MAX_PER_PAGE, Page, PageRequest};
+use sqlx::{AssertSqlSafe, PgConnection, PgExecutor, Row};
 use uuid::Uuid;
 
 use crate::error::DbError;
+use crate::listing::{self, Sortable};
 
 fn unknown(column: &str, raw: &str) -> sqlx::Error {
     sqlx::Error::Decode(
@@ -48,20 +51,36 @@ fn read_quantity(raw: &str, column: &str) -> Result<Quantity, sqlx::Error> {
         .map_err(|err| sqlx::Error::Decode(format!("{column} holds '{raw}': {err}").into()))
 }
 
-/// Every order, newest first, with what a grid draws without a join per row.
-pub async fn list<'e, E>(executor: E) -> Result<Vec<OrderSummary>, DbError>
-where
-    E: PgExecutor<'e>,
-{
-    let rows = sqlx::query(
-        "SELECT o.id, o.number, o.state, o.supplier_name, o.order_date, o.expected_on,
-                o.currency, o.net::text AS net,
-                w.name AS warehouse_name,
-                (SELECT count(*) FROM inventory.purchase_order_lines l
-                  WHERE l.order_id = o.id AND NOT l.is_cancelled) AS line_count,
-                -- The receipt state, worked out here so a grid of two hundred
-                -- rows is one query rather than two hundred line reads.
-                COALESCE((
+/// The range key the order grid declares, and so the pair of filter keys -
+/// `ordered_from` and `ordered_to` - that arrive with a request.
+///
+/// A constant because it is written in two crates that must agree and do not
+/// depend on each other: here, and `ui::table::config::purchase_orders`.
+pub const ORDERED: &str = "ordered";
+
+/// The filter key naming which states to show, by group rather than one each -
+/// see [`OrderState::group`].
+pub const STATE: &str = "state";
+
+/// The filter key naming whether everything has arrived.
+pub const RECEIVED: &str = "received";
+
+/// The columns the order grid may order by.
+const SORTABLE: &[Sortable] = &[
+    ("number", "o.number"),
+    ("supplier", "o.supplier_name"),
+    ("order_date", "o.order_date"),
+    ("expected_on", "o.expected_on"),
+    ("net", "o.net"),
+    ("line_count", "line_count"),
+];
+
+/// What the supplier has done, worked out from the lines.
+///
+/// Written once because three places need the same answer: the select shows it,
+/// the `WHERE` narrows by it, and neither may be allowed to drift from the
+/// other. The `CASE` order matters - over beats everything, which beats partly.
+const RECEIPT_STATE: &str = "COALESCE((
                     SELECT CASE
                         WHEN bool_or(l.received > l.quantity_stock) THEN 'over'
                         WHEN bool_and(l.received >= l.quantity_stock) THEN 'everything'
@@ -69,16 +88,118 @@ where
                         ELSE 'nothing' END
                       FROM inventory.purchase_order_lines l
                      WHERE l.order_id = o.id AND NOT l.is_cancelled
-                ), 'nothing') AS receipt_state
+                ), 'nothing')";
+
+/// One page of the order list, newest first.
+///
+/// Paged in SQL because a purchase ledger is a list nothing deletes from - a
+/// cancelled order is still what was cancelled - so it only grows.
+///
+/// Two statements, a count and a select, so the page can be pulled back to one
+/// that exists before the rows are fetched. Both narrow by the same `WHERE`,
+/// which is built here rather than written twice.
+pub async fn page(
+    pool: &sqlx::PgPool,
+    request: &PageRequest,
+) -> Result<Page<OrderSummary>, DbError> {
+    let request = request.sanitised();
+    let needle = request.needle().map(|needle| crate::search::contains(&needle));
+    let ordered = request.range(ORDERED);
+
+    // Groups rather than states: see `OrderState::group`. A name this build
+    // does not know covers no states, which would match nothing, so it narrows
+    // nothing instead - a browser running a newer screen must not empty a list.
+    let states: Option<Vec<String>> = request.filter(STATE).and_then(|group| {
+        let states = OrderState::in_group(group);
+
+        (!states.is_empty()).then(|| {
+            states
+                .into_iter()
+                .map(|state| state.as_str().to_owned())
+                .collect()
+        })
+    });
+
+    let received: Option<Vec<String>> = match request.filter(RECEIVED) {
+        Some("complete") => Some(true),
+        Some("outstanding") => Some(false),
+        _ => None,
+    }
+    .map(|complete| {
+        ReceiptState::complete_or_not(complete)
+            .into_iter()
+            .map(|state| state.as_str().to_owned())
+            .collect()
+    });
+
+    let where_clause = format!(
+        "WHERE ($1::text IS NULL
+                 OR o.number ILIKE $1
+                 OR o.supplier_name ILIKE $1
+                 OR w.name ILIKE $1)
+            AND ($2::date IS NULL OR o.order_date >= $2)
+            AND ($3::date IS NULL OR o.order_date <= $3)
+            AND ($4::text[] IS NULL OR o.state = ANY($4::text[]))
+            AND ($5::text[] IS NULL OR {RECEIPT_STATE} = ANY($5::text[]))"
+    );
+
+    // `AssertSqlSafe` because these statements are composed rather than
+    // written: every piece is a constant of this file, and `order` can only be
+    // a string it put in `SORTABLE`. Nothing from a browser reaches the text of
+    // the query - the search, the states and the page are bound parameters.
+    let counting = AssertSqlSafe(format!(
+        "SELECT count(*)
            FROM inventory.purchase_orders o
            JOIN inventory.warehouses w ON w.id = o.warehouse_id
-          ORDER BY o.order_date DESC, o.created_at DESC",
-    )
-    .fetch_all(executor)
-    .await
-    .map_err(DbError::Query)?;
+           {where_clause}"
+    ));
 
-    rows.into_iter()
+    let total: i64 = sqlx::query_scalar(counting)
+        .bind(needle.as_deref())
+        .bind(ordered.first_day())
+        .bind(ordered.last_day())
+        .bind(states.as_deref())
+        .bind(received.as_deref())
+        .fetch_one(pool)
+        .await
+        .map_err(DbError::Query)?;
+
+    let total = u64::try_from(total).unwrap_or(0);
+    let request = request.clamped_to(total);
+
+    // Newest first, and `created_at` after it whatever the sort: two orders
+    // raised on the same day would otherwise swap places between one page and
+    // the next, which shows up as a row that appears twice.
+    let order = listing::order_by(request.sort.as_ref(), SORTABLE, "o.order_date DESC");
+
+    let selecting = AssertSqlSafe(format!(
+        "SELECT o.id, o.number, o.state, o.supplier_name, o.order_date, o.expected_on,
+                o.currency, o.net::text AS net,
+                w.name AS warehouse_name,
+                (SELECT count(*) FROM inventory.purchase_order_lines l
+                  WHERE l.order_id = o.id AND NOT l.is_cancelled) AS line_count,
+                {RECEIPT_STATE} AS receipt_state
+           FROM inventory.purchase_orders o
+           JOIN inventory.warehouses w ON w.id = o.warehouse_id
+           {where_clause}
+          ORDER BY {order}, o.created_at DESC
+          LIMIT $6 OFFSET $7"
+    ));
+
+    let rows = sqlx::query(selecting)
+        .bind(needle.as_deref())
+        .bind(ordered.first_day())
+        .bind(ordered.last_day())
+        .bind(states.as_deref())
+        .bind(received.as_deref())
+        .bind(request.limit() as i64)
+        .bind(request.offset() as i64)
+        .fetch_all(pool)
+        .await
+        .map_err(DbError::Query)?;
+
+    let summaries = rows
+        .into_iter()
         .map(|row| {
             let state: String = row.try_get("state")?;
             let currency: String = row.try_get("currency")?;
@@ -91,7 +212,7 @@ where
                 id: row.try_get("id")?,
                 number: row.try_get("number")?,
                 state: OrderState::parse(&state).ok_or_else(|| unknown("state", &state))?,
-                receipt_state: parse_receipt_state(&received)
+                receipt_state: ReceiptState::parse(&received)
                     .ok_or_else(|| unknown("receipt_state", &received))?,
                 supplier_name: row.try_get("supplier_name")?,
                 warehouse_name: row.try_get("warehouse_name")?,
@@ -103,19 +224,9 @@ where
             })
         })
         .collect::<Result<Vec<_>, sqlx::Error>>()
-        .map_err(DbError::Query)
-}
+        .map_err(DbError::Query)?;
 
-const fn parse_receipt_state(raw: &str) -> Option<app_inventory::purchase::ReceiptState> {
-    use app_inventory::purchase::ReceiptState as State;
-
-    match raw.as_bytes() {
-        b"nothing" => Some(State::Nothing),
-        b"partly" => Some(State::Partly),
-        b"everything" => Some(State::Everything),
-        b"over" => Some(State::Over),
-        _ => None,
-    }
+    Ok(Page::new(summaries, total, &request))
 }
 
 /// One order, with its lines.
@@ -447,20 +558,22 @@ pub async fn delete(conn: &mut PgConnection, id: Uuid) -> Result<bool, DbError> 
 
 /// The confirmed orders with something still outstanding, for a receipt screen
 /// to open on.
-pub async fn awaiting_delivery<'e, E>(executor: E) -> Result<Vec<OrderSummary>, DbError>
-where
-    E: PgExecutor<'e>,
-{
-    Ok(list(executor)
-        .await?
-        .into_iter()
-        .filter(|order| {
-            order.state == OrderState::Confirmed
-                && !matches!(
-                    order.receipt_state,
-                    app_inventory::purchase::ReceiptState::Everything
-                        | app_inventory::purchase::ReceiptState::Over
-                )
-        })
-        .collect())
+///
+/// The same two questions the grid's filters ask, asked of the same `WHERE`
+/// rather than by fetching every order ever raised and sifting it here - which
+/// is what this did, and what it cost grew with the ledger rather than with the
+/// backlog.
+///
+/// Capped at one page, and that is a picker's list rather than a ledger: five
+/// hundred confirmed orders with nothing received against them is a problem no
+/// dropdown is going to solve.
+pub async fn awaiting_delivery(pool: &sqlx::PgPool) -> Result<Vec<OrderSummary>, DbError> {
+    page(
+        pool,
+        &PageRequest::first(MAX_PER_PAGE)
+            .filtered_by(STATE, "open")
+            .filtered_by(RECEIVED, "outstanding"),
+    )
+    .await
+    .map(|page| page.rows)
 }

@@ -1073,13 +1073,15 @@ pub async fn order_allocation(order_id: Uuid) -> Result<Vec<LineAllocation>, Ser
 // nothing has arrived, nothing is owed, and the accounting starts at the
 // receipt below.
 
-#[server(name = ListPurchaseOrders, prefix = "/api", endpoint = "inventory/orders")]
-pub async fn list_purchase_orders() -> Result<Vec<OrderSummary>, ServerFnError> {
+#[server(name = ListPurchaseOrders, prefix = "/api", endpoint = "inventory/orders", input = Json)]
+pub async fn list_purchase_orders(
+    request: PageRequest,
+) -> Result<Page<OrderSummary>, ServerFnError> {
     use crate::state::{pool_and_caller, service_error};
 
     let (pool, caller) = pool_and_caller().await?;
 
-    phonix_services::inventory::purchase::list(&pool, &caller)
+    phonix_services::inventory::purchase::list(&pool, &caller, request)
         .await
         .map_err(service_error)
 }
@@ -1136,13 +1138,13 @@ pub async fn orders_awaiting_delivery() -> Result<Vec<OrderSummary>, ServerFnErr
 // promises to ship something; nothing has moved, nothing is owed, and the
 // accounting starts at the delivery and the invoice.
 
-#[server(name = ListSalesOrders, prefix = "/api", endpoint = "inventory/sales-orders")]
-pub async fn list_sales_orders() -> Result<Vec<SaleSummary>, ServerFnError> {
+#[server(name = ListSalesOrders, prefix = "/api", endpoint = "inventory/sales-orders", input = Json)]
+pub async fn list_sales_orders(request: PageRequest) -> Result<Page<SaleSummary>, ServerFnError> {
     use crate::state::{pool_and_caller, service_error};
 
     let (pool, caller) = pool_and_caller().await?;
 
-    phonix_services::inventory::sales_order::list(&pool, &caller)
+    phonix_services::inventory::sales_order::list(&pool, &caller, request)
         .await
         .map_err(service_error)
 }

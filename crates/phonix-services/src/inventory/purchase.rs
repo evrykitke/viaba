@@ -34,6 +34,7 @@ use phonix_core::locale::Currency;
 use phonix_core::money::{Money, Rounding};
 use phonix_core::msg;
 use phonix_core::permissions;
+use phonix_core::query::{Page, PageRequest};
 use phonix_db::error::DbError;
 use phonix_db::inventory::purchase as store;
 use phonix_db::inventory::variant as variants;
@@ -45,9 +46,13 @@ use crate::audit::{self, Target, kinds};
 use crate::caller::{Caller, acting_user};
 use crate::error::{ServiceError, ServiceResult};
 
-pub async fn list(pool: &PgPool, caller: &Caller) -> ServiceResult<Vec<OrderSummary>> {
+pub async fn list(
+    pool: &PgPool,
+    caller: &Caller,
+    request: PageRequest,
+) -> ServiceResult<Page<OrderSummary>> {
     caller.require(permissions::PURCHASE_ORDERS)?;
-    Ok(store::list(pool).await?)
+    Ok(store::page(pool, &request).await?)
 }
 
 /// How many rows a picker is sent at once.
