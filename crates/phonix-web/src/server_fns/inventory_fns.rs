@@ -40,6 +40,7 @@ use app_inventory::warehouse::{Warehouse, WarehouseInput, WarehouseSummary};
 use leptos::prelude::*;
 use leptos::server_fn::codec::Json;
 use phonix_core::form::Submission;
+use phonix_core::query::{Page, PageRequest};
 use uuid::Uuid;
 
 // --- Units ---------------------------------------------------------------
@@ -599,17 +600,25 @@ pub async fn stock_on_hand(filter: OnHandFilter) -> Result<Vec<OnHandRow>, Serve
         .map_err(service_error)
 }
 
-/// The movement history: every change to every quantity, newest first.
+/// One page of the movement history: every change to every quantity, newest
+/// first.
 ///
-/// `Json` because every field of [`MoveFilter`] is optional - see the note on
-/// `list_invoices` for what an unfiltered first load posts otherwise.
+/// Two arguments because they come from two places. [`MoveFilter`] is what the
+/// screen is about and is written by whatever opened the grid; the
+/// [`PageRequest`] is what the viewer asked for and changes with every click.
+///
+/// `Json` because a [`PageRequest`] carries a map of filters, which form
+/// encoding cannot round-trip through a nested structure.
 #[server(name = StockMoves, prefix = "/api", endpoint = "inventory/stock/moves", input = Json)]
-pub async fn stock_moves(filter: MoveFilter) -> Result<Vec<MoveSummary>, ServerFnError> {
+pub async fn stock_moves(
+    filter: MoveFilter,
+    request: PageRequest,
+) -> Result<Page<MoveSummary>, ServerFnError> {
     use crate::state::{pool_and_caller, service_error};
 
     let (pool, caller) = pool_and_caller().await?;
 
-    phonix_services::inventory::stock::moves(&pool, &caller, filter)
+    phonix_services::inventory::stock::moves(&pool, &caller, filter, request)
         .await
         .map_err(service_error)
 }

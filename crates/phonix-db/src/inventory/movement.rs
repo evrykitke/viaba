@@ -15,16 +15,17 @@
 
 use app_inventory::category::{CostingMethod, RemovalStrategy, Valuation};
 use app_inventory::item::Tracking;
-use app_inventory::location::LocationKind;
+use app_inventory::location::{LocationKind, MoveKind};
 use app_inventory::movement::{
     JournalOutcome, MoveContext, MoveFilter, MoveSource, MoveState, MoveSummary, StockMove,
 };
 use app_inventory::quantity::Quantity;
-use chrono::NaiveDate;
+use chrono::{NaiveDate, TimeDelta};
 use phonix_core::identity::UserId;
 use phonix_core::locale::Currency;
 use phonix_core::money::Money;
-use sqlx::{AssertSqlSafe, PgConnection, PgExecutor, Row};
+use phonix_core::query::{Page, PageRequest};
+use sqlx::{AssertSqlSafe, PgConnection, PgExecutor, PgPool, Row};
 use uuid::Uuid;
 
 use crate::error::DbError;
@@ -273,21 +274,34 @@ where
         .map_err(DbError::Query)
 }
 
-/// The movement grid, newest first.
+/// The range key the movement grid declares, and so the pair of filter keys -
+/// `moved_from` and `moved_to` - that arrive with a request.
 ///
-/// A location filter matches either end: "what has been through Shelf A" is one
-/// question and a stock card that showed only what arrived would be half of it.
-pub async fn list<'e, E>(
-    executor: E,
-    filter: &MoveFilter,
-    currency: Currency,
-    limit: i64,
-) -> Result<Vec<MoveSummary>, DbError>
-where
-    E: PgExecutor<'e>,
-{
-    let rows = sqlx::query(
-        "SELECT m.id, m.moved_on, m.variant_id,
+/// A constant because it is written in two crates that must agree and do not
+/// depend on each other: here, and `ui::table::config::stock_moves`.
+pub const MOVED: &str = "moved";
+
+/// The filter key naming what a move amounts to.
+pub const KIND: &str = "kind";
+
+/// The filter key naming whether it happened.
+pub const STATE: &str = "state";
+
+/// The columns the movement grid may order by.
+///
+/// A whitelist, not a convenience: `sort.field` arrives from a browser, and the
+/// only safe way to put it in an `ORDER BY` is to not put it there at all - to
+/// match it against a list of literals this file wrote itself.
+const SORTABLE: &[(&str, &str)] = &[
+    ("moved_on", "m.moved_on"),
+    ("item", "i.name"),
+    ("quantity", "m.quantity"),
+    ("value", "m.value"),
+    ("journal", "m.journal_number"),
+];
+
+/// What a summary row is made of.
+const SUMMARY: &str = "m.id, m.moved_on, m.variant_id, m.created_at,
                 m.quantity::text AS quantity, m.value::text AS value,
                 m.state, m.reference,
                 m.journal_state, m.journal_id, m.journal_number,
@@ -296,70 +310,187 @@ where
                 lt.number AS lot_number,
                 f.path AS from_path, f.kind AS from_kind,
                 t.path AS to_path, t.kind AS to_kind,
-                u.code AS unit_code
-           FROM inventory.stock_moves m
+                u.code AS unit_code";
+
+/// Everything a row is read from or narrowed by. Shared so the count and the
+/// select cannot come to disagree about which rows exist.
+const FROM: &str = "FROM inventory.stock_moves m
            JOIN inventory.item_variants v ON v.id = m.variant_id
            JOIN inventory.items i ON i.id = v.item_id
            JOIN inventory.locations f ON f.id = m.from_location_id
            JOIN inventory.locations t ON t.id = m.to_location_id
            JOIN inventory.units u ON u.id = m.unit_id
-           LEFT JOIN inventory.lots lt ON lt.id = m.lot_id
-          WHERE ($1::uuid IS NULL OR m.variant_id = $1)
+           LEFT JOIN inventory.lots lt ON lt.id = m.lot_id";
+
+/// A filter nobody set is a NULL that discards its own line, so one clause
+/// serves every combination and nothing is interpolated.
+const WHERE: &str = "WHERE ($1::uuid IS NULL OR m.variant_id = $1)
             AND ($2::uuid IS NULL OR v.item_id = $2)
             AND ($3::uuid IS NULL OR m.from_location_id = $3 OR m.to_location_id = $3)
             AND ($4::uuid IS NULL OR m.lot_id = $4)
-            AND ($5::text IS NULL OR m.state = $5)
+            AND ($5::text IS NULL
+                 OR i.name ILIKE $5
+                 OR v.code ILIKE $5
+                 OR f.path ILIKE $5
+                 OR t.path ILIKE $5
+                 OR lt.number ILIKE $5
+                 OR m.journal_number ILIKE $5
+                 OR m.reference ILIKE $5)
             AND ($6::date IS NULL OR m.moved_on >= $6)
             AND ($7::date IS NULL OR m.moved_on <= $7)
-          ORDER BY m.moved_on DESC, m.created_at DESC
-          LIMIT $8",
-    )
-    .bind(filter.variant_id)
-    .bind(filter.item_id)
-    .bind(filter.location_id)
-    .bind(filter.lot_id)
-    .bind(filter.state.map(MoveState::as_str))
-    .bind(filter.from_date)
-    .bind(filter.to_date)
-    .bind(limit)
-    .fetch_all(executor)
-    .await
-    .map_err(DbError::Query)?;
+            AND ($8::text IS NULL OR m.state = $8)
+            AND ($9::text[] IS NULL OR f.kind || '>' || t.kind = ANY($9::text[]))";
 
-    rows.into_iter()
-        .map(|row| {
-            let quantity: String = row.try_get("quantity")?;
-            let value: String = row.try_get("value")?;
-            let state: String = row.try_get("state")?;
-            let from_kind: String = row.try_get("from_kind")?;
-            let to_kind: String = row.try_get("to_kind")?;
+/// One page of the movement grid.
+///
+/// # Why this is paged in SQL
+///
+/// Nothing ever deletes from `stock_moves`: a movement that happened is
+/// evidence, and the correction for one is another movement. So the list grows
+/// for as long as the workspace trades, and there is no number of rows at which
+/// fetching all of them stops being wrong - only a date at which it becomes
+/// obvious.
+///
+/// What stood here before was a `LIMIT 500` with nothing paging it, which is
+/// not a smaller answer but a different one: the grid said five hundred, the
+/// pager agreed, and movement five hundred and one was not in the world. A cap
+/// that cannot be paged past is a silent truncation, and a stock ledger is the
+/// last place to put one.
+///
+/// `filter` is what the *screen* is about - one variant, one location, one lot.
+/// `request` is what the *viewer* asked for - the search, the page, the kind,
+/// the state, the span. The two are separate because one is chosen by the code
+/// that opened the grid and the other by whoever is looking at it.
+///
+/// Two statements - a count and a select - so the page can be pulled back to
+/// one that exists before the rows are fetched.
+pub async fn page(
+    pool: &PgPool,
+    filter: &MoveFilter,
+    currency: Currency,
+    request: &PageRequest,
+) -> Result<Page<MoveSummary>, DbError> {
+    let request = request.sanitised();
+    let needle = request.needle().map(|needle| crate::search::contains(&needle));
+    let state = request.filter(STATE).and_then(MoveState::parse);
 
-            let kind = |raw: &str| {
-                LocationKind::parse(raw)
-                    .ok_or_else(|| unknown("locations.kind", raw))
-            };
+    let moved = request.range(MOVED);
+    // The span is half open and a movement carries a day rather than an
+    // instant, so the last day it includes is the day the moment before its end
+    // falls on. One subtraction, and midnight does not lose the last day.
+    let from_day = moved.from.map(|at| at.date_naive());
+    let to_day = moved
+        .to
+        .and_then(|at| at.checked_sub_signed(TimeDelta::nanoseconds(1)))
+        .map(|at| at.date_naive());
 
-            Ok(MoveSummary {
-                id: row.try_get("id")?,
-                moved_on: row.try_get("moved_on")?,
-                variant_id: row.try_get("variant_id")?,
-                variant_code: row.try_get("variant_code")?,
-                item_name: row.try_get("item_name")?,
-                lot_number: row.try_get("lot_number")?,
-                from_path: row.try_get("from_path")?,
-                to_path: row.try_get("to_path")?,
-                from_kind: kind(&from_kind)?,
-                to_kind: kind(&to_kind)?,
-                quantity: read_quantity(&quantity, "stock_moves.quantity")?,
-                unit_code: row.try_get("unit_code")?,
-                value: read_money(&value, currency, "stock_moves.value")?,
-                state: MoveState::parse(&state).ok_or_else(|| unknown("state", &state))?,
-                reference: row.try_get("reference")?,
-                journal: read_journal(&row)?,
-            })
-        })
+    // The kind is derived from two location kinds and there is no column to
+    // compare, so the pairs that amount to it come from the domain rather than
+    // from a truth table written again here. The separator exists only inside
+    // this statement.
+    let ends = request.filter(KIND).and_then(MoveKind::parse).map(|kind| {
+        kind.ends()
+            .into_iter()
+            .map(|(from, to)| format!("{}>{}", from.as_str(), to.as_str()))
+            .collect::<Vec<String>>()
+    });
+
+    // `AssertSqlSafe` because these statements are composed rather than
+    // written: `COLUMNS`, `FROM` and `WHERE` are constants, and `order` can
+    // only be a string this file put in `SORTABLE`. Nothing from a browser
+    // reaches the text of the query.
+    let counting = AssertSqlSafe(format!("SELECT count(*) {FROM} {WHERE}"));
+
+    let total: i64 = sqlx::query_scalar(counting)
+        .bind(filter.variant_id)
+        .bind(filter.item_id)
+        .bind(filter.location_id)
+        .bind(filter.lot_id)
+        .bind(needle.as_deref())
+        .bind(from_day)
+        .bind(to_day)
+        .bind(state.map(MoveState::as_str))
+        .bind(ends.as_deref())
+        .fetch_one(pool)
+        .await
+        .map_err(DbError::Query)?;
+
+    let total = u64::try_from(total).unwrap_or(0);
+    let request = request.clamped_to(total);
+
+    let order = match &request.sort {
+        Some(sort) => SORTABLE
+            .iter()
+            .find(|(field, _)| *field == sort.field)
+            .map(|(_, column)| format!("{column} {}", sort.direction.sql())),
+        None => None,
+    }
+    // Newest first, and `created_at` after it whatever the sort: two movements
+    // on the same day would otherwise swap places between one page and the
+    // next, which shows up as a row that appears twice.
+    .unwrap_or_else(|| "m.moved_on DESC".to_owned());
+
+    let selecting = AssertSqlSafe(format!(
+        "SELECT {SUMMARY}
+           {FROM}
+           {WHERE}
+          ORDER BY {order}, m.created_at DESC
+          LIMIT $10 OFFSET $11"
+    ));
+
+    let rows = sqlx::query(selecting)
+        .bind(filter.variant_id)
+        .bind(filter.item_id)
+        .bind(filter.location_id)
+        .bind(filter.lot_id)
+        .bind(needle.as_deref())
+        .bind(from_day)
+        .bind(to_day)
+        .bind(state.map(MoveState::as_str))
+        .bind(ends.as_deref())
+        .bind(request.limit() as i64)
+        .bind(request.offset() as i64)
+        .fetch_all(pool)
+        .await
+        .map_err(DbError::Query)?;
+
+    let summaries = rows
+        .iter()
+        .map(|row| read_summary(row, currency))
         .collect::<Result<Vec<_>, sqlx::Error>>()
-        .map_err(DbError::Query)
+        .map_err(DbError::Query)?;
+
+    Ok(Page::new(summaries, total, &request))
+}
+
+/// One grid row.
+fn read_summary(row: &sqlx::postgres::PgRow, currency: Currency) -> Result<MoveSummary, sqlx::Error> {
+    let quantity: String = row.try_get("quantity")?;
+    let value: String = row.try_get("value")?;
+    let state: String = row.try_get("state")?;
+    let from_kind: String = row.try_get("from_kind")?;
+    let to_kind: String = row.try_get("to_kind")?;
+
+    let kind = |raw: &str| LocationKind::parse(raw).ok_or_else(|| unknown("locations.kind", raw));
+
+    Ok(MoveSummary {
+        id: row.try_get("id")?,
+        moved_on: row.try_get("moved_on")?,
+        variant_id: row.try_get("variant_id")?,
+        variant_code: row.try_get("variant_code")?,
+        item_name: row.try_get("item_name")?,
+        lot_number: row.try_get("lot_number")?,
+        from_path: row.try_get("from_path")?,
+        to_path: row.try_get("to_path")?,
+        from_kind: kind(&from_kind)?,
+        to_kind: kind(&to_kind)?,
+        quantity: read_quantity(&quantity, "stock_moves.quantity")?,
+        unit_code: row.try_get("unit_code")?,
+        value: read_money(&value, currency, "stock_moves.value")?,
+        state: MoveState::parse(&state).ok_or_else(|| unknown("state", &state))?,
+        reference: row.try_get("reference")?,
+        journal: read_journal(row)?,
+    })
 }
 
 /// Whether anything has ever moved across this location.

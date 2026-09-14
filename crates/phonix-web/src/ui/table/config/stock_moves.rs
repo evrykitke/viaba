@@ -12,9 +12,25 @@
 //! `no ledger` is a workspace that never bought the accounting module, and is
 //! not a failure; `not needed` is a pallet that crossed an aisle. A row that
 //! said nothing here would be the gap ADR 0006 section 6.1 is about.
+//!
+//! # Paged, for the same reason the audit trail is
+//!
+//! Nothing deletes from this list - see the section above - so it grows for as
+//! long as the workspace trades. It used to be fetched whole with a `LIMIT 500`
+//! underneath it, which is not a shorter list but a different one: the five
+//! hundred and first movement was simply absent, and neither the grid nor the
+//! pager nor the export said so.
+//!
+//! So it is a [`Source::paged`], and the three things that follow are the ones
+//! [`audit`](super::audit) sets out. Only columns the reader can order by are
+//! sortable and only columns it searches are searchable - both lists live in
+//! `phonix_db::inventory::movement` and are checked against this one below.
+//! And the two filters and the span carry a key across the wire rather than a
+//! closure, because a closure could only narrow the twenty-five rows already
+//! fetched.
 
 use app_inventory::location::MoveKind;
-use app_inventory::movement::{JournalOutcome, MoveState, MoveSummary};
+use app_inventory::movement::{JournalOutcome, MoveFilter, MoveState, MoveSummary};
 use leptos::prelude::*;
 use phonix_core::query::Sort;
 
@@ -23,12 +39,15 @@ use crate::components::page::{Badge, Tone};
 use crate::icons::Icon;
 use crate::l;
 use crate::server_fns::inventory_fns::stock_moves;
-use crate::ui::table::{Align, Cell, Column, Filter, FilterChoice, Source};
+use crate::ui::table::{Align, Cell, Column, DateFilter, Filter, FilterChoice, Source};
 
 pub fn stock_moves_grid() -> GridConfig<MoveSummary> {
     GridConfig::new(
         "stock-moves",
-        Source::in_memory(|| stock_moves(app_inventory::movement::MoveFilter::default())),
+        // Unnarrowed, because this screen is the whole history. A stock card is
+        // the same grid handed a filter naming its variant, and nothing else
+        // about the configuration would change.
+        Source::paged(|request| stock_moves(MoveFilter::default(), request)),
     )
     .searching(l!("moves.search"))
     .exports_as("stock-moves")
@@ -124,44 +143,35 @@ pub fn stock_moves_grid() -> GridConfig<MoveSummary> {
         .searchable()
         .class("text-xs text-content-muted"),
     )
-    .filter(
-        Filter::new(
-            "kind",
-            l!("moves.kind"),
-            vec![
-                FilterChoice::all(l!("common.all")),
-                FilterChoice::new("receipt", l!("moves.kind.receipt")),
-                FilterChoice::new("delivery", l!("moves.kind.delivery")),
-                FilterChoice::new("internal", l!("moves.kind.internal")),
-                FilterChoice::new("adjustment", l!("moves.kind.adjustment")),
-            ],
-        )
-        .matching(|row: &MoveSummary, wanted| match wanted {
-            "receipt" => matches!(row.kind(), MoveKind::Receipt),
-            "delivery" => matches!(row.kind(), MoveKind::Delivery),
-            "internal" => matches!(row.kind(), MoveKind::Internal),
-            "adjustment" => matches!(row.kind(), MoveKind::Adjustment),
-            _ => true,
-        }),
-    )
-    .filter(
-        Filter::new(
-            "state",
-            l!("field.status"),
-            vec![
-                FilterChoice::all(l!("common.all")),
-                FilterChoice::new("done", l!("moves.state.done")),
-                FilterChoice::new("draft", l!("moves.state.draft")),
-                FilterChoice::new("cancelled", l!("moves.state.cancelled")),
-            ],
-        )
-        .matching(|row: &MoveSummary, wanted| match wanted {
-            "done" => matches!(row.state, MoveState::Done),
-            "draft" => matches!(row.state, MoveState::Draft),
-            "cancelled" => matches!(row.state, MoveState::Cancelled),
-            _ => true,
-        }),
-    )
+    // The values are the domain's own spellings, because that is what the
+    // reader parses them back into - and a kind is derived from two location
+    // kinds rather than stored, so the `WHERE` asks `MoveKind::ends` which
+    // pairs of ends amount to one rather than writing that table twice.
+    .filter(Filter::new(
+        "kind",
+        l!("moves.kind"),
+        vec![
+            FilterChoice::all(l!("common.all")),
+            FilterChoice::new(MoveKind::Receipt.as_str(), l!("moves.kind.receipt")),
+            FilterChoice::new(MoveKind::Delivery.as_str(), l!("moves.kind.delivery")),
+            FilterChoice::new(MoveKind::Internal.as_str(), l!("moves.kind.internal")),
+            FilterChoice::new(MoveKind::Adjustment.as_str(), l!("moves.kind.adjustment")),
+        ],
+    ))
+    .filter(Filter::new(
+        "state",
+        l!("field.status"),
+        vec![
+            FilterChoice::all(l!("common.all")),
+            FilterChoice::new(MoveState::Done.as_str(), l!("moves.state.done")),
+            FilterChoice::new(MoveState::Draft.as_str(), l!("moves.state.draft")),
+            FilterChoice::new(MoveState::Cancelled.as_str(), l!("moves.state.cancelled")),
+        ],
+    ))
+    // Without a span, last March is two hundred pages of Next. It is the
+    // control a list that only grows cannot be read without, and it has no `at`
+    // closure for the reason the two filters have no `matching`.
+    .date_filter(DateFilter::new("moved", l!("field.when")))
 }
 
 fn item_cell(row: &MoveSummary) -> impl IntoView {
@@ -212,5 +222,105 @@ const fn kind_tone(kind: MoveKind) -> Tone {
         MoveKind::Delivery => Tone::Brand,
         MoveKind::Adjustment => Tone::Warning,
         MoveKind::Internal | MoveKind::Manufacturing | MoveKind::Neither => Tone::Neutral,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use leptos::prelude::Owner;
+
+    use super::*;
+
+    fn grid() -> GridConfig<MoveSummary> {
+        Owner::new().with(stock_moves_grid)
+    }
+
+    /// Written as literals rather than imported: `phonix-web` does not depend
+    /// on `phonix-db`, and the point of the test is that the two lists were
+    /// written to agree. The source is
+    /// `phonix_db::inventory::movement::SORTABLE`.
+    const SERVER_SORTS: &[&str] = &["moved_on", "item", "quantity", "value", "journal"];
+
+    /// The columns the `WHERE` actually looks inside. Same reasoning.
+    const SERVER_SEARCHES: &[&str] = &["item", "from", "to", "lot", "journal", "reference"];
+
+    #[test]
+    fn every_sortable_column_is_one_the_server_can_order_by() {
+        for column in grid().columns.iter().filter(|column| column.sortable) {
+            assert!(
+                SERVER_SORTS.contains(&column.field()),
+                "{} offers a sort the reader will ignore",
+                column.field(),
+            );
+        }
+    }
+
+    #[test]
+    fn every_searchable_column_is_one_the_server_looks_inside() {
+        for column in grid().columns.iter().filter(|column| column.searchable) {
+            assert!(
+                SERVER_SEARCHES.contains(&column.field()),
+                "{} is offered to the search box and never searched",
+                column.field(),
+            );
+        }
+    }
+
+    #[test]
+    fn it_opens_newest_first_by_a_column_the_server_can_order_by() {
+        let sort = grid().initial_request().sort.expect("an opening order");
+
+        assert_eq!(sort, Sort::descending("moved_on"));
+        assert!(SERVER_SORTS.contains(&sort.field.as_str()));
+    }
+
+    #[test]
+    fn both_filters_leave_the_answering_to_the_server() {
+        for filter in &grid().filters {
+            assert!(
+                !filter.is_local(),
+                "{} is answered in the wrong place",
+                filter.key()
+            );
+            assert_eq!(filter.default_value(), "");
+        }
+    }
+
+    #[test]
+    fn the_span_is_answered_by_the_server_and_named_what_the_reader_reads() {
+        let grid = grid();
+        let range = grid
+            .date_filters
+            .first()
+            .expect("the grid offers a span");
+
+        // `phonix_db::inventory::movement::MOVED`, written down twice because
+        // the two crates do not depend on each other.
+        assert_eq!(range.key(), "moved");
+        assert!(!range.is_local());
+    }
+
+    #[test]
+    fn every_kind_and_state_offered_is_one_the_reader_parses_back() {
+        let grid = grid();
+
+        let kinds = grid.filters.iter().find(|f| f.key() == "kind").unwrap();
+        let states = grid.filters.iter().find(|f| f.key() == "state").unwrap();
+
+        for choice in kinds.choices.iter().filter(|c| !c.value.is_empty()) {
+            assert!(
+                MoveKind::parse(choice.value).is_some(),
+                "{} is offered and cannot be read back",
+                choice.value,
+            );
+        }
+
+        for choice in states.choices.iter().filter(|c| !c.value.is_empty()) {
+            assert!(
+                MoveState::parse(choice.value).is_some(),
+                "{} is offered and cannot be read back",
+                choice.value,
+            );
+        }
     }
 }

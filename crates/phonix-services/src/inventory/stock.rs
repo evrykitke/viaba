@@ -49,6 +49,7 @@ use phonix_core::locale::Currency;
 use phonix_core::money::Money;
 use phonix_core::msg;
 use phonix_core::permissions;
+use phonix_core::query::{Page, PageRequest};
 use phonix_db::error::DbError;
 use phonix_db::inventory::{
     account_mapping, item as item_store, lot as lot_store, movement as store, quant as quant_store,
@@ -62,9 +63,6 @@ use crate::audit::{self, Target, kinds};
 use crate::caller::Caller;
 use crate::error::{ServiceError, ServiceResult};
 
-/// How many movements a grid asks for at once.
-const PAGE: i64 = 500;
-
 /// What is on hand, wherever it is.
 pub async fn on_hand(
     pool: &PgPool,
@@ -77,16 +75,17 @@ pub async fn on_hand(
     Ok(quant_store::on_hand(pool, &filter, currency).await?)
 }
 
-/// The movement history, newest first.
+/// One page of the movement history, newest first.
 pub async fn moves(
     pool: &PgPool,
     caller: &Caller,
     filter: MoveFilter,
-) -> ServiceResult<Vec<MoveSummary>> {
+    request: PageRequest,
+) -> ServiceResult<Page<MoveSummary>> {
     caller.require(permissions::STOCK)?;
     let currency = base_currency(pool).await?;
 
-    Ok(store::list(pool, &filter, currency, PAGE).await?)
+    Ok(store::page(pool, &filter, currency, &request).await?)
 }
 
 pub async fn detail(pool: &PgPool, caller: &Caller, id: Uuid) -> ServiceResult<StockMove> {

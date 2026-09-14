@@ -413,16 +413,20 @@ impl MoveSummary {
     }
 }
 
-/// What a movement screen may be narrowed by.
+/// What a movement screen is *about*.
+///
+/// Not what the viewer asked for. A stock card is the movements of one variant
+/// however they are searched, sorted or narrowed, and that is what this says;
+/// the search, the page, the span, the kind and the state travel in a
+/// `PageRequest` because they belong to whoever is looking rather than to the
+/// screen. Keeping the two apart is what stops a state living in both places
+/// and the two disagreeing.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MoveFilter {
     pub variant_id: Option<Uuid>,
     pub item_id: Option<Uuid>,
     pub location_id: Option<Uuid>,
     pub lot_id: Option<Uuid>,
-    pub state: Option<MoveState>,
-    pub from_date: Option<NaiveDate>,
-    pub to_date: Option<NaiveDate>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]

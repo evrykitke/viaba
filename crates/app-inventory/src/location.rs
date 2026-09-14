@@ -227,6 +227,46 @@ pub enum MoveKind {
 }
 
 impl MoveKind {
+    pub const ALL: &'static [Self] = &[
+        Self::Receipt,
+        Self::Delivery,
+        Self::Internal,
+        Self::Adjustment,
+        Self::Manufacturing,
+        Self::Neither,
+    ];
+
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Receipt => "receipt",
+            Self::Delivery => "delivery",
+            Self::Internal => "internal",
+            Self::Adjustment => "adjustment",
+            Self::Manufacturing => "manufacturing",
+            Self::Neither => "neither",
+        }
+    }
+
+    pub fn parse(raw: &str) -> Option<Self> {
+        Self::ALL.iter().copied().find(|kind| kind.as_str() == raw)
+    }
+
+    /// Every pair of ends that amounts to this kind.
+    ///
+    /// What a reader answering "only the deliveries" needs, given that the kind
+    /// is derived and there is no column to compare it with. The alternative is
+    /// the truth table below written a second time in SQL, where it cannot be
+    /// tested and would be found to disagree by somebody reading a filtered
+    /// list with a return missing from it.
+    pub fn ends(self) -> Vec<(LocationKind, LocationKind)> {
+        LocationKind::ALL
+            .iter()
+            .copied()
+            .flat_map(|from| LocationKind::ALL.iter().copied().map(move |to| (from, to)))
+            .filter(|(from, to)| Self::between(*from, *to) == self)
+            .collect()
+    }
+
     /// What moving from `from` to `to` amounts to.
     pub const fn between(from: LocationKind, to: LocationKind) -> Self {
         match (from.is_owned(), to.is_owned()) {
@@ -557,6 +597,31 @@ mod tests {
             MoveKind::between(K::Internal, K::Production),
             MoveKind::Manufacturing
         );
+    }
+
+    #[test]
+    fn every_pair_of_ends_belongs_to_exactly_one_kind() {
+        // What a `WHERE` built from `ends` is relying on. A pair in two kinds
+        // would show a move twice under two filters; one in none would make it
+        // unreachable under any of them.
+        let mut counted = 0;
+
+        for kind in MoveKind::ALL {
+            counted += kind.ends().len();
+
+            for (from, to) in kind.ends() {
+                assert_eq!(MoveKind::between(from, to), *kind);
+            }
+        }
+
+        assert_eq!(counted, LocationKind::ALL.len() * LocationKind::ALL.len());
+    }
+
+    #[test]
+    fn a_kind_reads_back_from_the_name_it_crosses_the_wire_as() {
+        for kind in MoveKind::ALL {
+            assert_eq!(MoveKind::parse(kind.as_str()), Some(*kind));
+        }
     }
 
     #[test]
