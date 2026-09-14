@@ -12,6 +12,7 @@
 //! | [`quantity`] | How many, at four decimal places? |
 //! | [`invoice`] | What is on the document, and what state is it in? |
 //! | [`pricing`] | What does it come to? |
+//! | [`posting`] | Which accounts does it move, and which way? |
 //! | [`report`] | What do the four statements say? |
 //!
 //! # An invoice is a draft until it is posted
@@ -57,6 +58,7 @@ pub mod account;
 pub mod invoice;
 pub mod journal;
 pub mod period;
+pub mod posting;
 pub mod pricing;
 pub mod quantity;
 pub mod report;
@@ -115,7 +117,7 @@ pub const SETUP: &[phonix_core::SetupItem] = &[
 pub use account::{
     Account, AccountClass, AccountError, AccountInput, AccountSummary, AccountType, DefaultAccount,
     DefaultChart, DefaultChartError, MAX_ACCOUNT_DESCRIPTION_LEN, MAX_ACCOUNT_NAME_LEN,
-    MAX_ACCOUNT_NUMBER_LEN, Side, suggest_number,
+    MAX_ACCOUNT_NUMBER_LEN, RoleMapping, Side, suggest_number,
 };
 pub use period::{NewPeriod, Period, PeriodError};
 pub use journal::{

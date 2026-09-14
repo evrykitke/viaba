@@ -1312,6 +1312,13 @@ type = "contra_equity"
 # that has remapped a role keeps its choice, and a role added by a later release
 # reaches the workspaces that already have Books.
 
+# The sales ledger's control account. Every posted invoice debits it and every
+# receipt credits it, which is what makes "what are we owed" a balance rather
+# than a query over documents.
+[[role]]
+role = "accounts_receivable"
+number = "1100"
+
 [[role]]
 role = "inventory"
 number = "1200"
@@ -1331,6 +1338,13 @@ number = "2000"
 [[role]]
 role = "goods_received_not_invoiced"
 number = "2010"
+
+# 2100 Output tax payable, not 2110 Tax payable - net. What a sale charges is
+# held apart until a return is filed; netting it against input tax before then
+# would make both sides of the return unauditable.
+[[role]]
+role = "tax_payable"
+number = "2100"
 
 [[role]]
 role = "revenue"

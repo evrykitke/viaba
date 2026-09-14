@@ -12,7 +12,7 @@
 //! the document's date and on a rate table it cannot see. [`tax_treatments`]
 //! hands them over once, and everything after that is local.
 
-use app_books::account::{Account, AccountInput};
+use app_books::account::{Account, AccountInput, RoleMapping};
 use app_books::journal::{JournalDraft, JournalSummary, Posted};
 use app_books::period::Period;
 use app_books::report::{
@@ -24,6 +24,7 @@ use leptos::prelude::*;
 use leptos::server_fn::codec::Json;
 use phonix_core::form::Submission;
 use phonix_master::party::PartySummary;
+use phonix_ports::ledger::{AccountRole, LedgerAccount};
 use phonix_tax::group::TaxTreatment;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -87,6 +88,49 @@ pub struct JournalFilter {
 }
 
 /// What has been posted to the ledger.
+/// Every role this build knows, and the account each one means here.
+#[server(name = AccountRoles, prefix = "/api", endpoint = "books/accounts/roles")]
+pub async fn account_roles() -> Result<Vec<RoleMapping>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::books::account_role::list(&pool, &caller)
+        .await
+        .map_err(service_error)
+}
+
+/// The chart a role may be pointed at, each account carrying the roles it fits.
+///
+/// The same answer the item screen's picker is built from, from the same place.
+/// Two lists of "what may carry this role" would eventually disagree, and the
+/// one that disagreed would be the one nobody was looking at.
+#[server(name = RoleChart, prefix = "/api", endpoint = "books/accounts/roles/chart")]
+pub async fn role_chart() -> Result<Vec<LedgerAccount>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::books::account_role::chart(&pool, &caller)
+        .await
+        .map_err(service_error)
+}
+
+/// Point a role at an account, or `None` to stop it meaning anything.
+#[server(name = SetAccountRole, prefix = "/api", endpoint = "books/accounts/roles/set")]
+pub async fn set_account_role(
+    role: AccountRole,
+    account_id: Option<Uuid>,
+) -> Result<(), ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::books::account_role::set(&pool, &caller, role, account_id)
+        .await
+        .map_err(service_error)
+}
+
 #[server(name = ListJournals, prefix = "/api", endpoint = "books/journals", input = Json)]
 pub async fn list_journals(filter: JournalFilter) -> Result<Vec<JournalSummary>, ServerFnError> {
     use crate::state::{pool_and_caller, service_error};
@@ -477,6 +521,18 @@ pub async fn post_invoice(invoice_id: Uuid) -> Result<PostOutcome, ServerFnError
     let (pool, caller) = pool_and_caller().await?;
 
     phonix_services::books::invoice::post(&pool, &caller, invoice_id)
+        .await
+        .map_err(service_error)
+}
+
+/// The journal a posted invoice raised: its id, and its number.
+#[server(name = InvoiceJournal, prefix = "/api", endpoint = "books/invoices/journal")]
+pub async fn invoice_journal(invoice_id: Uuid) -> Result<Option<(Uuid, String)>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::books::invoice::journal_of(&pool, &caller, invoice_id)
         .await
         .map_err(service_error)
 }

@@ -59,6 +59,17 @@ reason it was. With it the screen that makes an adjustment exists at all —
 
 **Everything section 7 names is now built.**
 
+And now **the sell side reaches the ledger**, which is the half of section 5
+that was written down and then not wired up: posting a sales invoice used to
+change a status and write no journal, so every statement it makes possible read
+zero. It posts receivables, revenue and output tax through the same account
+determination Inventory posts through, in the same transaction as the number
+and the freeze; voiding reverses it; and account determination finally has a
+screen, so a role the defaults could not fill is fixable without SQL. See
+*Selling, as built* under section 5 — and the two things still missing on that
+side, which are the documents in front of the invoice and the receipt behind
+it.
+
 `Stock` is still not declared, as section 2 says it should not be: Books does
 not yet put cost of goods sold on an invoice, and that is the caller the port
 waits for.
@@ -415,6 +426,61 @@ invoice is the easy half.
    biggest thing the incumbents get wrong.
 6. **Currency is the six-column snapshot**, exactly as 0001 §3 specifies, on
    every journal line.
+
+### Selling, as built
+
+The sentence above — "Books currently has an invoice and no ledger" — had a
+sequel nobody wrote down: Books got a ledger, and the invoice still did not use
+it. Posting one changed a status, took a number and froze a snapshot, and wrote
+nothing at all to the general ledger. Every statement §5 makes possible read
+zero revenue, and the receivable a customer actually owed existed only as a
+`SELECT` over documents.
+
+It posts now, and the shape is the plain one:
+
+```text
+  DR  accounts receivable   gross
+      CR  revenue                   net
+      CR  tax payable               tax
+```
+
+Three things about it are decisions rather than arithmetic.
+
+**The invoice names roles, not accounts.** `accounts_receivable` and
+`tax_payable` joined `AccountRole`, and the mapping is in
+`config/defaults/books.toml` beside the chart it names accounts of. Books is
+the ledger and could have looked up its own account ids directly; going through
+the same account determination Inventory goes through means there is one answer
+to "where does revenue land", not two that drift.
+
+**The journal is in the same transaction as the post.** This is the deliberate
+opposite of `inventory::bill`, which commits its document and *then* asks the
+ledger, because a warehouse must not stop for the accounting module and
+`NoLedger` is a real answer over there. Here there is no such answer: an invoice
+that posted while its journal was refused — a closed period, a role with no
+account — is revenue nobody recorded, found weeks later by a reconciliation. So
+the refusal is the invoice's refusal. Both numbers go back and it stays a draft.
+
+**Voiding reverses, dated today.** Withdrawing the document without reversing
+its entry would leave the receivable on the balance sheet under an invoice that
+has been withdrawn. The reversal is a new journal dated the day of the
+withdrawal, not the day of the invoice: a mistake found in April is April's
+event, and back-dating it into the period being corrected would mean a
+withdrawal is only possible in a month still open — which is to say, not when it
+is noticed.
+
+**And account determination has a screen.** `/sales/accounts/roles`, which the
+chart had been missing since 0004 invented the table: until now a role the
+defaults could not fill left its posting refused with no way to fix it from
+inside the application. It applies the same rule the item's accounts panel
+applies, from the same place — the ledger says which accounts carry a role and
+the rest are shown unselectable, because two hundred accounts any of which
+balances is how revenue ends up in petty cash.
+
+What is still not built on this side is the chain **in front of** the invoice —
+the quotation, the sales order and the delivery — and the **receipt** behind it.
+Until a customer paying is a document, the statement in §5's reports is an
+*invoiced* statement rather than a settled one, and it says so on screen.
 
 ---
 

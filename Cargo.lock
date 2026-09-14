@@ -152,6 +152,7 @@ dependencies = [
  "chrono",
  "phonix-core",
  "phonix-master",
+ "phonix-ports",
  "phonix-tax",
  "serde",
  "serde_json",

@@ -14,6 +14,26 @@
 //! mistake is corrected by voiding it and raising another. That is not a
 //! limitation, it is what makes an invoice evidence.
 //!
+//! # Posting an invoice is an accounting event, in one transaction
+//!
+//! The number, the freeze and the journal all commit together or none of them
+//! do. That is a deliberate difference from the way a supplier bill posts -
+//! see `inventory::bill`, which commits the document and *then* asks the
+//! ledger, because a warehouse must not stop for the accounting module and
+//! `NoLedger` is a real answer over there.
+//!
+//! Here there is no such answer. Books is the ledger. An invoice that posted
+//! while its journal was refused - a closed period, an unmapped role - would be
+//! revenue nobody recorded, found weeks later by a reconciliation. So the
+//! refusal is the invoice's refusal: nothing is written, the number is returned
+//! to the series, and the screen says which date or which setting is in the
+//! way.
+//!
+//! [`void`] is the mirror. Withdrawing the document reverses its journal in the
+//! same transaction, dated the day the withdrawal happens rather than the day
+//! the invoice was issued - a mistake found in April is April's event, and
+//! March may well be closed by now.
+//!
 //! # The snapshot happens here
 //!
 //! The party's name and address are copied onto the draft every time it is
@@ -192,7 +212,7 @@ pub async fn save(
     Ok(Submission::Saved(after))
 }
 
-/// Number the invoice and freeze it.
+/// Number the invoice, freeze it, and post what it does to the ledger.
 ///
 /// # Why the whole thing is one transaction
 ///
@@ -201,6 +221,17 @@ pub async fn save(
 /// makes a failed post *return* the number: a retry cannot burn one, and the
 /// sequence stays gap-free. Allocating first and storing afterwards would leave
 /// a number handed out to a document that was never written.
+///
+/// The journal is written inside it too, and for a second reason: an invoice
+/// whose entry was refused is revenue that was never recorded. See the module
+/// header on why that is the opposite of what a goods receipt does.
+///
+/// # Two sequences, always in this order
+///
+/// The invoice's number is taken before the journal's. Both are one row apiece
+/// and both are held to the commit, so two posts running at once queue through
+/// them in the same order and cannot deadlock against each other. Anything that
+/// posts a journal beside an invoice should take them in this order too.
 pub async fn post(pool: &PgPool, caller: &Caller, id: Uuid) -> ServiceResult<PostOutcome> {
     caller.require(permissions::INVOICES_POST)?;
     acting_user(caller)?;
@@ -255,19 +286,39 @@ pub async fn post(pool: &PgPool, caller: &Caller, id: Uuid) -> ServiceResult<Pos
         return Ok(PostOutcome::NotADraft);
     }
 
+    let journal = match post_journal(pool, &mut tx, caller, &invoice, &allocated.number).await {
+        Ok(journal) => journal,
+        Err(err) => {
+            // A closed period, a missing rate, a role with no account behind
+            // it. Both numbers go back and the document stays a draft, which
+            // is what makes the refusal actionable rather than a mess to
+            // unpick.
+            tx.rollback().await.map_err(phonix_db::DbError::Query)?;
+            return Err(err);
+        }
+    };
+
     tx.commit().await.map_err(phonix_db::DbError::Query)?;
 
     // Recorded after the commit, and best-effort like every audit write: losing
     // a trail row is bad, refusing a post because the trail is unwritable is
     // worse.
     let after = find(pool, caller, id).await?;
+    let mut target = Target::new(kinds::SALES_INVOICE, id)
+        .named(&invoice.party.name)
+        .fact("number", &allocated.number)
+        .fact("total", invoice.totals.gross.to_display_string());
+
+    if let Some(journal_id) = journal {
+        let posted = super::journal::detail_of(pool, journal_id).await?;
+        target = target.fact("journal", &posted.number);
+        super::journal::record(pool, caller, &posted).await;
+    }
+
     audit::updated(
         pool,
         caller,
-        Target::new(kinds::SALES_INVOICE, id)
-            .named(&invoice.party.name)
-            .fact("number", &allocated.number)
-            .fact("total", invoice.totals.gross.to_display_string()),
+        target,
         &InvoiceStatus::Draft,
         &after.status,
     )
@@ -278,10 +329,65 @@ pub async fn post(pool: &PgPool, caller: &Caller, id: Uuid) -> ServiceResult<Pos
     })
 }
 
-/// Withdraw a posted invoice.
+/// What the invoice does to the ledger, written into the transaction that is
+/// posting it.
+///
+/// `None` where it does nothing: a document at no charge is a legitimate
+/// invoice and moves no money, and a journal of three zeroes is not a better
+/// record of that than no journal at all - see [`app_books::posting`].
+///
+/// The lookups it makes - the workspace's currency, the rate for the day, what
+/// each role means here - read the pool rather than the transaction. None of
+/// them touch anything the transaction has written, and doing them on the
+/// connection that holds two sequence locks would hold those locks for the
+/// duration of every one.
+async fn post_journal(
+    pool: &PgPool,
+    tx: &mut phonix_db::sqlx::PgConnection,
+    caller: &Caller,
+    invoice: &Invoice,
+    number: &str,
+) -> ServiceResult<Option<Uuid>> {
+    // The document as it will be the moment this commits: numbered, and
+    // posted. Assembled here rather than re-read, because the row it would be
+    // read from is inside a transaction nobody else can see yet.
+    let mut document = invoice.clone();
+    document.status = InvoiceStatus::Posted;
+    document.number = Some(number.to_owned());
+
+    let Some(request) = app_books::posting::sales_invoice(&document) else {
+        return Ok(None);
+    };
+
+    let ledger = super::ledger::BooksLedger::new(pool.clone(), caller.clone());
+    let entry = ledger
+        .assemble(request)
+        .await
+        .map_err(super::ledger::refused)?;
+
+    let ready = super::journal::ready(pool, entry).await?;
+    let written = super::journal::write(tx, &ready, caller).await?;
+
+    Ok(Some(written.id))
+}
+
+/// Withdraw a posted invoice, and reverse what it posted.
 ///
 /// It keeps its number: a number that disappears is a gap, and a gap is what an
-/// auditor asks about. What it loses is its claim on anybody.
+/// auditor asks about. What it loses is its claim on anybody - and the ledger
+/// has to lose it too, or the receivable stays on the balance sheet under a
+/// document that has been withdrawn.
+///
+/// # The reversal is dated today, not the day of the invoice
+///
+/// A mistake found in April is April's event even when the mistake was March's,
+/// and March may well be closed by now. Back-dating the correction into the
+/// period being corrected would mean a withdrawal could only ever happen in a
+/// month still open - which is to say, not when it is actually noticed.
+///
+/// `today` is the *server's* day. The screen never sends one: a date read in
+/// the browser is the browser's timezone and its clock, and neither belongs in
+/// a ledger.
 pub async fn void(pool: &PgPool, caller: &Caller, id: Uuid) -> ServiceResult<()> {
     caller.require(permissions::INVOICES_VOID)?;
     acting_user(caller)?;
@@ -294,22 +400,69 @@ pub async fn void(pool: &PgPool, caller: &Caller, id: Uuid) -> ServiceResult<()>
         ));
     }
 
-    if !store::void(pool, id, caller.user_id()).await? {
+    let today = chrono::Utc::now().date_naive();
+
+    // The reversal is prepared before the transaction opens, for the reason
+    // everything else is: it reads several tables and does not need the
+    // sequence's lock held while it does.
+    let reversal = match phonix_db::books::journal::of_document(pool, id).await? {
+        Some((journal_id, number)) => {
+            let entry = super::journal::reversal_entry(
+                pool,
+                journal_id,
+                today,
+                Some(format!("Reverses {number}")),
+            )
+            .await?;
+
+            Some(super::journal::ready(pool, entry).await?)
+        }
+        // Nothing was posted, so there is nothing to take back. An invoice at
+        // no charge, or one raised before this app posted anything at all.
+        None => None,
+    };
+
+    let mut tx = pool.begin().await.map_err(phonix_db::DbError::Query)?;
+
+    if !store::void(&mut *tx, id, caller.user_id()).await? {
+        tx.rollback().await.map_err(phonix_db::DbError::Query)?;
         return Err(ServiceError::rejected(
             "status",
             msg!("books.error.not_voidable"),
         ));
     }
 
+    let written = match reversal {
+        Some(ready) => match super::journal::write(&mut tx, &ready, caller).await {
+            Ok(written) => Some(written),
+            Err(err) => {
+                tx.rollback().await.map_err(phonix_db::DbError::Query)?;
+                return Err(err);
+            }
+        },
+        None => None,
+    };
+
+    tx.commit().await.map_err(phonix_db::DbError::Query)?;
+
+    let mut target = Target::new(kinds::SALES_INVOICE, id)
+        .named(&invoice.party.name)
+        // Recorded because the document keeps it, and "which number was
+        // withdrawn" is the question a gap in the sequence provokes.
+        .fact("number", invoice.number.clone().unwrap_or_default())
+        .fact("total", invoice.totals.gross.to_display_string());
+
+    if let Some(written) = written {
+        target = target.fact("reversal", &written.number);
+
+        let posted = super::journal::detail_of(pool, written.id).await?;
+        super::journal::record(pool, caller, &posted).await;
+    }
+
     audit::updated(
         pool,
         caller,
-        Target::new(kinds::SALES_INVOICE, id)
-            .named(&invoice.party.name)
-            // Recorded because the document keeps it, and "which number was
-            // withdrawn" is the question a gap in the sequence provokes.
-            .fact("number", invoice.number.clone().unwrap_or_default())
-            .fact("total", invoice.totals.gross.to_display_string()),
+        target,
         &InvoiceStatus::Posted,
         &InvoiceStatus::Voided,
     )
@@ -353,6 +506,25 @@ pub async fn delete(pool: &PgPool, caller: &Caller, id: Uuid) -> ServiceResult<(
     .await;
 
     Ok(())
+}
+
+/// The journal this invoice raised, if it raised one.
+///
+/// Gated on reading invoices rather than on reading journals. Somebody allowed
+/// to look at an invoice is allowed to be told what it did to the books; making
+/// this the ledger's permission would hide the consequence from the person
+/// responsible for the document.
+///
+/// `None` for a draft, for an invoice at no charge, and for one posted before
+/// this app posted anything at all.
+pub async fn journal_of(
+    pool: &PgPool,
+    caller: &Caller,
+    id: Uuid,
+) -> ServiceResult<Option<(Uuid, String)>> {
+    caller.require(permissions::INVOICES)?;
+
+    Ok(phonix_db::books::journal::of_document(pool, id).await?)
 }
 
 /// Every active tax treatment, resolved for a date.

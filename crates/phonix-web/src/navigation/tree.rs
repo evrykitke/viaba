@@ -92,6 +92,17 @@ pub static MENU: &[NavNode] = &[
             )
             .require(names::ACCOUNTS)
             .keywords(&["chart", "ledger", "gl", "nominal", "coa"]),
+            // Beside the chart rather than under Settings. It is a decision
+            // about what the chart MEANS, and somebody looking for it is
+            // looking at the chart when they realise they need it.
+            NavNode::leaf(
+                "account-roles",
+                "nav.account_roles",
+                Icon::SlidersHorizontal,
+                "/sales/accounts/roles",
+            )
+            .require(names::ACCOUNTS)
+            .keywords(&["determination", "mapping", "default accounts", "posting", "role"]),
             NavNode::leaf(
                 "journals",
                 "nav.journals",

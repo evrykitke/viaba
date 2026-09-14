@@ -259,6 +259,21 @@ pub mod kinds {
         singleton: false,
     };
 
+    /// Which account each kind of posting lands on.
+    ///
+    /// Audited because it is the decision every future posting inherits:
+    /// moving `revenue` from 4000 to 4100 puts next month's sales somewhere
+    /// else without touching a single document, and nothing on the documents
+    /// themselves would ever show it. A singleton - there is one mapping per
+    /// workspace, and the entry names the role that moved.
+    pub const ACCOUNT_ROLE: EntityKind = EntityKind {
+        name: "account_role",
+        singular_key: "entity.account_role.singular",
+        plural_key: "entity.account_role.plural",
+        href: Some("/sales/accounts/roles"),
+        singleton: true,
+    };
+
     /// A part of the organization, and whether spending is charged to it.
     ///
     /// The audited change that matters is not the rename: it is

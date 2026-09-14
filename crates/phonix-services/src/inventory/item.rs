@@ -625,11 +625,11 @@ async fn check_suits(
         Ok(Some(_)) => Ok(()),
         Ok(None) => Err(ServiceError::rejected(
             "account_id",
-            msg!("items.error.account_not_suited", account = named()),
+            msg!("ledger.error.account_not_suited", account = named()),
         )),
         Err(LedgerError::UnpostableAccount(_)) => Err(ServiceError::rejected(
             "account_id",
-            msg!("items.error.account_unpostable", account = named()),
+            msg!("ledger.error.account_unpostable", account = named()),
         )),
         // No ledger here at all: nothing to check against, and nothing to post
         // either. The mapping is kept, because the workspace may switch Books

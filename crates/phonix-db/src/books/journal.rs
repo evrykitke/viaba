@@ -218,6 +218,36 @@ where
         .map_err(DbError::Query)
 }
 
+/// The journal a document raised, if it raised one.
+///
+/// Asked by a posted invoice that wants to show which entry it made, and by the
+/// void that has to reverse it. The document id alone, without the app and the
+/// type: a uuid is already unique, and a lookup that has to spell out
+/// `('books', 'sales_invoice', id)` is one every caller can get subtly wrong.
+///
+/// The newest first, and one row. A document posts one journal; a document that
+/// somehow posted two has a bug, and returning the later of them is the right
+/// answer for the screen while it is being found.
+pub async fn of_document<'e, E>(executor: E, doc_id: Uuid) -> Result<Option<(Uuid, String)>, DbError>
+where
+    E: PgExecutor<'e>,
+{
+    let row: Option<(Uuid, String)> = sqlx::query_as(
+        "SELECT id, number
+           FROM books.journals
+          WHERE source_doc_id = $1
+            AND reverses_id IS NULL
+          ORDER BY posted_at DESC
+          LIMIT 1",
+    )
+    .bind(doc_id)
+    .fetch_optional(executor)
+    .await
+    .map_err(DbError::Query)?;
+
+    Ok(row)
+}
+
 /// Whether anything has been posted into a period. What a close reports and a
 /// reopen does not need.
 pub async fn count_in_period<'e, E>(executor: E, period_id: Uuid) -> Result<i64, DbError>

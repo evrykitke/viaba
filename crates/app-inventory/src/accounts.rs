@@ -80,7 +80,8 @@ impl AccountOverrides {
     /// The override for one role, or `None` where this level does not care.
     ///
     /// The roles with no slot fall through deliberately. Accounts payable is
-    /// the supplier's, not the item's; landed cost, inventory adjustment and
+    /// the supplier's, not the item's, and receivables and output tax are the
+    /// customer's for the same reason; landed cost, inventory adjustment and
     /// in-transit are workspace-wide policy and would be a different number per
     /// item for no reason anybody could explain afterwards.
     pub fn for_role(&self, role: AccountRole) -> Option<&AccountRef> {
@@ -92,6 +93,8 @@ impl AccountOverrides {
             AccountRole::Revenue => self.revenue.as_ref(),
             AccountRole::CostOfSales => self.cost_of_sales.as_ref(),
             AccountRole::AccountsPayable
+            | AccountRole::AccountsReceivable
+            | AccountRole::TaxPayable
             | AccountRole::LandedCost
             | AccountRole::InventoryAdjustment
             | AccountRole::InventoryInTransit => None,
@@ -210,6 +213,8 @@ mod tests {
 
         for role in [
             AccountRole::AccountsPayable,
+            AccountRole::AccountsReceivable,
+            AccountRole::TaxPayable,
             AccountRole::LandedCost,
             AccountRole::InventoryAdjustment,
             AccountRole::InventoryInTransit,

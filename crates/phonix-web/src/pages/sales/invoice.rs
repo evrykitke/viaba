@@ -41,7 +41,8 @@ use crate::components::page::{
 use crate::icons::Icon;
 use crate::l;
 use crate::server_fns::books_fns::{
-    delete_invoice, invoice_detail, post_invoice, save_invoice, tax_treatments, void_invoice,
+    delete_invoice, invoice_detail, invoice_journal, post_invoice, save_invoice, tax_treatments,
+    void_invoice,
 };
 use crate::server_fns::master_fns::list_parties;
 use crate::ui::alert::{Alert, Alerts, Confirm};
@@ -897,6 +898,51 @@ fn totals(totals: Memo<Option<DocumentTax>>) -> impl IntoView {
     }
 }
 
+/// What this invoice did to the ledger, and the way to go and read it.
+///
+/// Fetched rather than carried on the invoice. The link is a fact about the
+/// journals table, not about the document, and an invoice that stored its own
+/// journal id would be two records of one thing - which is the shape that
+/// eventually disagrees. The source columns on the journal already say which
+/// document raised it; this asks them.
+///
+/// Nothing is drawn where there is no journal: a draft has not posted, and an
+/// invoice at no charge posted nothing. A row saying "none" would invite the
+/// question of what went wrong, and nothing did.
+#[component]
+fn journal_row(invoice_id: Uuid) -> impl IntoView {
+    let journal = Resource::new(
+        move || invoice_id,
+        |invoice_id| async move { invoice_journal(invoice_id).await.ok().flatten() },
+    );
+
+    view! {
+        <Transition fallback=|| ()>
+            {move || Suspend::new(async move {
+                journal
+                    .await
+                    .map(|(journal_id, number)| {
+                        view! {
+                            <div class="flex justify-between gap-4">
+                                <dt class="text-content-muted">
+                                    {l!("books.invoice.journal")}
+                                </dt>
+                                <dd>
+                                    <a
+                                        class="font-mono text-xs text-brand hover:underline"
+                                        href=format!("/sales/journals/{journal_id}")
+                                    >
+                                        {number}
+                                    </a>
+                                </dd>
+                            </div>
+                        }
+                    })
+            })}
+        </Transition>
+    }
+}
+
 // --- the document -------------------------------------------------------
 
 /// A posted or voided invoice: read-only, and everything on it is what was
@@ -990,6 +1036,7 @@ fn invoice_document(invoice: app_books::invoice::Invoice, reload: Callback<()>) 
                                     </div>
                                 }
                             })}
+                        <JournalRow invoice_id=id />
                     </dl>
                 </Section>
             </div>

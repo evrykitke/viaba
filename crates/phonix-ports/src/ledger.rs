@@ -69,6 +69,12 @@ pub enum AccountRole {
     GoodsDeliveredNotInvoiced,
     /// What the workspace sells for, before tax.
     Revenue,
+    /// What customers owe. The control account a sales ledger reconciles to,
+    /// and the debit side of every invoice.
+    AccountsReceivable,
+    /// Tax charged on a sale and owed to the collecting authority. Not income:
+    /// it was never the workspace's money.
+    TaxPayable,
 }
 
 impl AccountRole {
@@ -83,6 +89,8 @@ impl AccountRole {
         Self::CostOfSales,
         Self::GoodsDeliveredNotInvoiced,
         Self::Revenue,
+        Self::AccountsReceivable,
+        Self::TaxPayable,
     ];
 
     pub const fn as_str(self) -> &'static str {
@@ -97,6 +105,8 @@ impl AccountRole {
             Self::CostOfSales => "cost_of_sales",
             Self::GoodsDeliveredNotInvoiced => "goods_delivered_not_invoiced",
             Self::Revenue => "revenue",
+            Self::AccountsReceivable => "accounts_receivable",
+            Self::TaxPayable => "tax_payable",
         }
     }
 

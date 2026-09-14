@@ -19,6 +19,7 @@
 //! sequence, and it does it in the same transaction as the write.
 
 pub mod account;
+pub mod account_role;
 pub mod invoice;
 pub mod journal;
 pub mod ledger;

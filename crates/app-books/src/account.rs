@@ -20,6 +20,7 @@
 
 use phonix_core::Message;
 use phonix_core::msg;
+use phonix_ports::ledger::AccountRole;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -479,6 +480,43 @@ pub fn suggest_number(account_type: AccountType, chart: &[Account]) -> Option<St
     };
 
     (next <= end).then(|| next.to_string())
+}
+
+/// What one posting role means in this workspace, as a screen reads it.
+///
+/// Here rather than in the service that assembles it, because the screen that
+/// draws it runs in a browser and `phonix-services` does not compile there.
+/// Here rather than in `phonix-ports` for the opposite reason: the mapping is
+/// Books' own table and nothing crosses the port to reach it - what crosses is
+/// the [`AccountRole`] it is keyed by, which is why that lives over there and
+/// this does not.
+///
+/// The number and name travel beside the id so a list of a dozen roles draws
+/// itself from one request instead of thirteen.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RoleMapping {
+    pub role: AccountRole,
+    /// `None` where nobody has chosen one. The row that matters most on the
+    /// screen, and the reason the list is driven by the roles rather than by
+    /// the table.
+    pub account_id: Option<Uuid>,
+    pub number: String,
+    pub name: String,
+}
+
+impl RoleMapping {
+    pub const fn is_mapped(&self) -> bool {
+        self.account_id.is_some()
+    }
+
+    /// `1100 · Trade receivables`, or nothing where it is unmapped.
+    pub fn label(&self) -> String {
+        if !self.is_mapped() {
+            return String::new();
+        }
+
+        format!("{} \u{b7} {}", self.number, self.name)
+    }
 }
 
 /// One row of the chart, as a grid reads it.

@@ -20,6 +20,12 @@ license.workspace = true
 [dependencies]
 phonix-core = { workspace = true }
 phonix-master = { workspace = true }
+# The role vocabulary a posting names, and the request shape it is handed over
+# in. Books IMPLEMENTS `Ledger` rather than calling it - but its own invoice
+# has to name the account a credit lands in, and the words for that already
+# exist here. A second set of names for the same decision is a second place for
+# it to be made differently.
+phonix-ports = { workspace = true }
 phonix-tax = { workspace = true }
 
 serde = { workspace = true }

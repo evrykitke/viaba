@@ -51,6 +51,150 @@ impl BooksLedger {
 #[async_trait::async_trait]
 impl Ledger for BooksLedger {
     async fn post(&self, request: JournalRequest) -> Result<PostedRef, LedgerError> {
+        let entry = self.assemble(request).await?;
+
+        let posted = super::journal::post_unchecked(&self.pool, &self.caller, entry)
+            .await
+            .map_err(as_ledger_error)?;
+
+        Ok(PostedRef {
+            journal_id: posted.id,
+            number: posted.number,
+        })
+    }
+
+    async fn is_mapped(&self, role: AccountRole) -> Result<bool, LedgerError> {
+        Ok(roles::account_for(&self.pool, role.as_str())
+            .await
+            .map_err(|err| LedgerError::Unavailable(err.to_string()))?
+            .is_some())
+    }
+
+    async fn postable_accounts(&self) -> Result<Vec<LedgerAccount>, LedgerError> {
+        // Active rather than `is_postable`. That predicate asks whether a
+        // *person* may key an entry to the account, and it excludes the control
+        // accounts - which are exactly the ones a sub-ledger is supposed to
+        // post to. An inventory control account nobody could point stock at
+        // would be an inventory control account for nothing.
+        Ok(phonix_db::books::account::list(&self.pool)
+            .await
+            .map_err(|err| LedgerError::Unavailable(err.to_string()))?
+            .into_iter()
+            .filter(|account| account.is_active)
+            .map(|account| LedgerAccount {
+                id: account.id,
+                number: account.number,
+                name: account.name,
+                class: account.account_type.class().as_str().to_owned(),
+                fits: fits_of(account.account_type),
+            })
+            .collect())
+    }
+
+    async fn account_fit(
+        &self,
+        account_id: uuid::Uuid,
+        role: AccountRole,
+    ) -> Result<Option<Fit>, LedgerError> {
+        let account = phonix_db::books::account::find(&self.pool, account_id)
+            .await
+            .map_err(|err| LedgerError::Unavailable(err.to_string()))?;
+
+        match account {
+            Some(account) if account.is_active => Ok(fit(role, account.account_type)),
+            _ => Err(LedgerError::UnpostableAccount(account_id)),
+        }
+    }
+}
+
+/// What kind of account each role posts to.
+///
+/// Here rather than in the app that asks, and that is the point of the port:
+/// whether stock belongs in this account is a question about Books' chart, and
+/// Inventory answering it would be Inventory reading the chart. The left list
+/// is the account type the role *is*; the right is what a workspace may use
+/// instead without anybody having to explain it the following March. Anything
+/// else is refused - a stock receipt credited to the petty cash account is not
+/// a preference.
+///
+/// Types, not numbers. A workspace numbering its revenue in the 7000s is
+/// unusual rather than wrong, and nothing here reads meaning out of a digit.
+const fn suited(role: AccountRole) -> (&'static [AccountType], &'static [AccountType]) {
+    use AccountType as T;
+
+    match role {
+        AccountRole::Inventory | AccountRole::InventoryInTransit => {
+            (&[T::Inventory], &[T::OtherCurrentAsset])
+        }
+        AccountRole::GoodsReceivedNotInvoiced => (
+            &[T::GoodsReceivedNotInvoiced],
+            &[T::AccruedLiability, T::OtherCurrentLiability],
+        ),
+        AccountRole::AccountsPayable => (&[T::AccountsPayable], &[T::OtherCurrentLiability]),
+        // Stock has gone and the customer has not been billed. The default
+        // chart calls that an accrued asset; a workspace that treats it as a
+        // deferral files it under liabilities, and both are in use.
+        AccountRole::GoodsDeliveredNotInvoiced => (
+            &[T::OtherCurrentAsset],
+            &[T::AccruedLiability, T::OtherCurrentLiability],
+        ),
+        AccountRole::CostOfSales => (&[T::CostOfSales], &[T::OperatingExpense]),
+        AccountRole::PurchasePriceVariance
+        | AccountRole::LandedCost
+        | AccountRole::InventoryAdjustment => {
+            (&[T::CostOfSales], &[T::OperatingExpense, T::OtherExpense])
+        }
+        AccountRole::Revenue => (&[T::Revenue], &[T::OtherIncome]),
+        AccountRole::AccountsReceivable => (&[T::AccountsReceivable], &[T::OtherCurrentAsset]),
+        // Output tax is owed to whoever collects it. A workspace keeping VAT in
+        // a general current liability is doing something ordinary; one keeping
+        // it in accounts payable is not, because that account is reconciled
+        // against supplier statements.
+        AccountRole::TaxPayable => (&[T::TaxPayable], &[T::OtherCurrentLiability]),
+    }
+}
+
+/// How well one account type carries one role.
+fn fit(role: AccountRole, account_type: AccountType) -> Option<Fit> {
+    let (best, allowed) = suited(role);
+
+    if best.contains(&account_type) {
+        Some(Fit::Best)
+    } else if allowed.contains(&account_type) {
+        Some(Fit::Allowed)
+    } else {
+        None
+    }
+}
+
+/// Every role one account may carry, attached to the row itself so a picker
+/// with the whole chart in front of it groups what it already has rather than
+/// asking again for each role.
+fn fits_of(account_type: AccountType) -> Vec<(AccountRole, Fit)> {
+    AccountRole::ALL
+        .iter()
+        .filter_map(|&role| fit(role, account_type).map(|fit| (role, fit)))
+        .collect()
+}
+
+impl BooksLedger {
+    /// Turn a request into an entry this ledger could post, without posting it.
+    ///
+    /// Every lookup a posting needs and none of the writing: the workspace's
+    /// own currency, the rate for the document's own date, what each role means
+    /// here, and what each cost centre is called - and then the balance check,
+    /// which is what `JournalEntry::assemble` is.
+    ///
+    /// Visible to the crate because Books posts its OWN documents through it
+    /// too. A sales invoice is not a caller across the port - it is this app's
+    /// own document - but the account determination it needs is the same
+    /// determination, and a second copy of it is a second place for the answer
+    /// to come out differently. What the invoice does differently is write the
+    /// result inside its own transaction; see `crate::books::invoice::post`.
+    pub(crate) async fn assemble(
+        &self,
+        request: JournalRequest,
+    ) -> Result<JournalEntry, LedgerError> {
         let base = crate::workspace::profile::current(&self.pool)
             .await
             .map_err(unavailable)?
@@ -150,125 +294,9 @@ impl Ledger for BooksLedger {
             other => LedgerError::Refused(other.message()),
         })?;
 
-        let posted = super::journal::post_unchecked(&self.pool, &self.caller, entry)
-            .await
-            .map_err(as_ledger_error)?;
-
-        Ok(PostedRef {
-            journal_id: posted.id,
-            number: posted.number,
-        })
+        Ok(entry)
     }
 
-    async fn is_mapped(&self, role: AccountRole) -> Result<bool, LedgerError> {
-        Ok(roles::account_for(&self.pool, role.as_str())
-            .await
-            .map_err(|err| LedgerError::Unavailable(err.to_string()))?
-            .is_some())
-    }
-
-    async fn postable_accounts(&self) -> Result<Vec<LedgerAccount>, LedgerError> {
-        // Active rather than `is_postable`. That predicate asks whether a
-        // *person* may key an entry to the account, and it excludes the control
-        // accounts - which are exactly the ones a sub-ledger is supposed to
-        // post to. An inventory control account nobody could point stock at
-        // would be an inventory control account for nothing.
-        Ok(phonix_db::books::account::list(&self.pool)
-            .await
-            .map_err(|err| LedgerError::Unavailable(err.to_string()))?
-            .into_iter()
-            .filter(|account| account.is_active)
-            .map(|account| LedgerAccount {
-                id: account.id,
-                number: account.number,
-                name: account.name,
-                class: account.account_type.class().as_str().to_owned(),
-                fits: fits_of(account.account_type),
-            })
-            .collect())
-    }
-
-    async fn account_fit(
-        &self,
-        account_id: uuid::Uuid,
-        role: AccountRole,
-    ) -> Result<Option<Fit>, LedgerError> {
-        let account = phonix_db::books::account::find(&self.pool, account_id)
-            .await
-            .map_err(|err| LedgerError::Unavailable(err.to_string()))?;
-
-        match account {
-            Some(account) if account.is_active => Ok(fit(role, account.account_type)),
-            _ => Err(LedgerError::UnpostableAccount(account_id)),
-        }
-    }
-}
-
-/// What kind of account each role posts to.
-///
-/// Here rather than in the app that asks, and that is the point of the port:
-/// whether stock belongs in this account is a question about Books' chart, and
-/// Inventory answering it would be Inventory reading the chart. The left list
-/// is the account type the role *is*; the right is what a workspace may use
-/// instead without anybody having to explain it the following March. Anything
-/// else is refused - a stock receipt credited to the petty cash account is not
-/// a preference.
-///
-/// Types, not numbers. A workspace numbering its revenue in the 7000s is
-/// unusual rather than wrong, and nothing here reads meaning out of a digit.
-const fn suited(role: AccountRole) -> (&'static [AccountType], &'static [AccountType]) {
-    use AccountType as T;
-
-    match role {
-        AccountRole::Inventory | AccountRole::InventoryInTransit => {
-            (&[T::Inventory], &[T::OtherCurrentAsset])
-        }
-        AccountRole::GoodsReceivedNotInvoiced => (
-            &[T::GoodsReceivedNotInvoiced],
-            &[T::AccruedLiability, T::OtherCurrentLiability],
-        ),
-        AccountRole::AccountsPayable => (&[T::AccountsPayable], &[T::OtherCurrentLiability]),
-        // Stock has gone and the customer has not been billed. The default
-        // chart calls that an accrued asset; a workspace that treats it as a
-        // deferral files it under liabilities, and both are in use.
-        AccountRole::GoodsDeliveredNotInvoiced => (
-            &[T::OtherCurrentAsset],
-            &[T::AccruedLiability, T::OtherCurrentLiability],
-        ),
-        AccountRole::CostOfSales => (&[T::CostOfSales], &[T::OperatingExpense]),
-        AccountRole::PurchasePriceVariance
-        | AccountRole::LandedCost
-        | AccountRole::InventoryAdjustment => {
-            (&[T::CostOfSales], &[T::OperatingExpense, T::OtherExpense])
-        }
-        AccountRole::Revenue => (&[T::Revenue], &[T::OtherIncome]),
-    }
-}
-
-/// How well one account type carries one role.
-fn fit(role: AccountRole, account_type: AccountType) -> Option<Fit> {
-    let (best, allowed) = suited(role);
-
-    if best.contains(&account_type) {
-        Some(Fit::Best)
-    } else if allowed.contains(&account_type) {
-        Some(Fit::Allowed)
-    } else {
-        None
-    }
-}
-
-/// Every role one account may carry, attached to the row itself so a picker
-/// with the whole chart in front of it groups what it already has rather than
-/// asking again for each role.
-fn fits_of(account_type: AccountType) -> Vec<(AccountRole, Fit)> {
-    AccountRole::ALL
-        .iter()
-        .filter_map(|&role| fit(role, account_type).map(|fit| (role, fit)))
-        .collect()
-}
-
-impl BooksLedger {
     /// Check an account a caller named outright.
     ///
     /// The reason a bare id is allowed to cross the port at all. An id naming
@@ -313,4 +341,30 @@ fn as_ledger_error(err: ServiceError) -> LedgerError {
 
 fn unavailable(err: ServiceError) -> LedgerError {
     LedgerError::Unavailable(err.to_string())
+}
+
+/// A ledger that refused one of Books' own documents, in words the person
+/// posting it can act on.
+///
+/// The field each one lands on is the field somebody can change: a closed
+/// period or a missing rate is the document's date; an unmapped role is a
+/// setting in the chart. `inventory::stock::refused` does the same for the far
+/// side of the port, in that app's vocabulary - two helpers deliberately,
+/// because "set one on the item" is not advice a sales invoice can give.
+pub(crate) fn refused(err: LedgerError) -> ServiceError {
+    match err {
+        LedgerError::Refused(message) => ServiceError::rejected("issued_on", message),
+        LedgerError::PeriodClosed(detail) => ServiceError::rejected(
+            "issued_on",
+            phonix_core::msg!("books.error.period_closed", detail = detail),
+        ),
+        LedgerError::UnmappedRole(role) => ServiceError::rejected(
+            "status",
+            phonix_core::msg!("books.error.unmapped_role", role = role.to_owned()),
+        ),
+        other => ServiceError::rejected(
+            "status",
+            phonix_core::msg!("books.error.not_posted", detail = other.to_string()),
+        ),
+    }
 }

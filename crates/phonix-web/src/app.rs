@@ -69,6 +69,7 @@ use crate::pages::people::home::PeopleHomePage;
 // Aliased: `pages::account` is the viewer's own profile, and both are called
 // AccountPage in their own module.
 use crate::pages::sales::account::AccountPage as ChartAccountPage;
+use crate::pages::sales::account_roles::AccountRolesPage;
 use crate::pages::sales::accounts::{AccountNewPage, AccountsPage};
 use crate::pages::sales::home::SalesHomePage;
 use crate::pages::sales::journal::JournalPage;
@@ -231,6 +232,11 @@ pub fn app() -> impl IntoView {
                     // Before `:id`, so "new" is a screen rather than an
                     // account id that fails to parse.
                     <Route path=path!("/sales/accounts/new") view=AccountNewPage />
+                    // Before the `:id` route it shares a prefix with. A
+                    // static segment wins over a parameter either way, and
+                    // `/sales/accounts/new` above has been relying on that
+                    // since the chart had a form.
+                    <Route path=path!("/sales/accounts/roles") view=AccountRolesPage />
                     <Route path=path!("/sales/accounts/:id") view=ChartAccountPage />
                     <Route path=path!("/sales/journals") view=JournalsPage />
                     // Before `:id`, so "new" is a screen rather than a journal

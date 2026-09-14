@@ -122,6 +122,27 @@ where
         .collect()
 }
 
+/// Unmap a role. `false` where it was not mapped in the first place.
+///
+/// A deliberate act, not a tidy-up: the role stops meaning anything here, and
+/// the next posting that needs it is refused by name. That is sometimes the
+/// right answer - a workspace that does not track goods delivered and not
+/// invoiced should be told so at the moment it matters, rather than have the
+/// accrual land in whichever account was nearest.
+pub async fn clear<'e, E>(executor: E, role: &str) -> Result<bool, DbError>
+where
+    E: PgExecutor<'e>,
+{
+    let affected = sqlx::query("DELETE FROM books.account_roles WHERE role = $1")
+        .bind(role)
+        .execute(executor)
+        .await
+        .map_err(DbError::Query)?
+        .rows_affected();
+
+    Ok(affected > 0)
+}
+
 /// Point a role at an account, or move it.
 pub async fn set<'e, E>(
     executor: E,

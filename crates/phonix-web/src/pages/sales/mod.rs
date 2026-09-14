@@ -5,6 +5,7 @@
 //! /sales/accounts          the chart          a grid and a tree
 //! /sales/accounts/new      add one            a form
 //! /sales/accounts/:id      one account        Details | History
+//! /sales/accounts/roles    account determination  a role per row
 //! /sales/journals          the ledger         a grid
 //! /sales/journals/new      post one           two money columns
 //! /sales/journals/:id      one journal        the document, read-only
@@ -23,6 +24,7 @@
 //! link somebody sent last week should still open the thing they meant.
 
 pub mod account;
+pub mod account_roles;
 pub mod accounts;
 pub mod chart_tree;
 pub mod home;

@@ -95,6 +95,82 @@ pub(crate) async fn post_unchecked(
     caller: &Caller,
     entry: JournalEntry,
 ) -> ServiceResult<Posted> {
+    let ready = ready(pool, entry).await?;
+    let mut tx = pool.begin().await.map_err(DbError::Query)?;
+
+    let id = match write(&mut tx, &ready, caller).await {
+        Ok(written) => written.id,
+        Err(err) => {
+            // Rolling back returns the number.
+            tx.rollback().await.map_err(DbError::Query)?;
+            return Err(err);
+        }
+    };
+
+    tx.commit().await.map_err(DbError::Query)?;
+
+    let posted = detail_unchecked(pool, id).await?;
+    record(pool, caller, &posted).await;
+
+    Ok(posted)
+}
+
+/// Put a journal on the audit trail.
+///
+/// After the commit, and best-effort like every audit write: losing a trail row
+/// is bad, refusing a post because the trail is unwritable is worse.
+///
+/// Called by whoever committed - which is [`post_unchecked`] for a journal
+/// somebody typed, and the *document* for a journal a document raised inside
+/// its own transaction. Both leave the same row, because "what posted this" is
+/// a question about the ledger and not about which code path wrote it.
+pub(crate) async fn record(pool: &PgPool, caller: &Caller, posted: &Posted) {
+    audit::created(
+        pool,
+        caller,
+        Target::new(kinds::JOURNAL, posted.id)
+            .named(&posted.number)
+            .fact("period", &posted.period_label)
+            .fact("source", &posted.source.doc_type),
+        posted,
+    )
+    .await;
+}
+
+/// One journal, read without asking whether the caller may read journals.
+///
+/// For the document that just raised it: somebody allowed to post an invoice
+/// does not separately need the ledger's permission to be told what the invoice
+/// posted.
+pub(crate) async fn detail_of(pool: &PgPool, id: Uuid) -> ServiceResult<Posted> {
+    detail_unchecked(pool, id).await
+}
+
+/// A journal with everything settled that can be settled before a transaction
+/// opens: the base currency checked, the rates checked, the period resolved and
+/// the allocator open.
+///
+/// Split out from [`post_unchecked`] so a *document* can write its own journal
+/// inside its own transaction - see [`crate::books::invoice::post`]. Every
+/// journal queues through one sequence row, so the less that happens while that
+/// lock is held, the better; this type is the line between the two.
+pub(crate) struct Ready {
+    entry: JournalEntry,
+    period_id: Uuid,
+    generator: crate::numbering::NumberGenerator,
+}
+
+/// What a written journal is, to a caller that has not committed yet.
+pub(crate) struct Written {
+    pub id: Uuid,
+    pub number: String,
+}
+
+/// Check a journal against the workspace and find it a period.
+///
+/// Reads only. Nothing here writes, so a caller may do this before deciding
+/// whether to open a transaction at all.
+pub(crate) async fn ready(pool: &PgPool, entry: JournalEntry) -> ServiceResult<Ready> {
     let base = base_currency(pool).await?;
 
     // The accountant set this. A journal converting to anything else is two
@@ -117,19 +193,36 @@ pub(crate) async fn post_unchecked(
     // Rule 4. Resolved before the transaction opens: it reads one row and does
     // not need the sequence's lock held while it does.
     let period = crate::books::period::for_posting(pool, entry.entry_date()).await?;
-
-    // Outside the transaction for the same reason. Every journal queues through
-    // the sequence's one row, so anything that can happen before the lock does.
     let generator = crate::numbering::NumberGenerator::open(pool).await?;
-    let mut tx = pool.begin().await.map_err(DbError::Query)?;
 
+    Ok(Ready {
+        entry,
+        period_id: period.id,
+        generator,
+    })
+}
+
+/// Number a prepared journal and store it, in a transaction the caller owns.
+///
+/// The caller rolls back on an error, which is what returns the number: the
+/// `UPDATE` that allocates one holds a row lock until the transaction ends, so
+/// a post that fails cannot burn a number and the series stays gap-free.
+pub(crate) async fn write(
+    tx: &mut phonix_db::sqlx::PgConnection,
+    ready: &Ready,
+    caller: &Caller,
+) -> ServiceResult<Written> {
     let key = SequenceKey::new(app_books::APP_ID, app_books::JOURNAL);
-    let allocated = match generator.next(&mut tx, key, entry.entry_date()).await {
+
+    let allocated = match ready
+        .generator
+        .next(&mut *tx, key, ready.entry.entry_date())
+        .await
+    {
         Ok(allocated) => allocated,
-        // The series is missing or switched off. Rolled back rather than left
-        // half-open; the fix is a settings screen, not a retry.
+        // The series is missing or switched off. The fix is a settings screen,
+        // not a retry, so it is a refusal naming the field rather than a fault.
         Err(ServiceError::Db(DbError::UnusableSequence { .. })) => {
-            tx.rollback().await.map_err(DbError::Query)?;
             return Err(ServiceError::rejected(
                 "number",
                 msg!("journals.error.no_series"),
@@ -138,44 +231,29 @@ pub(crate) async fn post_unchecked(
         Err(err) => return Err(err),
     };
 
-    let id = match store::insert(&mut tx, &entry, &allocated.number, period.id, caller.user_id())
-        .await
-    {
-        Ok(id) => id,
-        Err(err) => {
-            // Rolling back returns the number.
-            tx.rollback().await.map_err(DbError::Query)?;
-
-            // A line naming an account that is not there. Reported on the
-            // lines rather than as a fault: it is reachable from a stale
-            // picker, which is somebody else having tidied the chart.
-            if names_a_missing_row(&err) {
-                return Err(ServiceError::rejected(
-                    "lines",
-                    msg!("journals.error.unknown_account"),
-                ));
-            }
-
-            return Err(err.into());
-        }
-    };
-
-    tx.commit().await.map_err(DbError::Query)?;
-
-    let posted = detail_unchecked(pool, id).await?;
-
-    audit::created(
-        pool,
-        caller,
-        Target::new(kinds::JOURNAL, id)
-            .named(&posted.number)
-            .fact("period", &posted.period_label)
-            .fact("source", &posted.source.doc_type),
-        &posted,
+    let id = store::insert(
+        &mut *tx,
+        &ready.entry,
+        &allocated.number,
+        ready.period_id,
+        caller.user_id(),
     )
-    .await;
+    .await
+    .map_err(|err| {
+        // A line naming an account that is not there. Reported on the lines
+        // rather than as a fault: it is reachable from a stale picker, which is
+        // somebody else having tidied the chart.
+        if names_a_missing_row(&err) {
+            ServiceError::rejected("lines", msg!("journals.error.unknown_account"))
+        } else {
+            err.into()
+        }
+    })?;
 
-    Ok(posted)
+    Ok(Written {
+        id,
+        number: allocated.number,
+    })
 }
 
 /// Turn what somebody typed into a journal, and post it.
@@ -332,7 +410,24 @@ pub async fn reverse(
     caller.require(permissions::JOURNALS_REVERSE)?;
     acting_user(caller)?;
 
-    let original = detail(pool, caller, id).await?;
+    let entry = reversal_entry(pool, id, on, narration).await?;
+
+    post_unchecked(pool, caller, entry).await
+}
+
+/// The reversing entry for a journal, checked and assembled but not posted.
+///
+/// Shared by [`reverse`], which posts it on its own, and by a document being
+/// withdrawn, which writes it inside the same transaction that withdraws the
+/// document - see [`crate::books::invoice::void`]. One place that decides what
+/// a reversal contains and what refuses one.
+pub(crate) async fn reversal_entry(
+    pool: &PgPool,
+    id: Uuid,
+    on: NaiveDate,
+    narration: Option<String>,
+) -> ServiceResult<JournalEntry> {
+    let original = detail_unchecked(pool, id).await?;
 
     // Asked before writing, so the refusal names the correction that already
     // exists rather than surfacing as a unique-index violation.
@@ -349,10 +444,8 @@ pub async fn reverse(
         format!("Reverses {}", original.number)
     });
 
-    let entry = app_books::journal::JournalEntry::reversal_of(&original, on, narration)
-        .map_err(|err| ServiceError::rejected(err.field(), err.message()))?;
-
-    post_unchecked(pool, caller, entry).await
+    app_books::journal::JournalEntry::reversal_of(&original, on, narration)
+        .map_err(|err| ServiceError::rejected(err.field(), err.message()))
 }
 
 /// Every foreign-currency line converts at a rate the workspace has recorded.
