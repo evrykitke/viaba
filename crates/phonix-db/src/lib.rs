@@ -98,6 +98,7 @@ pub mod master;
 pub mod numbering;
 pub mod organization;
 pub mod outbox;
+pub mod search;
 pub mod settings;
 pub mod tenancy;
 

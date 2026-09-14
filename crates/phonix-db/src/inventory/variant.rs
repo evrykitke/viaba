@@ -51,16 +51,6 @@ fn rules_from(row: &sqlx::postgres::PgRow) -> Result<LotRules, sqlx::Error> {
     })
 }
 
-/// Escape the wildcards in a search term.
-///
-/// Without this, a search for `50%` matches everything.
-fn escape_like(needle: &str) -> String {
-    needle
-        .replace('\\', "\\\\")
-        .replace('%', "\\%")
-        .replace('_', "\\_")
-}
-
 /// Every attribute, each with its values, in display order.
 ///
 /// One query per table rather than one joined query: the values are grouped
@@ -263,7 +253,7 @@ where
 
     let rows = sqlx::query(statement)
         .bind(needle)
-        .bind(escape_like(needle))
+        .bind(crate::search::escaped(needle))
         .bind(limit)
         .fetch_all(executor)
         .await

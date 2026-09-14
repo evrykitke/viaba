@@ -16,6 +16,7 @@ use serde_json::Value as Json;
 use sqlx::{AssertSqlSafe, FromRow, PgExecutor, PgPool, Row};
 
 use crate::error::DbError;
+use crate::search;
 
 /// What happened. Matches the `identity_events_event_valid` constraint.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -363,7 +364,7 @@ pub async fn page(pool: &PgPool, request: &PageRequest) -> Result<Page<AuditReco
     let scope = AuditScope::of(&request);
     let needle = request
         .needle()
-        .map(|needle| format!("%{}%", escape_like(&needle)));
+        .map(|needle| search::contains(&needle));
 
     // One clause, six bound parameters, no interpolation: a scope that is not
     // in force compiles to `NOT false OR ...`, which Postgres discards, and an
@@ -461,29 +462,10 @@ where
     .map_err(DbError::Query)
 }
 
-/// Neutralise the wildcards in a search term.
-///
-/// Without this, typing `%` into the search box matches every row and typing
-/// `_` matches every single character - which reads as a search box that
-/// sometimes ignores what was typed.
-fn escape_like(needle: &str) -> String {
-    needle
-        .replace('\\', "\\\\")
-        .replace('%', "\\%")
-        .replace('_', "\\_")
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    #[test]
-    fn a_search_term_cannot_smuggle_in_a_wildcard() {
-        // `%` and `_` are LIKE syntax; somebody searching for "50%" means the
-        // characters, not "everything".
-        assert_eq!(escape_like("50%"), "50\\%");
-        assert_eq!(escape_like("a_b"), "a\\_b");
-    }
 
     #[test]
     fn the_scope_comes_from_the_request_and_defaults_to_everything() {

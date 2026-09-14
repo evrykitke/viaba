@@ -24,6 +24,7 @@ use sqlx::{AssertSqlSafe, FromRow, PgExecutor, PgPool, Row};
 use uuid::Uuid;
 
 use crate::error::DbError;
+use crate::search;
 
 /// A key row, without anything anyone could present.
 #[derive(Debug, Clone)]
@@ -206,7 +207,7 @@ pub async fn page(pool: &PgPool, request: &PageRequest) -> Result<Page<ApiKeyLis
     let request = request.sanitised();
     let needle = request
         .needle()
-        .map(|needle| format!("%{}%", escape_like(&needle)));
+        .map(|needle| search::contains(&needle));
 
     let live = match request.filter("revoked") {
         Some("live") => Some(true),
@@ -346,10 +347,3 @@ where
     Ok(result.rows_affected())
 }
 
-/// `%` and `_` are wildcards in `LIKE`; a search box is not a pattern language.
-fn escape_like(needle: &str) -> String {
-    needle
-        .replace('\\', "\\\\")
-        .replace('%', "\\%")
-        .replace('_', "\\_")
-}

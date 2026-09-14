@@ -36,6 +36,7 @@ use sqlx::{AssertSqlSafe, FromRow, PgExecutor, PgPool, Row};
 use uuid::Uuid;
 
 use crate::error::DbError;
+use crate::search;
 
 /// One row, in full.
 ///
@@ -568,7 +569,7 @@ pub async fn page(pool: &PgPool, request: &PageRequest) -> Result<Page<FileSumma
     let request = request.sanitised();
     let needle = request
         .needle()
-        .map(|needle| format!("%{}%", escape_like(&needle)));
+        .map(|needle| search::contains(&needle));
 
     // The bucket and the status are ordinary named filters, so the screen and
     // the query agree on spelling through `PageRequest::filter` rather than
@@ -671,16 +672,6 @@ fn truncate(text: &str, max: usize) -> String {
     text.get(..end).unwrap_or_default().to_owned()
 }
 
-/// Escape the wildcards in a search term.
-///
-/// Without this, a search for `50%` matches everything.
-fn escape_like(needle: &str) -> String {
-    needle
-        .replace('\\', "\\\\")
-        .replace('%', "\\%")
-        .replace('_', "\\_")
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -702,12 +693,6 @@ mod tests {
         assert!(all.split(", ").all(|column| column.starts_with("f.")));
     }
 
-    #[test]
-    fn search_terms_cannot_smuggle_wildcards() {
-        assert_eq!(escape_like("50%"), "50\\%");
-        assert_eq!(escape_like("a_b"), "a\\_b");
-        assert_eq!(escape_like("back\\slash"), "back\\\\slash");
-    }
 
     #[test]
     fn truncation_lands_on_a_character_boundary() {

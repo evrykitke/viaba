@@ -25,6 +25,7 @@ use serde_json::Value as Json;
 use sqlx::{AssertSqlSafe, FromRow, PgExecutor, PgPool, Row};
 
 use crate::error::DbError;
+use crate::search;
 
 /// One change to record.
 #[derive(Debug, Clone)]
@@ -254,7 +255,7 @@ pub async fn page(pool: &PgPool, request: &PageRequest) -> Result<Page<EntityRec
     let request = request.sanitised();
     let needle = request
         .needle()
-        .map(|needle| format!("%{}%", escape_like(&needle)));
+        .map(|needle| search::contains(&needle));
 
     // A filter nobody set is a NULL that discards its own line, so one clause
     // serves every combination and nothing is interpolated.
@@ -389,28 +390,11 @@ pub async fn prune(pool: &PgPool, days: i32, limit: i64) -> Result<u64, DbError>
     Ok(deleted.rows_affected())
 }
 
-/// Neutralise the wildcards in a search term.
-///
-/// Without this, typing `%` into the search box matches every row and typing
-/// `_` matches every single character - which reads as a search box that
-/// sometimes ignores what was typed.
-fn escape_like(needle: &str) -> String {
-    needle
-        .replace('\\', "\\\\")
-        .replace('%', "\\%")
-        .replace('_', "\\_")
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use phonix_core::audit::kinds;
 
-    #[test]
-    fn a_search_term_cannot_smuggle_in_a_wildcard() {
-        assert_eq!(escape_like("50%"), "50\\%");
-        assert_eq!(escape_like("a_b"), "a\\_b");
-    }
 
     #[test]
     fn a_singleton_entry_keys_itself_without_anybody_inventing_a_key() {
