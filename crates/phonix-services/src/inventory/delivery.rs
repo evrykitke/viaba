@@ -44,6 +44,7 @@ use phonix_core::locale::Currency;
 use phonix_core::money::Money;
 use phonix_core::msg;
 use phonix_core::permissions;
+use phonix_core::query::{Page, PageRequest};
 use phonix_db::error::DbError;
 use phonix_db::inventory::delivery as store;
 use phonix_db::inventory::sales_order as order_store;
@@ -57,11 +58,15 @@ use crate::audit::{self, Target, kinds};
 use crate::caller::{Caller, acting_user};
 use crate::error::{ServiceError, ServiceResult};
 
-pub async fn list(pool: &PgPool, caller: &Caller) -> ServiceResult<Vec<DeliverySummary>> {
+pub async fn list(
+    pool: &PgPool,
+    caller: &Caller,
+    request: PageRequest,
+) -> ServiceResult<Page<DeliverySummary>> {
     caller.require(permissions::DELIVERIES)?;
-
     let currency = base_currency(pool).await?;
-    Ok(store::list(pool, currency).await?)
+
+    Ok(store::page(pool, currency, &request).await?)
 }
 
 pub async fn detail(pool: &PgPool, caller: &Caller, id: Uuid) -> ServiceResult<Delivery> {

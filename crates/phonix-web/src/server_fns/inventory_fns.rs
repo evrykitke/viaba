@@ -1284,13 +1284,13 @@ pub async fn delete_sales_order(order_id: Uuid) -> Result<bool, ServerFnError> {
 // that moves anything: it builds the ledger the same way every posting screen
 // does, because a despatch credits stock and debits cost of sales.
 
-#[server(name = ListDeliveries, prefix = "/api", endpoint = "inventory/deliveries")]
-pub async fn list_deliveries() -> Result<Vec<DeliverySummary>, ServerFnError> {
+#[server(name = ListDeliveries, prefix = "/api", endpoint = "inventory/deliveries", input = Json)]
+pub async fn list_deliveries(request: PageRequest) -> Result<Page<DeliverySummary>, ServerFnError> {
     use crate::state::{pool_and_caller, service_error};
 
     let (pool, caller) = pool_and_caller().await?;
 
-    phonix_services::inventory::delivery::list(&pool, &caller)
+    phonix_services::inventory::delivery::list(&pool, &caller, request)
         .await
         .map_err(service_error)
 }
@@ -1492,13 +1492,13 @@ pub async fn delete_purchase_order(order_id: Uuid) -> Result<bool, ServerFnError
 // stock debited, goods-received-not-invoiced credited, per line, in one call
 // into the stock ledger.
 
-#[server(name = ListReceipts, prefix = "/api", endpoint = "inventory/receipts")]
-pub async fn list_receipts() -> Result<Vec<ReceiptSummary>, ServerFnError> {
+#[server(name = ListReceipts, prefix = "/api", endpoint = "inventory/receipts", input = Json)]
+pub async fn list_receipts(request: PageRequest) -> Result<Page<ReceiptSummary>, ServerFnError> {
     use crate::state::{pool_and_caller, service_error};
 
     let (pool, caller) = pool_and_caller().await?;
 
-    phonix_services::inventory::receipt::list(&pool, &caller)
+    phonix_services::inventory::receipt::list(&pool, &caller, request)
         .await
         .map_err(service_error)
 }

@@ -28,11 +28,13 @@ use app_inventory::quantity::Quantity;
 use app_inventory::sales_order::CustomerSnapshot;
 use phonix_core::identity::UserId;
 use phonix_core::locale::Currency;
+use phonix_core::query::{Page, PageRequest};
 use phonix_core::money::Money;
-use sqlx::{PgConnection, PgExecutor, Row};
+use sqlx::{AssertSqlSafe, PgConnection, PgExecutor, Row};
 use uuid::Uuid;
 
 use crate::error::DbError;
+use crate::listing::{self, Sortable};
 
 fn unknown(column: &str, raw: &str) -> sqlx::Error {
     sqlx::Error::Decode(
@@ -50,27 +52,110 @@ fn read_quantity(raw: &str, column: &str) -> Result<Quantity, sqlx::Error> {
         .map_err(|err| sqlx::Error::Decode(format!("{column} holds '{raw}': {err}").into()))
 }
 
-pub async fn list<'e, E>(executor: E, currency: Currency) -> Result<Vec<DeliverySummary>, DbError>
-where
-    E: PgExecutor<'e>,
-{
-    let rows = sqlx::query(
+/// The range key the deliveries grid declares, and so the pair of filter keys -
+/// `despatched_from` and `despatched_to` - that arrive with a request.
+///
+/// A constant because it is written in two crates that must agree and do not
+/// depend on each other: here, and `ui::table::config::deliveries`.
+pub const DESPATCHED: &str = "despatched";
+
+/// The filter key naming which state to show.
+pub const STATE: &str = "state";
+
+/// The columns the deliveries grid may order by.
+const SORTABLE: &[Sortable] = &[
+    ("number", "d.number"),
+    ("customer", "d.customer_name"),
+    ("despatched_on", "d.despatched_on"),
+    ("order", "o.number"),
+    ("value", "d.value"),
+    ("line_count", "line_count"),
+];
+
+/// Everything a row is read from or narrowed by, shared between the count and
+/// the select so the pager and the page cannot disagree about which rows exist.
+const FROM: &str = "FROM inventory.deliveries d
+           JOIN inventory.warehouses w ON w.id = d.warehouse_id
+           LEFT JOIN inventory.sales_orders o ON o.id = d.order_id";
+
+/// A filter nobody set is a NULL that discards its own line, so one clause
+/// serves every combination and nothing is interpolated.
+const WHERE: &str = "WHERE ($1::text IS NULL
+                 OR d.number ILIKE $1
+                 OR d.customer_name ILIKE $1
+                 OR d.carrier_reference ILIKE $1
+                 OR o.number ILIKE $1
+                 OR w.name ILIKE $1)
+            AND ($2::date IS NULL OR d.despatched_on >= $2)
+            AND ($3::date IS NULL OR d.despatched_on <= $3)
+            AND ($4::text IS NULL OR d.state = $4)";
+
+/// One page of the deliveries list, newest first.
+///
+/// Paged in SQL because goods leaving is a thing that happened: nothing deletes one,
+/// and the list grows for as long as the workspace trades.
+///
+/// Two statements, a count and a select, so the page can be pulled back to one
+/// that exists before the rows are fetched.
+pub async fn page(
+    pool: &sqlx::PgPool,
+    currency: Currency,
+    request: &PageRequest,
+) -> Result<Page<DeliverySummary>, DbError> {
+    let request = request.sanitised();
+    let needle = request.needle().map(|needle| crate::search::contains(&needle));
+    let state = request.filter(STATE).and_then(DeliveryState::parse);
+    let despatched = request.range(DESPATCHED);
+
+    // `AssertSqlSafe` because these statements are composed rather than
+    // written: `FROM` and `WHERE` are constants, and `order` can only be a
+    // string this file put in `SORTABLE`. Nothing from a browser reaches the
+    // text of the query.
+    let counting = AssertSqlSafe(format!("SELECT count(*) {FROM} {WHERE}"));
+
+    let total: i64 = sqlx::query_scalar(counting)
+        .bind(needle.as_deref())
+        .bind(despatched.first_day())
+        .bind(despatched.last_day())
+        .bind(state.map(DeliveryState::as_str))
+        .fetch_one(pool)
+        .await
+        .map_err(DbError::Query)?;
+
+    let total = u64::try_from(total).unwrap_or(0);
+    let request = request.clamped_to(total);
+
+    // Newest first, and `created_at` after it whatever the sort: two documents
+    // on the same day would otherwise swap places between one page and the
+    // next, which shows up as a row that appears twice.
+    let order = listing::order_by(request.sort.as_ref(), SORTABLE, "d.despatched_on DESC");
+
+    let selecting = AssertSqlSafe(format!(
         "SELECT d.id, d.number, d.state, d.customer_name, d.despatched_on,
                 d.carrier_reference, d.value::text AS value,
                 o.number AS order_number,
                 w.name AS warehouse_name,
                 (SELECT count(*) FROM inventory.delivery_lines l WHERE l.delivery_id = d.id)
                     AS line_count
-           FROM inventory.deliveries d
-           JOIN inventory.warehouses w ON w.id = d.warehouse_id
-           LEFT JOIN inventory.sales_orders o ON o.id = d.order_id
-          ORDER BY d.despatched_on DESC, d.created_at DESC",
-    )
-    .fetch_all(executor)
-    .await
-    .map_err(DbError::Query)?;
+           {FROM}
+           {WHERE}
+          ORDER BY {order}, d.created_at DESC
+          LIMIT $5 OFFSET $6"
+    ));
 
-    rows.into_iter()
+    let rows = sqlx::query(selecting)
+        .bind(needle.as_deref())
+        .bind(despatched.first_day())
+        .bind(despatched.last_day())
+        .bind(state.map(DeliveryState::as_str))
+        .bind(request.limit() as i64)
+        .bind(request.offset() as i64)
+        .fetch_all(pool)
+        .await
+        .map_err(DbError::Query)?;
+
+    let summaries = rows
+        .into_iter()
         .map(|row| {
             let state: String = row.try_get("state")?;
             let value: String = row.try_get("value")?;
@@ -91,7 +176,9 @@ where
             })
         })
         .collect::<Result<Vec<_>, sqlx::Error>>()
-        .map_err(DbError::Query)
+        .map_err(DbError::Query)?;
+
+    Ok(Page::new(summaries, total, &request))
 }
 
 pub async fn find<'e, E>(

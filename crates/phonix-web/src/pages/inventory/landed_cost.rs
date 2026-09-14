@@ -14,6 +14,7 @@ use leptos::prelude::*;
 use leptos_meta::Title;
 use phonix_core::audit::kinds;
 use phonix_core::form::Submission;
+use phonix_core::query::{MAX_PER_PAGE, PageRequest};
 use uuid::Uuid;
 
 use crate::components::history::RecordHistory;
@@ -206,7 +207,13 @@ fn landed_cost_editor(draft: LandedCostInput) -> impl IntoView {
     let saving = RwSignal::new(false);
     let rejected = RwSignal::new(None::<String>);
 
-    let receipts = Resource::new(|| (), |()| async move { list_receipts().await });
+    // A picker, not a ledger. One page of receipts, newest first: what this
+    // fetched before was every receipt the workspace had ever booked in, to
+    // fill a dropdown.
+    let receipts = Resource::new(
+        || (),
+        |()| async move { list_receipts(PageRequest::first(MAX_PER_PAGE)).await },
+    );
 
     // Re-read whenever the delivery changes: the cartons on the screen have to
     // be the cartons the charge will land on.
@@ -229,7 +236,7 @@ fn landed_cost_editor(draft: LandedCostInput) -> impl IntoView {
                 view! { <p class="text-sm text-content-subtle">{l!("common.loading")}</p> }
             }>
                 {move || Suspend::new(async move {
-                    let receipts = receipts.await.unwrap_or_default();
+                    let receipts = receipts.await.map(|page| page.rows).unwrap_or_default();
 
                     view! {
                         <EditorBody

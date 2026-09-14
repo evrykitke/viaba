@@ -18,10 +18,12 @@ use crate::components::page::{Badge, Tone};
 use crate::icons::Icon;
 use crate::l;
 use crate::server_fns::inventory_fns::list_deliveries;
-use crate::ui::table::{Align, Cell, Column, Filter, FilterChoice, RowAction, Source, ToolbarAction};
+use crate::ui::table::{
+    Align, Cell, Column, DateFilter, Filter, FilterChoice, RowAction, Source, ToolbarAction,
+};
 
 pub fn deliveries_grid() -> GridConfig<DeliverySummary> {
-    GridConfig::new("deliveries", Source::in_memory(list_deliveries))
+    GridConfig::new("deliveries", Source::paged(list_deliveries))
         .searching(l!("deliveries.search"))
         .exports_as("deliveries")
         .sorted_by(Sort::descending("despatched_on"))
@@ -122,6 +124,8 @@ pub fn deliveries_grid() -> GridConfig<DeliverySummary> {
             .align(Align::End)
             .class("tabular-nums text-content-muted"),
         )
+        // No `matching`: a closure could only narrow the rows already
+        // fetched, and "only the drafts" is a question about the list.
         .filter(
             Filter::new(
                 "state",
@@ -132,14 +136,9 @@ pub fn deliveries_grid() -> GridConfig<DeliverySummary> {
                     FilterChoice::new("draft", l!("deliveries.state.draft")),
                     FilterChoice::new("cancelled", l!("deliveries.state.cancelled")),
                 ],
-            )
-            .matching(|row: &DeliverySummary, wanted| match wanted {
-                "done" => matches!(row.state, DeliveryState::Done),
-                "draft" => matches!(row.state, DeliveryState::Draft),
-                "cancelled" => matches!(row.state, DeliveryState::Cancelled),
-                _ => true,
-            }),
+            ),
         )
+        .date_filter(DateFilter::new("despatched", l!("deliveries.despatched")))
         .toolbar(
             ToolbarAction::link(l!("common.add"), Icon::Plus, "/inventory/deliveries/new")
                 .require(permissions::DELIVERIES_CREATE)
@@ -193,5 +192,90 @@ const fn state_tone(state: DeliveryState) -> Tone {
         DeliveryState::Draft => Tone::Neutral,
         DeliveryState::Done => Tone::Success,
         DeliveryState::Cancelled => Tone::Danger,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use leptos::prelude::Owner;
+
+    use super::*;
+
+    fn grid() -> GridConfig<DeliverySummary> {
+        Owner::new().with(deliveries_grid)
+    }
+
+    /// Written as literals rather than imported: `phonix-web` does not depend
+    /// on `phonix-db`, and the point of the test is that the two lists were
+    /// written to agree. The source is
+    /// `phonix_db::inventory::delivery::SORTABLE`.
+    const SERVER_SORTS: &[&str] = &["number", "customer", "despatched_on", "order", "value", "line_count"];
+
+    /// The columns the `WHERE` actually looks inside. Same reasoning.
+    const SERVER_SEARCHES: &[&str] = &["number", "customer", "carrier_reference", "order", "warehouse"];
+
+    #[test]
+    fn every_sortable_column_is_one_the_server_can_order_by() {
+        for column in grid().columns.iter().filter(|column| column.sortable) {
+            assert!(
+                SERVER_SORTS.contains(&column.field()),
+                "{} offers a sort the reader will ignore",
+                column.field(),
+            );
+        }
+    }
+
+    #[test]
+    fn every_searchable_column_is_one_the_server_looks_inside() {
+        for column in grid().columns.iter().filter(|column| column.searchable) {
+            assert!(
+                SERVER_SEARCHES.contains(&column.field()),
+                "{} is offered to the search box and never searched",
+                column.field(),
+            );
+        }
+    }
+
+    #[test]
+    fn it_opens_newest_first_by_a_column_the_server_can_order_by() {
+        let sort = grid().initial_request().sort.expect("an opening order");
+
+        assert_eq!(sort, Sort::descending("despatched_on"));
+        assert!(SERVER_SORTS.contains(&sort.field.as_str()));
+    }
+
+    #[test]
+    fn the_filter_and_the_span_leave_the_answering_to_the_server() {
+        let grid = grid();
+
+        for filter in &grid.filters {
+            assert!(
+                !filter.is_local(),
+                "{} is answered in the wrong place",
+                filter.key()
+            );
+            assert_eq!(filter.default_value(), "");
+        }
+
+        let range = grid.date_filters.first().expect("the grid offers a span");
+
+        // `phonix_db::inventory::delivery::DESPATCHED`, written down twice because the
+        // two crates do not depend on each other.
+        assert_eq!(range.key(), "despatched");
+        assert!(!range.is_local());
+    }
+
+    #[test]
+    fn every_state_offered_is_one_the_reader_parses_back() {
+        let grid = grid();
+        let states = grid.filters.iter().find(|f| f.key() == "state").unwrap();
+
+        for choice in states.choices.iter().filter(|c| !c.value.is_empty()) {
+            assert!(
+                DeliveryState::parse(choice.value).is_some(),
+                "{} is offered and cannot be read back",
+                choice.value,
+            );
+        }
     }
 }
