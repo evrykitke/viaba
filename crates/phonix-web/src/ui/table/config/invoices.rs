@@ -8,9 +8,18 @@
 //! other is the fatal kind of hydration mismatch - see `phonix_web::recovery`
 //! for what a wasm panic costs.
 //!
-//! A filter is safe because its predicate does not run until somebody chooses
-//! it, which is after hydration. So the due date is drawn plainly and "show me
-//! what is late" is one click.
+//! So the due date is drawn plainly and "show me what is late" is one click. It
+//! is now answered in SQL against the server's `current_date`, which is the
+//! only clock in the building that cannot disagree with itself.
+//!
+//! # Paged
+//!
+//! A sales ledger is a list nothing deletes from: last year's invoices are
+//! still evidence. So it is a [`Source::paged`], and what follows is what
+//! [`audit`](super::audit) sets out - only columns the reader can order by are
+//! sortable, only columns it searches are searchable, and the status filter and
+//! the span carry a key rather than a closure. The lists live in
+//! `phonix_db::books::invoice` and are checked against this file below.
 //!
 //! # A draft says so rather than showing a blank
 //!
@@ -28,17 +37,16 @@ use crate::icons::Icon;
 use crate::l;
 use crate::server_fns::books_fns::{InvoiceQuery, list_invoices};
 use crate::ui::table::{
-    Align, Cell, Column, Filter, FilterChoice, RowAction, Source, ToolbarAction,
+    Align, Cell, Column, DateFilter, Filter, FilterChoice, RowAction, Source, ToolbarAction,
 };
 
 /// Everything this workspace has invoiced.
 pub fn invoices_grid() -> GridConfig<InvoiceSummary> {
     GridConfig::new(
         "invoices",
-        // Unfiltered: the grid narrows in the browser, which is what makes the
-        // status tabs instant. A workspace that outgrows that has the query
-        // type already waiting.
-        Source::in_memory(|| list_invoices(InvoiceQuery::default())),
+        // Unnarrowed, because this screen is every invoice. One customer's
+        // ledger would be the same grid handed a query naming them.
+        Source::paged(|request| list_invoices(InvoiceQuery::default(), request)),
     )
     .searching(l!("invoices.search"))
     .exports_as("invoices")
@@ -135,26 +143,21 @@ pub fn invoices_grid() -> GridConfig<InvoiceSummary> {
         .align(Align::End)
         .hidden(),
     )
-    .filter(
-        Filter::new(
-            "status",
-            l!("field.status"),
-            vec![
-                FilterChoice::all(l!("common.all")),
-                FilterChoice::new("draft", l!("books.status.draft")),
-                FilterChoice::new("posted", l!("books.status.posted")),
-                FilterChoice::new("voided", l!("books.status.voided")),
-                // Not the default, which is what makes it safe: the predicate
-                // reads today's date and does not run until somebody chooses
-                // this, which is after hydration.
-                FilterChoice::new("overdue", l!("invoices.overdue")),
-            ],
-        )
-        .matching(|row: &InvoiceSummary, wanted| match wanted {
-            "overdue" => row.is_overdue(chrono::Local::now().date_naive()),
-            other => row.status.as_str() == other,
-        }),
-    )
+    // No `matching`: the reader answers these, and `overdue` is the reason to
+    // be glad of it - it is a question about today, and the server's today is
+    // the same one on both renders of this page.
+    .filter(Filter::new(
+        "status",
+        l!("field.status"),
+        vec![
+            FilterChoice::all(l!("common.all")),
+            FilterChoice::new(InvoiceStatus::Draft.as_str(), l!("books.status.draft")),
+            FilterChoice::new(InvoiceStatus::Posted.as_str(), l!("books.status.posted")),
+            FilterChoice::new(InvoiceStatus::Voided.as_str(), l!("books.status.voided")),
+            FilterChoice::new("overdue", l!("invoices.overdue")),
+        ],
+    ))
+    .date_filter(DateFilter::new("issued", l!("invoices.issued")))
     .toolbar(
         ToolbarAction::link(l!("invoices.new"), Icon::Plus, "/sales/invoices/new")
             .require(permissions::INVOICES_CREATE)
@@ -234,7 +237,6 @@ mod tests {
     use chrono::NaiveDate;
     use phonix_core::locale::Currency;
     use phonix_core::money::Money;
-    use phonix_core::query::PageRequest;
     use uuid::Uuid;
 
     use super::*;
@@ -290,9 +292,9 @@ mod tests {
 
     #[test]
     fn overdue_is_not_the_filter_the_grid_opens_on() {
-        // Its predicate reads today's date. If it ran during the first render
-        // the server and the browser could disagree near midnight, and a row
-        // that appears on one side and not the other is a hydration mismatch.
+        // Not for safety any more - the server answers it against its own
+        // `current_date`, and there is no second clock to disagree with. It is
+        // that a list of invoices opens as a list of invoices.
         let grid = grid();
         let filter = grid.filters.iter().find(|f| f.key() == "status").unwrap();
 
@@ -303,18 +305,91 @@ mod tests {
         );
     }
 
+    /// Written as literals rather than imported: `phonix-web` does not depend
+    /// on `phonix-db`, and the point of the test is that the two lists were
+    /// written to agree. The source is `phonix_db::books::invoice::SORTABLE`.
+    const SERVER_SORTS: &[&str] = &[
+        "number",
+        "party_name",
+        "issued_on",
+        "due_on",
+        "status",
+        "net",
+        "tax",
+        "gross",
+        "line_count",
+    ];
+
+    /// The columns the `WHERE` actually looks inside. Same reasoning.
+    const SERVER_SEARCHES: &[&str] = &["number", "party_name"];
+
     #[test]
-    fn the_status_filter_finds_each_state() {
+    fn every_sortable_column_is_one_the_server_can_order_by() {
+        for column in grid().columns.iter().filter(|column| column.sortable) {
+            assert!(
+                SERVER_SORTS.contains(&column.field()),
+                "{} offers a sort the reader will ignore",
+                column.field(),
+            );
+        }
+    }
+
+    #[test]
+    fn every_searchable_column_is_one_the_server_looks_inside() {
+        for column in grid().columns.iter().filter(|column| column.searchable) {
+            assert!(
+                SERVER_SEARCHES.contains(&column.field()),
+                "{} is offered to the search box and never searched",
+                column.field(),
+            );
+        }
+    }
+
+    #[test]
+    fn it_opens_newest_first_by_a_column_the_server_can_order_by() {
+        let sort = grid().initial_request().sort.expect("an opening order");
+
+        assert_eq!(sort, Sort::descending("issued_on"));
+        assert!(SERVER_SORTS.contains(&sort.field.as_str()));
+    }
+
+    #[test]
+    fn the_filter_and_the_span_leave_the_answering_to_the_server() {
         let grid = grid();
-        let filter = grid.filters.iter().find(|f| f.key() == "status").unwrap();
-        let asking = |value: &str| PageRequest::first(25).filtered_by("status", value);
 
-        let draft = invoice(None, InvoiceStatus::Draft, "10.00");
-        let posted = invoice(Some("INV-2026-00001"), InvoiceStatus::Posted, "10.00");
+        for filter in &grid.filters {
+            assert!(
+                !filter.is_local(),
+                "{} is answered in the wrong place",
+                filter.key()
+            );
+            assert_eq!(filter.default_value(), "");
+        }
 
-        assert!(filter.accepts(&draft, &asking("draft")));
-        assert!(!filter.accepts(&draft, &asking("posted")));
-        assert!(filter.accepts(&posted, &asking("posted")));
+        let range = grid.date_filters.first().expect("the grid offers a span");
+
+        // `phonix_db::books::invoice::ISSUED`, written down twice because the
+        // two crates do not depend on each other.
+        assert_eq!(range.key(), "issued");
+        assert!(!range.is_local());
+    }
+
+    #[test]
+    fn every_state_offered_is_a_state_or_the_one_question_that_is_not() {
+        let grid = grid();
+        let status = grid.filters.iter().find(|f| f.key() == "status").unwrap();
+
+        for choice in status.choices.iter().filter(|c| !c.value.is_empty()) {
+            assert!(
+                choice.value == "overdue" || InvoiceStatus::parse(choice.value).is_some(),
+                "{} is offered and the reader ignores it",
+                choice.value,
+            );
+        }
+
+        // `phonix_db::books::invoice::OVERDUE`. The one value that is a
+        // question about today rather than a column.
+        assert!(status.choices.iter().any(|c| c.value == "overdue"));
     }
 
     #[test]

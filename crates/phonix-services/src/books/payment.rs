@@ -43,6 +43,7 @@ use phonix_core::form::Submission;
 use phonix_core::locale::Currency;
 use phonix_core::money::{ExchangeRate, Money, Rounding};
 use phonix_core::permissions;
+use phonix_core::query::{Page, PageRequest};
 use phonix_core::msg;
 use phonix_db::books::payment as store;
 use phonix_db::error::DbError;
@@ -55,9 +56,13 @@ use crate::audit::{self, Target, kinds};
 use crate::caller::{Caller, acting_user};
 use crate::error::{ServiceError, ServiceResult};
 
-pub async fn list(pool: &PgPool, caller: &Caller) -> ServiceResult<Vec<PaymentSummary>> {
+pub async fn list(
+    pool: &PgPool,
+    caller: &Caller,
+    request: PageRequest,
+) -> ServiceResult<Page<PaymentSummary>> {
     caller.require(permissions::PAYMENTS)?;
-    Ok(store::list(pool).await?)
+    Ok(store::page(pool, &request).await?)
 }
 
 pub async fn find(pool: &PgPool, caller: &Caller, id: Uuid) -> ServiceResult<Payment> {

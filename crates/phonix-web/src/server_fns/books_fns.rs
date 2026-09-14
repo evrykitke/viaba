@@ -18,12 +18,13 @@ use app_books::period::Period;
 use app_books::report::{
     BalanceSheet, CustomerStatement, IncomeStatement, LedgerSummary, TrialBalance,
 };
-use app_books::invoice::{Invoice, InvoiceInput, InvoiceStatus, InvoiceSummary, PostOutcome};
+use app_books::invoice::{Invoice, InvoiceInput, InvoiceSummary, PostOutcome};
 use app_books::payment::{Payment, PaymentInput, PaymentSummary, Settleable};
 use chrono::NaiveDate;
 use leptos::prelude::*;
 use leptos::server_fn::codec::Json;
 use phonix_core::form::Submission;
+use phonix_core::query::{Page, PageRequest};
 use phonix_master::party::PartySummary;
 use phonix_ports::ledger::{AccountRole, LedgerAccount};
 use phonix_tax::group::TaxTreatment;
@@ -78,14 +79,17 @@ pub async fn save_account(draft: AccountInput) -> Result<Submission<AccountInput
         .map_err(service_error)
 }
 
-/// Which journals a screen is asking for.
+/// What a journal screen is *about*: an account's ledger, one period, one app.
+///
+/// What the *viewer* asked for - the search, the page, the span, whether to
+/// show corrections - travels beside it in a `PageRequest`. The two are
+/// separate because one is written by whatever opened the screen and the other
+/// changes with every click.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct JournalFilter {
     pub period_id: Option<Uuid>,
     pub account_id: Option<Uuid>,
     pub source_app: Option<String>,
-    pub from: Option<NaiveDate>,
-    pub to: Option<NaiveDate>,
 }
 
 /// What has been posted to the ledger.
@@ -133,7 +137,10 @@ pub async fn set_account_role(
 }
 
 #[server(name = ListJournals, prefix = "/api", endpoint = "books/journals", input = Json)]
-pub async fn list_journals(filter: JournalFilter) -> Result<Vec<JournalSummary>, ServerFnError> {
+pub async fn list_journals(
+    filter: JournalFilter,
+    request: PageRequest,
+) -> Result<Page<JournalSummary>, ServerFnError> {
     use crate::state::{pool_and_caller, service_error};
 
     let (pool, caller) = pool_and_caller().await?;
@@ -142,11 +149,9 @@ pub async fn list_journals(filter: JournalFilter) -> Result<Vec<JournalSummary>,
         period_id: filter.period_id,
         account_id: filter.account_id,
         source_app: filter.source_app,
-        from: filter.from,
-        to: filter.to,
     };
 
-    phonix_services::books::journal::list(&pool, &caller, query)
+    phonix_services::books::journal::list(&pool, &caller, query, request)
         .await
         .map_err(service_error)
 }
@@ -425,17 +430,13 @@ pub async fn ledger_summary() -> Result<LedgerSummary, ServerFnError> {
         .map_err(service_error)
 }
 
-/// Which invoices a screen is asking for.
+/// What an invoice screen is *about*: one customer's ledger, or all of them.
 ///
-/// Crosses the wire as one value rather than four arguments, for the reason the
-/// repository takes one: a status passed where a party id goes would compile
-/// and would list the wrong documents.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+/// What the *viewer* asked for - the state, the span, the search, the page -
+/// travels beside it in a `PageRequest`. See `phonix_db::books::invoice`.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct InvoiceQuery {
     pub party_id: Option<Uuid>,
-    pub status: Option<InvoiceStatus>,
-    pub from: Option<NaiveDate>,
-    pub to: Option<NaiveDate>,
 }
 
 /// Every invoice a list screen should show.
@@ -452,7 +453,10 @@ pub struct InvoiceQuery {
 /// JSON has a way to write an empty object. Any argument that is a struct of
 /// nothing but options wants it.
 #[server(name = ListInvoices, prefix = "/api", endpoint = "books/invoices", input = Json)]
-pub async fn list_invoices(query: InvoiceQuery) -> Result<Vec<InvoiceSummary>, ServerFnError> {
+pub async fn list_invoices(
+    query: InvoiceQuery,
+    request: PageRequest,
+) -> Result<Page<InvoiceSummary>, ServerFnError> {
     use phonix_db::books::invoice::InvoiceFilter;
 
     use crate::state::{pool_and_caller, service_error};
@@ -464,11 +468,8 @@ pub async fn list_invoices(query: InvoiceQuery) -> Result<Vec<InvoiceSummary>, S
         &caller,
         InvoiceFilter {
             party_id: query.party_id,
-            status: query.status,
-            from: query.from,
-            to: query.to,
-            search: None,
         },
+        request,
     )
     .await
     .map_err(service_error)
@@ -569,13 +570,15 @@ pub async fn delete_invoice(invoice_id: Uuid) -> Result<(), ServerFnError> {
 // and it is what makes "what are we owed" a balance rather than the sum of
 // every invoice ever raised.
 
-#[server(name = ListPayments, prefix = "/api", endpoint = "books/payments")]
-pub async fn list_payments() -> Result<Vec<PaymentSummary>, ServerFnError> {
+/// `Json` for the reason `list_invoices` is: a [`PageRequest`] carries a map
+/// of filters, and form encoding has no way to write an empty one.
+#[server(name = ListPayments, prefix = "/api", endpoint = "books/payments", input = Json)]
+pub async fn list_payments(request: PageRequest) -> Result<Page<PaymentSummary>, ServerFnError> {
     use crate::state::{pool_and_caller, service_error};
 
     let (pool, caller) = pool_and_caller().await?;
 
-    phonix_services::books::payment::list(&pool, &caller)
+    phonix_services::books::payment::list(&pool, &caller, request)
         .await
         .map_err(service_error)
 }

@@ -29,7 +29,9 @@ use app_books::payment::{
 use phonix_core::identity::UserId;
 use phonix_core::locale::Currency;
 use phonix_core::money::{ExchangeRate, Money, Rate};
-use sqlx::{PgConnection, PgExecutor, Row};
+use phonix_core::query::{Page, PageRequest};
+use chrono::TimeDelta;
+use sqlx::{AssertSqlSafe, PgConnection, PgExecutor, Row};
 use uuid::Uuid;
 
 use crate::error::DbError;
@@ -49,30 +51,145 @@ fn read_money(raw: &str, currency: Currency, column: &str) -> Result<Money, sqlx
         .map_err(|err| sqlx::Error::Decode(format!("{column} holds '{raw}': {err}").into()))
 }
 
-/// Every payment, newest first.
+/// The range key the payment grid declares, and so the pair of filter keys -
+/// `received_from` and `received_to` - that arrive with a request.
 ///
-/// `allocated` is summed here rather than by reading each payment's lines: a
-/// list of two hundred would otherwise be two hundred queries to show one
+/// A constant because it is written in two crates that must agree and do not
+/// depend on each other: here, and `ui::table::config::payments`.
+pub const RECEIVED: &str = "received";
+
+/// The filter key naming which state to show.
+pub const STATUS: &str = "status";
+
+/// The filter key naming whether any of it is still against nothing.
+pub const ALLOCATION: &str = "allocation";
+
+/// The value of [`ALLOCATION`] that means "money sitting against nothing".
+pub const UNALLOCATED: &str = "unallocated";
+
+/// What is received and set against nothing. Written once because the select
+/// shows it, the filter asks about it and the sort orders by it.
+const ON_ACCOUNT: &str = "(p.amount - coalesce((SELECT sum(al.amount)
+                              FROM books.payment_allocations al
+                             WHERE al.payment_id = p.id), 0))";
+
+/// The columns the payment grid may order by.
+///
+/// A whitelist, not a convenience: `sort.field` arrives from a browser, and the
+/// only safe way to put it in an `ORDER BY` is to not put it there at all.
+const SORTABLE: &[(&str, &str)] = &[
+    ("number", "p.number"),
+    ("customer", "p.party_name"),
+    ("received_on", "p.received_on"),
+    ("amount", "p.amount"),
+    ("on_account", "on_account"),
+];
+
+/// Every payment, one page at a time, newest first.
+///
+/// `allocated` is summed in SQL rather than by reading each payment's lines: a
+/// page of twenty-five would otherwise be twenty-five queries to show one
 /// column.
-pub async fn list<'e, E>(executor: E) -> Result<Vec<PaymentSummary>, DbError>
-where
-    E: PgExecutor<'e>,
-{
-    let rows = sqlx::query(
+///
+/// Paged because a receipt is evidence and nothing deletes one - the list only
+/// grows, and it grows faster than the invoice list in any workspace whose
+/// customers pay in instalments.
+pub async fn page(
+    pool: &sqlx::PgPool,
+    request: &PageRequest,
+) -> Result<Page<PaymentSummary>, DbError> {
+    let request = request.sanitised();
+    let needle = request.needle().map(|needle| crate::search::contains(&needle));
+    let status = request.filter(STATUS).and_then(PaymentStatus::parse);
+    let unallocated = request.filter_is(ALLOCATION, UNALLOCATED);
+
+    let received = request.range(RECEIVED);
+    // The span is half open and a payment carries a day, so the last day it
+    // includes is the day the moment before its end falls on.
+    let from_day = received.from.map(|at| at.date_naive());
+    let to_day = received
+        .to
+        .and_then(|at| at.checked_sub_signed(TimeDelta::nanoseconds(1)))
+        .map(|at| at.date_naive());
+
+    // A filter nobody set is a NULL that discards its own line, so one clause
+    // serves every combination and nothing is interpolated.
+    let where_clause = format!(
+        "WHERE ($1::text IS NULL
+                 OR p.number ILIKE $1
+                 OR p.party_name ILIKE $1
+                 OR a.name ILIKE $1
+                 OR p.reference ILIKE $1)
+            AND ($2::text IS NULL OR p.status = $2)
+            AND ($3::date IS NULL OR p.received_on >= $3)
+            AND ($4::date IS NULL OR p.received_on <= $4)
+            AND (NOT $5::bool OR {ON_ACCOUNT} <> 0)"
+    );
+
+    // `AssertSqlSafe` because these statements are composed rather than
+    // written: every piece of them is a constant of this file, and `order` can
+    // only be a string it put in `SORTABLE`. Nothing from a browser reaches the
+    // text of the query.
+    let counting = AssertSqlSafe(format!(
+        "SELECT count(*)
+           FROM books.payments p
+           JOIN books.accounts a ON a.id = p.account_id
+           {where_clause}"
+    ));
+
+    let total: i64 = sqlx::query_scalar(counting)
+        .bind(needle.as_deref())
+        .bind(status.map(PaymentStatus::as_str))
+        .bind(from_day)
+        .bind(to_day)
+        .bind(unallocated)
+        .fetch_one(pool)
+        .await
+        .map_err(DbError::Query)?;
+
+    let total = u64::try_from(total).unwrap_or(0);
+    let request = request.clamped_to(total);
+
+    let order = match &request.sort {
+        Some(sort) => SORTABLE
+            .iter()
+            .find(|(field, _)| *field == sort.field)
+            .map(|(_, column)| format!("{column} {}", sort.direction.sql())),
+        None => None,
+    }
+    // Newest first, and `created_at` after it whatever the sort: two payments
+    // received on the same day would otherwise swap places between one page and
+    // the next, which shows up as a row that appears twice.
+    .unwrap_or_else(|| "p.received_on DESC".to_owned());
+
+    let selecting = AssertSqlSafe(format!(
         "SELECT p.id, p.number, p.status, p.party_id, p.party_name, p.received_on,
                 p.currency_code, p.amount::text AS amount, p.reference,
                 a.name AS account_name,
                 coalesce((SELECT sum(al.amount) FROM books.payment_allocations al
-                           WHERE al.payment_id = p.id), 0)::text AS allocated
+                           WHERE al.payment_id = p.id), 0)::text AS allocated,
+                {ON_ACCOUNT} AS on_account
            FROM books.payments p
            JOIN books.accounts a ON a.id = p.account_id
-          ORDER BY p.received_on DESC, p.created_at DESC",
-    )
-    .fetch_all(executor)
-    .await
-    .map_err(DbError::Query)?;
+           {where_clause}
+          ORDER BY {order}, p.created_at DESC
+          LIMIT $6 OFFSET $7"
+    ));
 
-    rows.into_iter()
+    let rows = sqlx::query(selecting)
+        .bind(needle.as_deref())
+        .bind(status.map(PaymentStatus::as_str))
+        .bind(from_day)
+        .bind(to_day)
+        .bind(unallocated)
+        .bind(request.limit() as i64)
+        .bind(request.offset() as i64)
+        .fetch_all(pool)
+        .await
+        .map_err(DbError::Query)?;
+
+    let summaries = rows
+        .into_iter()
         .map(|row| {
             let status: String = row.try_get("status")?;
             let code: String = row.try_get("currency_code")?;
@@ -97,7 +214,9 @@ where
             })
         })
         .collect::<Result<Vec<_>, sqlx::Error>>()
-        .map_err(DbError::Query)
+        .map_err(DbError::Query)?;
+
+    Ok(Page::new(summaries, total, &request))
 }
 
 /// One payment, with what it settles.

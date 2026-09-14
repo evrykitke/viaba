@@ -16,23 +16,28 @@ use app_books::account::Side;
 use app_books::journal::{
     Dimension, DimensionValue, JournalEntry, JournalSummary, Posted, PostedLine, Source,
 };
-use chrono::NaiveDate;
+use chrono::TimeDelta;
 use phonix_core::identity::UserId;
 use phonix_core::locale::Currency;
 use phonix_core::money::Money;
-use sqlx::{PgConnection, PgExecutor, Row};
+use phonix_core::query::{Page, PageRequest};
+use sqlx::{AssertSqlSafe, PgConnection, PgExecutor, PgPool, Row};
 use uuid::Uuid;
 
 use crate::error::DbError;
 
-/// Which journals a screen is asking for.
+/// What a journal screen is *about*.
+///
+/// Not what the viewer asked for: the search, the page, the span and the
+/// reversal filter arrive in a [`PageRequest`], because they belong to whoever
+/// is looking rather than to the screen. An account's own ledger is the
+/// journals touching that account however they are searched or sorted, and
+/// that is what this says.
 #[derive(Debug, Clone, Default)]
 pub struct JournalQuery {
     pub period_id: Option<Uuid>,
     pub account_id: Option<Uuid>,
     pub source_app: Option<String>,
-    pub from: Option<NaiveDate>,
-    pub to: Option<NaiveDate>,
 }
 
 /// Post a journal: the header, its lines, and their dimensions.
@@ -119,15 +124,127 @@ pub async fn insert(
     Ok(journal_id)
 }
 
-/// Journals a list screen should show, newest first.
+/// The range key the journal grid declares, and so the pair of filter keys -
+/// `entry_from` and `entry_to` - that arrive with a request.
+///
+/// A constant because it is written in two crates that must agree and do not
+/// depend on each other: here, and `ui::table::config::journals`.
+pub const ENTRY: &str = "entry";
+
+/// The filter key telling corrections from originals.
+pub const KIND: &str = "kind";
+
+/// The columns the journal grid may order by.
+///
+/// A whitelist, not a convenience: `sort.field` arrives from a browser, and the
+/// only safe way to put it in an `ORDER BY` is to not put it there at all.
+/// `total` and `line_count` are the aggregates below, ordered by the name they
+/// are selected as.
+const SORTABLE: &[(&str, &str)] = &[
+    ("number", "j.number"),
+    ("entry_date", "j.entry_date"),
+    ("period", "p.label"),
+    ("total", "total"),
+    ("line_count", "line_count"),
+];
+
+/// What every row is narrowed by. Shared between the count and the select so
+/// the pager and the page cannot come to disagree about which journals exist.
+const WHERE: &str = "WHERE ($1::uuid IS NULL OR j.period_id = $1)
+            AND ($2::text IS NULL OR j.source_app = $2)
+            AND ($3::date IS NULL OR j.entry_date >= $3)
+            AND ($4::date IS NULL OR j.entry_date <= $4)
+            AND ($5::uuid IS NULL OR EXISTS (
+                    SELECT 1 FROM books.journal_lines a
+                     WHERE a.journal_id = j.id AND a.account_id = $5))
+            AND ($6::text IS NULL
+                 OR j.number ILIKE $6
+                 OR j.narration ILIKE $6
+                 OR j.source_doc_type ILIKE $6)
+            AND ($7::bool IS NULL OR (j.reverses_id IS NOT NULL) = $7)";
+
+/// One page of the journal list, newest first.
+///
+/// # Why this is paged in SQL
+///
+/// The ledger is append-only - see the note at the top of this module - so this
+/// list has a row for everything the workspace has ever posted and gains one
+/// every time anything is. There is no number of rows at which fetching all of
+/// them stops being wrong, only a date at which it becomes obvious, and the
+/// date arrives sooner here than anywhere else because every invoice, payment
+/// and stock movement writes one.
+///
+/// # Counting journals, not lines
+///
+/// The select groups by journal to sum one side of it, which means its row
+/// count is not something a `count(*)` over the same `FROM` would agree with.
+/// So the count leaves the lines join out entirely: the only clause that asks
+/// anything of a line is an `EXISTS`, which narrows journals rather than
+/// multiplying them.
 ///
 /// The total is one side of the journal, which is both: they are equal by
 /// construction, so summing the debits answers "how big is this".
-pub async fn list<'e, E>(executor: E, query: &JournalQuery) -> Result<Vec<JournalSummary>, DbError>
-where
-    E: PgExecutor<'e>,
-{
-    let rows = sqlx::query(
+pub async fn page(
+    pool: &PgPool,
+    query: &JournalQuery,
+    request: &PageRequest,
+) -> Result<Page<JournalSummary>, DbError> {
+    let request = request.sanitised();
+    let needle = request.needle().map(|needle| crate::search::contains(&needle));
+    let entered = request.range(ENTRY);
+
+    // The span is half open and a journal carries a day, so the last day it
+    // includes is the day the moment before its end falls on.
+    let from_day = entered.from.map(|at| at.date_naive());
+    let to_day = entered
+        .to
+        .and_then(|at| at.checked_sub_signed(TimeDelta::nanoseconds(1)))
+        .map(|at| at.date_naive());
+
+    let reversals = match request.filter(KIND) {
+        Some("reversal") => Some(true),
+        Some("original") => Some(false),
+        _ => None,
+    };
+
+    // `AssertSqlSafe` because these statements are composed rather than
+    // written: `WHERE` is a constant and `order` can only be a string this file
+    // put in `SORTABLE`. Nothing from a browser reaches the text of the query.
+    let counting = AssertSqlSafe(format!(
+        "SELECT count(*)
+           FROM books.journals j
+           JOIN books.periods p ON p.id = j.period_id
+           {WHERE}"
+    ));
+
+    let total: i64 = sqlx::query_scalar(counting)
+        .bind(query.period_id)
+        .bind(query.source_app.as_deref())
+        .bind(from_day)
+        .bind(to_day)
+        .bind(query.account_id)
+        .bind(needle.as_deref())
+        .bind(reversals)
+        .fetch_one(pool)
+        .await
+        .map_err(DbError::Query)?;
+
+    let total = u64::try_from(total).unwrap_or(0);
+    let request = request.clamped_to(total);
+
+    let order = match &request.sort {
+        Some(sort) => SORTABLE
+            .iter()
+            .find(|(field, _)| *field == sort.field)
+            .map(|(_, column)| format!("{column} {}", sort.direction.sql())),
+        None => None,
+    }
+    // Newest first, and the number after it whatever the sort: two journals
+    // posted on the same day would otherwise swap places between one page and
+    // the next, which shows up as a row that appears twice.
+    .unwrap_or_else(|| "j.entry_date DESC".to_owned());
+
+    let selecting = AssertSqlSafe(format!(
         "SELECT j.id, j.number, j.entry_date, j.narration,
                 j.source_app, j.source_doc_type, j.source_doc_id,
                 j.reverses_id,
@@ -139,26 +256,32 @@ where
            FROM books.journals j
            JOIN books.periods p ON p.id = j.period_id
            LEFT JOIN books.journal_lines l ON l.journal_id = j.id
-          WHERE ($1::uuid IS NULL OR j.period_id = $1)
-            AND ($2::text IS NULL OR j.source_app = $2)
-            AND ($3::date IS NULL OR j.entry_date >= $3)
-            AND ($4::date IS NULL OR j.entry_date <= $4)
-            AND ($5::uuid IS NULL OR EXISTS (
-                    SELECT 1 FROM books.journal_lines a
-                     WHERE a.journal_id = j.id AND a.account_id = $5))
+           {WHERE}
           GROUP BY j.id, p.label
-          ORDER BY j.entry_date DESC, j.number DESC",
-    )
-    .bind(query.period_id)
-    .bind(query.source_app.as_deref())
-    .bind(query.from)
-    .bind(query.to)
-    .bind(query.account_id)
-    .fetch_all(executor)
-    .await
-    .map_err(DbError::Query)?;
+          ORDER BY {order}, j.number DESC
+          LIMIT $8 OFFSET $9"
+    ));
 
-    rows.into_iter().map(read_summary).collect()
+    let rows = sqlx::query(selecting)
+        .bind(query.period_id)
+        .bind(query.source_app.as_deref())
+        .bind(from_day)
+        .bind(to_day)
+        .bind(query.account_id)
+        .bind(needle.as_deref())
+        .bind(reversals)
+        .bind(request.limit() as i64)
+        .bind(request.offset() as i64)
+        .fetch_all(pool)
+        .await
+        .map_err(DbError::Query)?;
+
+    let summaries = rows
+        .into_iter()
+        .map(read_summary)
+        .collect::<Result<Vec<_>, DbError>>()?;
+
+    Ok(Page::new(summaries, total, &request))
 }
 
 /// One journal, with its lines and their dimensions.

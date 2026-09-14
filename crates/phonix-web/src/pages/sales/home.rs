@@ -26,17 +26,34 @@ use leptos::prelude::*;
 use phonix_core::apps;
 use phonix_core::i18n::Message;
 use phonix_core::permissions;
+use phonix_core::query::PageRequest;
 
 use crate::components::app_home::{AppHome, Shortcut, Stat};
 use crate::i18n::t;
 use crate::icons::Icon;
 use crate::server_fns::books_fns::{InvoiceQuery, ledger_summary, list_invoices};
 
+/// How many invoices are in one state.
+///
+/// A page of one row, read for the figure beside it rather than for the row.
+/// What stood here before was every invoice in the workspace, fetched to count
+/// two states of them - which is a front page that gets slower every time
+/// somebody invoices anybody.
+async fn counted(status: &'static str) -> Option<u64> {
+    list_invoices(
+        InvoiceQuery::default(),
+        PageRequest::first(1).filtered_by("status", status),
+    )
+    .await
+    .ok()
+    .map(|page| page.total)
+}
+
 #[component]
 pub fn sales_home_page() -> impl IntoView {
     let invoices = Resource::new(
         || (),
-        |()| async move { list_invoices(InvoiceQuery::default()).await.ok() },
+        |()| async move { Some((counted("draft").await?, counted("posted").await?)) },
     );
 
     // Absent rather than zero where the reader may not read reports, or where
@@ -48,24 +65,12 @@ pub fn sales_home_page() -> impl IntoView {
     let stats = Signal::derive(move || {
         let mut stats = Vec::new();
 
-        if let Some(Some(rows)) = invoices.get() {
-            let count = |wanted: &str| {
-                rows.iter()
-                    .filter(|row| row.status.as_str() == wanted)
-                    .count()
-            };
-
+        if let Some(Some((drafts, posted))) = invoices.get() {
             // Counts of *states*, never of periods. A figure that reads the
             // clock can differ between the server's render and the browser's,
             // and near midnight that is a hydration mismatch.
-            stats.push(Stat::new(
-                t(&Message::new("books.status.draft")),
-                count("draft"),
-            ));
-            stats.push(Stat::new(
-                t(&Message::new("books.status.posted")),
-                count("posted"),
-            ));
+            stats.push(Stat::new(t(&Message::new("books.status.draft")), drafts));
+            stats.push(Stat::new(t(&Message::new("books.status.posted")), posted));
         }
 
         if let Some(Some(summary)) = summary.get() {

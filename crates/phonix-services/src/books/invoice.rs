@@ -51,6 +51,7 @@ use phonix_core::form::Submission;
 use phonix_core::locale::Currency;
 use phonix_core::money::{Money, Rounding};
 use phonix_core::permissions;
+use phonix_core::query::{Page, PageRequest};
 use phonix_core::{Message, msg};
 use phonix_db::books::invoice as store;
 use phonix_db::books::invoice::{DraftWrite, InvoiceFilter};
@@ -66,14 +67,15 @@ use crate::audit::{self, Target};
 use crate::caller::{Caller, acting_user};
 use crate::error::{ServiceError, ServiceResult};
 
-/// Every invoice a list screen should show.
+/// One page of what a list screen should show.
 pub async fn list(
     pool: &PgPool,
     caller: &Caller,
-    filter: InvoiceFilter<'_>,
-) -> ServiceResult<Vec<InvoiceSummary>> {
+    filter: InvoiceFilter,
+    request: PageRequest,
+) -> ServiceResult<Page<InvoiceSummary>> {
     caller.require(permissions::INVOICES)?;
-    Ok(store::list(pool, filter).await?)
+    Ok(store::page(pool, filter, &request).await?)
 }
 
 /// One invoice, whole.

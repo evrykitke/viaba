@@ -20,38 +20,32 @@ use app_books::invoice::{
     LineTaxSnapshot, PartySnapshot,
 };
 use app_books::quantity::Quantity;
-use chrono::NaiveDate;
+use chrono::{NaiveDate, TimeDelta};
 use phonix_core::identity::UserId;
 use phonix_core::locale::{Country, Currency};
 use phonix_core::money::{ExchangeRate, Money, Rate, Rounding};
+use phonix_core::query::{Page, PageRequest};
 use phonix_master::address::PostalAddress;
 use phonix_tax::code::TaxKind;
 use phonix_tax::compute::{DocumentTax, Pricing, RoundingLevel};
 use phonix_tax::group::AppliedTax;
 use phonix_tax::rate::TaxRate;
-use sqlx::{FromRow, PgConnection, PgExecutor, Row};
+use sqlx::{AssertSqlSafe, FromRow, PgConnection, PgExecutor, Row};
 use uuid::Uuid;
 
 use crate::error::DbError;
 
-/// Which invoices a screen is asking for.
+/// What an invoice screen is *about*.
 ///
-/// A struct rather than four arguments so a caller cannot pass a status where a
-/// party id goes - both would compile, and the result is a list of the wrong
-/// documents.
+/// One customer's ledger is the invoices raised on that customer however they
+/// are searched, sorted or narrowed, and that is all this says. The state, the
+/// span, the search and the page are what the *viewer* asked for and travel in
+/// a [`PageRequest`]: they change with every click, and a state kept in both
+/// places is two things to keep in step.
 #[derive(Debug, Clone, Copy, Default)]
-pub struct InvoiceFilter<'a> {
+pub struct InvoiceFilter {
     /// Only this customer's.
     pub party_id: Option<Uuid>,
-    /// Only documents in this state.
-    pub status: Option<InvoiceStatus>,
-    /// Issued on or after.
-    pub from: Option<NaiveDate>,
-    /// Issued on or before.
-    pub to: Option<NaiveDate>,
-    /// Kept so the type is not a lifetime-free struct today and a breaking
-    /// change tomorrow, when a search term arrives.
-    pub search: Option<&'a str>,
 }
 
 /// A list row.
@@ -88,19 +82,123 @@ impl<'r> FromRow<'r, sqlx::postgres::PgRow> for SummaryRow {
     }
 }
 
-/// Every invoice a list screen should show.
+/// The range key the invoice grid declares, and so the pair of filter keys -
+/// `issued_from` and `issued_to` - that arrive with a request.
+///
+/// A constant because it is written in two crates that must agree and do not
+/// depend on each other: here, and `ui::table::config::invoices`.
+pub const ISSUED: &str = "issued";
+
+/// The filter key naming which state to show.
+pub const STATUS: &str = "status";
+
+/// The one value of [`STATUS`] that is not a state.
+///
+/// Overdue is a question about today, which is why it could never be a column:
+/// see the note at the top of `ui::table::config::invoices` about what a badge
+/// that disagrees with itself across hydration costs. Answered here, "today" is
+/// the server's, which is the only clock in the building that cannot disagree
+/// with itself.
+pub const OVERDUE: &str = "overdue";
+
+/// The columns the invoice grid may order by.
+///
+/// A whitelist, not a convenience: `sort.field` arrives from a browser, and the
+/// only safe way to put it in an `ORDER BY` is to not put it there at all.
+const SORTABLE: &[(&str, &str)] = &[
+    ("number", "i.number"),
+    ("party_name", "i.party_name"),
+    ("issued_on", "i.issued_on"),
+    ("due_on", "i.due_on"),
+    ("status", "i.status"),
+    ("net", "i.net_amount"),
+    ("tax", "i.tax_amount"),
+    ("gross", "i.gross_amount"),
+    ("line_count", "line_count"),
+];
+
+/// What every row is narrowed by, shared between the count and the select.
+const WHERE: &str = "WHERE ($1::uuid IS NULL OR i.party_id = $1)
+            AND ($2::date IS NULL OR i.issued_on >= $2)
+            AND ($3::date IS NULL OR i.issued_on <= $3)
+            AND ($4::text IS NULL
+                 OR i.number ILIKE $4
+                 OR i.party_name ILIKE $4)
+            AND ($5::text IS NULL
+                 OR CASE WHEN $5 = 'overdue'
+                         THEN i.status = 'posted'
+                          AND i.due_on IS NOT NULL
+                          AND i.due_on < current_date
+                         ELSE i.status = $5
+                    END)";
+
+/// One page of the invoice list.
 ///
 /// Reads the header only, plus a count of the lines. A list that carried every
 /// line would fetch three tables to draw a total, and the total is already on
 /// the header - stored, not recomputed.
-pub async fn list<'e, E>(
-    executor: E,
-    filter: InvoiceFilter<'_>,
-) -> Result<Vec<InvoiceSummary>, DbError>
-where
-    E: PgExecutor<'e>,
-{
-    let rows = sqlx::query_as::<_, SummaryRow>(
+///
+/// Paged in SQL because a sales ledger is a list nothing deletes from: last
+/// year's invoices are still evidence, and a workspace that invoices daily
+/// outgrows a browser's idea of a list inside a couple of years.
+///
+/// Two statements - a count and a select - so the page can be pulled back to
+/// one that exists before the rows are fetched.
+pub async fn page(
+    pool: &sqlx::PgPool,
+    filter: InvoiceFilter,
+    request: &PageRequest,
+) -> Result<Page<InvoiceSummary>, DbError> {
+    let request = request.sanitised();
+    let needle = request.needle().map(|needle| crate::search::contains(&needle));
+    let issued = request.range(ISSUED);
+
+    // The span is half open and an invoice carries a day, so the last day it
+    // includes is the day the moment before its end falls on.
+    let from_day = issued.from.map(|at| at.date_naive());
+    let to_day = issued
+        .to
+        .and_then(|at| at.checked_sub_signed(TimeDelta::nanoseconds(1)))
+        .map(|at| at.date_naive());
+
+    // A value this build does not know narrows nothing rather than matching
+    // nothing: a browser running a newer screen should not turn a list into an
+    // empty one.
+    let status = request.filter(STATUS).filter(|value| {
+        *value == OVERDUE || InvoiceStatus::parse(value).is_some()
+    });
+
+    // `AssertSqlSafe` because these statements are composed rather than
+    // written: `WHERE` is a constant and `order` can only be a string this file
+    // put in `SORTABLE`. Nothing from a browser reaches the text of the query.
+    let counting = AssertSqlSafe(format!("SELECT count(*) FROM books.invoices i {WHERE}"));
+
+    let total: i64 = sqlx::query_scalar(counting)
+        .bind(filter.party_id)
+        .bind(from_day)
+        .bind(to_day)
+        .bind(needle.as_deref())
+        .bind(status)
+        .fetch_one(pool)
+        .await
+        .map_err(DbError::Query)?;
+
+    let total = u64::try_from(total).unwrap_or(0);
+    let request = request.clamped_to(total);
+
+    let order = match &request.sort {
+        Some(sort) => SORTABLE
+            .iter()
+            .find(|(field, _)| *field == sort.field)
+            .map(|(_, column)| format!("{column} {}", sort.direction.sql())),
+        None => None,
+    }
+    // Newest first, and `created_at` after it whatever the sort: two invoices
+    // issued on the same day would otherwise swap places between one page and
+    // the next, which shows up as a row that appears twice.
+    .unwrap_or_else(|| "i.issued_on DESC".to_owned());
+
+    let selecting = AssertSqlSafe(format!(
         "SELECT i.id, i.number, i.status, i.party_id, i.party_name,
                 i.issued_on, i.due_on, i.currency_code,
                 i.net_amount::text   AS net_amount,
@@ -109,21 +207,26 @@ where
                 (SELECT count(*) FROM books.invoice_lines l WHERE l.invoice_id = i.id)
                     AS line_count
            FROM books.invoices i
-          WHERE ($1::uuid IS NULL OR i.party_id = $1)
-            AND ($2::text IS NULL OR i.status = $2)
-            AND ($3::date IS NULL OR i.issued_on >= $3)
-            AND ($4::date IS NULL OR i.issued_on <= $4)
-          ORDER BY i.issued_on DESC, i.created_at DESC",
-    )
-    .bind(filter.party_id)
-    .bind(filter.status.map(InvoiceStatus::as_str))
-    .bind(filter.from)
-    .bind(filter.to)
-    .fetch_all(executor)
-    .await
-    .map_err(DbError::Query)?;
+           {WHERE}
+          ORDER BY {order}, i.created_at DESC
+          LIMIT $6 OFFSET $7"
+    ));
 
-    Ok(rows.into_iter().map(|row| row.0).collect())
+    let rows = sqlx::query_as::<_, SummaryRow>(selecting)
+        .bind(filter.party_id)
+        .bind(from_day)
+        .bind(to_day)
+        .bind(needle.as_deref())
+        .bind(status)
+        .bind(request.limit() as i64)
+        .bind(request.offset() as i64)
+        .fetch_all(pool)
+        .await
+        .map_err(DbError::Query)?;
+
+    let summaries = rows.into_iter().map(|row| row.0).collect();
+
+    Ok(Page::new(summaries, total, &request))
 }
 
 /// One invoice, whole: its header, its lines, and the tax on each line.

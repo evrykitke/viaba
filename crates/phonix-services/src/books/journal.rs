@@ -40,6 +40,7 @@ use phonix_core::locale::Currency;
 use phonix_core::money::{Money, Rounding};
 use phonix_core::msg;
 use phonix_core::permissions;
+use phonix_core::query::{Page, PageRequest};
 use phonix_db::books::journal as store;
 use phonix_db::error::DbError;
 use phonix_db::numbering::SequenceKey;
@@ -53,14 +54,15 @@ use crate::error::{ServiceError, ServiceResult};
 
 pub use phonix_db::books::journal::JournalQuery;
 
-/// Journals a list screen should show.
+/// One page of what a list screen should show.
 pub async fn list(
     pool: &PgPool,
     caller: &Caller,
     query: JournalQuery,
-) -> ServiceResult<Vec<JournalSummary>> {
+    request: PageRequest,
+) -> ServiceResult<Page<JournalSummary>> {
     caller.require(permissions::JOURNALS)?;
-    Ok(store::list(pool, &query).await?)
+    Ok(store::page(pool, &query, &request).await?)
 }
 
 /// One journal, with its lines.

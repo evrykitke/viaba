@@ -27,6 +27,7 @@ use phonix_config::DatabaseConfig;
 use phonix_core::locale::Currency;
 use phonix_core::money::{Money, Rounding};
 use phonix_db::books::invoice as store;
+use phonix_core::query::PageRequest;
 use phonix_db::books::invoice::{DraftWrite, InvoiceFilter};
 use phonix_db::error::DbError;
 use phonix_db::master::{party, tax};
@@ -506,16 +507,15 @@ async fn two_invoices_can_never_share_a_number() {
 
     // And two drafts are fine, because both carry NULL - which is why the
     // index has to be partial.
-    let drafts = store::list(
+    let drafts = store::page(
         &pool,
-        InvoiceFilter {
-            status: Some(InvoiceStatus::Draft),
-            ..InvoiceFilter::default()
-        },
+        InvoiceFilter::default(),
+        &PageRequest::default().filtered_by(store::STATUS, InvoiceStatus::Draft.as_str()),
     )
     .await
     .expect("list the drafts");
-    assert_eq!(drafts.len(), 1, "the unposted draft went missing");
+    assert_eq!(drafts.total, 1, "the unposted draft went missing");
+    assert_eq!(drafts.rows.len(), 1);
 
     finish(&cfg, pool).await;
 }

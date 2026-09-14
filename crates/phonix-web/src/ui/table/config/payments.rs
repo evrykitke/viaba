@@ -5,7 +5,15 @@
 //! The amount is what arrived. What is *on account* - received and allocated to
 //! no invoice - is the column somebody scans for, because it is the one that
 //! means a conversation: a customer paid a round sum and nobody has said which
-//! invoices it clears.
+//! invoices it clears. It is a subtraction in SQL, so the grid sorts and
+//! narrows by it without the browser holding a single allocation.
+//!
+//! # Paged
+//!
+//! A receipt is evidence and nothing deletes one, so the list only grows - and
+//! faster than the invoice list wherever customers pay in instalments. What
+//! follows from [`Source::paged`] is what [`audit`](super::audit) sets out, and
+//! the lists it has to agree with are in `phonix_db::books::payment`.
 
 use app_books::payment::{PaymentStatus, PaymentSummary};
 use leptos::prelude::*;
@@ -18,10 +26,12 @@ use crate::components::page::{Badge, Tone};
 use crate::icons::Icon;
 use crate::l;
 use crate::server_fns::books_fns::list_payments;
-use crate::ui::table::{Align, Cell, Column, Filter, FilterChoice, RowAction, Source, ToolbarAction};
+use crate::ui::table::{
+    Align, Cell, Column, DateFilter, Filter, FilterChoice, RowAction, Source, ToolbarAction,
+};
 
 pub fn payments_grid() -> GridConfig<PaymentSummary> {
-    GridConfig::new("payments", Source::in_memory(list_payments))
+    GridConfig::new("payments", Source::paged(list_payments))
         .searching(l!("payments.search"))
         .exports_as("payments")
         .sorted_by(Sort::descending("received_on"))
@@ -111,24 +121,19 @@ pub fn payments_grid() -> GridConfig<PaymentSummary> {
             .align(Align::End)
             .render(|row| on_account_cell(row).into_any()),
         )
-        .filter(
-            Filter::new(
-                "status",
-                l!("field.status"),
-                vec![
-                    FilterChoice::all(l!("common.all")),
-                    FilterChoice::new("posted", l!("payments.status.posted")),
-                    FilterChoice::new("draft", l!("payments.status.draft")),
-                    FilterChoice::new("voided", l!("payments.status.voided")),
-                ],
-            )
-            .matching(|row: &PaymentSummary, wanted| match wanted {
-                "posted" => matches!(row.status, PaymentStatus::Posted),
-                "draft" => matches!(row.status, PaymentStatus::Draft),
-                "voided" => matches!(row.status, PaymentStatus::Voided),
-                _ => true,
-            }),
-        )
+        // The values are the domain's own spellings, because that is what the
+        // reader parses them back into. No `matching`: a closure could only
+        // narrow the twenty-five rows already fetched.
+        .filter(Filter::new(
+            "status",
+            l!("field.status"),
+            vec![
+                FilterChoice::all(l!("common.all")),
+                FilterChoice::new(PaymentStatus::Posted.as_str(), l!("payments.status.posted")),
+                FilterChoice::new(PaymentStatus::Draft.as_str(), l!("payments.status.draft")),
+                FilterChoice::new(PaymentStatus::Voided.as_str(), l!("payments.status.voided")),
+            ],
+        ))
         .filter(
             // The question this screen is opened for: whose money is sitting
             // against nothing.
@@ -139,12 +144,9 @@ pub fn payments_grid() -> GridConfig<PaymentSummary> {
                     FilterChoice::all(l!("common.all")),
                     FilterChoice::new("unallocated", l!("payments.on_account")),
                 ],
-            )
-            .matching(|row: &PaymentSummary, wanted| match wanted {
-                "unallocated" => on_account(row).is_some_and(|left| !left.is_zero()),
-                _ => true,
-            }),
+            ),
         )
+        .date_filter(DateFilter::new("received", l!("payments.received_on")))
         .toolbar(
             ToolbarAction::link(l!("payments.new"), Icon::Plus, "/sales/payments/new")
                 .require(permissions::PAYMENTS_CREATE)
@@ -203,5 +205,94 @@ const fn status_tone(status: PaymentStatus) -> Tone {
         PaymentStatus::Draft => Tone::Neutral,
         PaymentStatus::Posted => Tone::Success,
         PaymentStatus::Voided => Tone::Danger,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use leptos::prelude::Owner;
+
+    use super::*;
+
+    fn grid() -> GridConfig<PaymentSummary> {
+        Owner::new().with(payments_grid)
+    }
+
+    /// Written as literals rather than imported: `phonix-web` does not depend
+    /// on `phonix-db`, and the point of the test is that the two lists were
+    /// written to agree. The source is `phonix_db::books::payment::SORTABLE`.
+    const SERVER_SORTS: &[&str] = &["number", "customer", "received_on", "amount", "on_account"];
+
+    /// The columns the `WHERE` actually looks inside. Same reasoning.
+    const SERVER_SEARCHES: &[&str] = &["number", "customer", "account", "reference"];
+
+    #[test]
+    fn every_sortable_column_is_one_the_server_can_order_by() {
+        for column in grid().columns.iter().filter(|column| column.sortable) {
+            assert!(
+                SERVER_SORTS.contains(&column.field()),
+                "{} offers a sort the reader will ignore",
+                column.field(),
+            );
+        }
+    }
+
+    #[test]
+    fn every_searchable_column_is_one_the_server_looks_inside() {
+        for column in grid().columns.iter().filter(|column| column.searchable) {
+            assert!(
+                SERVER_SEARCHES.contains(&column.field()),
+                "{} is offered to the search box and never searched",
+                column.field(),
+            );
+        }
+    }
+
+    #[test]
+    fn it_opens_newest_first_by_a_column_the_server_can_order_by() {
+        let sort = grid().initial_request().sort.expect("an opening order");
+
+        assert_eq!(sort, Sort::descending("received_on"));
+        assert!(SERVER_SORTS.contains(&sort.field.as_str()));
+    }
+
+    #[test]
+    fn both_filters_and_the_span_leave_the_answering_to_the_server() {
+        let grid = grid();
+
+        for filter in &grid.filters {
+            assert!(
+                !filter.is_local(),
+                "{} is answered in the wrong place",
+                filter.key()
+            );
+            assert_eq!(filter.default_value(), "");
+        }
+
+        let range = grid.date_filters.first().expect("the grid offers a span");
+
+        // `phonix_db::books::payment::RECEIVED`, written down twice because the
+        // two crates do not depend on each other.
+        assert_eq!(range.key(), "received");
+        assert!(!range.is_local());
+    }
+
+    #[test]
+    fn every_state_offered_is_one_the_reader_parses_back() {
+        let grid = grid();
+        let status = grid.filters.iter().find(|f| f.key() == "status").unwrap();
+
+        for choice in status.choices.iter().filter(|c| !c.value.is_empty()) {
+            assert!(
+                PaymentStatus::parse(choice.value).is_some(),
+                "{} is offered and cannot be read back",
+                choice.value,
+            );
+        }
+
+        // `phonix_db::books::payment::ALLOCATION` and `UNALLOCATED`.
+        let allocation = grid.filters.iter().find(|f| f.key() == "allocation").unwrap();
+
+        assert!(allocation.choices.iter().any(|c| c.value == "unallocated"));
     }
 }
