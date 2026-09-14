@@ -68,11 +68,12 @@ pub async fn on_hand(
     pool: &PgPool,
     caller: &Caller,
     filter: OnHandFilter,
-) -> ServiceResult<Vec<OnHandRow>> {
+    request: PageRequest,
+) -> ServiceResult<Page<OnHandRow>> {
     caller.require(permissions::STOCK)?;
     let currency = base_currency(pool).await?;
 
-    Ok(quant_store::on_hand(pool, &filter, currency).await?)
+    Ok(quant_store::page(pool, &filter, currency, &request).await?)
 }
 
 /// One page of the movement history, newest first.

@@ -590,12 +590,15 @@ pub async fn mapped_roles() -> Result<Vec<phonix_ports::ledger::AccountRole>, Se
 
 /// What is on hand, wherever it is.
 #[server(name = StockOnHand, prefix = "/api", endpoint = "inventory/stock")]
-pub async fn stock_on_hand(filter: OnHandFilter) -> Result<Vec<OnHandRow>, ServerFnError> {
+pub async fn stock_on_hand(
+    filter: OnHandFilter,
+    request: PageRequest,
+) -> Result<Page<OnHandRow>, ServerFnError> {
     use crate::state::{pool_and_caller, service_error};
 
     let (pool, caller) = pool_and_caller().await?;
 
-    phonix_services::inventory::stock::on_hand(&pool, &caller, filter)
+    phonix_services::inventory::stock::on_hand(&pool, &caller, filter, request)
         .await
         .map_err(service_error)
 }

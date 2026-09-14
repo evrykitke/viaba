@@ -14,7 +14,7 @@
 //! Changing what is on a shelf is an adjustment - a movement with a reason on
 //! it, which posts - and that is the only door in.
 
-use app_inventory::quant::OnHandRow;
+use app_inventory::quant::{OnHandFilter, OnHandRow};
 use leptos::prelude::*;
 use phonix_core::permissions;
 use phonix_core::query::Sort;
@@ -29,7 +29,9 @@ use crate::ui::table::{Align, Cell, Column, Filter, FilterChoice, Source, Toolba
 pub fn stock_grid() -> GridConfig<OnHandRow> {
     GridConfig::new(
         "stock",
-        Source::in_memory(|| stock_on_hand(app_inventory::quant::OnHandFilter::default())),
+        // Unnarrowed: this screen is everything on hand. One item's own stock
+        // would be the same grid handed a filter naming it.
+        Source::paged(|request| stock_on_hand(OnHandFilter::default(), request)),
     )
     .searching(l!("stock.search"))
     .exports_as("stock-on-hand")
@@ -128,11 +130,6 @@ pub fn stock_grid() -> GridConfig<OnHandRow> {
                 FilterChoice::new("free", l!("stock.only_free")),
             ],
         )
-        .matching(|row: &OnHandRow, wanted| match wanted {
-            "reserved" => !row.reserved.is_zero(),
-            "free" => row.reserved.is_zero(),
-            _ => true,
-        }),
     )
     .toolbar(
         ToolbarAction::link(l!("stock.moves"), Icon::ArrowRight, "/inventory/moves")
@@ -187,4 +184,62 @@ fn lot_cell(row: &OnHandRow) -> impl IntoView {
         </div>
     }
     .into_any()
+}
+
+#[cfg(test)]
+mod tests {
+    use leptos::prelude::Owner;
+
+    use super::*;
+
+    fn grid() -> GridConfig<OnHandRow> {
+        Owner::new().with(stock_grid)
+    }
+
+    /// Literals rather than imports: `phonix-web` does not depend on
+    /// `phonix-db`, and the point is that the two were written to agree. The
+    /// source is `phonix_db::inventory::quant::SORTABLE`.
+    const SERVER_SORTS: &[&str] = &[
+        "item",
+        "variant",
+        "location",
+        "quantity",
+        "reserved",
+        "available",
+        "value",
+    ];
+
+    /// The columns the `WHERE` looks inside. Same reasoning.
+    const SERVER_SEARCHES: &[&str] = &["item", "variant", "location", "lot"];
+
+    #[test]
+    fn every_sortable_column_is_one_the_server_can_order_by() {
+        for column in grid().columns.iter().filter(|column| column.sortable) {
+            assert!(
+                SERVER_SORTS.contains(&column.field()),
+                "{} offers a sort the reader will ignore",
+                column.field(),
+            );
+        }
+    }
+
+    #[test]
+    fn every_searchable_column_is_one_the_server_looks_inside() {
+        for column in grid().columns.iter().filter(|column| column.searchable) {
+            assert!(
+                SERVER_SEARCHES.contains(&column.field()),
+                "{} is offered to the search box and never searched",
+                column.field(),
+            );
+        }
+    }
+
+    #[test]
+    fn the_filter_leaves_the_answering_to_the_server() {
+        let grid = grid();
+        let held = grid.filters.iter().find(|f| f.key() == "held").unwrap();
+
+        assert!(!held.is_local());
+        assert_eq!(held.default_value(), "");
+    }
 }

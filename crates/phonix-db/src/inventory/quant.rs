@@ -16,11 +16,13 @@
 use app_inventory::quant::{OnHandFilter, OnHandRow, Quant};
 use app_inventory::quantity::Quantity;
 use phonix_core::locale::Currency;
+use phonix_core::query::{Page, PageRequest};
 use phonix_core::money::Money;
 use sqlx::{AssertSqlSafe, FromRow, PgConnection, PgExecutor, Row};
 use uuid::Uuid;
 
 use crate::error::DbError;
+use crate::listing::{self, Sortable};
 
 struct RowOf<T>(T);
 
@@ -166,6 +168,48 @@ pub async fn write(
     Ok(())
 }
 
+/// One row of what is on hand.
+fn read_on_hand(
+    row: &sqlx::postgres::PgRow,
+    currency: Currency,
+) -> Result<OnHandRow, sqlx::Error> {
+    let quantity: String = row.try_get("quantity")?;
+    let reserved: String = row.try_get("reserved")?;
+    let value: String = row.try_get("value")?;
+
+    Ok(OnHandRow {
+        variant_id: row.try_get("variant_id")?,
+        variant_code: row.try_get("variant_code")?,
+        item_id: row.try_get("item_id")?,
+        item_name: row.try_get("item_name")?,
+        combination: row.try_get("combination")?,
+        location_id: row.try_get("location_id")?,
+        location_path: row.try_get("location_path")?,
+        lot_id: row.try_get("lot_id")?,
+        lot_number: row.try_get("lot_number")?,
+        expires_on: row.try_get("expires_on")?,
+        quantity: read_quantity(&quantity, "stock_quants.quantity")?,
+        reserved: read_quantity(&reserved, "stock_quants.reserved")?,
+        unit_code: row.try_get("unit_code")?,
+        value: read_money(&value, currency, "stock_quants.value")?,
+    })
+}
+
+/// The filter key naming whether any of it is promised to somebody.
+pub const HELD: &str = "held";
+
+/// The columns the stock grid may order by. A whitelist: `sort.field` comes
+/// from a browser and never reaches the text of the query.
+const SORTABLE: &[Sortable] = &[
+    ("item", "i.name"),
+    ("variant", "v.code"),
+    ("location", "loc.path"),
+    ("quantity", "q.quantity"),
+    ("reserved", "q.reserved"),
+    ("available", "(q.quantity - q.reserved)"),
+    ("value", "value"),
+];
+
 /// Everything on hand, filtered, with what it is worth.
 ///
 /// A location filter matches the whole subtree beneath it: "how much is in the
@@ -179,21 +223,84 @@ pub async fn write(
 /// item's cost. Under standard and average there is one cost for everything and
 /// the item's column *is* the answer, so the query asks the category rather than
 /// valuing every method the same way and being wrong for two of them.
-pub async fn on_hand<'e, E>(
-    executor: E,
+///
+/// # Why this one is paged
+///
+/// A quant is one variant in one place, optionally in one lot, so the row count
+/// is variants times locations times lots. It is the one list here that can be
+/// large in a workspace that has never traded much - a thousand items across
+/// four warehouses is four thousand rows before anybody has sold anything.
+pub async fn page(
+    pool: &sqlx::PgPool,
     filter: &OnHandFilter,
     currency: Currency,
-) -> Result<Vec<OnHandRow>, DbError>
-where
-    E: PgExecutor<'e>,
-{
-    let rows = sqlx::query(
-        "WITH scope AS (
+    request: &PageRequest,
+) -> Result<Page<OnHandRow>, DbError> {
+    let request = request.sanitised();
+    let needle = request.needle().map(|needle| crate::search::contains(&needle));
+
+    let reserved = match request.filter(HELD) {
+        Some("reserved") => Some(true),
+        Some("free") => Some(false),
+        _ => None,
+    };
+
+    // The scope and the layer costs are shared by both statements: the count
+    // narrows by exactly what the select returns, or the pager lies.
+    const SCOPE: &str = "WITH scope AS (
              SELECT id FROM inventory.locations
               WHERE $3::uuid IS NULL
                  OR id = $3
                  OR path LIKE (SELECT path || '/%' FROM inventory.locations WHERE id = $3)
-         ),
+         )";
+
+    const FROM: &str = "FROM inventory.stock_quants q
+           JOIN inventory.item_variants v ON v.id = q.variant_id
+           JOIN inventory.items i ON i.id = v.item_id
+           JOIN inventory.locations loc ON loc.id = q.location_id
+           LEFT JOIN inventory.lots lt ON lt.id = q.lot_id";
+
+    const WHERE: &str = "WHERE loc.id IN (SELECT id FROM scope)
+            AND ($1::uuid IS NULL OR i.id = $1)
+            AND ($2::uuid IS NULL OR q.variant_id = $2)
+            AND ($4::uuid IS NULL OR loc.warehouse_id = $4)
+            AND ($5::uuid IS NULL OR q.lot_id = $5)
+            AND ($6 OR q.quantity <> 0)
+            AND ($7::text IS NULL
+                 OR i.name ILIKE $7
+                 OR v.code ILIKE $7
+                 OR loc.path ILIKE $7
+                 OR lt.number ILIKE $7)
+            AND ($8::bool IS NULL OR (q.reserved <> 0) = $8)";
+
+    let counting = AssertSqlSafe(format!("{SCOPE} SELECT count(*) {FROM} {WHERE}"));
+
+    let total: i64 = sqlx::query_scalar(counting)
+        .bind(filter.item_id)
+        .bind(filter.variant_id)
+        .bind(filter.location_id)
+        .bind(filter.warehouse_id)
+        .bind(filter.lot_id)
+        .bind(filter.include_empty)
+        .bind(needle.as_deref())
+        .bind(reserved)
+        .fetch_one(pool)
+        .await
+        .map_err(DbError::Query)?;
+
+    let total = u64::try_from(total).unwrap_or(0);
+    let request = request.clamped_to(total);
+
+    // By item, then by where it is: the order somebody counts a warehouse in.
+    // The lot last and nulls first, so an untracked row leads its own group.
+    let order = listing::order_by(
+        request.sort.as_ref(),
+        SORTABLE,
+        "i.name, v.code, loc.path, lt.number NULLS FIRST",
+    );
+
+    let selecting = AssertSqlSafe(format!(
+        "{SCOPE},
          layer_cost AS (
              SELECT variant_id,
                     sum(remaining * (value + additional_value) / quantity)
@@ -217,58 +324,39 @@ where
                 (q.quantity * CASE WHEN cat.costing_method = 'fifo'
                                    THEN COALESCE(lc.unit_cost, i.cost)
                                    ELSE i.cost END)::numeric(19, 4)::text AS value
-           FROM inventory.stock_quants q
-           JOIN inventory.item_variants v ON v.id = q.variant_id
-           JOIN inventory.items i ON i.id = v.item_id
+           {FROM}
            JOIN inventory.units u ON u.id = i.stock_unit_id
            JOIN inventory.categories cat ON cat.id = i.category_id
-           JOIN inventory.locations loc ON loc.id = q.location_id
-           LEFT JOIN inventory.lots lt ON lt.id = q.lot_id
            LEFT JOIN layer_cost lc ON lc.variant_id = q.variant_id
-          WHERE loc.id IN (SELECT id FROM scope)
-            AND ($1::uuid IS NULL OR i.id = $1)
-            AND ($2::uuid IS NULL OR q.variant_id = $2)
-            AND ($4::uuid IS NULL OR loc.warehouse_id = $4)
-            AND ($5::uuid IS NULL OR q.lot_id = $5)
-            AND ($6 OR q.quantity <> 0)
-          ORDER BY i.name, v.code, loc.path, lt.number NULLS FIRST",
-    )
-    .bind(filter.item_id)
-    .bind(filter.variant_id)
-    .bind(filter.location_id)
-    .bind(filter.warehouse_id)
-    .bind(filter.lot_id)
-    .bind(filter.include_empty)
-    .fetch_all(executor)
-    .await
-    .map_err(DbError::Query)?;
+           {WHERE}
+          ORDER BY {order}
+          LIMIT $9 OFFSET $10"
+    ));
 
-    rows.into_iter()
-        .map(|row| {
-            let quantity: String = row.try_get("quantity")?;
-            let reserved: String = row.try_get("reserved")?;
-            let value: String = row.try_get("value")?;
+    let rows = sqlx::query(selecting)
+        .bind(filter.item_id)
+        .bind(filter.variant_id)
+        .bind(filter.location_id)
+        .bind(filter.warehouse_id)
+        .bind(filter.lot_id)
+        .bind(filter.include_empty)
+        .bind(needle.as_deref())
+        .bind(reserved)
+        .bind(request.limit() as i64)
+        .bind(request.offset() as i64)
+        .fetch_all(pool)
+        .await
+        .map_err(DbError::Query)?;
 
-            Ok(OnHandRow {
-                variant_id: row.try_get("variant_id")?,
-                variant_code: row.try_get("variant_code")?,
-                item_id: row.try_get("item_id")?,
-                item_name: row.try_get("item_name")?,
-                combination: row.try_get("combination")?,
-                location_id: row.try_get("location_id")?,
-                location_path: row.try_get("location_path")?,
-                lot_id: row.try_get("lot_id")?,
-                lot_number: row.try_get("lot_number")?,
-                expires_on: row.try_get("expires_on")?,
-                quantity: read_quantity(&quantity, "stock_quants.quantity")?,
-                reserved: read_quantity(&reserved, "stock_quants.reserved")?,
-                unit_code: row.try_get("unit_code")?,
-                value: read_money(&value, currency, "stock_quants.value")?,
-            })
-        })
+    let summaries = rows
+        .iter()
+        .map(|row| read_on_hand(row, currency))
         .collect::<Result<Vec<_>, sqlx::Error>>()
-        .map_err(DbError::Query)
+        .map_err(DbError::Query)?;
+
+    Ok(Page::new(summaries, total, &request))
 }
+
 
 /// What is on hand of one variant across every internal location.
 ///
