@@ -75,6 +75,10 @@ use crate::pages::sales::journal::JournalPage;
 use crate::pages::sales::journal_new::JournalNewPage;
 use crate::pages::sales::journals::JournalsPage;
 use crate::pages::sales::periods::PeriodsPage;
+use crate::pages::sales::reports::balance_sheet::BalanceSheetPage;
+use crate::pages::sales::reports::customer_statement::CustomerStatementPage;
+use crate::pages::sales::reports::profit_and_loss::ProfitAndLossPage;
+use crate::pages::sales::reports::trial_balance::TrialBalancePage;
 use crate::pages::sales::invoice::{InvoiceNewPage, InvoicePage};
 use crate::pages::sales::invoices::InvoicesPage;
 use crate::pages::{dashboard::DashboardPage, not_found::NotFoundPage};
@@ -234,6 +238,13 @@ pub fn app() -> impl IntoView {
                     <Route path=path!("/sales/journals/new") view=JournalNewPage />
                     <Route path=path!("/sales/journals/:id") view=JournalPage />
                     <Route path=path!("/sales/periods") view=PeriodsPage />
+                    // The four statements. Under the app rather than under
+                    // a reporting module of their own: they are what this app's
+                    // own ledger says, and a reader opens them from here.
+                    <Route path=path!("/sales/reports/trial-balance") view=TrialBalancePage />
+                    <Route path=path!("/sales/reports/balance-sheet") view=BalanceSheetPage />
+                    <Route path=path!("/sales/reports/profit-and-loss") view=ProfitAndLossPage />
+                    <Route path=path!("/sales/reports/statement") view=CustomerStatementPage />
                     <Route path=path!("/sales/invoices") view=InvoicesPage />
                     // Before the parameter, so "new" is a screen rather than an
                     // invoice id that fails to parse.

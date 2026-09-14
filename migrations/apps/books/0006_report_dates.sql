@@ -1,0 +1,14 @@
+-- books 0006: the index every statement reads through.
+--
+-- A report asks the ledger one question - "what moved between these two dates"
+-- - and answers the trial balance, the balance sheet and the profit and loss
+-- from it. Until now the only index that reached `entry_date` was
+-- `journals_period (period_id, entry_date)`, which serves "what is in March"
+-- and does nothing for a span that crosses months: the planner has no
+-- alternative to reading every journal in the table.
+--
+-- A financial year of postings is not a large table and a sequential scan of it
+-- is survivable. This is here for the year after that, and because a report
+-- somebody runs at month end on a ledger that has grown is exactly where a
+-- missing index is discovered by the person waiting for it.
+CREATE INDEX journals_entry_date ON journals (entry_date);

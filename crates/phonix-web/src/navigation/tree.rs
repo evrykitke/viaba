@@ -103,6 +103,49 @@ pub static MENU: &[NavNode] = &[
             NavNode::leaf("periods", "nav.periods", Icon::Calendar, "/sales/periods")
                 .require(names::PERIODS)
                 .keywords(&["close", "month end", "year end", "calendar", "lock"]),
+            // A section of their own, last: the four statements are read at
+            // month end rather than on the way through, and a reader looking
+            // for one is looking for "reports" rather than for its name.
+            NavNode::group(
+                "sales-reports",
+                "nav.reports",
+                Icon::ChartColumn,
+                &[
+                    NavNode::leaf(
+                        "trial-balance",
+                        "reports.trial_balance",
+                        Icon::Table,
+                        "/sales/reports/trial-balance",
+                    )
+                    .require(names::REPORTS)
+                    .keywords(&["tb", "balances", "ledger", "check"]),
+                    NavNode::leaf(
+                        "balance-sheet",
+                        "reports.balance_sheet",
+                        Icon::ClipboardList,
+                        "/sales/reports/balance-sheet",
+                    )
+                    .require(names::REPORTS)
+                    .keywords(&["assets", "liabilities", "equity", "position"]),
+                    NavNode::leaf(
+                        "profit-and-loss",
+                        "reports.profit_and_loss",
+                        Icon::ChartColumn,
+                        "/sales/reports/profit-and-loss",
+                    )
+                    .require(names::REPORTS)
+                    .keywords(&["p&l", "income statement", "earnings", "result"]),
+                    NavNode::leaf(
+                        "customer-statement",
+                        "reports.customer_statement",
+                        Icon::Receipt,
+                        "/sales/reports/statement",
+                    )
+                    .require(names::REPORTS)
+                    .keywords(&["ageing", "aging", "owed", "debtors", "receivable"]),
+                ],
+            )
+            .require(names::REPORTS),
         ],
     )
     .require(names::SALES),

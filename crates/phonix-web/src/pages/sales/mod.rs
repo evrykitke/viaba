@@ -9,6 +9,7 @@
 //! /sales/journals/new      post one           two money columns
 //! /sales/journals/:id      one journal        the document, read-only
 //! /sales/periods           the calendar       open a year, close a month
+//! /sales/reports/...       the four statements
 //! /sales/invoices          the list          a grid
 //! /sales/invoices/new      raise one         the editor
 //! /sales/invoices/:id      one invoice       the editor, or the document
@@ -29,5 +30,6 @@ pub mod journal;
 pub mod journal_new;
 pub mod journals;
 pub mod periods;
+pub mod reports;
 pub mod invoice;
 pub mod invoices;

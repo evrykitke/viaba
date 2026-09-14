@@ -1,4 +1,4 @@
-//! Books' front page: how the invoices stand, and the way in to them.
+//! Books' front page: how the workspace stands, and the way in to it.
 //!
 //! # The counts come from the list endpoint
 //!
@@ -10,6 +10,17 @@
 //!
 //! When the grid needs a server-side source, so will this, and they should get
 //! one together.
+//!
+//! # The money figures are worked out on the server, whole
+//!
+//! [`crate::components::app_home`] leaves money off a front page for two
+//! reasons, and the ledger answers both. A figure that reads the clock differs
+//! between the server's render and the browser's, so `ledger_summary` takes
+//! the date on the server and sends the answer rather than the ingredients.
+//! And a total across several currencies is either wrong or needs a rate for a
+//! date - so these are not totals across currencies: every journal line
+//! recorded what it was worth in the workspace's own currency at the moment it
+//! was posted, and that is the column being added.
 
 use leptos::prelude::*;
 use phonix_core::apps;
@@ -19,7 +30,7 @@ use phonix_core::permissions;
 use crate::components::app_home::{AppHome, Shortcut, Stat};
 use crate::i18n::t;
 use crate::icons::Icon;
-use crate::server_fns::books_fns::{InvoiceQuery, list_invoices};
+use crate::server_fns::books_fns::{InvoiceQuery, ledger_summary, list_invoices};
 
 #[component]
 pub fn sales_home_page() -> impl IntoView {
@@ -28,26 +39,59 @@ pub fn sales_home_page() -> impl IntoView {
         |()| async move { list_invoices(InvoiceQuery::default()).await.ok() },
     );
 
-    // Counts of *states*, never of periods. A figure that reads the clock can
-    // differ between the server's render and the browser's, and near midnight
-    // that is a hydration mismatch - see the component's module docs.
+    // Absent rather than zero where the reader may not read reports, or where
+    // Books has nothing in it yet. A front page that says "0.00" to somebody
+    // who is simply not allowed to see the figure is telling them something
+    // untrue.
+    let summary = Resource::new(|| (), |()| async move { ledger_summary().await.ok() });
+
     let stats = Signal::derive(move || {
-        let Some(Some(rows)) = invoices.get() else {
-            return Vec::new();
-        };
+        let mut stats = Vec::new();
 
-        let count = |wanted: &str| {
-            rows.iter()
-                .filter(|row| row.status.as_str() == wanted)
-                .count()
-        };
+        if let Some(Some(rows)) = invoices.get() {
+            let count = |wanted: &str| {
+                rows.iter()
+                    .filter(|row| row.status.as_str() == wanted)
+                    .count()
+            };
 
-        vec![
-            Stat::new(t(&Message::new("books.home.total")), rows.len()),
-            Stat::new(t(&Message::new("books.status.draft")), count("draft")),
-            Stat::new(t(&Message::new("books.status.posted")), count("posted")),
-            Stat::new(t(&Message::new("books.status.voided")), count("voided")),
-        ]
+            // Counts of *states*, never of periods. A figure that reads the
+            // clock can differ between the server's render and the browser's,
+            // and near midnight that is a hydration mismatch.
+            stats.push(Stat::new(
+                t(&Message::new("books.status.draft")),
+                count("draft"),
+            ));
+            stats.push(Stat::new(
+                t(&Message::new("books.status.posted")),
+                count("posted"),
+            ));
+        }
+
+        if let Some(Some(summary)) = summary.get() {
+            let money = |amount: phonix_core::money::Money| {
+                format!("{} {}", amount.to_display_string(), summary.currency.code())
+            };
+
+            stats.push(Stat::new(
+                t(&Message::new("books.home.owed")),
+                money(summary.owed_by_customers),
+            ));
+            stats.push(Stat::new(
+                t(&Message::new("books.home.revenue")),
+                money(summary.revenue),
+            ));
+            stats.push(Stat::new(
+                t(&Message::new("books.home.result")),
+                money(summary.result),
+            ));
+            stats.push(Stat::new(
+                t(&Message::new("books.home.assets")),
+                money(summary.total_assets),
+            ));
+        }
+
+        stats
     });
 
     #[allow(
@@ -72,6 +116,16 @@ pub fn sales_home_page() -> impl IntoView {
             Icon::FileText,
         )
         .require(permissions::INVOICES),
+        // The four statements, as one way in. Each has its own screen and its
+        // own menu entry; what belongs here is the door, and the trial balance
+        // is the one somebody checking the books opens first.
+        Shortcut::new(
+            t(&Message::new("nav.reports")),
+            t(&Message::new("books.home.reports_detail")),
+            "/sales/reports/trial-balance",
+            Icon::ChartColumn,
+        )
+        .require(permissions::REPORTS),
         // Books' own screens are only half of what somebody here needs: an
         // invoice cannot be raised without a customer, and the customer lives
         // in master data. Linking across the boundary is a *link*, which is

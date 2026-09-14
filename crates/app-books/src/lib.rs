@@ -12,6 +12,7 @@
 //! | [`quantity`] | How many, at four decimal places? |
 //! | [`invoice`] | What is on the document, and what state is it in? |
 //! | [`pricing`] | What does it come to? |
+//! | [`report`] | What do the four statements say? |
 //!
 //! # An invoice is a draft until it is posted
 //!
@@ -58,6 +59,7 @@ pub mod journal;
 pub mod period;
 pub mod pricing;
 pub mod quantity;
+pub mod report;
 
 /// The app's id, which is also the name of the schema it owns and the key its
 /// number series are declared under in `config/numbering/books.toml`.

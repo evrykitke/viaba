@@ -17,6 +17,7 @@
 //!  |   |   +- .Post  .Reverse
 //!  |   +- Pages.Sales.Periods
 //!  |   |   +- .Manage
+//!  |   +- Pages.Sales.Reports
 //!  |   +- Pages.Sales.Invoices
 //!  |       +- .Create  .Edit  .Post  .Void
 //!  +- Pages.Inventory
@@ -87,6 +88,8 @@ pub mod names {
 
     pub const PERIODS: &str = "Pages.Sales.Periods";
     pub const PERIODS_MANAGE: &str = "Pages.Sales.Periods.Manage";
+
+    pub const REPORTS: &str = "Pages.Sales.Reports";
 
     pub const INVOICES: &str = "Pages.Sales.Invoices";
     pub const INVOICES_CREATE: &str = "Pages.Sales.Invoices.Create";
@@ -349,6 +352,19 @@ pub const DEFINITIONS: &[PermissionDefinition] = &[
         display_name: "Reverse",
         description: Some("Reverse a posted journal with a correcting one."),
         parent: Some(names::JOURNALS),
+        default_for_user: false,
+    },
+    // One grant for all four statements. A trial balance and a profit and loss
+    // are the same figures arranged twice, and somebody who may read one may
+    // work out the other with a pencil - so splitting them would be a control
+    // that looks like one without being one.
+    PermissionDefinition {
+        name: names::REPORTS,
+        display_name: "Financial reports",
+        description: Some(
+            "Read the trial balance, balance sheet, profit and loss, and customer statements.",
+        ),
+        parent: Some(names::SALES),
         default_for_user: false,
     },
     // Closing a period is the strongest routine control in an accounting

@@ -23,9 +23,12 @@
 //! facts about a row, and never of periods. "Posted this month" belongs on a
 //! report that is allowed to be a client-only render.
 //!
-//! Money is left off for a different reason: a workspace can invoice in several
-//! currencies, and one total across them is either wrong or needs a rate for a
-//! date - which is the date problem again, wearing a hat.
+//! Money needs a second condition met before it belongs here, for a different
+//! reason: a workspace invoices in several currencies, and one total across
+//! them is either wrong or needs a rate for a date - which is the date problem
+//! again, wearing a hat. A figure converted at the moment each document was
+//! posted and added up on the server passes both tests, and that is the only
+//! kind of money a front page should carry. See `pages::sales::home`.
 
 use leptos::prelude::*;
 use leptos_router::components::A;

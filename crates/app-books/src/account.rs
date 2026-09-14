@@ -962,6 +962,7 @@ mod tests {
                 name: "  ".to_owned(),
                 ..default_account("1030")
             }],
+            role: Vec::new(),
         };
 
         assert_eq!(
@@ -979,6 +980,7 @@ mod tests {
         // workspace would be missing an account with nothing to say why.
         let chart = DefaultChart {
             account: vec![default_account("1030"), default_account("1030")],
+            role: Vec::new(),
         };
 
         assert_eq!(
@@ -994,6 +996,7 @@ mod tests {
         // `accounts_number_key` is on lower(number).
         let chart = DefaultChart {
             account: vec![default_account("1030a"), default_account("1030A")],
+            role: Vec::new(),
         };
 
         assert!(matches!(

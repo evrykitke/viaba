@@ -15,11 +15,15 @@
 use app_books::account::{Account, AccountInput};
 use app_books::journal::{JournalDraft, JournalSummary, Posted};
 use app_books::period::Period;
+use app_books::report::{
+    BalanceSheet, CustomerStatement, IncomeStatement, LedgerSummary, TrialBalance,
+};
 use app_books::invoice::{Invoice, InvoiceInput, InvoiceStatus, InvoiceSummary, PostOutcome};
 use chrono::NaiveDate;
 use leptos::prelude::*;
 use leptos::server_fn::codec::Json;
 use phonix_core::form::Submission;
+use phonix_master::party::PartySummary;
 use phonix_tax::group::TaxTreatment;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -265,6 +269,113 @@ pub async fn next_year_to_open() -> Result<i32, ServerFnError> {
     let pool = tenant_pool().await?;
 
     phonix_services::books::period::next_year_to_open(&pool)
+        .await
+        .map_err(service_error)
+}
+
+// --- Reports -------------------------------------------------------------
+//
+// Every one of these takes its dates from the screen. A report is a document
+// about a span somebody chose, and a default worked out on the server would be
+// the server's own idea of today.
+
+/// The span every report opens on: the financial year, so far.
+///
+/// A screen asks for this before it asks for a report. The alternative - each
+/// page working out "this year" for itself - would be worked out twice, once
+/// on the server and once at hydration, and the two disagree at midnight.
+#[server(name = ReportSpan, prefix = "/api", endpoint = "books/reports/span")]
+pub async fn report_span() -> Result<(NaiveDate, NaiveDate), ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::books::report::default_span(&pool, &caller)
+        .await
+        .map_err(service_error)
+}
+
+/// Every account, both columns, for a span.
+#[server(name = TrialBalanceReport, prefix = "/api", endpoint = "books/reports/trial-balance")]
+pub async fn trial_balance(
+    from: NaiveDate,
+    to: NaiveDate,
+) -> Result<TrialBalance, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::books::report::trial_balance(&pool, &caller, from, to)
+        .await
+        .map_err(service_error)
+}
+
+/// What is owned and what is owed, at one date.
+#[server(name = BalanceSheetReport, prefix = "/api", endpoint = "books/reports/balance-sheet")]
+pub async fn balance_sheet(as_at: NaiveDate) -> Result<BalanceSheet, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::books::report::balance_sheet(&pool, &caller, as_at)
+        .await
+        .map_err(service_error)
+}
+
+/// What was earned and what it cost, between two dates.
+#[server(name = ProfitAndLossReport, prefix = "/api", endpoint = "books/reports/profit-and-loss")]
+pub async fn profit_and_loss(
+    from: NaiveDate,
+    to: NaiveDate,
+) -> Result<IncomeStatement, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::books::report::profit_and_loss(&pool, &caller, from, to)
+        .await
+        .map_err(service_error)
+}
+
+/// What one customer has been invoiced, and how long ago.
+#[server(name = CustomerStatementReport, prefix = "/api", endpoint = "books/reports/statement")]
+pub async fn customer_statement(
+    party_id: Uuid,
+    from: NaiveDate,
+    to: NaiveDate,
+) -> Result<CustomerStatement, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::books::report::customer_statement(&pool, &caller, party_id, from, to)
+        .await
+        .map_err(service_error)
+}
+
+/// The customers a statement may be run for.
+///
+/// Gated on reports rather than on the customer file: somebody in credit
+/// control reads statements and need not hold master data.
+#[server(name = StatementCustomers, prefix = "/api", endpoint = "books/reports/customers")]
+pub async fn statement_customers() -> Result<Vec<PartySummary>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::books::report::statement_customers(&pool, &caller)
+        .await
+        .map_err(service_error)
+}
+
+/// The figures the app's front page carries.
+#[server(name = LedgerSummaryFigures, prefix = "/api", endpoint = "books/reports/summary")]
+pub async fn ledger_summary() -> Result<LedgerSummary, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::books::report::summary(&pool, &caller)
         .await
         .map_err(service_error)
 }
