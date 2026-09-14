@@ -24,17 +24,17 @@ use super::GridConfig;
 use crate::components::page::{Badge, Tone};
 use crate::icons::Icon;
 use crate::l;
-use crate::server_fns::master_fns::{delete_party, list_parties};
+use crate::server_fns::master_fns::{delete_party, page_parties};
 use crate::ui::table::{Cell, Column, Filter, FilterChoice, RowAction, Source, ToolbarAction};
 
 /// Everyone this workspace trades with.
 pub fn parties_grid() -> GridConfig<PartySummary> {
     GridConfig::new(
         "parties",
-        // `None`: the master-data screen is about every party, and the role
-        // filter narrows it in the browser. An app wanting only its own passes
-        // its role to the same endpoint.
-        Source::in_memory(|| list_parties(None)),
+        // The whole directory. The role filter narrows it where the rows are;
+        // an app wanting only its own calls `list_parties` with its role, which
+        // is a picker's list and a different question.
+        Source::paged(page_parties),
     )
     .searching(l!("parties.search"))
     .exports_as("parties")
@@ -128,10 +128,7 @@ pub fn parties_grid() -> GridConfig<PartySummary> {
                 FilterChoice::new(roles::CARRIER, l!("parties.role.carrier")),
                 FilterChoice::new(roles::AGENT, l!("parties.role.agent")),
             ],
-        )
-        .matching(|party: &PartySummary, wanted| {
-            party.roles.iter().any(|role| role.as_str() == wanted)
-        }),
+        ),
     )
     .filter(
         Filter::new(
@@ -142,12 +139,7 @@ pub fn parties_grid() -> GridConfig<PartySummary> {
                 FilterChoice::new("active", l!("common.active")),
                 FilterChoice::new("inactive", l!("common.inactive")),
             ],
-        )
-        .matching(|party: &PartySummary, wanted| match wanted {
-            "active" => party.is_active,
-            "inactive" => !party.is_active,
-            _ => true,
-        }),
+        ),
     )
     .toolbar(
         ToolbarAction::link(l!("parties.new"), Icon::Plus, "/master/parties/new")
@@ -259,7 +251,6 @@ fn status_cell(party: &PartySummary) -> impl IntoView {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use phonix_core::query::PageRequest;
     use uuid::Uuid;
 
     fn grid() -> GridConfig<PartySummary> {
@@ -322,20 +313,72 @@ mod tests {
         assert_eq!(essential, vec!["name", "roles"]);
     }
 
+    /// Literals rather than imports: `phonix-web` does not depend on
+    /// `phonix-db`, and the point is that the two were written to agree. The
+    /// source is `phonix_db::master::party::SORTABLE`.
+    const SERVER_SORTS: &[&str] = &["name", "code", "kind", "country", "currency", "is_active"];
+
+    /// The columns the `WHERE` looks inside. Same reasoning. `legal_name` is
+    /// searched and is not a column, which is a search finding more than the
+    /// grid shows rather than less.
+    const SERVER_SEARCHES: &[&str] = &["name", "code", "email", "phone"];
+
     #[test]
-    fn the_role_filter_finds_a_party_wearing_that_hat() {
+    fn every_sortable_column_is_one_the_server_can_order_by() {
+        for column in grid().columns.iter().filter(|column| column.sortable) {
+            assert!(
+                SERVER_SORTS.contains(&column.field()),
+                "{} offers a sort the reader will ignore",
+                column.field(),
+            );
+        }
+    }
+
+    #[test]
+    fn every_searchable_column_is_one_the_server_looks_inside() {
+        for column in grid().columns.iter().filter(|column| column.searchable) {
+            assert!(
+                SERVER_SEARCHES.contains(&column.field()),
+                "{} is offered to the search box and never searched",
+                column.field(),
+            );
+        }
+    }
+
+    #[test]
+    fn the_role_filter_is_answered_where_the_rows_are() {
         // The filter is the point of the screen: one table holds customers,
-        // suppliers and carriers, so the unfiltered list is everybody.
+        // suppliers and carriers, so the unfiltered list is everybody. A
+        // closure could only narrow the page already fetched.
         let grid = grid();
-        let filter = grid.filters.iter().find(|f| f.key() == "role").unwrap();
-        let acme = party("Acme", Some(roles::CUSTOMER), true);
+        let role = grid.filters.iter().find(|f| f.key() == "role").unwrap();
 
-        let asking = |role: &str| PageRequest::first(25).filtered_by("role", role);
-        assert!(filter.accepts(&acme, &asking(roles::CUSTOMER)));
-        assert!(!filter.accepts(&acme, &asking(roles::SUPPLIER)));
+        assert!(!role.is_local());
+        assert_eq!(role.default_value(), "");
 
-        // Nothing chosen is everybody, which is what the "All" option means.
-        assert!(filter.accepts(&acme, &PageRequest::first(25)));
+        // Every role offered is one `PartyRole::parse` reads back, which is
+        // what `phonix_db::master::party::page` binds.
+        for choice in role.choices.iter().filter(|c| !c.value.is_empty()) {
+            assert!(
+                PartyRole::parse(choice.value).is_ok(),
+                "{} is offered and cannot be read back",
+                choice.value,
+            );
+        }
+    }
+
+    #[test]
+    fn it_opens_on_everybody_by_name() {
+        let grid = grid();
+        let sort = grid.initial_request().sort.expect("an opening order");
+
+        assert_eq!(sort, Sort::ascending("name"));
+        assert!(SERVER_SORTS.contains(&sort.field.as_str()));
+
+        for filter in &grid.filters {
+            assert_eq!(filter.default_value(), "", "{}", filter.key());
+            assert!(!filter.is_local(), "{}", filter.key());
+        }
     }
 
     #[test]

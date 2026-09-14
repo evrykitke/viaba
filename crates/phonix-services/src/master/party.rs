@@ -24,6 +24,7 @@
 use phonix_core::form::Submission;
 use phonix_core::msg;
 use phonix_core::permissions;
+use phonix_core::query::{Page, PageRequest};
 use phonix_db::error::DbError;
 use phonix_db::master::party as store;
 use phonix_db::sqlx::PgPool;
@@ -41,6 +42,17 @@ use crate::error::{ServiceError, ServiceResult};
 /// `role` is how Books asks for customers without knowing anything about
 /// suppliers. Passing `None` is the master-data screen, which shows all of
 /// them because that is what it is for.
+/// One page of the party directory.
+pub async fn page(
+    pool: &PgPool,
+    caller: &Caller,
+    request: PageRequest,
+) -> ServiceResult<Page<PartySummary>> {
+    caller.require(permissions::PARTIES)?;
+    Ok(store::page(pool, &request).await?)
+}
+
+/// Every party in one role, for a picker. See the note on `store::list`.
 pub async fn list(
     pool: &PgPool,
     caller: &Caller,

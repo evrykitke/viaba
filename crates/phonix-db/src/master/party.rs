@@ -15,13 +15,15 @@
 
 use phonix_core::identity::UserId;
 use phonix_core::locale::{Country, Currency};
+use phonix_core::query::{Page, PageRequest};
 use phonix_master::address::{AddressPurpose, PartyAddress, PostalAddress};
 use phonix_master::contact::PartyContact;
 use phonix_master::party::{Party, PartyInput, PartyKind, PartyRole, PartySummary};
-use sqlx::{FromRow, PgExecutor, Row};
+use sqlx::{AssertSqlSafe, FromRow, PgExecutor, Row};
 use uuid::Uuid;
 
 use crate::error::DbError;
+use crate::listing::{self, Sortable};
 
 /// The unique index that refuses two parties with one code.
 ///
@@ -165,6 +167,105 @@ impl<'r> FromRow<'r, sqlx::postgres::PgRow> for ContactRow {
     }
 }
 
+/// The filter key naming which role to show.
+pub const ROLE: &str = "role";
+
+/// The filter key naming whether the party is still in use.
+pub const STATUS: &str = "status";
+
+/// The columns the party grid may order by. A whitelist: `sort.field` comes
+/// from a browser and never reaches the text of the query.
+const SORTABLE: &[Sortable] = &[
+    ("name", "lower(p.name)"),
+    ("code", "p.code"),
+    ("kind", "p.kind"),
+    ("country", "p.country_code"),
+    ("currency", "p.currency_code"),
+    ("is_active", "p.is_active"),
+];
+
+/// Every party's roles, as an array beside it. A party with none is still a
+/// party, so the `COALESCE` is not defensive - it is the empty case.
+const ROLES: &str = "COALESCE(
+                    ARRAY(
+                        SELECT r.role FROM master.party_roles r
+                         WHERE r.party_id = p.id
+                         ORDER BY r.role
+                    ),
+                    ARRAY[]::text[]
+                ) AS roles";
+
+/// A filter nobody set is a NULL that discards its own line.
+const WHERE: &str = "WHERE ($1::text IS NULL
+                 OR EXISTS (
+                        SELECT 1 FROM master.party_roles r
+                         WHERE r.party_id = p.id AND r.role = $1
+                    ))
+            AND ($2::text IS NULL
+                 OR p.name ILIKE $2
+                 OR p.code ILIKE $2
+                 OR p.legal_name ILIKE $2
+                 OR p.email ILIKE $2
+                 OR p.phone ILIKE $2)
+            AND ($3::bool IS NULL OR p.is_active = $3)";
+
+/// One page of the party list.
+///
+/// Paged because a customer list is one of the two that grow with the business
+/// rather than with how it is configured, and because nobody deletes a customer
+/// who has ever been invoiced.
+pub async fn page(pool: &sqlx::PgPool, request: &PageRequest) -> Result<Page<PartySummary>, DbError> {
+    let request = request.sanitised();
+    let needle = request.needle().map(|needle| crate::search::contains(&needle));
+    let role = request.filter(ROLE);
+
+    let active = match request.filter(STATUS) {
+        Some("active") => Some(true),
+        Some("inactive") => Some(false),
+        _ => None,
+    };
+
+    let counting = AssertSqlSafe(format!("SELECT count(*) FROM master.parties p {WHERE}"));
+
+    let total: i64 = sqlx::query_scalar(counting)
+        .bind(role)
+        .bind(needle.as_deref())
+        .bind(active)
+        .fetch_one(pool)
+        .await
+        .map_err(DbError::Query)?;
+
+    let total = u64::try_from(total).unwrap_or(0);
+    let request = request.clamped_to(total);
+
+    // By name, folded, which is how a directory reads.
+    let order = listing::order_by(request.sort.as_ref(), SORTABLE, "lower(p.name)");
+
+    let selecting = AssertSqlSafe(format!(
+        "SELECT p.id, p.code, p.kind, p.name, p.legal_name, p.tax_id, p.country_code,
+                p.email, p.phone, p.website, p.currency_code, p.tax_group_id, p.is_active,
+                {ROLES}
+           FROM master.parties p
+           {WHERE}
+          ORDER BY {order}, p.id
+          LIMIT $4 OFFSET $5"
+    ));
+
+    let rows = sqlx::query_as::<_, SummaryRow>(selecting)
+        .bind(role)
+        .bind(needle.as_deref())
+        .bind(active)
+        .bind(request.limit() as i64)
+        .bind(request.offset() as i64)
+        .fetch_all(pool)
+        .await
+        .map_err(DbError::Query)?;
+
+    let summaries = rows.into_iter().map(|row| row.0).collect();
+
+    Ok(Page::new(summaries, total, &request))
+}
+
 /// Every party, newest names last, for a grid.
 ///
 /// Reads the whole table. A workspace's party list is master data - hundreds,
@@ -172,33 +273,37 @@ impl<'r> FromRow<'r, sqlx::postgres::PgRow> for ContactRow {
 /// browser, which is what makes a search feel instant. When a workspace
 /// outgrows that, the grid's [`Source`](phonix_core::query) already carries the
 /// page request needed to move it server-side.
+///
+/// # A picker's list, not a ledger
+///
+/// This is what fills a supplier dropdown on a bill and a customer dropdown on
+/// a delivery, and it is deliberately not paged: a `<select>` cannot page, and
+/// capping it silently is the failure the movement grid was converted to
+/// escape. What it needs instead is the type-ahead `variant::search_sellable`
+/// already gives an item box, and until it has one this reads every party in
+/// the named role.
 pub async fn list<'e, E>(executor: E, role: Option<&str>) -> Result<Vec<PartySummary>, DbError>
 where
     E: PgExecutor<'e>,
 {
-    let rows = sqlx::query_as::<_, SummaryRow>(
+    let statement = AssertSqlSafe(format!(
         "SELECT p.id, p.code, p.kind, p.name, p.legal_name, p.tax_id, p.country_code,
                 p.email, p.phone, p.website, p.currency_code, p.tax_group_id, p.is_active,
-                COALESCE(
-                    ARRAY(
-                        SELECT r.role FROM master.party_roles r
-                         WHERE r.party_id = p.id
-                         ORDER BY r.role
-                    ),
-                    ARRAY[]::text[]
-                ) AS roles
+                {ROLES}
            FROM master.parties p
           WHERE $1::text IS NULL
              OR EXISTS (
                     SELECT 1 FROM master.party_roles r
                      WHERE r.party_id = p.id AND r.role = $1
                 )
-          ORDER BY lower(p.name)",
-    )
-    .bind(role)
-    .fetch_all(executor)
-    .await
-    .map_err(DbError::Query)?;
+          ORDER BY lower(p.name)"
+    ));
+
+    let rows = sqlx::query_as::<_, SummaryRow>(statement)
+        .bind(role)
+        .fetch_all(executor)
+        .await
+        .map_err(DbError::Query)?;
 
     Ok(rows.into_iter().map(|row| row.0).collect())
 }

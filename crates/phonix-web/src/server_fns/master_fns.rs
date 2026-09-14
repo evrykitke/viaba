@@ -15,7 +15,9 @@
 //! prevent.
 
 use leptos::prelude::*;
+use leptos::server_fn::codec::Json;
 use phonix_core::form::Submission;
+use phonix_core::query::{Page, PageRequest};
 use phonix_master::address::{PartyAddress, PartyAddressInput};
 use phonix_master::contact::{PartyContact, PartyContactInput};
 use phonix_master::party::{Party, PartyInput, PartySummary};
@@ -26,7 +28,19 @@ use uuid::Uuid;
 
 // --- parties ------------------------------------------------------------
 
-/// Every party, or only those an app has claimed.
+/// One page of the party directory, for the grid.
+#[server(name = PageParties, prefix = "/api", endpoint = "master/parties/page", input = Json)]
+pub async fn page_parties(request: PageRequest) -> Result<Page<PartySummary>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::master::party::page(&pool, &caller, request)
+        .await
+        .map_err(service_error)
+}
+
+/// Every party in one role, for a picker. Not paged - see `phonix_db::master::party::list`.
 #[server(name = ListParties, prefix = "/api", endpoint = "master/parties")]
 pub async fn list_parties(role: Option<String>) -> Result<Vec<PartySummary>, ServerFnError> {
     use crate::state::{pool_and_caller, service_error};
