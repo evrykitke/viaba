@@ -31,11 +31,13 @@ use app_inventory::purchase::SupplierSnapshot;
 use app_inventory::quantity::Quantity;
 use phonix_core::identity::UserId;
 use phonix_core::locale::Currency;
+use phonix_core::query::{Page, PageRequest};
 use phonix_core::money::Money;
-use sqlx::{PgConnection, PgExecutor, Row};
+use sqlx::{AssertSqlSafe, PgConnection, PgExecutor, Row};
 use uuid::Uuid;
 
 use crate::error::DbError;
+use crate::listing::{self, Sortable};
 
 fn unknown(column: &str, raw: &str) -> sqlx::Error {
     sqlx::Error::Decode(
@@ -93,29 +95,92 @@ fn read_summary(row: &sqlx::postgres::PgRow) -> Result<ConsolidationSummary, sql
     })
 }
 
-/// Every consolidation, newest first.
-pub async fn list<'e, E>(executor: E) -> Result<Vec<ConsolidationSummary>, DbError>
-where
-    E: PgExecutor<'e>,
-{
-    let statement = format!(
-        "SELECT {SUMMARY_COLUMNS}
-           FROM inventory.consolidations c
-           JOIN inventory.warehouses w ON w.id = c.warehouse_id
-           LEFT JOIN core.users u ON u.id = c.created_by
-          ORDER BY c.raised_on DESC, c.created_at DESC"
-    );
+/// Request date-range filter key.
+pub const RAISED: &str = "raised";
 
-    let rows = sqlx::query(sqlx::AssertSqlSafe(statement))
-        .fetch_all(executor)
+/// Request state filter key.
+pub const STATE: &str = "state";
+
+/// Fields allowed in `ORDER BY`.
+const SORTABLE: &[Sortable] = &[
+    ("number", "c.number"),
+    ("warehouse", "w.name"),
+    ("raised_on", "c.raised_on"),
+    ("line_count", "line_count"),
+    ("suppliers", "supplier_count"),
+    ("orders", "order_count"),
+];
+
+/// Shared query base for the count and result queries.
+const FROM: &str = "FROM inventory.consolidations c
+           JOIN inventory.warehouses w ON w.id = c.warehouse_id
+           LEFT JOIN core.users u ON u.id = c.created_by";
+
+/// Optional filters, bound as parameters.
+const WHERE: &str = "WHERE ($1::text IS NULL
+                 OR c.number ILIKE $1
+                 OR w.name ILIKE $1
+                 OR u.display_name ILIKE $1)
+            AND ($2::date IS NULL OR c.raised_on >= $2)
+            AND ($3::date IS NULL OR c.raised_on <= $3)
+            AND ($4::text IS NULL OR c.state = $4)";
+
+/// Returns a filtered, sorted page of consolidations.
+pub async fn page(
+    pool: &sqlx::PgPool,
+    request: &PageRequest,
+) -> Result<Page<ConsolidationSummary>, DbError> {
+    let request = request.sanitised();
+    let needle = request.needle().map(|needle| crate::search::contains(&needle));
+    let state = request.filter(STATE).and_then(ConsolidationState::parse);
+    let raised = request.range(RAISED);
+
+    // Query fragments and sort fields are defined in this module.
+    let counting = AssertSqlSafe(format!("SELECT count(*) {FROM} {WHERE}"));
+
+    let total: i64 = sqlx::query_scalar(counting)
+        .bind(needle.as_deref())
+        .bind(raised.first_day())
+        .bind(raised.last_day())
+        .bind(state.map(ConsolidationState::as_str))
+        .fetch_one(pool)
         .await
         .map_err(DbError::Query)?;
 
-    rows.iter()
-        .map(read_summary)
+    let total = u64::try_from(total).unwrap_or(0);
+    let request = request.clamped_to(total);
+
+    // Keep pagination stable when primary sort values match.
+    let order = listing::order_by(request.sort.as_ref(), SORTABLE, "c.raised_on DESC");
+
+    let selecting = AssertSqlSafe(format!(
+        "SELECT {SUMMARY_COLUMNS}
+           {FROM}
+           {WHERE}
+          ORDER BY {order}, c.created_at DESC
+          LIMIT $5 OFFSET $6"
+    ));
+
+    let rows = sqlx::query(selecting)
+        .bind(needle.as_deref())
+        .bind(raised.first_day())
+        .bind(raised.last_day())
+        .bind(state.map(ConsolidationState::as_str))
+        .bind(request.limit() as i64)
+        .bind(request.offset() as i64)
+        .fetch_all(pool)
+        .await
+        .map_err(DbError::Query)?;
+
+    let summaries = rows
+        .iter()
+        .map(|row| read_summary(row))
         .collect::<Result<Vec<_>, sqlx::Error>>()
-        .map_err(DbError::Query)
+        .map_err(DbError::Query)?;
+
+    Ok(Page::new(summaries, total, &request))
 }
+
 
 pub async fn find<'e, E>(executor: E, id: Uuid) -> Result<Option<Consolidation>, DbError>
 where

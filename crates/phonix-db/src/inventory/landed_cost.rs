@@ -30,11 +30,13 @@ use app_inventory::movement::JournalOutcome;
 use app_inventory::quantity::Quantity;
 use phonix_core::identity::UserId;
 use phonix_core::locale::Currency;
+use phonix_core::query::{Page, PageRequest};
 use phonix_core::money::Money;
-use sqlx::{PgConnection, PgExecutor, Row};
+use sqlx::{AssertSqlSafe, PgConnection, PgExecutor, Row};
 use uuid::Uuid;
 
 use crate::error::DbError;
+use crate::listing::{self, Sortable};
 
 fn unknown(column: &str, raw: &str) -> sqlx::Error {
     sqlx::Error::Decode(
@@ -90,27 +92,91 @@ fn read_summary(
     })
 }
 
-/// Every landed cost, newest first.
-pub async fn list<'e, E>(executor: E, currency: Currency) -> Result<Vec<LandedCostSummary>, DbError>
-where
-    E: PgExecutor<'e>,
-{
-    let statement = format!(
-        "SELECT {SUMMARY_COLUMNS}
-           FROM inventory.landed_costs c
-          ORDER BY c.cost_date DESC, c.created_at DESC"
-    );
+/// Request date-range filter key.
+pub const COSTED: &str = "costed";
 
-    let rows = sqlx::query(sqlx::AssertSqlSafe(statement))
-        .fetch_all(executor)
+/// Request state filter key.
+pub const STATE: &str = "state";
+
+/// Fields allowed in `ORDER BY`.
+const SORTABLE: &[Sortable] = &[
+    ("number", "c.number"),
+    ("receipt", "c.receipt_number"),
+    ("supplier", "c.supplier_name"),
+    ("cost_date", "c.cost_date"),
+    ("total", "c.total"),
+    ("capitalised", "c.capitalised"),
+];
+
+/// Shared query base for the count and result queries.
+const FROM: &str = "FROM inventory.landed_costs c";
+
+/// Optional filters, bound as parameters.
+const WHERE: &str = "WHERE ($1::text IS NULL
+                 OR c.number ILIKE $1
+                 OR c.receipt_number ILIKE $1
+                 OR c.supplier_name ILIKE $1)
+            AND ($2::date IS NULL OR c.cost_date >= $2)
+            AND ($3::date IS NULL OR c.cost_date <= $3)
+            AND ($4::text IS NULL OR c.state = $4)";
+
+/// Returns a filtered, sorted page of landed costs.
+pub async fn page(
+    pool: &sqlx::PgPool,
+    currency: Currency,
+    request: &PageRequest,
+) -> Result<Page<LandedCostSummary>, DbError> {
+    let request = request.sanitised();
+    let needle = request.needle().map(|needle| crate::search::contains(&needle));
+    let state = request.filter(STATE).and_then(LandedCostState::parse);
+    let costed = request.range(COSTED);
+
+    // Query fragments and sort fields are defined in this module.
+    let counting = AssertSqlSafe(format!("SELECT count(*) {FROM} {WHERE}"));
+
+    let total: i64 = sqlx::query_scalar(counting)
+        .bind(needle.as_deref())
+        .bind(costed.first_day())
+        .bind(costed.last_day())
+        .bind(state.map(LandedCostState::as_str))
+        .fetch_one(pool)
         .await
         .map_err(DbError::Query)?;
 
-    rows.iter()
+    let total = u64::try_from(total).unwrap_or(0);
+    let request = request.clamped_to(total);
+
+    // Keep pagination stable when primary sort values match.
+    let order = listing::order_by(request.sort.as_ref(), SORTABLE, "c.cost_date DESC");
+
+    let selecting = AssertSqlSafe(format!(
+        "SELECT {SUMMARY_COLUMNS}
+           {FROM}
+           {WHERE}
+          ORDER BY {order}, c.created_at DESC
+          LIMIT $5 OFFSET $6"
+    ));
+
+    let rows = sqlx::query(selecting)
+        .bind(needle.as_deref())
+        .bind(costed.first_day())
+        .bind(costed.last_day())
+        .bind(state.map(LandedCostState::as_str))
+        .bind(request.limit() as i64)
+        .bind(request.offset() as i64)
+        .fetch_all(pool)
+        .await
+        .map_err(DbError::Query)?;
+
+    let summaries = rows
+        .iter()
         .map(|row| read_summary(row, currency))
         .collect::<Result<Vec<_>, sqlx::Error>>()
-        .map_err(DbError::Query)
+        .map_err(DbError::Query)?;
+
+    Ok(Page::new(summaries, total, &request))
 }
+
 
 /// What has been landed on one delivery. The receipt screen's question.
 pub async fn for_receipt<'e, E>(

@@ -37,6 +37,7 @@ use chrono::NaiveDate;
 use phonix_core::form::Submission;
 use phonix_core::msg;
 use phonix_core::permissions;
+use phonix_core::query::{Page, PageRequest};
 use phonix_db::error::DbError;
 use phonix_db::inventory::transfer::{self as store, Ends};
 use phonix_db::numbering::SequenceKey;
@@ -56,9 +57,13 @@ fn reject<T>(err: TransferError) -> Submission<T> {
     Submission::rejected(err.field(), err.message())
 }
 
-pub async fn list(pool: &PgPool, caller: &Caller) -> ServiceResult<Vec<TransferSummary>> {
+pub async fn list(
+    pool: &PgPool,
+    caller: &Caller,
+    request: PageRequest,
+) -> ServiceResult<Page<TransferSummary>> {
     caller.require(permissions::TRANSFERS)?;
-    Ok(store::list(pool).await?)
+    Ok(store::page(pool, &request).await?)
 }
 
 /// Journeys with stock still on them. What the in-transit account is made of.

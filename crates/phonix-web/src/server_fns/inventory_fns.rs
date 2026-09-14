@@ -931,13 +931,13 @@ pub async fn requisition_demand() -> Result<Vec<Demand>, ServerFnError> {
 // the requisition and the purchase order: what is waiting, what to buy, and -
 // after the fact - which requisitions each order line was raised for.
 
-#[server(name = ListConsolidations, prefix = "/api", endpoint = "inventory/consolidations")]
-pub async fn list_consolidations() -> Result<Vec<ConsolidationSummary>, ServerFnError> {
+#[server(name = ListConsolidations, prefix = "/api", endpoint = "inventory/consolidations", input = Json)]
+pub async fn list_consolidations(request: PageRequest) -> Result<Page<ConsolidationSummary>, ServerFnError> {
     use crate::state::{pool_and_caller, service_error};
 
     let (pool, caller) = pool_and_caller().await?;
 
-    phonix_services::inventory::consolidation::list(&pool, &caller)
+    phonix_services::inventory::consolidation::list(&pool, &caller, request)
         .await
         .map_err(service_error)
 }
@@ -1708,13 +1708,13 @@ pub async fn unbilled_receipts() -> Result<Vec<UnbilledReceipt>, ServerFnError> 
 // 0006 section 6.2. Posting one raises what stock on the shelf is worth and
 // charges the rest of it to cost of sales.
 
-#[server(name = ListLandedCosts, prefix = "/api", endpoint = "inventory/landed-costs")]
-pub async fn list_landed_costs() -> Result<Vec<LandedCostSummary>, ServerFnError> {
+#[server(name = ListLandedCosts, prefix = "/api", endpoint = "inventory/landed-costs", input = Json)]
+pub async fn list_landed_costs(request: PageRequest) -> Result<Page<LandedCostSummary>, ServerFnError> {
     use crate::state::{pool_and_caller, service_error};
 
     let (pool, caller) = pool_and_caller().await?;
 
-    phonix_services::inventory::landed_cost::list(&pool, &caller)
+    phonix_services::inventory::landed_cost::list(&pool, &caller, request)
         .await
         .map_err(service_error)
 }
@@ -1908,13 +1908,13 @@ pub async fn delete_landed_cost(landed_cost_id: Uuid) -> Result<bool, ServerFnEr
 // ADR 0006 section 7. Despatch and receive are separate calls because they
 // happen at two ends of a road, days apart.
 
-#[server(name = ListTransfers, prefix = "/api", endpoint = "inventory/transfers")]
-pub async fn list_transfers() -> Result<Vec<TransferSummary>, ServerFnError> {
+#[server(name = ListTransfers, prefix = "/api", endpoint = "inventory/transfers", input = Json)]
+pub async fn list_transfers(request: PageRequest) -> Result<Page<TransferSummary>, ServerFnError> {
     use crate::state::{pool_and_caller, service_error};
 
     let (pool, caller) = pool_and_caller().await?;
 
-    phonix_services::inventory::transfer::list(&pool, &caller)
+    phonix_services::inventory::transfer::list(&pool, &caller, request)
         .await
         .map_err(service_error)
 }

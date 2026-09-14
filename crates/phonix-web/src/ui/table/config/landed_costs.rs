@@ -14,10 +14,12 @@ use crate::components::page::{Badge, Tone};
 use crate::icons::Icon;
 use crate::l;
 use crate::server_fns::inventory_fns::list_landed_costs;
-use crate::ui::table::{Align, Cell, Column, Filter, FilterChoice, RowAction, Source, ToolbarAction};
+use crate::ui::table::{
+    Align, Cell, Column, DateFilter, Filter, FilterChoice, RowAction, Source, ToolbarAction,
+};
 
 pub fn landed_costs_grid() -> GridConfig<LandedCostSummary> {
-    GridConfig::new("landed_costs", Source::in_memory(list_landed_costs))
+    GridConfig::new("landed_costs", Source::paged(list_landed_costs))
         .searching(l!("landed_costs.search"))
         .exports_as("landed-costs")
         .sorted_by(Sort::descending("cost_date"))
@@ -111,23 +113,20 @@ pub fn landed_costs_grid() -> GridConfig<LandedCostSummary> {
             .align(Align::End)
             .class("tabular-nums text-content-muted"),
         )
+        // Filtering is handled by the paged source.
         .filter(
             Filter::new(
                 "state",
                 l!("field.status"),
                 vec![
+                    FilterChoice::all(l!("common.all")),
                     FilterChoice::new("draft", l!("landed_costs.state.draft")),
                     FilterChoice::new("done", l!("landed_costs.state.done")),
                     FilterChoice::new("cancelled", l!("landed_costs.state.cancelled")),
                 ],
-            )
-            .matching(|row: &LandedCostSummary, wanted| match wanted {
-                "draft" => matches!(row.state, LandedCostState::Draft),
-                "done" => matches!(row.state, LandedCostState::Done),
-                "cancelled" => matches!(row.state, LandedCostState::Cancelled),
-                _ => true,
-            }),
+            ),
         )
+        .date_filter(DateFilter::new("costed", l!("landed_costs.dated")))
         .toolbar(
             ToolbarAction::link(l!("common.add"), Icon::Plus, "/inventory/landed-costs/new")
                 .require(permissions::LANDED_COSTS_CREATE)
@@ -164,5 +163,95 @@ fn state_tone(state: LandedCostState) -> Tone {
         LandedCostState::Draft => Tone::Neutral,
         LandedCostState::Done => Tone::Success,
         LandedCostState::Cancelled => Tone::Warning,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use leptos::prelude::Owner;
+
+    use super::*;
+
+    fn grid() -> GridConfig<LandedCostSummary> {
+        Owner::new().with(landed_costs_grid)
+    }
+
+    /// Mirrors the database sort fields without adding a crate dependency.
+    const SERVER_SORTS: &[&str] = &["number", "receipt", "supplier", "cost_date", "total", "capitalised"];
+
+    /// Mirrors the database search fields.
+    const SERVER_SEARCHES: &[&str] = &["number", "receipt", "supplier"];
+
+    #[test]
+    fn every_sortable_column_is_one_the_server_can_order_by() {
+        for column in grid().columns.iter().filter(|column| column.sortable) {
+            assert!(
+                SERVER_SORTS.contains(&column.field()),
+                "{} offers a sort the reader will ignore",
+                column.field(),
+            );
+        }
+    }
+
+    #[test]
+    fn every_searchable_column_is_one_the_server_looks_inside() {
+        for column in grid().columns.iter().filter(|column| column.searchable) {
+            assert!(
+                SERVER_SEARCHES.contains(&column.field()),
+                "{} is offered to the search box and never searched",
+                column.field(),
+            );
+        }
+    }
+
+    #[test]
+    fn it_opens_newest_first_by_a_column_the_server_can_order_by() {
+        let sort = grid().initial_request().sort.expect("an opening order");
+
+        assert_eq!(sort, Sort::descending("cost_date"));
+        assert!(SERVER_SORTS.contains(&sort.field.as_str()));
+    }
+
+    #[test]
+    fn the_filter_and_the_span_leave_the_answering_to_the_server() {
+        let grid = grid();
+
+        for filter in &grid.filters {
+            assert!(
+                !filter.is_local(),
+                "{} is answered in the wrong place",
+                filter.key()
+            );
+        }
+
+        let range = grid.date_filters.first().expect("the grid offers a span");
+
+        // Mirrors the database date-range key.
+        assert_eq!(range.key(), "costed");
+        assert!(!range.is_local());
+    }
+
+    #[test]
+    fn the_grid_opens_on_everything() {
+        // The empty choice keeps the initial list unfiltered.
+        let grid = grid();
+        let states = grid.filters.iter().find(|f| f.key() == "state").unwrap();
+
+        assert_eq!(states.default_value(), "");
+        assert!(grid.initial_request().filter("state").is_none());
+    }
+
+    #[test]
+    fn every_state_offered_is_one_the_reader_parses_back() {
+        let grid = grid();
+        let states = grid.filters.iter().find(|f| f.key() == "state").unwrap();
+
+        for choice in states.choices.iter().filter(|c| !c.value.is_empty()) {
+            assert!(
+                LandedCostState::parse(choice.value).is_some(),
+                "{} is offered and cannot be read back",
+                choice.value,
+            );
+        }
     }
 }

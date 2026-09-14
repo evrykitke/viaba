@@ -23,10 +23,12 @@ use crate::components::page::{Badge, Tone};
 use crate::icons::Icon;
 use crate::l;
 use crate::server_fns::inventory_fns::list_consolidations;
-use crate::ui::table::{Align, Cell, Column, Filter, FilterChoice, RowAction, Source, ToolbarAction};
+use crate::ui::table::{
+    Align, Cell, Column, DateFilter, Filter, FilterChoice, RowAction, Source, ToolbarAction,
+};
 
 pub fn consolidations_grid() -> GridConfig<ConsolidationSummary> {
-    GridConfig::new("consolidations", Source::in_memory(list_consolidations))
+    GridConfig::new("consolidations", Source::paged(list_consolidations))
         .searching(l!("consolidations.search"))
         .exports_as("consolidations")
         .sorted_by(Sort::descending("raised_on"))
@@ -120,6 +122,7 @@ pub fn consolidations_grid() -> GridConfig<ConsolidationSummary> {
             .align(Align::End)
             .class("tabular-nums"),
         )
+        // Filtering is handled by the paged source.
         .filter(
             Filter::new(
                 "state",
@@ -132,14 +135,9 @@ pub fn consolidations_grid() -> GridConfig<ConsolidationSummary> {
                     FilterChoice::new("confirmed", l!("consolidations.state.confirmed")),
                     FilterChoice::new("cancelled", l!("consolidations.state.cancelled")),
                 ],
-            )
-            .matching(|row: &ConsolidationSummary, wanted| match wanted {
-                "draft" => matches!(row.state, ConsolidationState::Draft),
-                "confirmed" => matches!(row.state, ConsolidationState::Confirmed),
-                "cancelled" => matches!(row.state, ConsolidationState::Cancelled),
-                _ => true,
-            }),
+            ),
         )
+        .date_filter(DateFilter::new("raised", l!("consolidations.raised_on")))
         .toolbar(
             ToolbarAction::link(
                 l!("consolidations.new"),
@@ -187,5 +185,95 @@ const fn state_tone(state: ConsolidationState) -> Tone {
         ConsolidationState::Draft => Tone::Warning,
         ConsolidationState::Confirmed => Tone::Success,
         ConsolidationState::Cancelled => Tone::Neutral,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use leptos::prelude::Owner;
+
+    use super::*;
+
+    fn grid() -> GridConfig<ConsolidationSummary> {
+        Owner::new().with(consolidations_grid)
+    }
+
+    /// Mirrors the database sort fields without adding a crate dependency.
+    const SERVER_SORTS: &[&str] = &["number", "warehouse", "raised_on", "line_count", "suppliers", "orders"];
+
+    /// Mirrors the database search fields.
+    const SERVER_SEARCHES: &[&str] = &["number", "warehouse", "raised_by"];
+
+    #[test]
+    fn every_sortable_column_is_one_the_server_can_order_by() {
+        for column in grid().columns.iter().filter(|column| column.sortable) {
+            assert!(
+                SERVER_SORTS.contains(&column.field()),
+                "{} offers a sort the reader will ignore",
+                column.field(),
+            );
+        }
+    }
+
+    #[test]
+    fn every_searchable_column_is_one_the_server_looks_inside() {
+        for column in grid().columns.iter().filter(|column| column.searchable) {
+            assert!(
+                SERVER_SEARCHES.contains(&column.field()),
+                "{} is offered to the search box and never searched",
+                column.field(),
+            );
+        }
+    }
+
+    #[test]
+    fn it_opens_newest_first_by_a_column_the_server_can_order_by() {
+        let sort = grid().initial_request().sort.expect("an opening order");
+
+        assert_eq!(sort, Sort::descending("raised_on"));
+        assert!(SERVER_SORTS.contains(&sort.field.as_str()));
+    }
+
+    #[test]
+    fn the_filter_and_the_span_leave_the_answering_to_the_server() {
+        let grid = grid();
+
+        for filter in &grid.filters {
+            assert!(
+                !filter.is_local(),
+                "{} is answered in the wrong place",
+                filter.key()
+            );
+        }
+
+        let range = grid.date_filters.first().expect("the grid offers a span");
+
+        // Mirrors the database date-range key.
+        assert_eq!(range.key(), "raised");
+        assert!(!range.is_local());
+    }
+
+    #[test]
+    fn the_grid_opens_on_everything() {
+        // The empty choice keeps the initial list unfiltered.
+        let grid = grid();
+        let states = grid.filters.iter().find(|f| f.key() == "state").unwrap();
+
+        assert_eq!(states.default_value(), "");
+        assert!(grid.initial_request().filter("state").is_none());
+    }
+
+    #[test]
+    fn every_state_offered_is_one_the_reader_parses_back() {
+        let grid = grid();
+        let states = grid.filters.iter().find(|f| f.key() == "state").unwrap();
+
+        for choice in states.choices.iter().filter(|c| !c.value.is_empty()) {
+            assert!(
+                ConsolidationState::parse(choice.value).is_some(),
+                "{} is offered and cannot be read back",
+                choice.value,
+            );
+        }
     }
 }

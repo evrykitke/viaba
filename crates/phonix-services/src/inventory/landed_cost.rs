@@ -35,6 +35,7 @@ use phonix_core::locale::Currency;
 use phonix_core::money::Money;
 use phonix_core::msg;
 use phonix_core::permissions;
+use phonix_core::query::{Page, PageRequest};
 use phonix_db::error::DbError;
 use phonix_db::inventory::landed_cost::{self as store, PricedCharge, VariantCosting};
 use phonix_db::inventory::{account_mapping, item as item_store, quant as quant_store};
@@ -60,11 +61,15 @@ fn reject<T>(err: LandedCostError) -> Submission<T> {
     Submission::rejected(err.field(), err.message())
 }
 
-pub async fn list(pool: &PgPool, caller: &Caller) -> ServiceResult<Vec<LandedCostSummary>> {
+pub async fn list(
+    pool: &PgPool,
+    caller: &Caller,
+    request: PageRequest,
+) -> ServiceResult<Page<LandedCostSummary>> {
     caller.require(permissions::LANDED_COSTS)?;
 
     let currency = base_currency(pool).await?;
-    Ok(store::list(pool, currency).await?)
+    Ok(store::page(pool, currency, &request).await?)
 }
 
 /// What has been landed on one delivery. The panel on the receipt screen.
