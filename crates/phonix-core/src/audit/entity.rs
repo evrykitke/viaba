@@ -289,6 +289,16 @@ pub mod kinds {
         singleton: false,
     };
 
+    /// One person's day, as somebody recorded it.
+    pub const ATTENDANCE: EntityKind = EntityKind {
+        name: "attendance",
+        singular_key: "entity.attendance.singular",
+        plural_key: "entity.attendance.plural",
+        // No screen of its own yet; the trail is read from the person.
+        href: None,
+        singleton: false,
+    };
+
     /// A calendar of the days nobody is expected to work.
     pub const HOLIDAY_LIST: EntityKind = EntityKind {
         name: "holiday_list",
@@ -563,6 +573,7 @@ pub const ENTITY_KINDS: &[EntityKind] = &[
     kinds::JOB_POSITION,
     kinds::WORK_LOCATION,
     kinds::HOLIDAY_LIST,
+    kinds::ATTENDANCE,
     kinds::ITEM,
     kinds::ITEM_CATEGORY,
     kinds::WAREHOUSE,

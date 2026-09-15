@@ -113,7 +113,9 @@ wants a status column on a person is the bug this schema was built to refuse.
 - [x] **Holiday calendar** — regional holiday lists with a span, days off, and
       a weekly-off generator. Which calendar applies is a dated assignment,
       so a date is asked against the one in force then.
-- [ ] **Attendance** — check-in/check-out, geolocation.
+- [~] **Attendance** — check-in/check-out, with the day resolved against the
+      holiday calendar. Model and service built; no screen yet.
+      Geolocation is deliberately **not** built — decided 2026-09-15.
 - [ ] **Shift management** — shift types, rosters, assignment.
 - [-] **Payroll and taxation** — salary structures, tax slabs, salary slips.
       Not built, deliberately. See ADR 0006 §9.

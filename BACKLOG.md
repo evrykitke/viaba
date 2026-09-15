@@ -31,17 +31,18 @@ Read `WORKFLOWS.md` before starting any of these, and obey the dated-assignment
 rule: what changes about somebody is an `assignments` row, never a column on
 `employees`.
 
-- [ ] `app-hr` Attendance, as what was recorded rather than what was expected
-      why: check-in and check-out is the input every other HR number is derived
-           from, and Frappe HR treats it as its own record rather than a
-           side-effect of a shift.
-      touch: crates/app-hr/src/ — a new module beside employee.rs
-      done: an employee has dated attendance records, a day resolves to
-            present/absent/half-day against the holiday calendar, and the
-            record says which device or person asserted it.
-      blocked: geolocation check-in is in the Frappe docs and is a privacy
-               decision, not a technical one. Say whether you want it before
-               this is taken.
+- [ ] `phonix-web` Attendance, on a screen
+      why: same half as the calendar was: the model, the store and the gated
+           service exist and nothing drives them. `timesheet` is the one
+           worth a screen - a month of one person with every day resolved,
+           including the days nobody keyed.
+      touch: server fns beside the calendar ones in `hr_fns`, a day screen
+           and a timesheet under crates/phonix-web/src/pages/people/, and a
+           nav node naming `Pages.People.Attendance`
+      done: a workspace can key a day for somebody, see a month resolved
+            against their calendar, and correct a record keyed in error.
+            `DayOutcome` has seven answers and the screen has to render all
+            of them - NotRecorded and Unknown are not blanks.
 
 - [ ] `app-hr` Shift types, and the roster that assigns them
       why: attendance without an expected shift can say somebody was present
@@ -74,6 +75,15 @@ rule: what changes about somebody is an `assignments` row, never a column on
 ## Done
 
 <!-- The loop appends here with the commit sha. Newest first. -->
+
+- [x] `app-hr` Attendance, as what was recorded rather than what was expected
+      Unblocked by the user on 2026-09-15: **no geolocation**, so a record
+      says who was here, when, and which device or person asserted it, and
+      nothing about where anybody was standing. The model, not the screens -
+      those are the item above. `DayOutcome::resolve` is the piece worth
+      reading: a day off is not an absence however the record reads, coming
+      in on one is its own answer because overtime is derived from it, and
+      neither silence nor a missing calendar counts as an absence.
 
 - [x] `phonix-web` The holiday calendar, on a screen
       A list, a form with its days, and the weekly-off generator, which is

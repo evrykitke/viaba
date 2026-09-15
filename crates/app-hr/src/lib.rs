@@ -7,7 +7,8 @@
 //! `docs/adr/0006-apps-ports-and-defaults.md` sections 6.4 and 9.
 //!
 //! Then the people: [`employee`], with [`job_position`] and [`work_location`]
-//! beside it, and [`holiday`] for the days none of them is expected to work.
+//! beside it, [`holiday`] for the days none of them is expected to work, and
+//! [`attendance`] for what was actually recorded against those days.
 //!
 //! # An employee is not a user
 //!
@@ -51,6 +52,7 @@
     )
 )]
 
+pub mod attendance;
 pub mod department;
 pub mod employee;
 pub mod holiday;
@@ -81,6 +83,10 @@ pub const SETUP: &[phonix_core::SetupItem] = &[phonix_core::SetupItem::advisory(
     "hr.setup.cost_centres_missing",
 )];
 
+pub use attendance::{
+    Attendance, AttendanceError, AttendanceInput, AttendanceSource, AttendanceStatus,
+    AttendanceSummary, DayOutcome,
+};
 pub use department::{
     DeleteOutcome, Department, DepartmentError, DepartmentInput, DepartmentSummary,
     MAX_DEPARTMENT_CODE_LEN, MAX_DEPARTMENT_DEPTH, MAX_DEPARTMENT_NAME_LEN, in_tree_order,

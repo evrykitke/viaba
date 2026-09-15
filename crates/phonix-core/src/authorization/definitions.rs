@@ -54,6 +54,8 @@
 //!  |   +- Pages.Master.Taxes
 //!  |       +- .Edit
 //!  +- Pages.People
+//!  |   +- Pages.People.Attendance
+//!  |   |   +- .Record
 //!  |   +- Pages.People.HolidayLists
 //!  |   |   +- .Manage
 //!  |   +- Pages.People.Departments
@@ -122,6 +124,9 @@ pub mod names {
 
     pub const HOLIDAY_LISTS: &str = "Pages.People.HolidayLists";
     pub const HOLIDAY_LISTS_MANAGE: &str = "Pages.People.HolidayLists.Manage";
+
+    pub const ATTENDANCE: &str = "Pages.People.Attendance";
+    pub const ATTENDANCE_RECORD: &str = "Pages.People.Attendance.Record";
 
     pub const DEPARTMENTS: &str = "Pages.People.Departments";
     pub const DEPARTMENTS_CREATE: &str = "Pages.People.Departments.Create";
@@ -1071,6 +1076,22 @@ pub const DEFINITIONS: &[PermissionDefinition] = &[
         display_name: "Manage places",
         description: Some("Define a place people work at."),
         parent: Some(names::WORK_LOCATIONS),
+        default_for_user: false,
+    },
+    PermissionDefinition {
+        name: names::ATTENDANCE,
+        display_name: "Attendance",
+        description: Some("See who was recorded as here, and when."),
+        parent: Some(names::PEOPLE),
+        default_for_user: false,
+    },
+    // Recording is its own power. Reading a timesheet is what a manager
+    // does; writing one is what a figure somebody is paid on rests on.
+    PermissionDefinition {
+        name: names::ATTENDANCE_RECORD,
+        display_name: "Record attendance",
+        description: Some("Key a day as present, half a day, or absent."),
+        parent: Some(names::ATTENDANCE),
         default_for_user: false,
     },
     PermissionDefinition {

@@ -244,6 +244,75 @@ where
     Ok(done.rows_affected() > 0)
 }
 
+/// What the calendar says about every date in a span, earliest first.
+///
+/// [`working_day`] once per date would be thirty-one statements for a month,
+/// and it would read the assignment chain thirty-one times to get the same
+/// answer. This walks `generate_series` and resolves the assignment per day in
+/// one pass, which matters because the assignment *can* change inside the span:
+/// somebody who moved office on the fifteenth is on two calendars that month.
+///
+/// Bounded by the span the caller passes. The service is what decides how wide
+/// a span a screen may ask for.
+pub async fn working_days<'e, E>(
+    executor: E,
+    employee_id: Uuid,
+    from: NaiveDate,
+    to: NaiveDate,
+) -> Result<Vec<(NaiveDate, WorkingDay)>, DbError>
+where
+    E: PgExecutor<'e>,
+{
+    let rows = sqlx::query(
+        "SELECT d.day::date AS on_date,
+                l.id IS NOT NULL AS covered,
+                h.name,
+                h.is_weekly_off
+           FROM generate_series($2::date, $3::date, interval '1 day') AS d(day)
+           LEFT JOIN LATERAL (
+               SELECT l.id
+                 FROM hr.assignments a
+                 JOIN hr.engagements e ON e.id = a.engagement_id
+                 JOIN hr.holiday_lists l ON l.id = a.holiday_list_id
+                WHERE e.employee_id = $1
+                  AND a.effective_from <= d.day::date
+                  AND (a.effective_to IS NULL OR a.effective_to >= d.day::date)
+                  AND d.day::date BETWEEN l.valid_from AND l.valid_to
+                ORDER BY a.effective_from DESC
+                LIMIT 1
+           ) l ON TRUE
+           LEFT JOIN hr.holidays h
+                  ON h.holiday_list_id = l.id AND h.observed_on = d.day::date
+          ORDER BY d.day",
+    )
+    .bind(employee_id)
+    .bind(from)
+    .bind(to)
+    .fetch_all(executor)
+    .await
+    .map_err(DbError::Query)?;
+
+    rows.into_iter()
+        .map(|row| {
+            let on_date: NaiveDate = row.try_get("on_date")?;
+            let covered: bool = row.try_get("covered")?;
+            let name: Option<String> = row.try_get("name")?;
+
+            let answer = match (covered, name) {
+                (false, _) => WorkingDay::NotCovered,
+                (true, Some(name)) => WorkingDay::Off {
+                    name,
+                    is_weekly_off: row.try_get("is_weekly_off")?,
+                },
+                (true, None) => WorkingDay::Working,
+            };
+
+            Ok((on_date, answer))
+        })
+        .collect::<Result<Vec<_>, sqlx::Error>>()
+        .map_err(DbError::Query)
+}
+
 /// Whether one employee is expected in on one date.
 ///
 /// Resolves the calendar through the assignment in force *on that date*, not
