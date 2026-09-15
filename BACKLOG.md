@@ -25,6 +25,11 @@ commits it is three items.
 
 ## Next
 
+## Blocked
+
+<!-- Items waiting on something outside the loop's reach. Each carries a
+     `blocked:` line saying what it waits for. -->
+
 - [ ] `phonix-web` A grid that opens already narrowed
       why: `GridState::new` starts with no filters and `default_value()` is read
            only by tests, so a screen cannot open on anything but everything.
@@ -34,17 +39,30 @@ commits it is three items.
       done: a `GridConfig` can declare a filter's opening value, `GridState`
             seeds it, and the twenty-odd `default_value() == ""` tests still
             describe the grids that did not ask for one.
+      blocked: nothing would call it but the employees grid, so building it
+               means also deciding that the staff list opens on current staff
+               rather than everybody - a change to what a screen shows, on the
+               authority of one comment that had never been implemented. Say
+               whether you want that default and it goes in; say no and this
+               item should be deleted rather than left here.
 
-- [ ] `phonix-db` `cargo fmt` reformats this workspace wholesale
-      why: there is no `rustfmt.toml`, and the committed code is written wider
-           than default rustfmt accepts, so `cargo fmt -p <crate>` rewrites
-           every file in the crate rather than the ones just edited. That makes
-           the documented per-crate format step unusable mid-feature, and it
-           silently reformats work in progress.
-      done: either a `rustfmt.toml` that matches how this code is actually
-            written, so `cargo fmt` is a no-op on untouched files, or a
-            recorded decision that the workspace is not rustfmt-managed and the
-            loop formats nothing.
+- [ ] `workspace` `cargo fmt` reformats this workspace wholesale
+      why: there is no `rustfmt.toml`, and `cargo fmt --all -- --check` reports
+           520 hunks at HEAD, so `cargo fmt -p <crate>` rewrites every file in
+           the crate rather than the ones just edited - it silently reformatted
+           four files of work in progress on 2026-09-15. `check.ps1` gates on
+           that same command and has never been run (`var/check.log` does not
+           exist), so the gate fails wholesale the first time it is.
+      measured: widening does not help, it inverts the problem - `max_width`
+           110 gives 1633 hunks and 120 gives 2533, because rustfmt then wants
+           to join lines this code deliberately splits. The code is a hand
+           style rustfmt does not produce at any width, so no config makes it
+           a no-op.
+      blocked: a decision only you can make. Either the workspace adopts
+               rustfmt - one reformatting commit touching every crate, after
+               which the gate passes and `cargo fmt` is safe - or the fmt gate
+               comes out of `check.ps1` and nothing ever runs `cargo fmt`. Say
+               which and it is a small commit either way.
 
 - [ ] `app-books` The invoice that bills a delivery rather than free text
       why: ADR 0006 names this as the link still missing from the sell side,
@@ -121,11 +139,6 @@ rule: what changes about somebody is an `assignments` row, never a column on
       done: an applicant applies against a job position, moves through named
             stages, and a hire opens an engagement rather than duplicating the
             person.
-
-## Blocked
-
-<!-- Items waiting on something outside the loop's reach. Each carries a
-     `blocked:` line saying what it waits for. -->
 
 ## Done
 
