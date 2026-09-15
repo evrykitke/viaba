@@ -25,17 +25,24 @@ commits it is three items.
 
 ## Next
 
-- [ ] `phonix-web` The employees grid opens on a choice it does not apply
-      why: its `state` filter lists `employed` first, but a grid opens with no
-           filter set, so the screen shows leavers while the comment above the
-           list says current staff is what it opens for. Roughly twenty grid
-           configs carry a test asserting the first choice is the "all" one,
-           and `invoices.rs` asserts a narrowing choice is not first; employees
-           has no such test and breaks the rule.
-      touch: crates/phonix-web/src/ui/table/config/employees.rs
-      done: either the "all" choice is first and the comment goes, or the grid
-            genuinely opens narrowed - and either way employees carries the
-            same `default_value()` test its neighbours do.
+- [ ] `phonix-web` The two converted grids that carry no agreement tests
+      why: `parties.rs` tests that every `.sortable()` column is one the store
+           can order by and every `.searchable()` one is inside its `WHERE`,
+           which is the mistake a paged conversion actually makes. Employees
+           has those tests now; users and stock locations do not.
+      touch: crates/phonix-web/src/ui/table/config/{users,stock_locations}.rs
+      done: both carry the `SERVER_SORTS` / `SERVER_SEARCHES` pair and the
+            opening-request test, in the shape `parties.rs` uses.
+
+- [ ] `phonix-web` A grid that opens already narrowed
+      why: `GridState::new` starts with no filters and `default_value()` is read
+           only by tests, so a screen cannot open on anything but everything.
+           The employees list wanted to open on current staff and could not say
+           so; the comment asking for it has been removed rather than honoured.
+      touch: crates/phonix-web/src/ui/table/{state.rs,config.rs}
+      done: a `GridConfig` can declare a filter's opening value, `GridState`
+            seeds it, and the twenty-odd `default_value() == ""` tests still
+            describe the grids that did not ask for one.
 
 - [ ] `phonix-web` The chart of accounts grid, which grows with the workspace
       why: last of the four. A chart of accounts is the one that grows without
@@ -139,6 +146,12 @@ rule: what changes about somebody is an `assignments` row, never a column on
 ## Done
 
 <!-- The loop appends here with the commit sha. Newest first. -->
+
+- [x] `phonix-web` The employees filter that opened on a choice it did not apply
+      "All" is first now, which is what the screen already did, and the grid
+      carries the agreement tests its neighbours have. Opening genuinely
+      narrowed needs a capability the kit does not have; queued rather than
+      faked.
 
 - [x] `phonix-web` The locations grid, third of the four that grow
       The one tree among them. Tree order and depth now come off the stored

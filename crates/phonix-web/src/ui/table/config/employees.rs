@@ -158,11 +158,9 @@ pub fn employees_grid() -> GridConfig<EmployeeSummary> {
             "state",
             l!("field.status"),
             vec![
-                // Current staff first: it is what the screen is opened for,
-                // and leavers accumulate for ever.
+                FilterChoice::all(l!("common.all")),
                 FilterChoice::new("employed", l!("employees.state.employed")),
                 FilterChoice::new("left", l!("employees.state.left")),
-                FilterChoice::all(l!("common.all")),
             ],
         ))
         .filter(Filter::new(
@@ -194,5 +192,89 @@ fn state_label(row: &EmployeeSummary) -> String {
         l!("employees.state.employed")
     } else {
         l!("employees.state.left")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn grid() -> GridConfig<EmployeeSummary> {
+        Owner::new().with(employees_grid)
+    }
+
+    /// Literals rather than imports: `phonix-web` does not depend on
+    /// `phonix-db`, and the point is that the two were written to agree. The
+    /// source is `phonix_db::hr::employee::SORTABLE`.
+    const SERVER_SORTS: &[&str] = &["name", "code", "job_title", "department", "started_on"];
+
+    /// The columns the `WHERE` looks inside. Same reasoning. It also reads the
+    /// given and preferred names, which are not columns - a search finding more
+    /// than the grid shows rather than less.
+    const SERVER_SEARCHES: &[&str] = &[
+        "name",
+        "code",
+        "job_title",
+        "department",
+        "manager",
+        "work_location",
+        "work_email",
+    ];
+
+    #[test]
+    fn every_sortable_column_is_one_the_server_can_order_by() {
+        for column in grid().columns.iter().filter(|column| column.sortable) {
+            assert!(
+                SERVER_SORTS.contains(&column.field()),
+                "{} offers a sort the reader will ignore",
+                column.field(),
+            );
+        }
+    }
+
+    #[test]
+    fn every_searchable_column_is_one_the_server_looks_inside() {
+        for column in grid().columns.iter().filter(|column| column.searchable) {
+            assert!(
+                SERVER_SEARCHES.contains(&column.field()),
+                "{} is offered to the search box and never searched",
+                column.field(),
+            );
+        }
+    }
+
+    #[test]
+    fn it_opens_on_everybody_by_name() {
+        // A grid opens with no filter set, whatever its choices say, so a
+        // narrowing choice listed first is a dropdown disagreeing with the
+        // rows underneath it.
+        let grid = grid();
+        let sort = grid.initial_request().sort.expect("an opening order");
+
+        assert_eq!(sort, Sort::ascending("name"));
+        assert!(SERVER_SORTS.contains(&sort.field.as_str()));
+        assert!(grid.initial_request().filters.is_empty());
+
+        for filter in &grid.filters {
+            assert_eq!(filter.default_value(), "", "{}", filter.key());
+            assert!(!filter.is_local(), "{}", filter.key());
+        }
+    }
+
+    #[test]
+    fn every_state_the_filter_offers_is_one_the_reader_answers() {
+        // `phonix_db::hr::employee::page` matches these two and treats anything
+        // else as no filter at all, which would silently show every row.
+        let grid = grid();
+        let state = grid.filters.iter().find(|f| f.key() == "state").unwrap();
+
+        let offered: Vec<&str> = state
+            .choices
+            .iter()
+            .map(|choice| choice.value)
+            .filter(|value| !value.is_empty())
+            .collect();
+
+        assert_eq!(offered, vec!["employed", "left"]);
     }
 }
