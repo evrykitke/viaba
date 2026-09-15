@@ -202,3 +202,75 @@ fn status_cell(row: &LocationSummary) -> impl IntoView {
         </Show>
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn grid() -> GridConfig<LocationSummary> {
+        Owner::new().with(stock_locations_grid)
+    }
+
+    /// Literals rather than imports: `phonix-web` does not depend on
+    /// `phonix-db`, and the point is that the two were written to agree. The
+    /// source is `phonix_db::inventory::location::SORTABLE`.
+    const SERVER_SORTS: &[&str] = &["name", "path", "kind", "is_active"];
+
+    /// The columns the `WHERE` looks inside. Same reasoning. `warehouse` is
+    /// matched against the joined warehouse name.
+    const SERVER_SEARCHES: &[&str] = &["name", "path", "warehouse"];
+
+    #[test]
+    fn every_sortable_column_is_one_the_server_can_order_by() {
+        for column in grid().columns.iter().filter(|column| column.sortable) {
+            assert!(
+                SERVER_SORTS.contains(&column.field()),
+                "{} offers a sort the reader will ignore",
+                column.field(),
+            );
+        }
+    }
+
+    #[test]
+    fn every_searchable_column_is_one_the_server_looks_inside() {
+        for column in grid().columns.iter().filter(|column| column.searchable) {
+            assert!(
+                SERVER_SEARCHES.contains(&column.field()),
+                "{} is offered to the search box and never searched",
+                column.field(),
+            );
+        }
+    }
+
+    #[test]
+    fn it_opens_in_tree_order_and_narrowed_by_nothing() {
+        // No opening sort, deliberately: the store falls back to the path
+        // ordering, and a sort on any column throws the tree away.
+        let request = grid().initial_request();
+
+        assert!(request.sort.is_none());
+        assert!(request.filters.is_empty());
+
+        for filter in &grid().filters {
+            assert_eq!(filter.default_value(), "", "{}", filter.key());
+            assert!(!filter.is_local(), "{}", filter.key());
+        }
+    }
+
+    #[test]
+    fn every_kind_offered_is_one_the_reader_can_bind() {
+        // `on_hand` is the one choice that is not a kind; the store maps it to
+        // the kind `is_on_hand` names. Anything else is bound as written, so a
+        // choice the enum cannot read back would silently match no rows.
+        let grid = grid();
+        let kinds = grid.filters.iter().find(|f| f.key() == "kind").unwrap();
+
+        for choice in kinds.choices.iter().filter(|c| !c.value.is_empty()) {
+            assert!(
+                choice.value == "on_hand" || LocationKind::parse(choice.value).is_some(),
+                "{} is offered and cannot be read back",
+                choice.value,
+            );
+        }
+    }
+}

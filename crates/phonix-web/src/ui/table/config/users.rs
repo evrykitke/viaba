@@ -380,4 +380,53 @@ mod tests {
             "opens sorted by a column that does not sort",
         );
     }
+
+    /// Literals rather than imports: `phonix-web` does not depend on
+    /// `phonix-db`, and the point is that the two were written to agree. The
+    /// source is `phonix_db::identity::user::LISTING_SORTABLE`.
+    const SERVER_SORTS: &[&str] = &[
+        "display_name",
+        "email",
+        "status",
+        "mfa_enabled",
+        "created_at",
+        "last_login_at",
+    ];
+
+    /// The columns the `WHERE` looks inside. Same reasoning. `roles` is matched
+    /// by an `EXISTS` rather than in the join, so that searching for one role
+    /// still shows every role the account holds.
+    const SERVER_SEARCHES: &[&str] = &["display_name", "email", "roles", "status"];
+
+    #[test]
+    fn every_sortable_column_is_one_the_server_can_order_by() {
+        for column in grid().columns.iter().filter(|column| column.sortable) {
+            assert!(
+                SERVER_SORTS.contains(&column.field()),
+                "{} offers a sort the reader will ignore",
+                column.field(),
+            );
+        }
+    }
+
+    #[test]
+    fn every_searchable_column_is_one_the_server_looks_inside() {
+        for column in grid().columns.iter().filter(|column| column.searchable) {
+            assert!(
+                SERVER_SEARCHES.contains(&column.field()),
+                "{} is offered to the search box and never searched",
+                column.field(),
+            );
+        }
+    }
+
+    #[test]
+    fn it_opens_on_everybody_by_name() {
+        // The status column searches the stored value, not the word drawn for
+        // it - see the module docs.
+        let request = grid().initial_request();
+
+        assert!(SERVER_SORTS.contains(&request.sort.expect("an opening order").field.as_str()));
+        assert!(request.filters.is_empty());
+    }
 }

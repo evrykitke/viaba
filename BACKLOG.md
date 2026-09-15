@@ -25,15 +25,6 @@ commits it is three items.
 
 ## Next
 
-- [ ] `phonix-web` The two converted grids that carry no agreement tests
-      why: `parties.rs` tests that every `.sortable()` column is one the store
-           can order by and every `.searchable()` one is inside its `WHERE`,
-           which is the mistake a paged conversion actually makes. Employees
-           has those tests now; users and stock locations do not.
-      touch: crates/phonix-web/src/ui/table/config/{users,stock_locations}.rs
-      done: both carry the `SERVER_SORTS` / `SERVER_SEARCHES` pair and the
-            opening-request test, in the shape `parties.rs` uses.
-
 - [ ] `phonix-web` A grid that opens already narrowed
       why: `GridState::new` starts with no filters and `default_value()` is read
            only by tests, so a screen cannot open on anything but everything.
@@ -146,6 +137,12 @@ rule: what changes about somebody is an `assignments` row, never a column on
 ## Done
 
 <!-- The loop appends here with the commit sha. Newest first. -->
+
+- [x] `phonix-web` The agreement tests for the users and locations grids
+      Both now assert that every column offering a sort or a search is one the
+      store actually handles, and the locations grid asserts every kind it
+      offers can be bound. Typechecked, not executed - the `phonix-web` test
+      binary is OOM-killed on this machine.
 
 - [x] `phonix-web` The employees filter that opened on a choice it did not apply
       "All" is first now, which is what the screen already did, and the grid
