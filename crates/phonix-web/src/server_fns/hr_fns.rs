@@ -16,6 +16,7 @@ use leptos::prelude::*;
 use leptos::server_fn::codec::Json;
 use phonix_core::form::Submission;
 use phonix_core::identity::InvitationIssued;
+use phonix_core::query::{Page, PageRequest};
 use uuid::Uuid;
 
 /// Every department, already arranged into the tree.
@@ -112,13 +113,14 @@ pub async fn manager_candidates() -> Result<Vec<(Uuid, String)>, ServerFnError> 
 // somebody, recording a leaver and rehiring them are three endpoints, because
 // they are three acts with three different consequences.
 
-#[server(name = ListEmployees, prefix = "/api", endpoint = "hr/employees")]
-pub async fn list_employees() -> Result<Vec<EmployeeSummary>, ServerFnError> {
+/// One page of the staff list, for the grid.
+#[server(name = PageEmployees, prefix = "/api", endpoint = "hr/employees/page", input = Json)]
+pub async fn page_employees(request: PageRequest) -> Result<Page<EmployeeSummary>, ServerFnError> {
     use crate::state::{pool_and_caller, service_error};
 
     let (pool, caller) = pool_and_caller().await?;
 
-    phonix_services::hr::employee::list(&pool, &caller)
+    phonix_services::hr::employee::page(&pool, &caller, request)
         .await
         .map_err(service_error)
 }

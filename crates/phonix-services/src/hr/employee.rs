@@ -41,6 +41,7 @@ use phonix_core::form::Submission;
 use phonix_core::identity::{InvitationIssued, UserInvite};
 use phonix_core::msg;
 use phonix_core::permissions;
+use phonix_core::query::{Page, PageRequest};
 use phonix_db::error::DbError;
 use phonix_db::hr::employee as store;
 use phonix_db::numbering::SequenceKey;
@@ -52,9 +53,14 @@ use crate::caller::{Caller, acting_user};
 use crate::error::{ServiceError, ServiceResult};
 use crate::identity::invitation::Inviting;
 
-pub async fn list(pool: &PgPool, caller: &Caller) -> ServiceResult<Vec<EmployeeSummary>> {
+/// One page of the staff list, current and former.
+pub async fn page(
+    pool: &PgPool,
+    caller: &Caller,
+    request: PageRequest,
+) -> ServiceResult<Page<EmployeeSummary>> {
     caller.require(permissions::EMPLOYEES)?;
-    Ok(store::list(pool).await?)
+    Ok(store::page(pool, &request).await?)
 }
 
 /// Everybody currently employed, for a manager picker.

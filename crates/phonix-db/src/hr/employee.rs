@@ -27,11 +27,13 @@ use app_hr::employee::{
 };
 use chrono::NaiveDate;
 use phonix_core::identity::UserId;
-use sqlx::{PgConnection, PgExecutor, Row};
+use phonix_core::query::{Page, PageRequest};
+use sqlx::{AssertSqlSafe, PgConnection, PgExecutor, Row};
 use uuid::Uuid;
 
 use crate::error::DbError;
 use crate::hr::code_conflict;
+use crate::listing::{self, Sortable};
 
 const CODE_INDEX: &str = "employees_code_key";
 const NATIONAL_ID_INDEX: &str = "employees_national_id_key";
@@ -69,30 +71,111 @@ fn conflict(err: sqlx::Error, code: &str) -> DbError {
 // Reading
 // ---------------------------------------------------------------------------
 
-/// Everybody, current and former, one row each.
+/// The state filter: `employed` or `left`.
+pub const STATE: &str = "state";
+
+/// The login filter: `has` or `none`.
+pub const LOGIN: &str = "login";
+
+const SORTABLE: &[Sortable] = &[
+    ("name", "lower(e.family_name)"),
+    ("code", "e.code"),
+    ("job_title", "s.job_title"),
+    ("department", "s.department_name"),
+    ("started_on", "s.started_on"),
+];
+
+/// A `LEFT JOIN` rather than a read of `current_staff`: somebody who has left
+/// has no row there, and a list that dropped them would be a staff list nobody
+/// could look a leaver up in.
+const FROM: &str = "FROM hr.employees e
+           LEFT JOIN hr.current_staff s ON s.employee_id = e.id";
+
+/// A filter nobody set is a NULL that discards its own line.
+const WHERE: &str = "WHERE ($1::text IS NULL
+                 OR e.code ILIKE $1
+                 OR e.given_name ILIKE $1
+                 OR e.family_name ILIKE $1
+                 OR e.preferred_name ILIKE $1
+                 OR e.work_email ILIKE $1
+                 OR s.job_title ILIKE $1
+                 OR s.department_name ILIKE $1
+                 OR s.work_location_name ILIKE $1
+                 OR s.manager_given_name ILIKE $1
+                 OR s.manager_family_name ILIKE $1)
+            AND ($2::bool IS NULL OR (s.employee_id IS NOT NULL) = $2)
+            AND ($3::bool IS NULL OR (e.user_id IS NOT NULL) = $3)";
+
+/// One page of the staff list, current and former.
 ///
-/// A `LEFT JOIN` onto `current_staff` rather than a read of it: somebody who
-/// has left has no row there, and a list that dropped them would be a staff
-/// list nobody could look a leaver up in.
-pub async fn list<'e, E>(executor: E) -> Result<Vec<EmployeeSummary>, DbError>
-where
-    E: PgExecutor<'e>,
-{
-    let rows = sqlx::query(
+/// Paged because a staff list grows with the business and nobody deletes a
+/// leaver: the count and the select share [`FROM`] and [`WHERE`], so a filtered
+/// page cannot be counted against a different set of rows than it draws.
+pub async fn page(
+    pool: &sqlx::PgPool,
+    request: &PageRequest,
+) -> Result<Page<EmployeeSummary>, DbError> {
+    let request = request.sanitised();
+    let needle = request
+        .needle()
+        .map(|needle| crate::search::contains(&needle));
+
+    let employed = match request.filter(STATE) {
+        Some("employed") => Some(true),
+        Some("left") => Some(false),
+        _ => None,
+    };
+
+    let has_login = match request.filter(LOGIN) {
+        Some("has") => Some(true),
+        Some("none") => Some(false),
+        _ => None,
+    };
+
+    let counting = AssertSqlSafe(format!("SELECT count(*) {FROM} {WHERE}"));
+
+    let total: i64 = sqlx::query_scalar(counting)
+        .bind(needle.as_deref())
+        .bind(employed)
+        .bind(has_login)
+        .fetch_one(pool)
+        .await
+        .map_err(DbError::Query)?;
+
+    let total = u64::try_from(total).unwrap_or(0);
+    let request = request.clamped_to(total);
+
+    // Family name then given name, which is how a staff list reads.
+    let order = listing::order_by(
+        request.sort.as_ref(),
+        SORTABLE,
+        "lower(e.family_name), lower(e.given_name)",
+    );
+
+    let selecting = AssertSqlSafe(format!(
         "SELECT e.id, e.code, e.given_name, e.family_name, e.preferred_name,
                 e.work_email, (e.user_id IS NOT NULL) AS has_login,
                 s.started_on, s.employment_type,
                 s.department_name, s.job_title, s.work_location_name,
                 s.manager_given_name, s.manager_family_name
-           FROM hr.employees e
-           LEFT JOIN hr.current_staff s ON s.employee_id = e.id
-          ORDER BY lower(e.family_name), lower(e.given_name)",
-    )
-    .fetch_all(executor)
-    .await
-    .map_err(DbError::Query)?;
+           {FROM}
+           {WHERE}
+          ORDER BY {order}, e.id
+          LIMIT $4 OFFSET $5"
+    ));
 
-    rows.into_iter()
+    let rows = sqlx::query(selecting)
+        .bind(needle.as_deref())
+        .bind(employed)
+        .bind(has_login)
+        .bind(request.limit() as i64)
+        .bind(request.offset() as i64)
+        .fetch_all(pool)
+        .await
+        .map_err(DbError::Query)?;
+
+    let summaries = rows
+        .into_iter()
         .map(|row| {
             let employment_type: Option<String> = row.try_get("employment_type")?;
             let manager_given: Option<String> = row.try_get("manager_given_name")?;
@@ -117,7 +200,9 @@ where
             })
         })
         .collect::<Result<Vec<_>, sqlx::Error>>()
-        .map_err(DbError::Query)
+        .map_err(DbError::Query)?;
+
+    Ok(Page::new(summaries, total, &request))
 }
 
 /// The people a picker may offer as a manager: everybody currently employed.

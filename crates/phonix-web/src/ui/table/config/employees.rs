@@ -23,11 +23,14 @@ use super::GridConfig;
 use crate::components::page::{Badge, Tone};
 use crate::icons::Icon;
 use crate::l;
-use crate::server_fns::hr_fns::list_employees;
+use crate::server_fns::hr_fns::page_employees;
 use crate::ui::table::{Cell, Column, Filter, FilterChoice, RowAction, Source, ToolbarAction};
 
 pub fn employees_grid() -> GridConfig<EmployeeSummary> {
-    GridConfig::new("employees", Source::in_memory(list_employees))
+    // The whole staff list, leavers included. Searching, sorting and both
+    // filters are answered where the rows are; the manager picker's list is
+    // `employed` and a different question.
+    GridConfig::new("employees", Source::paged(page_employees))
         .searching(l!("employees.search"))
         .exports_as("employees")
         .sorted_by(Sort::ascending("name"))
@@ -151,40 +154,26 @@ pub fn employees_grid() -> GridConfig<EmployeeSummary> {
                 view! { <Icon icon=Icon::KeyRound size=crate::icons::IconSize::Xs /> }.into_any()
             }),
         )
-        .filter(
-            Filter::new(
-                "state",
-                l!("field.status"),
-                vec![
-                    // Current staff first: it is what the screen is opened for,
-                    // and leavers accumulate for ever.
-                    FilterChoice::new("employed", l!("employees.state.employed")),
-                    FilterChoice::new("left", l!("employees.state.left")),
-                    FilterChoice::all(l!("common.all")),
-                ],
-            )
-            .matching(|row: &EmployeeSummary, wanted| match wanted {
-                "employed" => row.is_employed(),
-                "left" => !row.is_employed(),
-                _ => true,
-            }),
-        )
-        .filter(
-            Filter::new(
-                "login",
-                l!("employees.filter.login"),
-                vec![
-                    FilterChoice::all(l!("common.all")),
-                    FilterChoice::new("has", l!("employees.filter.login.has")),
-                    FilterChoice::new("none", l!("employees.filter.login.none")),
-                ],
-            )
-            .matching(|row: &EmployeeSummary, wanted| match wanted {
-                "has" => row.has_login,
-                "none" => !row.has_login,
-                _ => true,
-            }),
-        )
+        .filter(Filter::new(
+            "state",
+            l!("field.status"),
+            vec![
+                // Current staff first: it is what the screen is opened for,
+                // and leavers accumulate for ever.
+                FilterChoice::new("employed", l!("employees.state.employed")),
+                FilterChoice::new("left", l!("employees.state.left")),
+                FilterChoice::all(l!("common.all")),
+            ],
+        ))
+        .filter(Filter::new(
+            "login",
+            l!("employees.filter.login"),
+            vec![
+                FilterChoice::all(l!("common.all")),
+                FilterChoice::new("has", l!("employees.filter.login.has")),
+                FilterChoice::new("none", l!("employees.filter.login.none")),
+            ],
+        ))
         .toolbar(
             ToolbarAction::link(l!("employees.new"), Icon::Plus, "/people/employees/new")
                 .require(permissions::EMPLOYEES_MANAGE)
