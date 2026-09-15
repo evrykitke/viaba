@@ -25,15 +25,21 @@ commits it is three items.
 
 ## Next
 
-- [ ] `phonix-web` The Chinese catalog, thirty-six keys behind
-      why: `locales/zh.json` is missing every key the price-list and
-           credit-note work added, and `Language::ALL` offers Chinese on the
-           switcher - which `every_offered_language_is_a_finished_language` in
-           `crates/phonix-web/src/i18n.rs` is written to refuse. The test only
-           runs under `cargo test`, which the loop does not run, so the gap
-           grew unseen across several commits.
-      done: `locales/zh.json` carries every key `i18n/en.json` does, and that
-            test passes.
+- [ ] `phonix-core` The catalogue parity tests, somewhere they can be run
+      why: `every_offered_language_is_a_finished_language` and
+           `no_translation_names_a_key_the_application_does_not_have` live in
+           `crates/phonix-web/src/i18n.rs`, and building phonix-web's test
+           binary is OOM-killed on this machine - so the only guard on the
+           three overlay catalogues cannot be run here at all. That is why
+           zh.json drifted 37 keys before anybody noticed.
+      note: neither test touches anything of phonix-web's. They read
+           `Language::ALL`, `catalog::builtin_keys()` and `../../locales`,
+           all of which phonix-core has, and `cargo test -p phonix-core`
+           finishes in seconds. The `#[cfg(test)]` module does file I/O,
+           which phonix-core's wasm rule forbids in shipping code but not in
+           a test that only ever runs on the host - say whether that counts.
+      done: the two tests run under `cargo test -p phonix-core`, and a
+            missing translation fails a check the loop can actually afford.
 
 - [ ] `app-books` What an invoice has been credited, and what is still owed
       why: last of three. A credit note posts to the ledger but no screen or
@@ -101,6 +107,14 @@ rule: what changes about somebody is an `assignments` row, never a column on
 ## Done
 
 <!-- The loop appends here with the commit sha. Newest first. -->
+
+- [x] `phonix-web` The Chinese catalog, thirty-six keys behind
+      Thirty-seven, in the event. `locales/zh.json` now carries every key
+      `en.json` does. The acceptance test could not be run: building
+      phonix-web's test binary is OOM-killed on this machine, so parity was
+      verified by script instead - both directions, plus every `{placeholder}`
+      matching English across all three overlays. Making that test runnable
+      is the item above.
 
 - [x] `phonix-core` The permission root that still says Sales
       `Pages.Sales.*` is `Pages.Accounting.*`, Books' home is `/accounting`,
