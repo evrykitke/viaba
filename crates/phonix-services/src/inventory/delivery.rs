@@ -35,8 +35,9 @@
 
 use app_inventory::delivery::{
     CheckedDelivery, Delivery, DeliveryError, DeliveryInput, DeliveryState, DeliverySummary,
-    Outstanding, UninvoicedDelivery,
+    InvoicedOutcome, Outstanding, UninvoicedDelivery,
 };
+use app_inventory::quantity::Quantity;
 use app_inventory::sales_order::CustomerSnapshot;
 use chrono::NaiveDate;
 use phonix_core::form::Submission;
@@ -51,6 +52,8 @@ use phonix_db::inventory::sales_order as order_store;
 use phonix_db::inventory::warehouse as warehouse_store;
 use phonix_db::numbering::SequenceKey;
 use phonix_db::sqlx::PgPool;
+use phonix_ports::deliveries::{Deliveries, DeliveriesError, InvoicedLine, PORT};
+use phonix_ports::error::PortError;
 use phonix_ports::ledger::Ledger;
 use uuid::Uuid;
 
@@ -527,4 +530,67 @@ async fn base_currency(pool: &PgPool) -> ServiceResult<Currency> {
 
 fn today() -> NaiveDate {
     chrono::Utc::now().date_naive()
+}
+
+// ---------------------------------------------------------------------------
+// Inventory's side of the `Deliveries` port
+// ---------------------------------------------------------------------------
+//
+// Here rather than in its own file, because this module owns deliveries and a
+// `deliveries.rs` beside `delivery.rs` is a filename nobody would guess right
+// twice. Same shape as `hr::cost_centre`: rules in the app crate, statements in
+// `phonix-db`, the seam in a service.
+//
+// Ungated, like the other port implementations: it is not a screen, it is what
+// Books calls while posting an invoice, and Books has already checked its
+// caller.
+
+/// The `Deliveries` port, over this workspace's deliveries. Owns its pool so it
+/// can be handed over as a `dyn Deliveries` with no lifetime to thread.
+#[derive(Clone)]
+pub struct InventoryDeliveries {
+    pool: PgPool,
+}
+
+impl InventoryDeliveries {
+    pub const fn new(pool: PgPool) -> Self {
+        Self { pool }
+    }
+}
+
+#[async_trait::async_trait]
+impl Deliveries for InventoryDeliveries {
+    async fn invoice(&self, lines: &[InvoicedLine]) -> Result<(), DeliveriesError> {
+        let parsed = lines
+            .iter()
+            .map(|line| {
+                Quantity::parse(&line.quantity)
+                    .map(|quantity| (line.delivery_line_id, quantity))
+                    .map_err(|_| DeliveriesError::NotAQuantity(line.quantity.clone()))
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+
+        if parsed.is_empty() {
+            return Ok(());
+        }
+
+        let outcome = store::mark_invoiced(&self.pool, &parsed)
+            .await
+            .map_err(|err| DeliveriesError::from(PortError::unavailable(PORT, err)))?;
+
+        match outcome {
+            InvoicedOutcome::Recorded => Ok(()),
+            InvoicedOutcome::UnknownLine(id) => Err(DeliveriesError::UnknownLine(id)),
+            InvoicedOutcome::NotDespatched(id) => Err(DeliveriesError::NotDespatched(id)),
+            InvoicedOutcome::MoreThanDelivered {
+                delivery_line_id,
+                left,
+                asked,
+            } => Err(DeliveriesError::MoreThanDelivered {
+                delivery_line_id,
+                left: left.to_display_string(),
+                asked: asked.to_display_string(),
+            }),
+        }
+    }
 }

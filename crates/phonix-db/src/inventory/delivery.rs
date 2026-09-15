@@ -22,7 +22,8 @@
 //! despatch note was this".
 
 use app_inventory::delivery::{
-    CheckedDelivery, Delivery, DeliveryLine, DeliveryState, DeliverySummary, UninvoicedDelivery,
+    CheckedDelivery, Delivery, DeliveryLine, DeliveryState, DeliverySummary, InvoicedOutcome,
+    UninvoicedDelivery,
 };
 use app_inventory::quantity::Quantity;
 use app_inventory::sales_order::CustomerSnapshot;
@@ -533,4 +534,74 @@ where
             })
         })
         .collect()
+}
+
+/// Record that these quantities have been invoiced, or change nothing.
+///
+/// One transaction over the whole set, with each line locked as it is read:
+/// the amount left to invoice is only true until somebody else's invoice takes
+/// it, so reading it in one statement and writing in another would be a race
+/// that shows up as a line billed twice. The first refusal returns and the
+/// transaction is dropped unfinished, which rolls back the lines before it.
+pub async fn mark_invoiced(
+    pool: &sqlx::PgPool,
+    lines: &[(Uuid, Quantity)],
+) -> Result<InvoicedOutcome, DbError> {
+    let mut tx = pool.begin().await.map_err(DbError::Query)?;
+
+    for (line_id, asked) in lines {
+        let row = sqlx::query(
+            "SELECT l.quantity::text AS quantity, l.invoiced::text AS invoiced, d.state
+               FROM inventory.delivery_lines l
+               JOIN inventory.deliveries d ON d.id = l.delivery_id
+              WHERE l.id = $1
+                FOR UPDATE OF l",
+        )
+        .bind(line_id)
+        .fetch_optional(&mut *tx)
+        .await
+        .map_err(DbError::Query)?;
+
+        let Some(row) = row else {
+            return Ok(InvoicedOutcome::UnknownLine(*line_id));
+        };
+
+        let state: String = row.try_get("state").map_err(DbError::Query)?;
+        if state != DeliveryState::Done.as_str() {
+            return Ok(InvoicedOutcome::NotDespatched(*line_id));
+        }
+
+        let quantity: String = row.try_get("quantity").map_err(DbError::Query)?;
+        let invoiced: String = row.try_get("invoiced").map_err(DbError::Query)?;
+
+        let delivered =
+            read_quantity(&quantity, "delivery_lines.quantity").map_err(DbError::Query)?;
+        let already =
+            read_quantity(&invoiced, "delivery_lines.invoiced").map_err(DbError::Query)?;
+
+        let wanted = already.checked_add(*asked).map_err(|err| {
+            DbError::Query(sqlx::Error::Decode(
+                format!("delivery_lines.invoiced would overflow: {err}").into(),
+            ))
+        })?;
+
+        if wanted > delivered {
+            return Ok(InvoicedOutcome::MoreThanDelivered {
+                delivery_line_id: *line_id,
+                left: delivered.checked_sub(already).unwrap_or(Quantity::ZERO),
+                asked: *asked,
+            });
+        }
+
+        sqlx::query("UPDATE inventory.delivery_lines SET invoiced = $2::numeric WHERE id = $1")
+            .bind(line_id)
+            .bind(wanted.to_display_string())
+            .execute(&mut *tx)
+            .await
+            .map_err(DbError::Query)?;
+    }
+
+    tx.commit().await.map_err(DbError::Query)?;
+
+    Ok(InvoicedOutcome::Recorded)
 }

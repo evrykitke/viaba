@@ -291,6 +291,7 @@ dependency graph wearing a costume.
 | `Parties` | a party's billing snapshot | `master` | books, inventory |
 | `Numbering` | allocating a document number | `core` | every app |
 | `Stock` | on-hand and valuation for an item | `app-inventory` | books (COGS on an invoice) |
+| `Deliveries` | recording that a delivery line has been invoiced | `app-inventory` | books |
 
 `Parties` and `Numbering` are ports over things that already exist and are
 always present; they are in the table because a port is how an app *should*
@@ -302,6 +303,14 @@ else: a trait extracted for one caller is that caller's service with a `dyn` in
 front of it. `CostCentres` is being declared now with two known callers and a
 third obvious one, and `Stock` is *not* being declared until Books actually
 needs to put cost of goods sold on an invoice.
+
+`Deliveries` is the exception this rule has to allow, and it is worth saying
+why. It has one caller and will only ever have one: it exists because section 8
+forbids the foreign key that would otherwise carry `invoice_lines.
+delivery_line_id`, so the alternative to a port is not "Books' service with a
+`dyn` in front of it" but a join across two apps' schemas. A port declared
+because the boundary requires one is a different thing from a port declared in
+case somebody else wants it.
 
 ---
 
@@ -563,6 +572,12 @@ under section 7. What the invoice still cannot do is bill a **delivery**: its
 lines are free text, so nothing connects what went out of the door to what was
 charged for it, and until something does, the goods-delivered-not-invoiced
 accrual has no caller.
+
+Two of the three pieces that link is made of are in. Inventory counts what it
+has had invoiced against it — `delivery_lines.invoiced` and the aged
+`uninvoiced_deliveries` view, mirroring the buying side — and the `Deliveries`
+port lets Books say so without a foreign key. What is left is the invoice line
+itself carrying a `delivery_line_id` and raising the port when it posts.
 
 ---
 
@@ -1011,10 +1026,16 @@ free is the shape that would otherwise exist for a moment.
 `goods_delivered_not_invoiced` since books 0005, and it is the right answer: a
 despatch on the thirtieth and its invoice on the second belong in the same
 month, and posting cost of sales at despatch puts them in different ones. Using
-it needs the invoice to know which delivery it bills, and that link does not
-exist - Books' invoice is still free text. So the cost lands the day the goods
-leave, which is the ordinary answer and wrong only across a month end, and the
-service says so where somebody will read it.
+it needs the invoice to know which delivery it bills, and Books' invoice is
+still free text. So the cost lands the day the goods leave, which is the
+ordinary answer and wrong only across a month end, and the service says so
+where somebody will read it.
+
+The half of that which was structural is now done: the `Deliveries` port exists
+and Inventory tracks what has been invoiced against each line. Changing what a
+delivery *posts* is a separate decision from letting an invoice name one, and it
+is not taken here — it would move cost of sales for every workspace, and this
+record is the place that would have to argue for it first.
 
 ### Asking, as built
 

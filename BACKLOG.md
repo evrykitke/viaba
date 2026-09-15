@@ -25,18 +25,6 @@ commits it is three items.
 
 ## Next
 
-- [ ] `phonix-ports` The port that lets Books tell Inventory a line was invoiced
-      why: second of the three the delivery-invoicing link splits into. ADR 0006
-           section 8 forbids a foreign key between two apps, so Books cannot
-           write `inventory.delivery_lines.invoiced` itself. The ADR's port
-           table already anticipates an Inventory-implemented port for Books
-           and defers it until Books needs one; this is that moment.
-      touch: crates/phonix-ports/src/, docs/adr/0006-apps-ports-and-defaults.md
-      done: a port declares "this much of this delivery line is now invoiced",
-            `phonix-services` implements it over Inventory's store, and ADR
-            0006's port table names it. Update the ADR in the same commit -
-            the record currently says the link does not exist.
-
 - [ ] `app-books` The invoice line that names a delivery line
       why: last of the three. The invoice is still free text, so "delivered and
            not billed" is an investigation rather than a query.
@@ -44,7 +32,6 @@ commits it is three items.
       done: an invoice line carries a bare `delivery_line_id` with no foreign
             key, posting the invoice raises the port, and invoicing more of a
             delivery line than was delivered is refused.
-      blocked: needs the port above.
 
 - [ ] `app-books` Price lists, and the prices an item has in each
       why: `pricing.rs` computes from a single price on the item. Both ERPNext
@@ -121,6 +108,13 @@ rule: what changes about somebody is an `assignments` row, never a column on
 ## Done
 
 <!-- The loop appends here with the commit sha. Newest first. -->
+
+- [x] `phonix-ports` The `Deliveries` port
+      Second of three. The first port that runs Books -> Inventory rather than
+      the other way. One call takes every line, locks each as it reads it, and
+      refuses the whole set rather than letting two invoices race for the same
+      quantity. ADR 0006's port table names it, and the two passages saying the
+      link does not exist now say which third of it is left.
 
 - [x] `app-inventory` What a delivery has had invoiced against it
       First of three the invoice-bills-a-delivery item split into: it needed a

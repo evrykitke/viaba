@@ -11,12 +11,15 @@
 //! not posted. If "no ledger" were an error, Inventory would have to require
 //! Books and the independence would be a dependency graph in disguise.
 //!
-//! Two ports so far. [`cost_centre::CostCentres`] is implemented over `hr`;
-//! [`ledger::Ledger`] is implemented over `books` and declared now because
-//! Inventory is a real caller of it. `Stock` is still only named in
-//! `docs/adr/0006-apps-ports-and-defaults.md` and waits for the same reason
-//! these two did not — a trait extracted for one caller is that caller's
-//! service with a `dyn` in front of it.
+//! Three ports so far. [`cost_centre::CostCentres`] is implemented over `hr`
+//! and [`ledger::Ledger`] over `books`, both for callers that needed them.
+//! [`deliveries::Deliveries`] is the first that runs the other way — Books
+//! needs it, Inventory implements it — because an invoice line carries a
+//! delivery line's id and an app may not resolve that with a join.
+//!
+//! `Stock` is still only named in `docs/adr/0006-apps-ports-and-defaults.md`
+//! and waits for the reason these three did not — a trait extracted for one
+//! caller is that caller's service with a `dyn` in front of it.
 //!
 //! Compiled to wasm, so this crate may not panic.
 
@@ -37,10 +40,12 @@
 )]
 
 pub mod cost_centre;
+pub mod deliveries;
 pub mod error;
 pub mod ledger;
 
 pub use cost_centre::{CostCentre, CostCentres};
+pub use deliveries::{Deliveries, DeliveriesError, InvoicedLine, NoDeliveries};
 pub use error::PortError;
 pub use ledger::{
     AccountRole, Fit, JournalRequest, Ledger, LedgerAccount, LedgerError, NoLedger, PostedRef,

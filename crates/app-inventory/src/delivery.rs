@@ -173,6 +173,26 @@ pub struct DeliveryLine {
     pub invoiced: Quantity,
 }
 
+/// What recording an invoice against a delivery line did, or why it did not.
+///
+/// An outcome rather than an error for the reason [`crate::location::
+/// DeleteOutcome`] is one: each refusal is a different sentence somebody has to
+/// read, and flattening them into "no" loses which.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum InvoicedOutcome {
+    Recorded,
+    UnknownLine(Uuid),
+    /// The delivery is still a draft. Goods that have not gone cannot be
+    /// charged for.
+    NotDespatched(Uuid),
+    /// More was asked for than is left. What makes invoicing twice a refusal.
+    MoreThanDelivered {
+        delivery_line_id: Uuid,
+        left: Quantity,
+        asked: Quantity,
+    },
+}
+
 /// One delivery's worth of goods gone and not yet charged for.
 ///
 /// At cost, not at price: this is what the goods-delivered-not-invoiced balance
