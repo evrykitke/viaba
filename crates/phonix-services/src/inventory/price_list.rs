@@ -8,15 +8,21 @@
 //! browser prices a line as somebody types, and a second copy in a service
 //! would be a second answer.
 
-use app_inventory::price_list::{ItemPrice, PriceList, resolve};
+use app_inventory::price_list::{ItemPrice, PriceList, PriceListInput, resolve};
 use app_inventory::quantity::Quantity;
 use chrono::NaiveDate;
+use phonix_core::audit::kinds;
+use phonix_core::form::Submission;
+use phonix_core::locale::Currency;
+use phonix_core::msg;
 use phonix_core::permissions;
+use phonix_db::error::DbError;
 use phonix_db::inventory::price_list as store;
 use phonix_db::sqlx::PgPool;
 use uuid::Uuid;
 
-use crate::caller::Caller;
+use crate::audit::{self, Target};
+use crate::caller::{Caller, acting_user};
 use crate::error::ServiceResult;
 
 /// Every price list in this workspace.
@@ -105,4 +111,91 @@ pub async fn quoted_to(
     };
 
     price_for(pool, caller, list.id, variant_id, quantity, on).await
+}
+
+/// One list and the prices in it, as the screen edits them.
+pub async fn detail(
+    pool: &PgPool,
+    caller: &Caller,
+    id: Uuid,
+) -> ServiceResult<Option<PriceListInput>> {
+    caller.require(permissions::ITEMS)?;
+
+    let Some(list) = store::find(pool, id).await? else {
+        return Ok(None);
+    };
+
+    let prices = store::prices_in(pool, id, list.currency).await?;
+
+    Ok(Some(PriceListInput::of(&list, &prices)))
+}
+
+/// A blank list, opened in the workspace's own currency.
+pub async fn blank(pool: &PgPool, caller: &Caller) -> ServiceResult<PriceListInput> {
+    caller.require(permissions::ITEMS_EDIT)?;
+
+    let currency = crate::workspace::profile::current(pool).await?.currency;
+
+    Ok(PriceListInput::blank(currency))
+}
+
+/// Store a list and its prices, creating or replacing.
+pub async fn save(
+    pool: &PgPool,
+    caller: &Caller,
+    draft: PriceListInput,
+) -> ServiceResult<Submission<PriceListInput>> {
+    caller.require(permissions::ITEMS_EDIT)?;
+    acting_user(caller)?;
+
+    let currency = match Currency::parse(&draft.currency) {
+        Ok(currency) => currency,
+        Err(_) => {
+            return Ok(Submission::rejected(
+                "currency",
+                msg!("price_lists.error.currency_unknown"),
+            ));
+        }
+    };
+
+    // The browser's check is a courtesy; this one is the control.
+    let checked = match draft.check(currency) {
+        Ok(checked) => checked,
+        Err(err) => return Ok(Submission::rejected(err.field(), err.message())),
+    };
+
+    let id = match store::save(pool, &checked).await {
+        Ok(id) => id,
+        Err(DbError::CodeExists { code, .. }) => {
+            return Ok(Submission::rejected(
+                "code",
+                msg!("price_lists.error.code_taken", code = code),
+            ));
+        }
+        Err(err) => return Err(err.into()),
+    };
+
+    let stored = detail(pool, caller, id)
+        .await?
+        .unwrap_or_else(|| PriceListInput::blank(currency));
+
+    let before = if draft.id.is_some() {
+        "edited"
+    } else {
+        "created"
+    };
+
+    audit::updated(
+        pool,
+        caller,
+        Target::new(kinds::ITEM, id)
+            .named(&stored.name)
+            .fact("code", &stored.code)
+            .fact("prices", checked.prices.len().to_string()),
+        &before.to_owned(),
+        &"saved".to_owned(),
+    )
+    .await;
+
+    Ok(Submission::Saved(stored))
 }

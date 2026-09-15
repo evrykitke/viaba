@@ -24,6 +24,7 @@ use app_inventory::landed_cost::{
 use app_inventory::location::{Location, LocationInput, LocationSummary};
 use app_inventory::lot::{LotRules, LotSummary};
 use app_inventory::movement::{MoveFilter, MoveSummary, StockMove};
+use app_inventory::price_list::{PriceList, PriceListInput};
 use app_inventory::purchase::{OrderInput, OrderSummary, PurchaseOrder};
 use app_inventory::quant::{OnHandFilter, OnHandRow};
 use app_inventory::receipt::{Backorder, Receipt, ReceiptInput, ReceiptSummary};
@@ -126,6 +127,57 @@ pub async fn page_stock_locations(
     let (pool, caller) = pool_and_caller().await?;
 
     phonix_services::inventory::location::page(&pool, &caller, request)
+        .await
+        .map_err(service_error)
+}
+
+/// Every price list in this workspace.
+#[server(name = ListPriceLists, prefix = "/api", endpoint = "inventory/price-lists")]
+pub async fn list_price_lists() -> Result<Vec<PriceList>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::price_list::list(&pool, &caller)
+        .await
+        .map_err(service_error)
+}
+
+/// One list and the prices in it, for the screen that edits them.
+#[server(name = PriceListDetail, prefix = "/api", endpoint = "inventory/price-lists/detail")]
+pub async fn price_list_detail(id: Uuid) -> Result<PriceListInput, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::price_list::detail(&pool, &caller, id)
+        .await
+        .map_err(service_error)?
+        .ok_or_else(|| ServerFnError::new("That price list is not here."))
+}
+
+/// A blank list, in the workspace's own currency.
+#[server(name = BlankPriceList, prefix = "/api", endpoint = "inventory/price-lists/blank")]
+pub async fn blank_price_list() -> Result<PriceListInput, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::price_list::blank(&pool, &caller)
+        .await
+        .map_err(service_error)
+}
+
+/// Store a list and its prices.
+#[server(name = SavePriceList, prefix = "/api", endpoint = "inventory/price-lists/save")]
+pub async fn save_price_list(
+    draft: PriceListInput,
+) -> Result<Submission<PriceListInput>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::price_list::save(&pool, &caller, draft)
         .await
         .map_err(service_error)
 }

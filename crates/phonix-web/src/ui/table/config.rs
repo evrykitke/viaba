@@ -53,6 +53,7 @@ pub mod landed_costs;
 pub mod numbering;
 pub mod parties;
 pub mod payments;
+pub mod price_lists;
 pub mod purchase_orders;
 pub mod receipts;
 pub mod requisitions;

@@ -40,6 +40,7 @@ use crate::pages::inventory::item_categories::{
 };
 use crate::pages::inventory::items::{ItemNewPage, ItemsPage};
 use crate::pages::inventory::landed_cost::{LandedCostNewPage, LandedCostPage, LandedCostsPage};
+use crate::pages::inventory::price_list::{PriceListNewPage, PriceListPage, PriceListsPage};
 use crate::pages::inventory::procurement::{
     ConsolidationsPage, DeliveriesPage, PurchaseOrdersPage, ReceiptsPage, RequisitionsPage,
     SalesOrdersPage,
@@ -358,6 +359,9 @@ pub fn app() -> impl IntoView {
                         path=path!("/inventory/adjustment-types/:id")
                         view=AdjustmentTypePage
                     />
+                    <Route path=path!("/inventory/price-lists") view=PriceListsPage />
+                    <Route path=path!("/inventory/price-lists/new") view=PriceListNewPage />
+                    <Route path=path!("/inventory/price-lists/:id") view=PriceListPage />
                     <Route path=path!("/inventory/units") view=UnitsPage />
                     <Route path=path!("/inventory/units/new") view=UnitNewPage />
                     <Route path=path!("/inventory/units/:id") view=UnitPage />

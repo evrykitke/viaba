@@ -5,7 +5,7 @@
 //! quotation can be priced as somebody types without asking the server. This
 //! module's job is to hand over the candidates for one variant in one list.
 
-use app_inventory::price_list::{ItemPrice, PriceList};
+use app_inventory::price_list::{CheckedPriceList, ItemPrice, PriceList};
 use app_inventory::quantity::Quantity;
 use phonix_core::locale::Currency;
 use phonix_core::money::Money;
@@ -100,22 +100,22 @@ where
     .await
     .map_err(DbError::Query)?;
 
-    rows.iter()
-        .map(|row| {
-            let min_quantity: String = row.try_get("min_quantity").map_err(DbError::Query)?;
-            let unit_price: String = row.try_get("unit_price").map_err(DbError::Query)?;
+    rows.iter().map(|row| read_price(row, currency)).collect()
+}
 
-            Ok(ItemPrice {
-                id: row.try_get("id").map_err(DbError::Query)?,
-                price_list_id: row.try_get("price_list_id").map_err(DbError::Query)?,
-                variant_id: row.try_get("variant_id").map_err(DbError::Query)?,
-                min_quantity: read_quantity(&min_quantity)?,
-                valid_from: row.try_get("valid_from").map_err(DbError::Query)?,
-                valid_to: row.try_get("valid_to").map_err(DbError::Query)?,
-                unit_price: read_money(&unit_price, currency)?,
-            })
-        })
-        .collect()
+fn read_price(row: &sqlx::postgres::PgRow, currency: Currency) -> Result<ItemPrice, DbError> {
+    let min_quantity: String = row.try_get("min_quantity").map_err(DbError::Query)?;
+    let unit_price: String = row.try_get("unit_price").map_err(DbError::Query)?;
+
+    Ok(ItemPrice {
+        id: row.try_get("id").map_err(DbError::Query)?,
+        price_list_id: row.try_get("price_list_id").map_err(DbError::Query)?,
+        variant_id: row.try_get("variant_id").map_err(DbError::Query)?,
+        min_quantity: read_quantity(&min_quantity)?,
+        valid_from: row.try_get("valid_from").map_err(DbError::Query)?,
+        valid_to: row.try_get("valid_to").map_err(DbError::Query)?,
+        unit_price: read_money(&unit_price, currency)?,
+    })
 }
 
 fn read_money(raw: &str, currency: Currency) -> Result<Money, DbError> {
@@ -201,4 +201,123 @@ where
     }
 
     Ok(())
+}
+
+/// Store a list and the prices in it, creating or replacing.
+///
+/// The prices are deleted and rewritten rather than matched row by row, which
+/// is what `sales_order::save_lines` does and for the same reason: nothing
+/// downstream holds an `item_prices` id, so an id that changes costs nothing
+/// and a merge that goes wrong costs a price.
+pub async fn save(pool: &sqlx::PgPool, checked: &CheckedPriceList) -> Result<Uuid, DbError> {
+    let mut tx = pool.begin().await.map_err(DbError::Query)?;
+
+    let id = match checked.id {
+        Some(id) => {
+            sqlx::query(
+                "UPDATE inventory.price_lists
+                    SET code = $2, name = $3, currency_code = $4, is_active = $5,
+                        updated_at = now()
+                  WHERE id = $1",
+            )
+            .bind(id)
+            .bind(&checked.code)
+            .bind(&checked.name)
+            .bind(checked.currency.code())
+            .bind(checked.is_active)
+            .execute(&mut *tx)
+            .await
+            .map_err(|err| as_code_conflict(err, &checked.code))?;
+
+            id
+        }
+        None => sqlx::query_scalar(
+            "INSERT INTO inventory.price_lists (code, name, currency_code, is_active)
+             VALUES ($1, $2, $3, $4)
+             RETURNING id",
+        )
+        .bind(&checked.code)
+        .bind(&checked.name)
+        .bind(checked.currency.code())
+        .bind(checked.is_active)
+        .fetch_one(&mut *tx)
+        .await
+        .map_err(|err| as_code_conflict(err, &checked.code))?,
+    };
+
+    sqlx::query("DELETE FROM inventory.item_prices WHERE price_list_id = $1")
+        .bind(id)
+        .execute(&mut *tx)
+        .await
+        .map_err(DbError::Query)?;
+
+    for price in &checked.prices {
+        sqlx::query(
+            "INSERT INTO inventory.item_prices
+                 (price_list_id, variant_id, min_quantity, valid_from, valid_to, unit_price)
+             VALUES ($1, $2, $3::numeric, $4, $5, $6::numeric)",
+        )
+        .bind(id)
+        .bind(price.variant_id)
+        .bind(price.min_quantity.to_display_string())
+        .bind(price.valid_from)
+        .bind(price.valid_to)
+        .bind(price.unit_price.to_storage_string())
+        .execute(&mut *tx)
+        .await
+        .map_err(DbError::Query)?;
+    }
+
+    tx.commit().await.map_err(DbError::Query)?;
+
+    Ok(id)
+}
+
+/// Retire a list, or bring it back. Deleting is not offered: a list a
+/// quotation was priced from is what explains that quotation's figures.
+pub async fn set_active<'e, E>(executor: E, id: Uuid, is_active: bool) -> Result<(), DbError>
+where
+    E: PgExecutor<'e>,
+{
+    sqlx::query(
+        "UPDATE inventory.price_lists SET is_active = $2, updated_at = now() WHERE id = $1",
+    )
+    .bind(id)
+    .bind(is_active)
+    .execute(executor)
+    .await
+    .map_err(DbError::Query)?;
+
+    Ok(())
+}
+
+/// Every price in one list, for the screen that edits it.
+///
+/// Bounded by what one workspace prices in one list. A catalogue-sized list is
+/// possible and this reads it whole; if one arrives, the screen it feeds is the
+/// thing to page, not this.
+pub async fn prices_in<'e, E>(
+    executor: E,
+    price_list_id: Uuid,
+    currency: Currency,
+) -> Result<Vec<ItemPrice>, DbError>
+where
+    E: PgExecutor<'e>,
+{
+    let rows = sqlx::query(
+        "SELECT p.id, p.price_list_id, p.variant_id,
+                p.min_quantity::text AS min_quantity,
+                p.valid_from, p.valid_to,
+                p.unit_price::text AS unit_price
+           FROM inventory.item_prices p
+           JOIN inventory.item_variants v ON v.id = p.variant_id
+          WHERE p.price_list_id = $1
+          ORDER BY v.code, p.min_quantity",
+    )
+    .bind(price_list_id)
+    .fetch_all(executor)
+    .await
+    .map_err(DbError::Query)?;
+
+    rows.iter().map(|row| read_price(row, currency)).collect()
 }

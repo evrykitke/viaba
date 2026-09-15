@@ -503,6 +503,20 @@ pub static MENU: &[NavNode] = &[
                     NavNode::leaf("units", "nav.units", Icon::Ruler, "/inventory/units")
                         .require(names::UNITS)
                         .keywords(&["uom", "measure", "kilogram", "litre", "each", "conversion"]),
+                    NavNode::leaf(
+                        "price-lists",
+                        "nav.price_lists",
+                        Icon::Receipt,
+                        "/inventory/price-lists",
+                    )
+                    .require(names::ITEMS)
+                    .keywords(&[
+                        "price",
+                        "pricing",
+                        "wholesale",
+                        "quantity break",
+                        "discount",
+                    ]),
                     // Reference data that decides an account, which is why it
                     // sits here rather than beside the stock screens: it is
                     // arranged once and read by every discrepancy afterwards.

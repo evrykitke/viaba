@@ -61,6 +61,7 @@ pub mod item_lookup;
 pub mod items;
 pub mod landed_cost;
 pub mod pictures;
+pub mod price_list;
 pub mod procurement;
 pub mod purchase_order;
 pub mod receipt;

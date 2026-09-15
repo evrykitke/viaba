@@ -25,12 +25,13 @@ commits it is three items.
 
 ## Next
 
-- [ ] `phonix-web` Keeping the price lists
-      why: last of three. The tables exist and nothing can put a price in one
-           but a migration, so the feature is unreachable from the application.
-      touch: crates/phonix-web/src/ui/table/config/, pages/inventory/
-      done: price lists are listed, created and edited, and a variant's prices
-            in one list can be added with their break and their window.
+- [ ] `phonix-web` Choosing which list a customer is on
+      why: `party_price_lists` decides every quotation's prices and only a
+           migration can write it, so the lists exist and nobody can be put on
+           one. The service call is there; the screen is not.
+      touch: crates/phonix-web/src/pages/master/party.rs
+      done: a party's screen shows which price list they are quoted from and
+            can change it, including back to none.
 
 - [ ] `app-books` The credit note, which has a numbering series and nothing else
       why: `phonix-config/src/numbering.rs` already reserves a credit-note
@@ -97,6 +98,12 @@ rule: what changes about somebody is an `assignments` row, never a column on
 ## Done
 
 <!-- The loop appends here with the commit sha. Newest first. -->
+
+- [x] `phonix-web` Keeping the price lists
+      Last of three. A list and its prices are one screen, not two - the shape
+      a sales order has. Grid, editor, routes and a nav entry. Found on the
+      way: assigning a customer to a list still has no screen, which is queued
+      above and is the last thing standing between the tables and the feature.
 
 - [x] `phonix-web` Re-pricing a line when its quantity crosses a break
       On the quantity's `change`, so one request per edit rather than one per

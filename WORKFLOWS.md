@@ -59,8 +59,8 @@ Status marks:
       `price_lists` and `item_prices` exist, with quantity breaks, validity
       windows and the rule that picks between them, and one list per customer.
       A sales order line opens on what that customer is quoted, and re-prices
-      when the quantity crosses a break. Not yet: only a migration can put a
-      price in a list.
+      when the quantity crosses a break. Lists and their prices are kept from
+      the application. Not yet: putting a customer on a list has no screen.
 - [ ] **Pricing rule / promotional scheme** — conditional discounts, margins,
       slabs. Depends on price lists existing first.
 - [?] **Discounts** — `discount` appears in `pricing.rs`, `invoice.rs` and
