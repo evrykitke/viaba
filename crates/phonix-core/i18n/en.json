@@ -2187,6 +2187,8 @@
   "price_lists.min_quantity": "From quantity",
   "price_lists.new": "New price list",
   "price_lists.new.subtitle": "A named set of prices, in one currency.",
+  "price_lists.none": "No list - prices are typed",
+  "price_lists.party_help": "A sales order line for this customer opens on what this list quotes. With no list, every price is typed.",
   "price_lists.price.add": "Add a price",
   "price_lists.search": "Filter by code, name or currency",
   "price_lists.subtitle": "What this workspace charges, and to whom.",

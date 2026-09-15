@@ -25,14 +25,6 @@ commits it is three items.
 
 ## Next
 
-- [ ] `phonix-web` Choosing which list a customer is on
-      why: `party_price_lists` decides every quotation's prices and only a
-           migration can write it, so the lists exist and nobody can be put on
-           one. The service call is there; the screen is not.
-      touch: crates/phonix-web/src/pages/master/party.rs
-      done: a party's screen shows which price list they are quoted from and
-            can change it, including back to none.
-
 - [ ] `app-books` The credit note, which has a numbering series and nothing else
       why: `phonix-config/src/numbering.rs` already reserves a credit-note
            series, so the gap is visible from the configuration alone. A sales
@@ -98,6 +90,12 @@ rule: what changes about somebody is an `assignments` row, never a column on
 ## Done
 
 <!-- The loop appends here with the commit sha. Newest first. -->
+
+- [x] `phonix-web` Choosing which list a customer is on
+      The last gap in the price-list chain: lists, prices, customers and the
+      line that opens on them all work from the application now. A tab rather
+      than a field on the party form, because `PartyInput` is master's type and
+      master may not learn what a price list is.
 
 - [x] `phonix-web` Keeping the price lists
       Last of three. A list and its prices are one screen, not two - the shape

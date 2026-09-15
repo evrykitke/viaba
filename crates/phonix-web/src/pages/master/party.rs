@@ -31,12 +31,15 @@ use crate::components::page::{Badge, GhostButton, Notice, PageHeader, Panel, Ton
 use crate::icons::Icon;
 use crate::l;
 use crate::server_fns::currency_fns::enabled_currencies;
+use crate::server_fns::inventory_fns::{assign_price_list, list_price_lists, party_price_list};
 use crate::server_fns::master_fns::{
     delete_party_address, delete_party_contact, list_tax_groups, party_detail,
 };
 use crate::ui::alert::{Alert, Alerts};
 use crate::ui::form::config::parties::party_form;
+use crate::ui::form::field::Choice;
 use crate::ui::form::{EntityForm, FormHost};
+use crate::ui::lookup::SelectField;
 use crate::ui::tabs::{Tab, TabbedPanel};
 
 #[component]
@@ -180,6 +183,16 @@ fn party_editor(
     })
     .icon(Icon::User);
 
+    // Inventory's, on master's screen. A price list may not hang off a party -
+    // ADR 0006 section 8, and master has no business knowing what one is - so
+    // this reads and writes it through Inventory's own service rather than
+    // through the party form beside it.
+    let pricing_tab = Tab::new("pricing", "Pricing", move || {
+        view! { <PricingPanel party_id=party_id /> }.into_any()
+    })
+    .icon(Icon::Receipt)
+    .require(permissions::ITEMS);
+
     // A tab rather than a fourth panel stacked below. The page is already three
     // panels tall; a history under them is a section nobody scrolls to.
     let history_tab = Tab::new("history", "History", move || {
@@ -206,7 +219,7 @@ fn party_editor(
 
         <TabbedPanel
             id="party"
-            tabs=vec![details_tab, addresses_tab, contacts_tab, history_tab]
+            tabs=vec![details_tab, addresses_tab, contacts_tab, pricing_tab, history_tab]
         />
     }
 }
@@ -484,6 +497,99 @@ fn contact_panel(
                         }
                     })
             }}
+        </div>
+    }
+}
+
+/// Which price list this customer is quoted from.
+///
+/// Saved as it is chosen rather than behind a button: it is one field, and a
+/// Save for one dropdown is a button somebody forgets to press.
+#[component]
+fn pricing_panel(party_id: Uuid) -> impl IntoView {
+    let alerts = Alerts::get();
+    let lists = Resource::new(|| (), |()| async move { list_price_lists().await });
+    let current = Resource::new(
+        move || party_id,
+        |id| async move { party_price_list(id).await },
+    );
+
+    let chosen = RwSignal::new(None::<Uuid>);
+    let saving = RwSignal::new(false);
+
+    Effect::new(move |_| {
+        if let Some(Ok(list)) = current.get() {
+            chosen.set(list.map(|list| list.id));
+        }
+    });
+
+    let assign = move |value: String| {
+        let picked = value.parse::<Uuid>().ok();
+        chosen.set(picked);
+        saving.set(true);
+
+        leptos::task::spawn_local(async move {
+            let result = assign_price_list(party_id, picked).await;
+            saving.set(false);
+
+            match result {
+                Ok(()) => alerts.post(Alert::success(l!("common.saved"))),
+                Err(err) => alerts.post(Alert::warning(err.to_string())),
+            }
+        });
+    };
+
+    view! {
+        <div class="max-w-3xl">
+            <Panel>
+                <Transition fallback=|| {
+                    view! { <p class="text-sm text-content-subtle">{l!("common.loading")}</p> }
+                }>
+                    {move || Suspend::new(async move {
+                        // Only the lists somebody may still be quoted from. A
+                        // retired list stays on the quotations it priced and is
+                        // not offered to anybody new.
+                        let options: Vec<Choice> = lists
+                            .await
+                            .unwrap_or_default()
+                            .into_iter()
+                            .filter(|list| list.is_active)
+                            .map(|list| {
+                                Choice::new(
+                                    list.id.to_string(),
+                                    format!("{} - {} ({})", list.code, list.name, list.currency.code()),
+                                )
+                            })
+                            .collect();
+
+                        view! {
+                            <div class="block space-y-1">
+                                <label
+                                    for="party-price-list"
+                                    class="block text-xs font-medium text-content-muted"
+                                >
+                                    {l!("price_lists.title")}
+                                </label>
+                                <SelectField
+                                    id="party-price-list"
+                                    value=Signal::derive(move || {
+                                        chosen.get().map(|id| id.to_string()).unwrap_or_default()
+                                    })
+                                    on_change=Callback::new(assign)
+                                    options=options
+                                    placeholder=l!("price_lists.none")
+                                    clearable=true
+                                    disabled=Signal::derive(move || saving.get())
+                                />
+                                <p class="text-xs text-content-subtle">
+                                    {l!("price_lists.party_help")}
+                                </p>
+                            </div>
+                        }
+                            .into_any()
+                    })}
+                </Transition>
+            </Panel>
         </div>
     }
 }

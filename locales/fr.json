@@ -2187,6 +2187,8 @@
   "price_lists.min_quantity": "À partir de",
   "price_lists.new": "Nouvelle liste de prix",
   "price_lists.new.subtitle": "Un ensemble de prix nommé, dans une seule devise.",
+  "price_lists.none": "Aucune liste - prix saisis",
+  "price_lists.party_help": "Une ligne de commande pour ce client s'ouvre au prix de cette liste. Sans liste, chaque prix est saisi.",
   "price_lists.price.add": "Ajouter un prix",
   "price_lists.search": "Filtrer par code, nom ou devise",
   "price_lists.subtitle": "Ce que cet espace de travail facture, et à qui.",

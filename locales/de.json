@@ -2187,6 +2187,8 @@
   "price_lists.min_quantity": "Ab Menge",
   "price_lists.new": "Neue Preisliste",
   "price_lists.new.subtitle": "Ein benannter Satz von Preisen in einer Währung.",
+  "price_lists.none": "Keine Liste - Preise werden eingegeben",
+  "price_lists.party_help": "Eine Auftragsposition für diesen Kunden öffnet mit dem Preis aus dieser Liste. Ohne Liste wird jeder Preis eingegeben.",
   "price_lists.price.add": "Preis hinzufügen",
   "price_lists.search": "Nach Code, Name oder Währung filtern",
   "price_lists.subtitle": "Was dieser Arbeitsbereich berechnet, und wem.",

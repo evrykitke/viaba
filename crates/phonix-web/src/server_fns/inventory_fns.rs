@@ -182,6 +182,33 @@ pub async fn save_price_list(
         .map_err(service_error)
 }
 
+/// Which list a customer is quoted from, or `None` for one nobody assigned.
+#[server(name = PartyPriceList, prefix = "/api", endpoint = "inventory/price-lists/for-party")]
+pub async fn party_price_list(party_id: Uuid) -> Result<Option<PriceList>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::price_list::for_party(&pool, &caller, party_id)
+        .await
+        .map_err(service_error)
+}
+
+/// Quote this customer from this list, or from none.
+#[server(name = AssignPriceList, prefix = "/api", endpoint = "inventory/price-lists/assign")]
+pub async fn assign_price_list(
+    party_id: Uuid,
+    price_list_id: Option<Uuid>,
+) -> Result<(), ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::price_list::assign(&pool, &caller, party_id, price_list_id)
+        .await
+        .map_err(service_error)
+}
+
 /// What a customer would be quoted for this many of a variant, on this date.
 ///
 /// Empty where they are on no price list, or their list does not price it. The
