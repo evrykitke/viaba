@@ -25,15 +25,6 @@ commits it is three items.
 
 ## Next
 
-- [ ] `phonix-services` `directory::find` reads every account to return one
-      why: it calls `store::listings(pool)` and then filters in Rust, so
-           opening one user's screen reads the whole table. The paged reader
-           added for the users grid shows the shape a single-row read should
-           have had all along.
-      touch: crates/phonix-services/src/identity/directory.rs
-      done: one account is fetched by id in SQL, and `listings` is no longer
-            called to answer a question about one row.
-
 - [ ] `phonix-web` The stock locations grid, which grows with the workspace
       why: third of the four. A warehouse's location tree is not reference data
            once a workspace has more than one site.
@@ -143,6 +134,12 @@ rule: what changes about somebody is an `assignments` row, never a column on
 ## Done
 
 <!-- The loop appends here with the commit sha. Newest first. -->
+
+- [x] `phonix-services` `directory::find`, deleted rather than fixed
+      The item said a user's screen read the whole table through it. That was
+      wrong: nothing called it at all, and `directory::card` already reads one
+      account by id through `store::card`. So the whole-table read is gone by
+      deletion, and no second single-row reader was written.
 
 - [x] `phonix-web` The users grid, second of the four that grow
       Search and sort answered in SQL; the count shares `WHERE` with the

@@ -70,17 +70,6 @@ pub async fn page(
     Ok(store::listing_page(pool, &request).await?)
 }
 
-/// One account, for the screens that open from the list.
-pub async fn find(pool: &PgPool, caller: &Caller, user_id: UserId) -> ServiceResult<UserListing> {
-    caller.require(permissions::USERS)?;
-
-    store::listings(pool)
-        .await?
-        .into_iter()
-        .find(|user| user.id == user_id)
-        .ok_or_else(|| ServiceError::rejected("user", msg!("error.user.gone")))
-}
-
 // ---------------------------------------------------------------------------
 // Editing one account
 // ---------------------------------------------------------------------------
