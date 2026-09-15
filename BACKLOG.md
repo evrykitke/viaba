@@ -25,9 +25,15 @@ commits it is three items.
 
 ## Next
 
-> **Read this first.** The loop paused for browser verification after
-> `0ea7fd6` and has since resumed. Nothing is ever half-done at a stop:
-> the tree is clean and every item below is untouched.
+> **The queue is empty.** The loop ran it out on 2026-09-15 and stopped,
+> which is how it ends rather than a fault. Everything below `## Done` was
+> taken one item to one commit; the tree is clean.
+>
+> **What to put here next is a decision, not a gap.** The candidates are in
+> `WORKFLOWS.md`: what ERPNext, Odoo and Frappe HR define against what viaba
+> has, with `[-]` for the deliberate omissions and `[?]` for the unverified.
+> The three unqueued People gaps are named at the foot of this section.
+> Refill it and start the loop again with `/loop /advance`.
 >
 > **Nothing in this branch has run against a database.** Migrations
 > `hr/0003` (holidays), `hr/0004` (attendance), `hr/0005` (shifts),
@@ -44,11 +50,6 @@ commits it is three items.
 > invariant; no geolocation on attendance; `chrono-tz` as a server-only
 > dependency for lateness.
 >
-> **The People section is one item from finished.** Calendar, attendance,
-> shifts and the lifecycle documents are built end to end; recruitment has a
-> model and a gated service and no screen. After that the section holds only
-> expense claims (needs `app-books`), performance management and timesheets,
-> none of which are queued yet.
 
 > **The People section is finished**, against what was queued on
 > 2026-09-15. What Frappe HR has and viaba does not is now only: expense
