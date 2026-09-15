@@ -62,6 +62,7 @@ use crate::pages::master::party::PartyPage;
 use crate::pages::master::tax::TaxPage;
 use crate::pages::master::tax_group::{TaxGroupNewPage, TaxGroupPage};
 use crate::pages::master::taxes::{TaxNewPage, TaxesPage};
+use crate::pages::people::applicants::ApplicantPage;
 use crate::pages::people::attendance::AttendancePage;
 use crate::pages::people::department::DepartmentPage;
 use crate::pages::people::departments::{DepartmentNewPage, DepartmentsPage};
@@ -69,8 +70,8 @@ use crate::pages::people::employee::{EmployeeNewPage, EmployeePage};
 use crate::pages::people::holidays::HolidayListPage;
 use crate::pages::people::home::PeopleHomePage;
 use crate::pages::people::lists::{
-    EmployeesPage, HolidayListsPage, JobPositionsPage, MovementsPage, ShiftTypesPage,
-    WorkLocationsPage,
+    ApplicantsPage, EmployeesPage, HolidayListsPage, JobPositionsPage, MovementsPage,
+    ShiftTypesPage, WorkLocationsPage,
 };
 use crate::pages::people::movements::MovementPage;
 use crate::pages::people::reference::{JobPositionPage, WorkLocationPage};
@@ -313,6 +314,9 @@ pub fn app() -> impl IntoView {
                     <Route path=path!("/people/places") view=WorkLocationsPage />
                     <Route path=path!("/people/places/new") view=WorkLocationPage />
                     <Route path=path!("/people/places/:id") view=WorkLocationPage />
+                    <Route path=path!("/people/applicants") view=ApplicantsPage />
+                    <Route path=path!("/people/applicants/new") view=ApplicantPage />
+                    <Route path=path!("/people/applicants/:id") view=ApplicantPage />
                     <Route path=path!("/people/attendance") view=AttendancePage />
                     <Route path=path!("/people/movements") view=MovementsPage />
                     <Route path=path!("/people/movements/new") view=MovementPage />

@@ -117,6 +117,20 @@ impl Applicant {
     }
 }
 
+/// What a hire did.
+///
+/// `rejoined` is the fact the screen has to say out loud: somebody hiring a
+/// returning employee needs to know they did not create a second record, and
+/// somebody hiring a stranger needs to know they did. Silence reads as the
+/// first and is wrong half the time.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Hired {
+    pub employee_id: Uuid,
+    /// True where the application matched an employee already on file, so
+    /// this opened a second engagement rather than a second person.
+    pub rejoined: bool,
+}
+
 /// A list row.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ApplicantSummary {

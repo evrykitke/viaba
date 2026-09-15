@@ -94,7 +94,7 @@ pub const SETUP: &[phonix_core::SetupItem] = &[phonix_core::SetupItem::advisory(
     "hr.setup.cost_centres_missing",
 )];
 
-pub use applicant::{Applicant, ApplicantError, ApplicantInput, ApplicantSummary, Stage};
+pub use applicant::{Applicant, ApplicantError, ApplicantInput, ApplicantSummary, Hired, Stage};
 pub use attendance::{
     Attendance, AttendanceError, AttendanceInput, AttendanceSource, AttendanceStatus,
     AttendanceSummary, DayOutcome, TimesheetDay,

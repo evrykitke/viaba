@@ -36,6 +36,7 @@
 pub mod accounts;
 pub mod adjustment_types;
 pub mod api_keys;
+pub mod applicants;
 pub mod audit;
 pub mod bills;
 pub mod changes;

@@ -1,4 +1,4 @@
-//! The people area's six list screens.
+//! The people area's seven list screens.
 //!
 //! Thin by design - each is a `PageHeader` over a grid whose whole shape lives
 //! in `ui::table::config`. The documents behind them are their own files,
@@ -11,6 +11,7 @@ use crate::components::page::PageHeader;
 use crate::icons::Icon;
 use crate::l;
 use crate::ui::table::DataGrid;
+use crate::ui::table::config::applicants::applicants_grid;
 use crate::ui::table::config::employees::employees_grid;
 use crate::ui::table::config::holiday_lists::holiday_lists_grid;
 use crate::ui::table::config::job_positions::job_positions_grid;
@@ -110,5 +111,21 @@ pub fn movements_page() -> impl IntoView {
         />
 
         <DataGrid config=movements_grid() />
+    }
+}
+
+/// Who wants the jobs this workspace has.
+#[component]
+pub fn applicants_page() -> impl IntoView {
+    view! {
+        <Title text=format!("{} | Phonix", l!("applicants.title")) />
+
+        <PageHeader
+            title=l!("applicants.title")
+            subtitle=l!("applicants.subtitle")
+            icon=Icon::UserPlus
+        />
+
+        <DataGrid config=applicants_grid() />
     }
 }

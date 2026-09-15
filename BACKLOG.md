@@ -50,27 +50,12 @@ commits it is three items.
 > expense claims (needs `app-books`), performance management and timesheets,
 > none of which are queued yet.
 
-### People — the Frappe HR revamp
-
-Read `WORKFLOWS.md` before starting any of these, and obey the dated-assignment
-rule: what changes about somebody is an `assignments` row, never a column on
-`employees`.
-
-- [ ] `phonix-web` Recruitment, on a screen
-      why: the last of the People models with no screen. An application
-           cannot be recorded, moved through the stages, or hired from.
-      touch: server fns beside the movement ones, a list and a form under
-           crates/phonix-web/src/pages/people/, a nav node naming
-           `Pages.People.Applicants`, and the vacancy - a job position with
-           `filled == 0` should say how many have applied
-      done: a workspace can record an application, move it through the
-            stages, and hire from it - which asks for a start date and
-            opens the engagement. The hire button is separate from the
-            stage picker, because `check` refuses `hired` as a typed value.
-      note: `hire` matches an existing employee on the work email and opens
-           a second engagement where it finds one. The screen should say
-           which happened - somebody hiring a returning employee needs to
-           know they did not create a second record.
+> **The People section is finished**, against what was queued on
+> 2026-09-15. What Frappe HR has and viaba does not is now only: expense
+> claims (needs `app-books`), performance management, and timesheets - plus
+> leave, payroll, salary and contracts, which are deliberate omissions with
+> their reasoning in ADR 0006 §9. None of these are queued; adding one is a
+> decision rather than a gap. See `WORKFLOWS.md`.
 
 ## Blocked
 
@@ -80,6 +65,17 @@ rule: what changes about somebody is an `assignments` row, never a column on
 ## Done
 
 <!-- The loop appends here with the commit sha. Newest first. -->
+
+- [x] `phonix-web` Recruitment, on a screen
+      The last of the People screens. Hiring is a button beside the form
+      rather than a stage on the picker, which is what `check` refusing
+      `hired` was for: it asks for a start date, opens the engagement, and
+      says which record it landed on. `hire` gained a `Hired { employee_id,
+      rejoined }` so the screen can tell somebody they did *not* create a
+      second person - silence there reads as "new" and is wrong half the
+      time. A vacancy now carries its open-application count beside
+      `filled`: a role nobody holds and nobody wants is a different problem
+      from one with four people waiting on an answer.
 
 - [x] `app-hr` Recruitment against the vacancies that already exist
       An applicant is its own row, not an employee with a flag: most never

@@ -65,6 +65,19 @@ pub fn job_positions_grid() -> GridConfig<JobPositionSummary> {
             .essential(),
         )
         .column(
+            // Beside the vacancy rather than only on the applicants grid:
+            // the question this screen answers is what is unfilled, and the
+            // useful next word is whether anybody is waiting on an answer.
+            Column::new(
+                "applicants",
+                l!("job_positions.applicants"),
+                |row: &JobPositionSummary| Cell::number(row.applicants as f64),
+            )
+            .sortable()
+            .align(Align::End)
+            .class("tabular-nums"),
+        )
+        .column(
             Column::new(
                 "filled",
                 l!("job_positions.filled"),

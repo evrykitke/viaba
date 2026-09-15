@@ -5,6 +5,7 @@
 //! instead. An endpoint here would be the browser crossing an app boundary, and
 //! the boundary would then exist only on the server. See ADR 0006 section 2.
 
+use app_hr::applicant::{Applicant, ApplicantInput, ApplicantSummary, Hired};
 use app_hr::attendance::{AttendanceInput, AttendanceSummary, TimesheetDay};
 use app_hr::department::DeleteOutcome;
 use app_hr::department::{Department, DepartmentInput, DepartmentSummary};
@@ -400,6 +401,90 @@ pub async fn delete_job_position(position_id: Uuid) -> Result<Submission<()>, Se
     let (pool, caller) = pool_and_caller().await?;
 
     phonix_services::hr::job_position::delete(&pool, &caller, position_id)
+        .await
+        .map_err(service_error)
+}
+
+// --- Recruitment -----------------------------------------------------------
+
+#[server(name = ListApplicants, prefix = "/api", endpoint = "hr/applicants")]
+pub async fn list_applicants() -> Result<Vec<ApplicantSummary>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::hr::applicant::list(&pool, &caller)
+        .await
+        .map_err(service_error)
+}
+
+#[server(name = ApplicantDetail, prefix = "/api", endpoint = "hr/applicants/detail")]
+pub async fn applicant_detail(applicant_id: Uuid) -> Result<Applicant, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::hr::applicant::detail(&pool, &caller, applicant_id)
+        .await
+        .map_err(service_error)
+}
+
+#[server(name = ApplicantEdit, prefix = "/api", endpoint = "hr/applicants/edit")]
+pub async fn applicant_edit(applicant_id: Uuid) -> Result<ApplicantInput, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::hr::applicant::edit(&pool, &caller, applicant_id)
+        .await
+        .map_err(service_error)
+}
+
+#[server(name = BlankApplicant, prefix = "/api", endpoint = "hr/applicants/blank")]
+pub async fn blank_applicant() -> Result<ApplicantInput, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (_pool, caller) = pool_and_caller().await?;
+
+    phonix_services::hr::applicant::blank(&caller).map_err(service_error)
+}
+
+#[server(name = SaveApplicant, prefix = "/api", endpoint = "hr/applicants/save")]
+pub async fn save_applicant(
+    draft: ApplicantInput,
+) -> Result<Submission<ApplicantInput>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::hr::applicant::save(&pool, &caller, draft)
+        .await
+        .map_err(service_error)
+}
+
+/// Hire them: opens an engagement, on the record they already have where
+/// there is one. The answer says which happened.
+#[server(name = HireApplicant, prefix = "/api", endpoint = "hr/applicants/hire")]
+pub async fn hire_applicant(
+    applicant_id: Uuid,
+    started_on: chrono::NaiveDate,
+) -> Result<Submission<Hired>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::hr::applicant::hire(&pool, &caller, applicant_id, started_on)
+        .await
+        .map_err(service_error)
+}
+
+#[server(name = DeleteApplicant, prefix = "/api", endpoint = "hr/applicants/delete")]
+pub async fn delete_applicant(applicant_id: Uuid) -> Result<Submission<()>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::hr::applicant::delete(&pool, &caller, applicant_id)
         .await
         .map_err(service_error)
 }

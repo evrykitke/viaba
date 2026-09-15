@@ -16,6 +16,8 @@
 //! /people/places              where people work
 //! /people/places/:id          a form
 //! /people/attendance          one person's month, day by day
+//! /people/applicants          who has applied, and for what
+//! /people/applicants/:id      the application, and the act of hiring
 //! /people/movements           promotions, transfers and exits
 //! /people/movements/:id       the draft, or the document it became
 //! /people/shifts              the shifts people are expected to work
@@ -26,6 +28,7 @@
 //! There is no separate cost-centre screen: a cost centre is a department with
 //! a flag, so it is a filter on the grid rather than a second screen.
 
+pub mod applicants;
 pub mod attendance;
 pub mod department;
 pub mod departments;

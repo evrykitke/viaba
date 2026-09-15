@@ -15,7 +15,9 @@
 //! the same thing is ordinary, and merging them would be worse than the
 //! duplicate.
 
-use app_hr::applicant::{Applicant, ApplicantError, ApplicantInput, ApplicantSummary, Stage};
+use app_hr::applicant::{
+    Applicant, ApplicantError, ApplicantInput, ApplicantSummary, Hired, Stage,
+};
 use app_hr::employee::{EmployeeInput, EmploymentType};
 use chrono::NaiveDate;
 use phonix_core::form::Submission;
@@ -115,7 +117,7 @@ pub async fn hire(
     caller: &Caller,
     id: Uuid,
     started_on: NaiveDate,
-) -> ServiceResult<Submission<Uuid>> {
+) -> ServiceResult<Submission<Hired>> {
     caller.require(permissions::APPLICANTS_HIRE)?;
     acting_user(caller)?;
 
@@ -195,7 +197,10 @@ pub async fn hire(
     )
     .await;
 
-    Ok(Submission::Saved(employee_id))
+    Ok(Submission::Saved(Hired {
+        employee_id,
+        rejoined: existing.is_some(),
+    }))
 }
 
 /// Which employee the hire landed on.

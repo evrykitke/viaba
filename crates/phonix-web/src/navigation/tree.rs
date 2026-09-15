@@ -616,6 +616,25 @@ pub static MENU: &[NavNode] = &[
             )
             .require(names::WORK_LOCATIONS)
             .keywords(&["place", "site", "office", "home", "remote", "where"]),
+            // Beside the roles rather than at the end: an application is
+            // about the vacancy it is for, and somebody reading one list is
+            // usually about to read the other.
+            NavNode::leaf(
+                "applicants",
+                "nav.applicants",
+                Icon::UserPlus,
+                "/people/applicants",
+            )
+            .require(names::APPLICANTS)
+            .keywords(&[
+                "applicant",
+                "candidate",
+                "recruitment",
+                "hiring",
+                "vacancy",
+                "cv",
+                "interview",
+            ]),
             // Before the calendars, which are the reference data it reads:
             // somebody opens this area to key a week far more often than to
             // arrange next year's bank holidays.

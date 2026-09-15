@@ -48,6 +48,10 @@ pub struct JobPositionSummary {
     /// How many people currently hold it. Zero is a vacancy, which is the
     /// number this screen exists to make visible.
     pub filled: i64,
+    /// How many have applied and are still in play. The other half of the
+    /// vacancy: a role nobody holds and nobody wants is a different problem
+    /// from one with four people waiting on an answer.
+    pub applicants: i64,
 }
 
 impl JobPositionSummary {
@@ -258,8 +262,11 @@ mod tests {
             department_name: None,
             is_active: true,
             filled: 0,
+            applicants: 2,
         };
 
+        // Vacancy is about who holds it, not about who wants it: a role
+        // with two people waiting on an answer is still nobody's job.
         assert!(summary.is_vacant());
         assert!(
             !JobPositionSummary {

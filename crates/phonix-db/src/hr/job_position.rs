@@ -31,7 +31,10 @@ where
                 d.name AS department_name,
                 (SELECT count(*)
                    FROM hr.current_staff s
-                  WHERE s.job_position_id = j.id) AS filled
+                  WHERE s.job_position_id = j.id) AS filled,
+                (SELECT count(*) FROM hr.applicants a
+                  WHERE a.job_position_id = j.id
+                    AND a.stage NOT IN ('hired', 'rejected', 'withdrawn')) AS applicants
            FROM hr.job_positions j
            LEFT JOIN hr.departments d ON d.id = j.department_id
           ORDER BY j.title",
@@ -50,6 +53,7 @@ where
                 department_name: row.try_get("department_name")?,
                 is_active: row.try_get("is_active")?,
                 filled: row.try_get("filled")?,
+                applicants: row.try_get("applicants")?,
             })
         })
         .collect::<Result<Vec<_>, sqlx::Error>>()
