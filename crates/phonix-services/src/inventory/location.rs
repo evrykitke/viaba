@@ -14,6 +14,7 @@ use app_inventory::location::{
 use phonix_core::form::Submission;
 use phonix_core::msg;
 use phonix_core::permissions;
+use phonix_core::query::{Page, PageRequest};
 use phonix_db::error::DbError;
 use phonix_db::inventory::location as store;
 use phonix_db::sqlx::PgPool;
@@ -23,10 +24,21 @@ use crate::audit::{self, Target, kinds};
 use crate::caller::{Caller, acting_user};
 use crate::error::{ServiceError, ServiceResult};
 
-/// Every location, arranged into the tree.
+/// Every location, arranged into the tree. The forms read this; the grid uses
+/// [`page`].
 pub async fn list(pool: &PgPool, caller: &Caller) -> ServiceResult<Vec<LocationSummary>> {
     caller.require(permissions::STOCK_LOCATIONS)?;
     Ok(store::list(pool).await?)
+}
+
+/// One page of the tree, for the grid.
+pub async fn page(
+    pool: &PgPool,
+    caller: &Caller,
+    request: PageRequest,
+) -> ServiceResult<Page<LocationSummary>> {
+    caller.require(permissions::STOCK_LOCATIONS)?;
+    Ok(store::page(pool, &request).await?)
 }
 
 /// The locations a movement may name.

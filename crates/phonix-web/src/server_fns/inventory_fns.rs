@@ -117,6 +117,20 @@ pub async fn list_stock_locations() -> Result<Vec<LocationSummary>, ServerFnErro
         .map_err(service_error)
 }
 
+/// One page of the location tree, for the grid.
+#[server(name = PageStockLocations, prefix = "/api", endpoint = "inventory/locations/page", input = Json)]
+pub async fn page_stock_locations(
+    request: PageRequest,
+) -> Result<Page<LocationSummary>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::inventory::location::page(&pool, &caller, request)
+        .await
+        .map_err(service_error)
+}
+
 #[server(name = SelectableLocations, prefix = "/api", endpoint = "inventory/locations/selectable")]
 pub async fn selectable_locations() -> Result<Vec<Location>, ServerFnError> {
     use crate::state::{pool_and_caller, service_error};

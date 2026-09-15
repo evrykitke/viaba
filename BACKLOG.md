@@ -25,12 +25,17 @@ commits it is three items.
 
 ## Next
 
-- [ ] `phonix-web` The stock locations grid, which grows with the workspace
-      why: third of the four. A warehouse's location tree is not reference data
-           once a workspace has more than one site.
-      touch: crates/phonix-web/src/ui/table/config/stock_locations.rs
-      done: as the employees grid: `Source::paged`, and a count sharing the
-            select's filter scope.
+- [ ] `phonix-web` The employees grid opens on a choice it does not apply
+      why: its `state` filter lists `employed` first, but a grid opens with no
+           filter set, so the screen shows leavers while the comment above the
+           list says current staff is what it opens for. Roughly twenty grid
+           configs carry a test asserting the first choice is the "all" one,
+           and `invoices.rs` asserts a narrowing choice is not first; employees
+           has no such test and breaks the rule.
+      touch: crates/phonix-web/src/ui/table/config/employees.rs
+      done: either the "all" choice is first and the comment goes, or the grid
+            genuinely opens narrowed - and either way employees carries the
+            same `default_value()` test its neighbours do.
 
 - [ ] `phonix-web` The chart of accounts grid, which grows with the workspace
       why: last of the four. A chart of accounts is the one that grows without
@@ -134,6 +139,12 @@ rule: what changes about somebody is an `assignments` row, never a column on
 ## Done
 
 <!-- The loop appends here with the commit sha. Newest first. -->
+
+- [x] `phonix-web` The locations grid, third of the four that grow
+      The one tree among them. Tree order and depth now come off the stored
+      path via `string_to_array`, so a page can be drawn without the rows
+      above it; `in_tree_order` stays for the forms, which still read the
+      whole tree. Both filters moved to SQL, `on_hand` mapping to `internal`.
 
 - [x] `phonix-services` `directory::find`, deleted rather than fixed
       The item said a user's screen read the whole table through it. That was

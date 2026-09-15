@@ -1,10 +1,11 @@
 //! `inventory.locations`: where stock is, including the places that are not
 //! places.
 //!
-//! A few hundred rows at its largest, so [`list`] reads them all and the caller
-//! filters. Depth follows from the parent chain, so a filtered query returns
-//! rows whose parents are missing; `app_inventory::location::in_tree_order`
-//! arranges them, in code the browser has too.
+//! [`list`] reads them all for the forms, and arranges them with
+//! `app_inventory::location::in_tree_order` - a walk of the parent chain, which
+//! also places a row whose parent a filter removed. [`page`] cannot walk what it
+//! has not fetched, so it takes tree order and depth from the stored path
+//! instead.
 //!
 //! # The path is stored, and rewriting it is this module's job
 //!
@@ -15,10 +16,12 @@
 
 use app_inventory::location::{Location, LocationInput, LocationKind, LocationSummary};
 use phonix_core::identity::UserId;
-use sqlx::{FromRow, PgExecutor, Row};
+use phonix_core::query::{Page, PageRequest};
+use sqlx::{AssertSqlSafe, FromRow, PgExecutor, Row};
 use uuid::Uuid;
 
 use crate::error::DbError;
+use crate::listing::{self, Sortable};
 
 const PATH_INDEX: &str = "locations_path";
 
@@ -108,6 +111,118 @@ where
     Ok(app_inventory::location::in_tree_order(
         rows.into_iter().map(|row| row.0).collect(),
     ))
+}
+
+/// The kind filter: a kind's own name, or `on_hand`.
+pub const KIND: &str = "kind";
+
+/// The status filter: `active` or `inactive`.
+pub const STATUS: &str = "status";
+
+const SORTABLE: &[Sortable] = &[
+    ("name", "l.name"),
+    ("path", "l.path"),
+    ("kind", "l.kind"),
+    ("is_active", "l.is_active"),
+];
+
+/// Tree order and depth, both read off the stored path.
+///
+/// Arrays compare element by element, so a node's descendants sort immediately
+/// after it whatever the collation does to the separator - which ordering by
+/// the path as text does not guarantee. A name cannot contain one; see
+/// `LocationError::NameHasSeparator`.
+const TREE_KEY: &str = "string_to_array(l.path, '/')";
+
+const FROM: &str = "FROM inventory.locations l
+           LEFT JOIN inventory.warehouses w ON w.id = l.warehouse_id";
+
+/// A filter nobody set is a NULL that discards its own line.
+const WHERE: &str = "WHERE ($1::text IS NULL OR l.kind = $1)
+            AND ($2::bool IS NULL OR l.is_active = $2)
+            AND ($3::text IS NULL
+                 OR l.name ILIKE $3
+                 OR l.path ILIKE $3
+                 OR w.name ILIKE $3)";
+
+/// One page of the tree, in tree order unless a column was sorted on.
+///
+/// Depth comes off the path rather than a walk of the parent chain, which is
+/// what lets a page be drawn without the rows above it: the indent of a row is
+/// a fact about that row. Inactive rows are included for the reason [`list`]
+/// includes them.
+pub async fn page(
+    pool: &sqlx::PgPool,
+    request: &PageRequest,
+) -> Result<Page<LocationSummary>, DbError> {
+    let request = request.sanitised();
+    let needle = request
+        .needle()
+        .map(|needle| crate::search::contains(&needle));
+
+    // `on_hand` is the one choice that is not a kind: it is the question the
+    // screen is opened to answer, and `is_on_hand` names the kind that answers.
+    let kind = match request.filter(KIND) {
+        Some("on_hand") => Some(LocationKind::Internal.as_str()),
+        other => other,
+    };
+
+    let active = match request.filter(STATUS) {
+        Some("active") => Some(true),
+        Some("inactive") => Some(false),
+        _ => None,
+    };
+
+    let counting = AssertSqlSafe(format!("SELECT count(*) {FROM} {WHERE}"));
+
+    let total: i64 = sqlx::query_scalar(counting)
+        .bind(kind)
+        .bind(active)
+        .bind(needle.as_deref())
+        .fetch_one(pool)
+        .await
+        .map_err(DbError::Query)?;
+
+    let total = u64::try_from(total).unwrap_or(0);
+    let request = request.clamped_to(total);
+
+    let order = listing::order_by(request.sort.as_ref(), SORTABLE, TREE_KEY);
+
+    let selecting = AssertSqlSafe(format!(
+        "SELECT l.id, l.path, l.name, l.parent_id, l.kind, l.warehouse_id,
+                l.is_replenished, l.is_active,
+                w.name AS warehouse_name,
+                cardinality({TREE_KEY}) - 1 AS depth,
+                (SELECT count(*) FROM inventory.locations c WHERE c.parent_id = l.id)
+                    AS child_count
+           {FROM}
+           {WHERE}
+          ORDER BY {order}, l.path
+          LIMIT $4 OFFSET $5"
+    ));
+
+    let rows = sqlx::query(selecting)
+        .bind(kind)
+        .bind(active)
+        .bind(needle.as_deref())
+        .bind(request.limit() as i64)
+        .bind(request.offset() as i64)
+        .fetch_all(pool)
+        .await
+        .map_err(DbError::Query)?;
+
+    let summaries = rows
+        .into_iter()
+        .map(|row| {
+            let mut summary = RowOf::<LocationSummary>::from_row(&row)?.0;
+            let depth: i32 = row.try_get("depth")?;
+            summary.depth = u16::try_from(depth).unwrap_or(0);
+            Ok(summary)
+        })
+        .collect::<Result<Vec<_>, sqlx::Error>>()
+        .map_err(DbError::Query)?;
+
+    Ok(Page::new(summaries, total, &request))
 }
 
 /// The locations a movement may name: active, and not a grouping.

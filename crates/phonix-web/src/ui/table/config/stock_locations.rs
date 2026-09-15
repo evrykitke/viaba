@@ -4,6 +4,10 @@
 //! and otherwise treats them as a flat list. Sorting a column throws the shape
 //! away, which is right - somebody sorting by name is asking a flat question.
 //!
+//! Paged, so a page starts wherever the tree had got to and the rows above it
+//! are not on screen. The indent still reads, because depth is a fact about a
+//! row - the stored path - rather than something counted from its ancestors.
+//!
 //! The **kind** column is the point of the screen. It is what decides whether
 //! stock here is on hand, on the balance sheet, or somebody else's - and it is
 //! the column that makes a receipt from `Vendors` legible as a receipt.
@@ -17,12 +21,12 @@ use super::GridConfig;
 use crate::components::page::{Badge, Tone};
 use crate::icons::Icon;
 use crate::l;
-use crate::server_fns::inventory_fns::{delete_stock_location, list_stock_locations};
+use crate::server_fns::inventory_fns::{delete_stock_location, page_stock_locations};
 use crate::ui::table::{Cell, Column, Filter, FilterChoice, RowAction, Source, ToolbarAction};
 
 /// Where stock is, including the places that are not places.
 pub fn stock_locations_grid() -> GridConfig<LocationSummary> {
-    GridConfig::new("stock-locations", Source::in_memory(list_stock_locations))
+    GridConfig::new("stock-locations", Source::paged(page_stock_locations))
         .searching(l!("locations.search"))
         .exports_as("locations")
         // No `sorted_by`: a default sort would flatten the tree on arrival.
@@ -73,17 +77,10 @@ pub fn stock_locations_grid() -> GridConfig<LocationSummary> {
             .sortable()
             .render(|row| status_cell(row).into_any()),
         )
-        .filter(
-            Filter::new("kind", l!("locations.kind"), kind_choices()).matching(
-                |row: &LocationSummary, wanted| match wanted {
-                    // The question most often asked of this screen, and the one
-                    // no single kind answers: "where is our stock actually
-                    // sitting", as opposed to the counterpart locations.
-                    "on_hand" => row.kind.is_on_hand(),
-                    other => row.kind.as_str() == other,
-                },
-            ),
-        )
+        // The `on_hand` choice is the question most often asked of this screen:
+        // "where is our stock actually sitting", as opposed to the counterpart
+        // locations. It is not a kind, and the store maps it to the one that is.
+        .filter(Filter::new("kind", l!("locations.kind"), kind_choices()))
         .filter(
             Filter::new(
                 "status",
@@ -93,12 +90,7 @@ pub fn stock_locations_grid() -> GridConfig<LocationSummary> {
                     FilterChoice::new("active", l!("common.active")),
                     FilterChoice::new("inactive", l!("common.inactive")),
                 ],
-            )
-            .matching(|row: &LocationSummary, wanted| match wanted {
-                "active" => row.is_active,
-                "inactive" => !row.is_active,
-                _ => true,
-            }),
+            ),
         )
         .toolbar(
             ToolbarAction::link(l!("locations.new"), Icon::Plus, "/inventory/locations/new")
