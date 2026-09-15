@@ -779,6 +779,26 @@ fn line_table(draft: RwSignal<SaleInput>, unit_options: StoredValue<Vec<Choice>>
     }
 }
 
+/// Whether the price in this line's box is one the price list put there.
+///
+/// True for an empty box and for one still holding exactly what was quoted into
+/// it. False the moment somebody edits it - which is what stops a re-price from
+/// overwriting a figure a person negotiated and typed.
+fn price_is_ours(
+    draft: RwSignal<SaleInput>,
+    index: usize,
+    quoted: RwSignal<Option<String>>,
+) -> bool {
+    draft.with_untracked(|d| {
+        d.lines.get(index).is_some_and(|line| {
+            let typed = line.unit_price.trim();
+
+            typed.is_empty()
+                || quoted.with_untracked(|last| last.as_deref().is_some_and(|last| last == typed))
+        })
+    })
+}
+
 #[component]
 fn line_row(
     draft: RwSignal<SaleInput>,
@@ -806,15 +826,19 @@ fn line_row(
         Some(Choice::new(id.to_string(), label))
     });
 
+    // The last price the list put in this row's box. What makes re-pricing
+    // safe: a box still holding this is one nobody has touched since, and a box
+    // holding anything else was typed by a person and is theirs.
+    let quoted: RwSignal<Option<String>> = RwSignal::new(None);
+
     // What the customer's price list says, asked when the item is chosen and
-    // written only into a price box nobody has typed in. A blank answer leaves
-    // it blank: no list, or a list that does not carry this item, is not a
-    // reason to put a zero on a quotation.
+    // again when the quantity is committed - a line typed as one and changed to
+    // a hundred should cross its break. On the quantity's `change` rather than
+    // its `input`, so this is one request per edit and not one per keystroke.
     //
-    // Asked at the moment of picking and not again. Changing the quantity
-    // afterwards may cross a break this does not re-ask about - see the
-    // backlog. Re-pricing under somebody's cursor is its own decision.
-    let quote = move |index: usize| {
+    // A blank answer leaves the box blank: no list, or a list that does not
+    // carry this item, is not a reason to put a zero on a quotation.
+    let quote = move || {
         let Some((party_id, variant_id, quantity, on)) = draft.with_untracked(|d| {
             let line = d.lines.get(index)?;
             Some((
@@ -827,23 +851,25 @@ fn line_row(
             return;
         };
 
-        if draft.with_untracked(|d| {
-            d.lines
-                .get(index)
-                .is_none_or(|line| !line.unit_price.trim().is_empty())
-        }) {
+        if !price_is_ours(draft, index, quoted) {
             return;
         }
 
         leptos::task::spawn_local(async move {
             if let Ok(Some(price)) = quoted_price(party_id, variant_id, quantity, on).await {
+                // Asked again on the way back: the request took a moment, and
+                // somebody may have typed a price into the box during it.
+                if !price_is_ours(draft, index, quoted) {
+                    return;
+                }
+
                 draft.update(|d| {
-                    if let Some(line) = d.lines.get_mut(index)
-                        && line.unit_price.trim().is_empty()
-                    {
-                        line.unit_price = price;
+                    if let Some(line) = d.lines.get_mut(index) {
+                        line.unit_price = price.clone();
                     }
                 });
+
+                quoted.set(Some(price));
             }
         });
     };
@@ -872,7 +898,7 @@ fn line_row(
                                     }
                                 }
                             });
-                        quote(index);
+                        quote();
                     })
                     placeholder=Some(l!("common.not_set"))
                 />
@@ -911,6 +937,7 @@ fn line_row(
                                 }
                             });
                     }
+                    on:change=move |_| quote()
                 />
             </td>
             <td class="py-1 pr-2">

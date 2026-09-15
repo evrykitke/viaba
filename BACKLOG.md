@@ -25,14 +25,6 @@ commits it is three items.
 
 ## Next
 
-- [ ] `phonix-web` Re-pricing a line when its quantity crosses a break
-      why: the price is asked for when the item is picked and not again, so a
-           line typed as 1 and changed to 100 keeps the price for 1. A quantity
-           break nobody gets is a break that may as well not be there.
-      touch: crates/phonix-web/src/pages/inventory/sales_order.rs
-      done: changing a quantity re-asks, and it does not fight somebody typing
-            - a price they have edited by hand is never overwritten.
-
 - [ ] `phonix-web` Keeping the price lists
       why: last of three. The tables exist and nothing can put a price in one
            but a migration, so the feature is unreachable from the application.
@@ -105,6 +97,13 @@ rule: what changes about somebody is an `assignments` row, never a column on
 ## Done
 
 <!-- The loop appends here with the commit sha. Newest first. -->
+
+- [x] `phonix-web` Re-pricing a line when its quantity crosses a break
+      On the quantity's `change`, so one request per edit rather than one per
+      keystroke. A price is replaced only while it is still exactly what the
+      list last quoted into the box; the moment somebody edits it, it is theirs
+      - checked again when the answer comes back, because the request takes
+      long enough for somebody to type into the box during it.
 
 - [x] `app-inventory` A customer's price list, and the line that opens on it
       Second of three. `party_price_lists` holds a bare party id, because a
