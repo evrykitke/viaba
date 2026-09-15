@@ -424,4 +424,136 @@ mod tests {
             }
         }
     }
+
+    /// Every translation file in the repository, as the loader would read it.
+    ///
+    /// `locales/` sits at the checkout root, two levels above this crate.
+    fn deployment_catalogs() -> Vec<(String, BTreeMap<String, String>)> {
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../locales");
+
+        let Ok(entries) = std::fs::read_dir(&dir) else {
+            return Vec::new();
+        };
+
+        entries
+            .filter_map(Result::ok)
+            .filter(|entry| entry.path().extension().is_some_and(|ext| ext == "json"))
+            .filter_map(|entry| {
+                let raw = std::fs::read_to_string(entry.path()).ok()?;
+                let parsed: BTreeMap<String, String> = serde_json::from_str(&raw)
+                    .unwrap_or_else(|err| panic!("{:?} is not valid: {err}", entry.path()));
+                Some((entry.file_name().to_string_lossy().into_owned(), parsed))
+            })
+            .collect()
+    }
+
+    #[test]
+    fn every_offered_language_is_a_finished_language() {
+        // `Language::ALL` is the switcher. Putting a language on it is a
+        // promise that choosing it changes the page, and a catalog that covers
+        // a third of the keys turns that promise into a half-English screen
+        // that reads worse than English alone would have.
+        //
+        // The per-key fallback still exists and still runs - it is what keeps a
+        // deployment's own edited file from blanking the interface. This is
+        // about what *we* ship: a language arrives translated, and every key
+        // added to the English catalog is added to the others in the same
+        // commit. This test is where you find out that you forgot.
+        let catalogs: BTreeMap<_, _> = deployment_catalogs().into_iter().collect();
+
+        for language in crate::Language::ALL {
+            if *language == crate::Language::ENGLISH {
+                // English is compiled in; there is nothing to fall back to and
+                // nothing to translate.
+                continue;
+            }
+
+            let file = format!("{}.json", language.code());
+            let overlay = catalogs.get(&file).unwrap_or_else(|| {
+                panic!("{language} is on the switcher but locales/{file} is not there")
+            });
+
+            let total = builtin_keys().count();
+            let missing: Vec<&str> = builtin_keys()
+                .filter(|key| !overlay.contains_key(*key))
+                .collect();
+
+            assert!(
+                missing.is_empty(),
+                "locales/{file} is missing {} of {total} keys, starting with {:?}",
+                missing.len(),
+                missing.iter().take(5).collect::<Vec<_>>(),
+            );
+        }
+    }
+
+    #[test]
+    fn no_translation_names_a_key_the_application_does_not_have() {
+        // A key that no longer exists is dead weight inlined into every page,
+        // and - far worse - it is usually a *typo* for one that does, which
+        // shows up as an untranslated sentence nobody can explain.
+        for (file, overlay) in deployment_catalogs() {
+            for key in overlay.keys() {
+                if key.starts_with('_') {
+                    continue;
+                }
+
+                assert!(
+                    builtin_contains(key),
+                    "{file} defines {key}, which i18n/en.json does not",
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn no_translation_invents_a_blank_the_sentence_cannot_fill() {
+        // `{minimum}` where the English says `{min}` renders the placeholder
+        // verbatim on screen. The catalog is right to leave it standing rather
+        // than emptying it, but nobody should find out that way.
+        for (file, overlay) in deployment_catalogs() {
+            for (key, translated) in &overlay {
+                if key.starts_with('_') {
+                    continue;
+                }
+
+                let Some(english) = builtin_lookup(key) else {
+                    continue;
+                };
+
+                for blank in blanks(translated) {
+                    assert!(
+                        blanks(english).contains(&blank),
+                        "{file}: {key} fills {{{blank}}}, which the English does not supply",
+                    );
+                }
+            }
+        }
+    }
+
+    /// The `{name}` placeholders in a sentence.
+    fn blanks(template: &str) -> Vec<String> {
+        let mut found = Vec::new();
+        let mut rest = template;
+
+        while let Some(open) = rest.find('{') {
+            let Some(after) = rest.get(open + 1..) else {
+                break;
+            };
+            let Some(close) = after.find('}') else {
+                break;
+            };
+            let Some(name) = after.get(..close) else {
+                break;
+            };
+
+            if !name.is_empty() {
+                found.push(name.to_owned());
+            }
+
+            rest = after.get(close + 1..).unwrap_or("");
+        }
+
+        found
+    }
 }

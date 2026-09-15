@@ -25,22 +25,6 @@ commits it is three items.
 
 ## Next
 
-- [ ] `phonix-core` The catalogue parity tests, somewhere they can be run
-      why: `every_offered_language_is_a_finished_language` and
-           `no_translation_names_a_key_the_application_does_not_have` live in
-           `crates/phonix-web/src/i18n.rs`, and building phonix-web's test
-           binary is OOM-killed on this machine - so the only guard on the
-           three overlay catalogues cannot be run here at all. That is why
-           zh.json drifted 37 keys before anybody noticed.
-      note: neither test touches anything of phonix-web's. They read
-           `Language::ALL`, `catalog::builtin_keys()` and `../../locales`,
-           all of which phonix-core has, and `cargo test -p phonix-core`
-           finishes in seconds. The `#[cfg(test)]` module does file I/O,
-           which phonix-core's wasm rule forbids in shipping code but not in
-           a test that only ever runs on the host - say whether that counts.
-      done: the two tests run under `cargo test -p phonix-core`, and a
-            missing translation fails a check the loop can actually afford.
-
 - [ ] `app-books` What an invoice has been credited, and what is still owed
       why: last of three. A credit note posts to the ledger but no screen or
            report knows it exists: the invoice does not show it, aging counts
@@ -107,6 +91,16 @@ rule: what changes about somebody is an `assignments` row, never a column on
 ## Done
 
 <!-- The loop appends here with the commit sha. Newest first. -->
+
+- [x] `phonix-core` The catalogue parity tests, somewhere they can be run
+      Three, not two - the placeholder check uses the same helper and came
+      with them, into `i18n/catalog.rs`, which is the module that documents
+      the overlay. They run in ten seconds now instead of being killed for
+      memory, and running them confirmed the Chinese catalogue above. The
+      note asked whether file I/O in a `#[cfg(test)]` module offends the
+      wasm rule: it does not. `build.rs` already reads `i18n/en.json` on the
+      host, the crate exempts tests from its own denies, and
+      `cargo check --all-targets --target wasm32-unknown-unknown` passes.
 
 - [x] `phonix-web` The Chinese catalog, thirty-six keys behind
       Thirty-seven, in the event. `locales/zh.json` now carries every key
