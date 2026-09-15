@@ -7,18 +7,19 @@
 //! reference for the next entity:
 //!
 //! * columns with and without renderers, searchable, sortable, hidden
-//! * an in-memory source, because a workspace's people fit in one fetch
+//! * a paged source, because the account list grows with the workspace
 //! * a link action and a destructive `run` action, each permission-gated
 //! * an export, and a column menu
 //!
-//! # Why the list is in memory
+//! # Why the list is paged
 //!
-//! A workspace has as many accounts as it has people. Fetching all of them once
-//! and filtering in the browser makes searching instant and costs one request;
-//! paging it would cost a round trip per keystroke to save memory nobody is
-//! short of. When a listing arrives that cannot make that claim - stock
-//! movements, audit events over a year - it uses [`Source::paged`] instead, and
-//! nothing else about its configuration changes.
+//! A workspace has as many accounts as it has people, and nobody deletes one -
+//! a leaver is deactivated. Searching and sorting are answered in SQL, which is
+//! the same configuration an in-memory grid has: only the [`Source`] differs.
+//!
+//! The status column is the exception worth knowing about. It searches the
+//! stored value rather than the word drawn for it, because the label is
+//! translated in the browser and the server cannot see it.
 //!
 //! # Where the two "Person" values went
 //!
@@ -39,7 +40,7 @@ use crate::components::page::{Badge, Tone};
 use crate::i18n::{Locale, t};
 use crate::icons::Icon;
 use crate::l;
-use crate::server_fns::admin_fns::{list_users, resend_invitation, reset_user_mfa};
+use crate::server_fns::admin_fns::{page_users, resend_invitation, reset_user_mfa};
 use crate::ui::table::{Align, Cell, Column, RowAction, Source, ToolbarAction};
 
 /// Everyone in this workspace.
@@ -48,7 +49,7 @@ pub fn users_grid() -> GridConfig<UserListing> {
     // the export path, with no reactive owner to read the context from.
     let catalog = Locale::get().shared();
 
-    GridConfig::new("users", Source::in_memory(list_users))
+    GridConfig::new("users", Source::paged(page_users))
         .searching(l!("users.search"))
         .exports_as("users")
         .sorted_by(Sort::ascending("display_name"))

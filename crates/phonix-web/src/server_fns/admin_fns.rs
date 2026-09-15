@@ -15,6 +15,7 @@
 //! came from this page, a script, or a future API.
 
 use leptos::prelude::*;
+use leptos::server_fn::codec::Json;
 use phonix_core::authorization::{
     PermissionSet, RoleDetail, RoleInput, RoleSummary, UserPermissionView,
 };
@@ -22,6 +23,7 @@ use phonix_core::form::Submission;
 use phonix_core::identity::{InvitationIssued, UserEdit, UserId, UserInvite, UserListing};
 use phonix_core::mail::{MailSettings, MailSettingsInput};
 use phonix_core::organization::OrganizationProfile;
+use phonix_core::query::{Page, PageRequest};
 use uuid::Uuid;
 
 /// Everyone in this workspace, with their roles.
@@ -32,6 +34,18 @@ pub async fn list_users() -> Result<Vec<UserListing>, ServerFnError> {
     let (pool, caller) = pool_and_caller().await?;
 
     phonix_services::identity::directory::list(&pool, &caller)
+        .await
+        .map_err(service_error)
+}
+
+/// One page of the account list, for the grid.
+#[server(name = PageUsers, prefix = "/api", endpoint = "admin/users/page", input = Json)]
+pub async fn page_users(request: PageRequest) -> Result<Page<UserListing>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::identity::directory::page(&pool, &caller, request)
         .await
         .map_err(service_error)
 }

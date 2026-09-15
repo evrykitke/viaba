@@ -10,9 +10,11 @@ use phonix_config::LockoutConfig;
 use phonix_core::PermissionSet;
 use phonix_core::identity::directory::lockout_holds;
 use phonix_core::identity::{AuthUser, UserId, UserListing, UserStatus};
-use sqlx::{FromRow, PgExecutor, Row};
+use phonix_core::query::{Page, PageRequest};
+use sqlx::{AssertSqlSafe, FromRow, PgExecutor, Row};
 
 use crate::error::DbError;
+use crate::listing::{self, Sortable};
 
 /// One row of `users`, in full.
 ///
@@ -287,35 +289,134 @@ where
     let now = Utc::now();
 
     rows.into_iter()
-        .map(|row| {
-            let raw_status: String = row.try_get("status")?;
-            let status =
-                UserStatus::parse(&raw_status).ok_or_else(|| sqlx::Error::ColumnDecode {
-                    index: "status".to_owned(),
-                    source: format!("unrecognised user status '{raw_status}'").into(),
-                })?;
-
-            let email_verified_at: Option<DateTime<Utc>> = row.try_get("email_verified_at")?;
-            let locked_until: Option<DateTime<Utc>> = row.try_get("locked_until")?;
-
-            Ok(UserListing {
-                id: row.try_get("id")?,
-                email: row.try_get("email")?,
-                display_name: row.try_get("display_name")?,
-                status,
-                is_owner: row.try_get("is_owner")?,
-                email_verified: email_verified_at.is_some(),
-                mfa_enabled: row.try_get("mfa_enabled")?,
-                roles: row.try_get("roles")?,
-                locked_until,
-                locked: lockout_holds(locked_until, now),
-                last_login_at: row.try_get("last_login_at")?,
-                created_at: row.try_get("created_at")?,
-            })
-        })
+        .map(|row| read_listing(&row, now))
         .collect::<Result<Vec<_>, sqlx::Error>>()
         .map_err(DbError::Query)
 }
+
+/// One listing row. `now` is decided by the caller so that every row in a
+/// result set is judged against the same instant.
+fn read_listing(
+    row: &sqlx::postgres::PgRow,
+    now: DateTime<Utc>,
+) -> Result<UserListing, sqlx::Error> {
+    let raw_status: String = row.try_get("status")?;
+    let status = UserStatus::parse(&raw_status).ok_or_else(|| sqlx::Error::ColumnDecode {
+        index: "status".to_owned(),
+        source: format!("unrecognised user status '{raw_status}'").into(),
+    })?;
+
+    let email_verified_at: Option<DateTime<Utc>> = row.try_get("email_verified_at")?;
+    let locked_until: Option<DateTime<Utc>> = row.try_get("locked_until")?;
+
+    Ok(UserListing {
+        id: row.try_get("id")?,
+        email: row.try_get("email")?,
+        display_name: row.try_get("display_name")?,
+        status,
+        is_owner: row.try_get("is_owner")?,
+        email_verified: email_verified_at.is_some(),
+        mfa_enabled: row.try_get("mfa_enabled")?,
+        roles: row.try_get("roles")?,
+        locked_until,
+        locked: lockout_holds(locked_until, now),
+        last_login_at: row.try_get("last_login_at")?,
+        created_at: row.try_get("created_at")?,
+    })
+}
+
+const LISTING_SORTABLE: &[Sortable] = &[
+    ("display_name", "u.display_name"),
+    ("email", "u.email"),
+    ("status", "u.status"),
+    ("mfa_enabled", "u.mfa_enabled"),
+    ("created_at", "u.created_at"),
+    ("last_login_at", "u.last_login_at"),
+];
+
+/// The roles are matched by `EXISTS` rather than in the join, so that searching
+/// for one role still shows every role the account holds.
+///
+/// `u.status` matches the stored value, not the word the screen draws for it:
+/// the label is translated in the browser and SQL has no access to it.
+const LISTING_WHERE: &str = "WHERE u.deleted_at IS NULL
+            AND ($1::text IS NULL
+                 OR u.display_name ILIKE $1
+                 OR u.email ILIKE $1
+                 OR u.status ILIKE $1
+                 OR EXISTS (
+                        SELECT 1
+                          FROM user_roles ur2
+                          JOIN roles r2 ON r2.id = ur2.role_id
+                         WHERE ur2.user_id = u.id AND r2.name ILIKE $1
+                    ))";
+
+/// One page of the account list, with role names.
+///
+/// The count and the select share [`LISTING_WHERE`], which names only `u`, so
+/// the role and lockout joins below cannot widen the set being counted.
+pub async fn listing_page(
+    pool: &sqlx::PgPool,
+    request: &PageRequest,
+) -> Result<Page<UserListing>, DbError> {
+    let request = request.sanitised();
+    let needle = request
+        .needle()
+        .map(|needle| crate::search::contains(&needle));
+
+    let counting = AssertSqlSafe(format!("SELECT count(*) FROM users u {LISTING_WHERE}"));
+
+    let total: i64 = sqlx::query_scalar(counting)
+        .bind(needle.as_deref())
+        .fetch_one(pool)
+        .await
+        .map_err(DbError::Query)?;
+
+    let total = u64::try_from(total).unwrap_or(0);
+    let request = request.clamped_to(total);
+
+    let order = listing::order_by(
+        request.sort.as_ref(),
+        LISTING_SORTABLE,
+        "u.display_name, u.email",
+    );
+
+    let selecting = AssertSqlSafe(format!(
+        "SELECT u.id, u.email, u.display_name, u.status, u.is_owner,
+                u.email_verified_at, u.mfa_enabled, u.locked_until,
+                u.last_login_at, u.created_at,
+                coalesce(
+                    array_agg(r.name ORDER BY r.name) FILTER (WHERE r.name IS NOT NULL),
+                    '{{}}'
+                ) AS roles
+           FROM users u
+           LEFT JOIN user_roles ur ON ur.user_id = u.id
+           LEFT JOIN roles r ON r.id = ur.role_id
+           {LISTING_WHERE}
+          GROUP BY u.id
+          ORDER BY {order}, u.id
+          LIMIT $2 OFFSET $3"
+    ));
+
+    let rows = sqlx::query(selecting)
+        .bind(needle.as_deref())
+        .bind(request.limit() as i64)
+        .bind(request.offset() as i64)
+        .fetch_all(pool)
+        .await
+        .map_err(DbError::Query)?;
+
+    let now = Utc::now();
+
+    let listings = rows
+        .into_iter()
+        .map(|row| read_listing(&row, now))
+        .collect::<Result<Vec<_>, sqlx::Error>>()
+        .map_err(DbError::Query)?;
+
+    Ok(Page::new(listings, total, &request))
+}
+
 
 pub async fn count<'e, E>(executor: E) -> Result<i64, DbError>
 where

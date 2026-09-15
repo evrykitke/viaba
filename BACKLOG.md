@@ -25,13 +25,14 @@ commits it is three items.
 
 ## Next
 
-- [ ] `phonix-web` The users grid, which grows with the workspace
-      why: second of the four `Source::in_memory` grids whose list grows rather
-           than being reference data. See the employees grid for the shape.
-      touch: crates/phonix-web/src/ui/table/config/users.rs
-      done: it uses `Source::paged` against a server function taking a
-            `PageRequest`, and the count query shares the filter scope with the
-            select.
+- [ ] `phonix-services` `directory::find` reads every account to return one
+      why: it calls `store::listings(pool)` and then filters in Rust, so
+           opening one user's screen reads the whole table. The paged reader
+           added for the users grid shows the shape a single-row read should
+           have had all along.
+      touch: crates/phonix-services/src/identity/directory.rs
+      done: one account is fetched by id in SQL, and `listings` is no longer
+            called to answer a question about one row.
 
 - [ ] `phonix-web` The stock locations grid, which grows with the workspace
       why: third of the four. A warehouse's location tree is not reference data
@@ -142,6 +143,12 @@ rule: what changes about somebody is an `assignments` row, never a column on
 ## Done
 
 <!-- The loop appends here with the commit sha. Newest first. -->
+
+- [x] `phonix-web` The users grid, second of the four that grow
+      Search and sort answered in SQL; the count shares `WHERE` with the
+      select, and the role predicate is an `EXISTS` so searching one role
+      still shows every role a row holds. `directory::list` stays: the REST
+      API has four callers of it.
 
 - [x] `phonix-web` The employees grid, first of the four that grow
       The staff list pages server-side: search, both filters and the sort are

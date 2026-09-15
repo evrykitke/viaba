@@ -4,6 +4,7 @@ use phonix_core::authorization::RoleSummary;
 use phonix_core::form::{Submission, rejected};
 use phonix_core::identity::{UserCard, UserEdit, UserId, UserListing};
 use phonix_core::permissions;
+use phonix_core::query::{Page, PageRequest};
 use phonix_db::authorization::role as role_store;
 use phonix_db::identity::user as store;
 use phonix_db::sqlx::PgPool;
@@ -52,14 +53,21 @@ pub async fn card(
     }))
 }
 
-/// Every account, with its roles.
-///
-/// Unpaged, deliberately. A workspace with enough people for that to matter
-/// needs a search on the server and a cursor, and building either before there
-/// is a workspace that needs it would be guessing at the shape of both.
+/// Every account, with its roles. Unpaged: the REST listing and the exports
+/// read it. The grid uses [`page`].
 pub async fn list(pool: &PgPool, caller: &Caller) -> ServiceResult<Vec<UserListing>> {
     caller.require(permissions::USERS)?;
     Ok(store::listings(pool).await?)
+}
+
+/// One page of the account list, for the grid.
+pub async fn page(
+    pool: &PgPool,
+    caller: &Caller,
+    request: PageRequest,
+) -> ServiceResult<Page<UserListing>> {
+    caller.require(permissions::USERS)?;
+    Ok(store::listing_page(pool, &request).await?)
 }
 
 /// One account, for the screens that open from the list.
