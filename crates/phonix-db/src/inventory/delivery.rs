@@ -22,7 +22,7 @@
 //! despatch note was this".
 
 use app_inventory::delivery::{
-    CheckedDelivery, Delivery, DeliveryLine, DeliveryState, DeliverySummary,
+    CheckedDelivery, Delivery, DeliveryLine, DeliveryState, DeliverySummary, UninvoicedDelivery,
 };
 use app_inventory::quantity::Quantity;
 use app_inventory::sales_order::CustomerSnapshot;
@@ -252,6 +252,7 @@ where
         "SELECT l.id, l.line_no, l.order_line_id, l.variant_id, l.description,
                 l.quantity::text AS quantity, l.lot_id,
                 l.unit_cost::text AS unit_cost, l.value::text AS value, l.move_id,
+                l.invoiced::text AS invoiced,
                 v.code AS variant_code,
                 u.code AS unit_code,
                 lot.number AS lot_number
@@ -273,6 +274,7 @@ where
             let quantity: String = row.try_get("quantity")?;
             let unit_cost: String = row.try_get("unit_cost")?;
             let value: String = row.try_get("value")?;
+            let invoiced: String = row.try_get("invoiced")?;
 
             Ok(DeliveryLine {
                 id: row.try_get("id")?,
@@ -288,6 +290,7 @@ where
                 unit_cost: read_money(&unit_cost, currency, "delivery_lines.unit_cost")?,
                 value: read_money(&value, currency, "delivery_lines.value")?,
                 move_id: row.try_get("move_id")?,
+                invoiced: read_quantity(&invoiced, "delivery_lines.invoiced")?,
             })
         })
         .collect::<Result<Vec<_>, sqlx::Error>>()
@@ -487,4 +490,47 @@ pub async fn delete(conn: &mut PgConnection, id: Uuid) -> Result<bool, DbError> 
         .map_err(DbError::Query)?;
 
     Ok(done.rows_affected() == 1)
+}
+
+/// Goods delivered and not yet invoiced, oldest first.
+///
+/// Reads the whole view, which is bounded by what is unmatched rather than by
+/// what has ever been delivered: a delivery leaves it as soon as it is
+/// invoiced. The same bound `bill::unbilled` relies on.
+pub async fn uninvoiced<'e, E>(
+    executor: E,
+    currency: Currency,
+) -> Result<Vec<UninvoicedDelivery>, DbError>
+where
+    E: PgExecutor<'e>,
+{
+    let rows = sqlx::query(
+        "SELECT delivery_id, number, despatched_on, customer_id, customer_name,
+                order_number, uninvoiced::text AS uninvoiced, age_days
+           FROM inventory.uninvoiced_deliveries
+          ORDER BY age_days DESC, despatched_on",
+    )
+    .fetch_all(executor)
+    .await
+    .map_err(DbError::Query)?;
+
+    rows.iter()
+        .map(|row| {
+            Ok(UninvoicedDelivery {
+                delivery_id: row.try_get("delivery_id").map_err(DbError::Query)?,
+                number: row.try_get("number").map_err(DbError::Query)?,
+                despatched_on: row.try_get("despatched_on").map_err(DbError::Query)?,
+                customer_id: row.try_get("customer_id").map_err(DbError::Query)?,
+                customer_name: row.try_get("customer_name").map_err(DbError::Query)?,
+                order_number: row.try_get("order_number").map_err(DbError::Query)?,
+                uninvoiced: read_money(
+                    row.try_get("uninvoiced").map_err(DbError::Query)?,
+                    currency,
+                    "uninvoiced_deliveries.uninvoiced",
+                )
+                .map_err(DbError::Query)?,
+                age_days: row.try_get("age_days").map_err(DbError::Query)?,
+            })
+        })
+        .collect()
 }

@@ -25,14 +25,26 @@ commits it is three items.
 
 ## Next
 
-- [ ] `app-books` The invoice that bills a delivery rather than free text
-      why: ADR 0006 names this as the link still missing from the sell side,
-           and it is what the goods-delivered-not-invoiced accrual is waiting
-           for. Today an invoice line is typed, so "delivered and not billed"
-           is an investigation rather than a query.
-      touch: crates/app-books/src/invoice.rs, crates/app-inventory/src/delivery.rs
-      done: an invoice line can reference a delivery line, billing twice is
-            refused, and the accrual can be computed.
+- [ ] `phonix-ports` The port that lets Books tell Inventory a line was invoiced
+      why: second of the three the delivery-invoicing link splits into. ADR 0006
+           section 8 forbids a foreign key between two apps, so Books cannot
+           write `inventory.delivery_lines.invoiced` itself. The ADR's port
+           table already anticipates an Inventory-implemented port for Books
+           and defers it until Books needs one; this is that moment.
+      touch: crates/phonix-ports/src/, docs/adr/0006-apps-ports-and-defaults.md
+      done: a port declares "this much of this delivery line is now invoiced",
+            `phonix-services` implements it over Inventory's store, and ADR
+            0006's port table names it. Update the ADR in the same commit -
+            the record currently says the link does not exist.
+
+- [ ] `app-books` The invoice line that names a delivery line
+      why: last of the three. The invoice is still free text, so "delivered and
+           not billed" is an investigation rather than a query.
+      touch: crates/app-books/src/invoice.rs
+      done: an invoice line carries a bare `delivery_line_id` with no foreign
+            key, posting the invoice raises the port, and invoicing more of a
+            delivery line than was delivered is refused.
+      blocked: needs the port above.
 
 - [ ] `app-books` Price lists, and the prices an item has in each
       why: `pricing.rs` computes from a single price on the item. Both ERPNext
@@ -109,6 +121,14 @@ rule: what changes about somebody is an `assignments` row, never a column on
 ## Done
 
 <!-- The loop appends here with the commit sha. Newest first. -->
+
+- [x] `app-inventory` What a delivery has had invoiced against it
+      First of three the invoice-bills-a-delivery item split into: it needed a
+      migration, a port and a Books change, which is three commits. This is
+      Inventory's half - `delivery_lines.invoiced`, the aged
+      `uninvoiced_deliveries` view, and the read - mirroring `receipt_lines.
+      billed` and `unbilled_receipts` exactly. Migration validated against
+      viaba_tenant_med_app_staging in a rolled-back transaction.
 
 - [x] `phonix-web` A grid that opens already narrowed
       `Filter::opening_on` declares it, and `GridState` and `initial_request`

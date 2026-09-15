@@ -46,6 +46,7 @@ use phonix_core::msg;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+use crate::bill::AgeBucket;
 use crate::quantity::{Quantity, QuantityError};
 
 pub const MAX_DELIVERY_NOTE_LEN: usize = 2000;
@@ -167,6 +168,38 @@ pub struct DeliveryLine {
     /// The movement this line became. Set when the delivery is posted, and the
     /// thread back from the stock ledger to the paperwork.
     pub move_id: Option<Uuid>,
+    /// How much of this line has been invoiced, in the stock unit. The sell-side
+    /// mirror of a receipt line's `billed`.
+    pub invoiced: Quantity,
+}
+
+/// One delivery's worth of goods gone and not yet charged for.
+///
+/// At cost, not at price: this is what the goods-delivered-not-invoiced balance
+/// carries. The sell-side mirror of [`crate::bill::UnbilledReceipt`], and it
+/// buckets by the same ages because the two are read side by side.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct UninvoicedDelivery {
+    pub delivery_id: Uuid,
+    pub number: String,
+    pub despatched_on: NaiveDate,
+    pub customer_id: Uuid,
+    pub customer_name: String,
+    pub order_number: Option<String>,
+    pub uninvoiced: Money,
+    pub age_days: i32,
+}
+
+impl UninvoicedDelivery {
+    /// Thirty-day buckets, the last open-ended.
+    pub fn bucket(&self) -> AgeBucket {
+        match self.age_days {
+            ..=30 => AgeBucket::Current,
+            31..=60 => AgeBucket::ThirtyDays,
+            61..=90 => AgeBucket::SixtyDays,
+            _ => AgeBucket::Older,
+        }
+    }
 }
 
 /// One row of the delivery grid.

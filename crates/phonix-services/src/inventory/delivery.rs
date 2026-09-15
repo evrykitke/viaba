@@ -35,7 +35,7 @@
 
 use app_inventory::delivery::{
     CheckedDelivery, Delivery, DeliveryError, DeliveryInput, DeliveryState, DeliverySummary,
-    Outstanding,
+    Outstanding, UninvoicedDelivery,
 };
 use app_inventory::sales_order::CustomerSnapshot;
 use chrono::NaiveDate;
@@ -67,6 +67,19 @@ pub async fn list(
     let currency = base_currency(pool).await?;
 
     Ok(store::page(pool, currency, &request).await?)
+}
+
+/// Goods delivered and not yet invoiced, oldest first. The aged GDNI balance.
+///
+/// Every posted delivery is in it until something invoices one, which nothing
+/// does yet: the invoice cannot name a delivery line, and the port that would
+/// let it say so is the next piece. Until then this reads as everything gone,
+/// which is what is true rather than a placeholder.
+pub async fn uninvoiced(pool: &PgPool, caller: &Caller) -> ServiceResult<Vec<UninvoicedDelivery>> {
+    caller.require(permissions::DELIVERIES)?;
+
+    let currency = base_currency(pool).await?;
+    Ok(store::uninvoiced(pool, currency).await?)
 }
 
 pub async fn detail(pool: &PgPool, caller: &Caller, id: Uuid) -> ServiceResult<Delivery> {
