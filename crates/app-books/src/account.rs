@@ -910,7 +910,10 @@ mod suggestion_tests {
             let (start, end) = account_type.suggested_range();
 
             assert!(start < end, "{account_type:?}");
-            assert!(suggest_number(*account_type, &[]).is_some(), "{account_type:?}");
+            assert!(
+                suggest_number(*account_type, &[]).is_some(),
+                "{account_type:?}"
+            );
         }
     }
 }

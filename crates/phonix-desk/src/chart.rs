@@ -445,7 +445,10 @@ mod tests {
 
         assert!(chart.columns[0].path.is_empty());
         assert!(!chart.columns[1].path.is_empty());
-        assert!(!chart.empty, "one bar has a value, so the chart is not empty");
+        assert!(
+            !chart.empty,
+            "one bar has a value, so the chart is not empty"
+        );
     }
 
     #[test]
@@ -473,7 +476,11 @@ mod tests {
             .collect();
 
         assert!(shown.len() <= MAX_AXIS_LABELS, "{} labels", shown.len());
-        assert_eq!(shown.last(), Some(&"30"), "the newest period keeps its label");
+        assert_eq!(
+            shown.last(),
+            Some(&"30"),
+            "the newest period keeps its label"
+        );
     }
 
     #[test]
@@ -502,7 +509,10 @@ mod tests {
 
     #[test]
     fn a_stacked_bar_spans_the_full_width_and_leaves_gaps_between_classes() {
-        let bar = stacked(vec![("Active", 3, "--success"), ("Suspended", 1, "--danger")]);
+        let bar = stacked(vec![
+            ("Active", 3, "--success"),
+            ("Suspended", 1, "--danger"),
+        ]);
 
         assert_eq!(bar.total, 4);
         assert_eq!(bar.segments.len(), 2);

@@ -117,30 +117,26 @@ pub fn parties_grid() -> GridConfig<PartySummary> {
     )
     // Named predicates, answered where the rows are. See
     // `phonix_web::ui::table::filter`.
-    .filter(
-        Filter::new(
-            "role",
-            l!("parties.roles"),
-            vec![
-                FilterChoice::all(l!("common.all")),
-                FilterChoice::new(roles::CUSTOMER, l!("parties.role.customer")),
-                FilterChoice::new(roles::SUPPLIER, l!("parties.role.supplier")),
-                FilterChoice::new(roles::CARRIER, l!("parties.role.carrier")),
-                FilterChoice::new(roles::AGENT, l!("parties.role.agent")),
-            ],
-        ),
-    )
-    .filter(
-        Filter::new(
-            "status",
-            l!("field.status"),
-            vec![
-                FilterChoice::all(l!("common.all")),
-                FilterChoice::new("active", l!("common.active")),
-                FilterChoice::new("inactive", l!("common.inactive")),
-            ],
-        ),
-    )
+    .filter(Filter::new(
+        "role",
+        l!("parties.roles"),
+        vec![
+            FilterChoice::all(l!("common.all")),
+            FilterChoice::new(roles::CUSTOMER, l!("parties.role.customer")),
+            FilterChoice::new(roles::SUPPLIER, l!("parties.role.supplier")),
+            FilterChoice::new(roles::CARRIER, l!("parties.role.carrier")),
+            FilterChoice::new(roles::AGENT, l!("parties.role.agent")),
+        ],
+    ))
+    .filter(Filter::new(
+        "status",
+        l!("field.status"),
+        vec![
+            FilterChoice::all(l!("common.all")),
+            FilterChoice::new("active", l!("common.active")),
+            FilterChoice::new("inactive", l!("common.inactive")),
+        ],
+    ))
     .toolbar(
         ToolbarAction::link(l!("parties.new"), Icon::Plus, "/master/parties/new")
             .require(permissions::PARTIES_CREATE)

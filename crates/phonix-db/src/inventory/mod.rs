@@ -22,12 +22,12 @@
 
 pub mod account_mapping;
 pub mod adjustment;
+pub mod bill;
 pub mod category;
 pub mod consolidation;
 pub mod defaults;
 pub mod delivery;
 pub mod image;
-pub mod bill;
 pub mod item;
 pub mod landed_cost;
 pub mod location;

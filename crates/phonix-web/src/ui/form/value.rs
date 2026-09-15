@@ -136,10 +136,7 @@ impl FieldValue {
         match self {
             Self::Choices(choices) => choices.clone(),
             Self::Choice(Some(choice)) => BTreeSet::from([choice.clone()]),
-            Self::Records(records) => records
-                .iter()
-                .map(|record| record.value.clone())
-                .collect(),
+            Self::Records(records) => records.iter().map(|record| record.value.clone()).collect(),
             _ => BTreeSet::new(),
         }
     }
@@ -307,7 +304,10 @@ mod tests {
 
         assert_eq!(chosen.as_choice(), Some("USD"));
         assert_eq!(
-            chosen.as_records().first().map(|record| record.label.clone()),
+            chosen
+                .as_records()
+                .first()
+                .map(|record| record.label.clone()),
             Some("US Dollar".to_owned())
         );
         assert!(chosen.is_present());
@@ -334,10 +334,8 @@ mod tests {
 
     #[test]
     fn several_records_report_every_value_they_hold() {
-        let held = FieldValue::records([
-            Choice::new("USD", "US Dollar"),
-            Choice::new("EUR", "Euro"),
-        ]);
+        let held =
+            FieldValue::records([Choice::new("USD", "US Dollar"), Choice::new("EUR", "Euro")]);
 
         assert_eq!(held.as_input(), "USD, EUR");
         assert_eq!(

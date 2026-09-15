@@ -215,7 +215,11 @@ mod tests {
     fn names_are_unique() {
         let mut seen = BTreeSet::new();
         for command in Command::ALL {
-            assert!(seen.insert(command.name()), "duplicate {:?}", command.name());
+            assert!(
+                seen.insert(command.name()),
+                "duplicate {:?}",
+                command.name()
+            );
         }
         assert_eq!(seen.len(), Command::ALL.len());
     }

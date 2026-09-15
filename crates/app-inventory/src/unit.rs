@@ -76,7 +76,10 @@ impl UnitClass {
     }
 
     pub fn parse(raw: &str) -> Option<Self> {
-        Self::ALL.iter().copied().find(|class| class.as_str() == raw)
+        Self::ALL
+            .iter()
+            .copied()
+            .find(|class| class.as_str() == raw)
     }
 
     pub fn label(self) -> Message {
@@ -282,7 +285,9 @@ pub fn factor_to_string(factor_scaled: i128) -> String {
 pub enum DeleteOutcome {
     Deleted,
     /// Items are counted in it.
-    InUse { count: i64 },
+    InUse {
+        count: i64,
+    },
     /// It is what its class's other units are measured against.
     IsTheReference,
 }
@@ -366,7 +371,10 @@ mod tests {
             .unwrap();
         assert_eq!(grams.to_display_string(), "2500");
 
-        let back = Conversion::between(&gram, &kilo).unwrap().apply(grams).unwrap();
+        let back = Conversion::between(&gram, &kilo)
+            .unwrap()
+            .apply(grams)
+            .unwrap();
         assert_eq!(back, two_and_a_half);
     }
 

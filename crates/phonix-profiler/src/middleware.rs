@@ -80,11 +80,7 @@ pub async fn route(request: Request, next: Next) -> Response {
 /// Attach with `layer(from_fn_with_state(profiler, collect))`, positioned
 /// inside `TraceLayer` and outside `resolve_tenant` - see this module's
 /// documentation for why that placement is the whole point.
-pub async fn collect(
-    State(profiler): State<Profiler>,
-    request: Request,
-    next: Next,
-) -> Response {
+pub async fn collect(State(profiler): State<Profiler>, request: Request, next: Next) -> Response {
     // Read before the request is consumed. All cheap: three small allocations
     // on a path that is about to touch a database.
     let method = request.method().to_string();

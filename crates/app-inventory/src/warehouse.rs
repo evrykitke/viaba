@@ -60,7 +60,10 @@ impl ReceiptSteps {
     }
 
     pub fn parse(raw: &str) -> Option<Self> {
-        Self::ALL.iter().copied().find(|steps| steps.as_str() == raw)
+        Self::ALL
+            .iter()
+            .copied()
+            .find(|steps| steps.as_str() == raw)
     }
 
     pub const fn count(self) -> u8 {
@@ -104,7 +107,10 @@ impl DeliverySteps {
     }
 
     pub fn parse(raw: &str) -> Option<Self> {
-        Self::ALL.iter().copied().find(|steps| steps.as_str() == raw)
+        Self::ALL
+            .iter()
+            .copied()
+            .find(|steps| steps.as_str() == raw)
     }
 
     pub const fn count(self) -> u8 {
@@ -347,7 +353,13 @@ mod tests {
                 ReceiptSteps::ThreeInputQualityStock,
                 DeliverySteps::ThreePickPackShip
             ),
-            vec!["Stock", "Input", "Quality Control", "Packing Zone", "Output"]
+            vec![
+                "Stock",
+                "Input",
+                "Quality Control",
+                "Packing Zone",
+                "Output"
+            ]
         );
     }
 

@@ -3,9 +3,7 @@
 //! Each bill carries its own currency, like the order it is against. Saving one
 //! replaces its lines, for the reason [`super::purchase`] gives.
 
-use app_inventory::bill::{
-    Bill, BillLine, BillState, BillSummary, CheckedBill, UnbilledReceipt,
-};
+use app_inventory::bill::{Bill, BillLine, BillState, BillSummary, CheckedBill, UnbilledReceipt};
 use app_inventory::purchase::SupplierSnapshot;
 use app_inventory::quantity::Quantity;
 use phonix_core::identity::UserId;
@@ -74,9 +72,14 @@ const WHERE: &str = "WHERE ($1::text IS NULL
             AND ($4::text IS NULL OR b.state = $4)";
 
 /// Returns a filtered, sorted page of bills.
-pub async fn page(pool: &sqlx::PgPool, request: &PageRequest) -> Result<Page<BillSummary>, DbError> {
+pub async fn page(
+    pool: &sqlx::PgPool,
+    request: &PageRequest,
+) -> Result<Page<BillSummary>, DbError> {
     let request = request.sanitised();
-    let needle = request.needle().map(|needle| crate::search::contains(&needle));
+    let needle = request
+        .needle()
+        .map(|needle| crate::search::contains(&needle));
     let state = request.filter(STATE).and_then(BillState::parse);
     let billed = request.range(BILLED);
 
@@ -159,7 +162,6 @@ pub async fn page(pool: &sqlx::PgPool, request: &PageRequest) -> Result<Page<Bil
     Ok(Page::new(summaries, total, &request))
 }
 
-
 pub async fn find<'e, E>(executor: E, id: Uuid) -> Result<Option<Bill>, DbError>
 where
     E: PgExecutor<'e> + Copy,
@@ -192,8 +194,7 @@ where
     Ok(Some(Bill {
         id,
         number: row.try_get("number").map_err(DbError::Query)?,
-        state: read_state(row.try_get("state").map_err(DbError::Query)?)
-            .map_err(DbError::Query)?,
+        state: read_state(row.try_get("state").map_err(DbError::Query)?).map_err(DbError::Query)?,
         order_id: row.try_get("order_id").map_err(DbError::Query)?,
         order_number: row.try_get("order_number").map_err(DbError::Query)?,
         supplier: SupplierSnapshot {
@@ -634,15 +635,13 @@ pub async fn record_journal(
     journal_id: Option<Uuid>,
     state: &str,
 ) -> Result<(), DbError> {
-    sqlx::query(
-        "UPDATE inventory.bills SET journal_id = $2, journal_state = $3 WHERE id = $1",
-    )
-    .bind(id)
-    .bind(journal_id)
-    .bind(state)
-    .execute(conn)
-    .await
-    .map_err(DbError::Query)?;
+    sqlx::query("UPDATE inventory.bills SET journal_id = $2, journal_state = $3 WHERE id = $1")
+        .bind(id)
+        .bind(journal_id)
+        .bind(state)
+        .execute(conn)
+        .await
+        .map_err(DbError::Query)?;
 
     Ok(())
 }

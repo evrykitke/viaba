@@ -236,10 +236,7 @@ pub async fn revoke(pool: &PgPool, caller: &Caller, id: Uuid, reason: &str) -> S
     let actor = acting_user(caller)?;
 
     let Some(record) = store::find_by_id(pool, id).await? else {
-        return Err(ServiceError::rejected(
-            "id",
-            msg!("error.api_key.gone"),
-        ));
+        return Err(ServiceError::rejected("id", msg!("error.api_key.gone")));
     };
 
     if !store::revoke(pool, id, reason, Some(actor)).await? {
@@ -566,7 +563,10 @@ mod tests {
             .expect_err("a misspelled permission is not a permission");
 
         assert_eq!(
-            rejection.errors().first().map(|err| err.message.key.as_str()),
+            rejection
+                .errors()
+                .first()
+                .map(|err| err.message.key.as_str()),
             Some("error.api_key.unknown_scope")
         );
     }

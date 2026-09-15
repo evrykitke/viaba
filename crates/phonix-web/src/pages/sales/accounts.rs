@@ -76,10 +76,8 @@ pub fn accounts_page() -> impl IntoView {
 pub fn account_new_page() -> impl IntoView {
     let query = leptos_router::hooks::use_query_map();
 
-    let opening_type = move || {
-        query
-            .with(|query| query.get("type").and_then(|raw| AccountType::parse(&raw)))
-    };
+    let opening_type =
+        move || query.with(|query| query.get("type").and_then(|raw| AccountType::parse(&raw)));
 
     // The chart, for the number suggestion. A failed fetch costs the suggestion
     // and not the form: somebody who knows the number they want should not be

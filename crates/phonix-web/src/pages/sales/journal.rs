@@ -230,8 +230,13 @@ fn line_row(line: PostedLine) -> impl IntoView {
 
     // Shown only where it differs. A rate of one on every line of a
     // single-currency ledger is a column of noise.
-    let foreign = (line.amount.currency() != line.base_amount.currency())
-        .then(|| format!("{} @ {}", line.amount.to_display_string(), line.exchange_rate));
+    let foreign = (line.amount.currency() != line.base_amount.currency()).then(|| {
+        format!(
+            "{} @ {}",
+            line.amount.to_display_string(),
+            line.exchange_rate
+        )
+    });
 
     view! {
         <tr class="border-b border-edge last:border-b-0">

@@ -62,17 +62,21 @@ pub fn journals_grid() -> GridConfig<JournalSummary> {
         .class("font-mono tabular-nums"),
     )
     .column(
-        Column::new("entry_date", l!("journals.entry_date"), |row: &JournalSummary| {
-            Cell::text(row.entry_date.to_string())
-        })
+        Column::new(
+            "entry_date",
+            l!("journals.entry_date"),
+            |row: &JournalSummary| Cell::text(row.entry_date.to_string()),
+        )
         .sortable()
         .essential()
         .class("tabular-nums"),
     )
     .column(
-        Column::new("narration", l!("journals.narration"), |row: &JournalSummary| {
-            Cell::text(&row.narration)
-        })
+        Column::new(
+            "narration",
+            l!("journals.narration"),
+            |row: &JournalSummary| Cell::text(&row.narration),
+        )
         .searchable()
         .essential()
         .render(|row| narration_cell(row).into_any()),
@@ -105,9 +109,11 @@ pub fn journals_grid() -> GridConfig<JournalSummary> {
         }),
     )
     .column(
-        Column::new("line_count", l!("journals.lines"), |row: &JournalSummary| {
-            Cell::number(row.line_count as f64)
-        })
+        Column::new(
+            "line_count",
+            l!("journals.lines"),
+            |row: &JournalSummary| Cell::number(row.line_count as f64),
+        )
         .sortable()
         .align(Align::End)
         .class("tabular-nums text-content-muted"),
@@ -132,9 +138,11 @@ pub fn journals_grid() -> GridConfig<JournalSummary> {
             .primary(),
     )
     .action(
-        RowAction::link(l!("common.open"), Icon::ArrowRight, |row: &JournalSummary| {
-            format!("/sales/journals/{}", row.id)
-        })
+        RowAction::link(
+            l!("common.open"),
+            Icon::ArrowRight,
+            |row: &JournalSummary| format!("/sales/journals/{}", row.id),
+        )
         .require(permissions::JOURNALS),
     )
 }

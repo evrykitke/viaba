@@ -38,9 +38,9 @@ use super::date_picker::DateRangePicker;
 use super::filter::FilterChoice;
 use super::state::GridState;
 use crate::icons::{Icon, IconSize};
+use crate::l;
 use crate::ui::form::field::Choice;
 use crate::ui::lookup::SelectField;
-use crate::l;
 
 /// One filter, as the bar needs to know it.
 ///

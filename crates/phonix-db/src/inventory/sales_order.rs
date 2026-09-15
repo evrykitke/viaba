@@ -122,9 +122,14 @@ fn progress_names(wanted: Option<&str>) -> Option<Vec<String>> {
 ///
 /// Two statements, a count and a select, so the page can be pulled back to one
 /// that exists before the rows are fetched.
-pub async fn page(pool: &sqlx::PgPool, request: &PageRequest) -> Result<Page<SaleSummary>, DbError> {
+pub async fn page(
+    pool: &sqlx::PgPool,
+    request: &PageRequest,
+) -> Result<Page<SaleSummary>, DbError> {
     let request = request.sanitised();
-    let needle = request.needle().map(|needle| crate::search::contains(&needle));
+    let needle = request
+        .needle()
+        .map(|needle| crate::search::contains(&needle));
     let ordered = request.range(ORDERED);
 
     let delivery = progress_of("delivered");
@@ -610,12 +615,11 @@ pub async fn advance_invoiced(
 /// Remove a draft. A quotation that has been sent is cancelled, never deleted:
 /// somebody outside has a copy of it and its number.
 pub async fn delete(conn: &mut PgConnection, id: Uuid) -> Result<bool, DbError> {
-    let done =
-        sqlx::query("DELETE FROM inventory.sales_orders WHERE id = $1 AND state = 'draft'")
-            .bind(id)
-            .execute(conn)
-            .await
-            .map_err(DbError::Query)?;
+    let done = sqlx::query("DELETE FROM inventory.sales_orders WHERE id = $1 AND state = 'draft'")
+        .bind(id)
+        .execute(conn)
+        .await
+        .map_err(DbError::Query)?;
 
     Ok(done.rows_affected() == 1)
 }

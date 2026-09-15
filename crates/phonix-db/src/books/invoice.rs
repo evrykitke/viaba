@@ -151,7 +151,9 @@ pub async fn page(
     request: &PageRequest,
 ) -> Result<Page<InvoiceSummary>, DbError> {
     let request = request.sanitised();
-    let needle = request.needle().map(|needle| crate::search::contains(&needle));
+    let needle = request
+        .needle()
+        .map(|needle| crate::search::contains(&needle));
     let issued = request.range(ISSUED);
 
     let from_day = issued.first_day();
@@ -160,9 +162,9 @@ pub async fn page(
     // A value this build does not know narrows nothing rather than matching
     // nothing: a browser running a newer screen should not turn a list into an
     // empty one.
-    let status = request.filter(STATUS).filter(|value| {
-        *value == OVERDUE || InvoiceStatus::parse(value).is_some()
-    });
+    let status = request
+        .filter(STATUS)
+        .filter(|value| *value == OVERDUE || InvoiceStatus::parse(value).is_some());
 
     // `AssertSqlSafe` because these statements are composed rather than
     // written: `WHERE` is a constant and `order` can only be a string this file
@@ -185,11 +187,7 @@ pub async fn page(
     // Newest first, and `created_at` after it whatever the sort: two invoices
     // issued on the same day would otherwise swap places between one page and
     // the next, which shows up as a row that appears twice.
-    let order = listing::order_by(
-        request.sort.as_ref(),
-        SORTABLE,
-        "i.issued_on DESC",
-    );
+    let order = listing::order_by(request.sort.as_ref(), SORTABLE, "i.issued_on DESC");
 
     let selecting = AssertSqlSafe(format!(
         "SELECT i.id, i.number, i.status, i.party_id, i.party_name,

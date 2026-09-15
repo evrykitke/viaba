@@ -205,9 +205,7 @@ const SORTABLE: &[(&str, &str)] = &[
 /// stale value from an older build of the screen - narrows nothing.
 pub async fn page(pool: &PgPool, request: &PageRequest) -> Result<Page<ApiKeyListing>, DbError> {
     let request = request.sanitised();
-    let needle = request
-        .needle()
-        .map(|needle| search::contains(&needle));
+    let needle = request.needle().map(|needle| search::contains(&needle));
 
     let live = match request.filter("revoked") {
         Some("live") => Some(true),
@@ -346,4 +344,3 @@ where
 
     Ok(result.rows_affected())
 }
-

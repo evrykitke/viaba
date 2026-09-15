@@ -20,14 +20,14 @@ use leptos::prelude::*;
 use phonix_core::numbering::{NumberSeries, ResetPeriod, SeriesSaved, SeriesSettings};
 
 use crate::components::page::{GhostButton, Notice, Panel, PrimaryButton, Tone};
-use crate::ui::card::CollapsibleCard;
 use crate::icons::Icon;
 use crate::l;
 use crate::server_fns::numbering_fns::{preview_number_format, save_number_series};
 use crate::ui::alert::{Alert, Alerts};
-use crate::ui::table::DataGrid;
+use crate::ui::card::CollapsibleCard;
 use crate::ui::form::field::Choice;
 use crate::ui::lookup::SelectField;
+use crate::ui::table::DataGrid;
 use crate::ui::table::config::numbering::number_series_grid;
 
 /// How often a series starts counting again.

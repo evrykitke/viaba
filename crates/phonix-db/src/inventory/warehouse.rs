@@ -9,8 +9,7 @@
 //! taken, and still leave no warehouse.
 
 use app_inventory::warehouse::{
-    DeliverySteps, ReceiptSteps, Warehouse, WarehouseInput, WarehouseSummary,
-    required_sublocations,
+    DeliverySteps, ReceiptSteps, Warehouse, WarehouseInput, WarehouseSummary, required_sublocations,
 };
 use phonix_core::identity::UserId;
 use sqlx::{FromRow, PgConnection, PgExecutor, Row};
@@ -317,10 +316,7 @@ pub async fn ensure_sublocations(
 /// Falls back to the stock location where `Input` is missing - a warehouse
 /// switched from one step to two before its locations were provisioned should
 /// still be able to receive, and receiving onto the shelf is the lesser wrong.
-pub async fn receiving_location<'e, E>(
-    executor: E,
-    warehouse: &Warehouse,
-) -> Result<Uuid, DbError>
+pub async fn receiving_location<'e, E>(executor: E, warehouse: &Warehouse) -> Result<Uuid, DbError>
 where
     E: PgExecutor<'e>,
 {
@@ -353,10 +349,7 @@ where
 ///
 /// Falls back to the stock location where `Output` is missing, on the same
 /// terms and for the same reason.
-pub async fn despatch_location<'e, E>(
-    executor: E,
-    warehouse: &Warehouse,
-) -> Result<Uuid, DbError>
+pub async fn despatch_location<'e, E>(executor: E, warehouse: &Warehouse) -> Result<Uuid, DbError>
 where
     E: PgExecutor<'e>,
 {

@@ -419,7 +419,9 @@ pub async fn save_variant(
     caller.require(permissions::ITEMS_EDIT)?;
     acting_user(caller)?;
 
-    let barcode = barcode.map(|raw| raw.trim().to_owned()).filter(|raw| !raw.is_empty());
+    let barcode = barcode
+        .map(|raw| raw.trim().to_owned())
+        .filter(|raw| !raw.is_empty());
 
     match variants::update(
         pool,
@@ -542,10 +544,7 @@ pub async fn account_overrides(
 /// A ledger that cannot answer counts as mapped. Not knowing is not evidence
 /// that a role has no account, and a warning shown wrongly teaches people to
 /// ignore the ones shown rightly.
-pub async fn mapped_roles(
-    caller: &Caller,
-    ledger: &dyn Ledger,
-) -> ServiceResult<Vec<AccountRole>> {
+pub async fn mapped_roles(caller: &Caller, ledger: &dyn Ledger) -> ServiceResult<Vec<AccountRole>> {
     caller.require(permissions::ITEMS)?;
 
     let mut mapped = Vec::new();
@@ -661,14 +660,19 @@ async fn has_stock(pool: &PgPool, item_id: Uuid) -> ServiceResult<bool> {
 
 /// The purchase unit has to measure the same thing as the stock unit, or a
 /// receipt in cases could not be converted into a number of eaches.
-async fn check_units(pool: &PgPool, checked: &app_inventory::item::Checked) -> ServiceResult<Result<(), ItemError>> {
+async fn check_units(
+    pool: &PgPool,
+    checked: &app_inventory::item::Checked,
+) -> ServiceResult<Result<(), ItemError>> {
     if checked.purchase_unit_id == checked.stock_unit_id {
         return Ok(Ok(()));
     }
 
     let units = phonix_db::inventory::unit::list(pool).await?;
     let stock = units.iter().find(|unit| unit.id == checked.stock_unit_id);
-    let purchase = units.iter().find(|unit| unit.id == checked.purchase_unit_id);
+    let purchase = units
+        .iter()
+        .find(|unit| unit.id == checked.purchase_unit_id);
 
     match (stock, purchase) {
         (Some(stock), Some(purchase)) if stock.class == purchase.class => Ok(Ok(())),

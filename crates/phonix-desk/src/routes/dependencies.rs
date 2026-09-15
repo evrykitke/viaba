@@ -166,7 +166,10 @@ mod tests {
         .render()
         .expect("renders");
 
-        assert!(rendered.contains("connection refused"), "the row's own reason");
+        assert!(
+            rendered.contains("connection refused"),
+            "the row's own reason"
+        );
         assert!(rendered.contains("127.0.0.1:6379"), "and which one it was");
         assert!(rendered.contains("unreachable"), "and the word for it");
         // The banner above the table, which counts rather than explains.

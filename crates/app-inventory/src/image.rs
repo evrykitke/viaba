@@ -219,7 +219,11 @@ mod tests {
 
     #[test]
     fn pictures_come_out_in_the_order_somebody_arranged_them() {
-        let gallery = Gallery::new(vec![image(1, None, 2), image(2, None, 0), image(3, None, 1)]);
+        let gallery = Gallery::new(vec![
+            image(1, None, 2),
+            image(2, None, 0),
+            image(3, None, 1),
+        ]);
 
         let order: Vec<Uuid> = gallery.for_item().iter().map(|image| image.id).collect();
         assert_eq!(order, vec![id(2), id(3), id(1)]);

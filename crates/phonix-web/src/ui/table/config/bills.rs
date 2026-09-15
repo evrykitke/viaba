@@ -38,9 +38,11 @@ pub fn bills_grid() -> GridConfig<BillSummary> {
             .render(|row| number_cell(row).into_any()),
         )
         .column(
-            Column::new("supplier", l!("purchase_orders.supplier"), |row: &BillSummary| {
-                Cell::text(&row.supplier_name)
-            })
+            Column::new(
+                "supplier",
+                l!("purchase_orders.supplier"),
+                |row: &BillSummary| Cell::text(&row.supplier_name),
+            )
             .searchable()
             .sortable()
             .essential(),
@@ -113,18 +115,16 @@ pub fn bills_grid() -> GridConfig<BillSummary> {
             .align(Align::End)
             .class("tabular-nums text-content-muted"),
         )
-        .filter(
-            Filter::new(
-                "state",
-                l!("field.status"),
-                vec![
-                    FilterChoice::all(l!("common.all")),
-                    FilterChoice::new("draft", l!("bills.state.draft")),
-                    FilterChoice::new("posted", l!("bills.state.posted")),
-                    FilterChoice::new("cancelled", l!("bills.state.cancelled")),
-                ],
-            ),
-        )
+        .filter(Filter::new(
+            "state",
+            l!("field.status"),
+            vec![
+                FilterChoice::all(l!("common.all")),
+                FilterChoice::new("draft", l!("bills.state.draft")),
+                FilterChoice::new("posted", l!("bills.state.posted")),
+                FilterChoice::new("cancelled", l!("bills.state.cancelled")),
+            ],
+        ))
         .date_filter(DateFilter::new("billed", l!("bills.dated")))
         .toolbar(
             ToolbarAction::link(l!("common.add"), Icon::Plus, "/inventory/bills/new")
@@ -216,7 +216,16 @@ mod tests {
     }
 
     /// Mirrors the database sort fields without adding a crate dependency.
-    const SERVER_SORTS: &[&str] = &["number", "supplier", "reference", "bill_date", "due_on", "order", "net", "variance"];
+    const SERVER_SORTS: &[&str] = &[
+        "number",
+        "supplier",
+        "reference",
+        "bill_date",
+        "due_on",
+        "order",
+        "net",
+        "variance",
+    ];
 
     /// Mirrors the database search fields.
     const SERVER_SEARCHES: &[&str] = &["number", "supplier", "reference", "order"];

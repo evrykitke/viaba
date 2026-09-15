@@ -35,9 +35,7 @@ use phonix_core::i18n::Message;
 use phonix_core::locale::Currency;
 use phonix_core::money::WorkspaceCurrency;
 
-use crate::components::page::{
-    Badge, FormActions, Notice, PageHeader, Panel, PrimaryButton, Tone,
-};
+use crate::components::page::{Badge, FormActions, Notice, PageHeader, Panel, PrimaryButton, Tone};
 use crate::i18n::t;
 use crate::icons::Icon;
 use crate::l;
@@ -311,9 +309,11 @@ fn payment_form(stored: RwSignal<Option<Payment>>) -> FormConfig<Payment> {
         Ok::<_, String>(phonix_core::form::Submission::Saved(draft))
     })
     .field(
-        Field::text("reference", l!("ui_library.lookup.form.reference"), |p: &Payment| {
-            FieldValue::text(&p.reference)
-        })
+        Field::text(
+            "reference",
+            l!("ui_library.lookup.form.reference"),
+            |p: &Payment| FieldValue::text(&p.reference),
+        )
         .writing(|p, value| p.reference = value.as_input()),
     )
     .field(
@@ -323,8 +323,7 @@ fn payment_form(stored: RwSignal<Option<Payment>>) -> FormConfig<Payment> {
             Choices::table(|answer: Callback<Choice>| {
                 let config = currencies_picker(Callback::new(move |row: WorkspaceCurrency| {
                     answer.run(
-                        Choice::new(row.currency.code(), row.currency.name())
-                            .detail(row.display()),
+                        Choice::new(row.currency.code(), row.currency.name()).detail(row.display()),
                     );
                 }));
 
@@ -447,12 +446,13 @@ fn add_currency(answer: Callback<Choice>) -> impl IntoView {
                     // what was typed: the service knows the currency's real
                     // name, and echoing the input back would put "usd" in a
                     // field that should read "US Dollar".
-                    let stored = list.iter().find(|row| row.currency.code() == typed).map(
-                        |row| {
+                    let stored = list
+                        .iter()
+                        .find(|row| row.currency.code() == typed)
+                        .map(|row| {
                             Choice::new(row.currency.code(), row.currency.name())
                                 .detail(row.display())
-                        },
-                    );
+                        });
 
                     match stored {
                         Some(choice) => answer.run(choice),

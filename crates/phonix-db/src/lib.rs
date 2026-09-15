@@ -84,7 +84,6 @@ pub mod attachment;
 pub mod audit;
 pub mod authorization;
 pub mod books;
-pub mod inventory;
 pub mod connect;
 pub mod currency;
 /// Phonix Desk's own tables. Catalog-only - see `docs/adr/0005-phonix-desk.md`.
@@ -93,6 +92,7 @@ pub mod error;
 pub mod files;
 pub mod hr;
 pub mod identity;
+pub mod inventory;
 pub mod listing;
 pub mod mail;
 pub mod master;

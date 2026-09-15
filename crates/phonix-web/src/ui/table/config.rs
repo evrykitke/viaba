@@ -37,7 +37,9 @@ pub mod accounts;
 pub mod adjustment_types;
 pub mod api_keys;
 pub mod audit;
+pub mod bills;
 pub mod changes;
+pub mod consolidations;
 pub mod currencies;
 pub mod deliveries;
 pub mod departments;
@@ -46,18 +48,16 @@ pub mod invoices;
 pub mod item_categories;
 pub mod items;
 pub mod job_positions;
-pub mod landed_costs;
 pub mod journals;
+pub mod landed_costs;
 pub mod numbering;
 pub mod parties;
 pub mod payments;
-pub mod bills;
-pub mod consolidations;
-pub mod requisitions;
-pub mod sales_orders;
 pub mod purchase_orders;
 pub mod receipts;
+pub mod requisitions;
 pub mod roles;
+pub mod sales_orders;
 pub mod stock;
 pub mod stock_locations;
 pub mod stock_moves;
@@ -286,8 +286,7 @@ impl<T: 'static> GridConfig<T> {
             action.label,
         );
         debug_assert!(
-            !action.opens_on_row_click()
-                || !self.actions.iter().any(RowAction::opens_on_row_click),
+            !action.opens_on_row_click() || !self.actions.iter().any(RowAction::opens_on_row_click),
             "`{}` is the second action on this grid to claim the row click, and a click \
              can only do one thing",
             action.label,

@@ -312,8 +312,18 @@ mod tests {
     fn a_workspace_is_counted_once_under_its_status() {
         let now = at(2026, 9, 3);
         let tenants = vec![
-            workspace(TenantStatus::Active, at(2026, 1, 1), Some("v1"), Some(licence(LicenceState::Licensed, None))),
-            workspace(TenantStatus::Suspended, at(2026, 1, 1), Some("v1"), Some(licence(LicenceState::Licensed, None))),
+            workspace(
+                TenantStatus::Active,
+                at(2026, 1, 1),
+                Some("v1"),
+                Some(licence(LicenceState::Licensed, None)),
+            ),
+            workspace(
+                TenantStatus::Suspended,
+                at(2026, 1, 1),
+                Some("v1"),
+                Some(licence(LicenceState::Licensed, None)),
+            ),
             workspace(TenantStatus::Provisioning, at(2026, 1, 1), None, None),
         ];
 
@@ -336,7 +346,12 @@ mod tests {
         let now = at(2026, 9, 3);
         let tenants = vec![
             workspace(TenantStatus::Provisioning, at(2026, 1, 1), None, None),
-            workspace(TenantStatus::Active, at(2026, 1, 1), Some("old"), Some(licence(LicenceState::Licensed, None))),
+            workspace(
+                TenantStatus::Active,
+                at(2026, 1, 1),
+                Some("old"),
+                Some(licence(LicenceState::Licensed, None)),
+            ),
         ];
 
         assert_eq!(tally(&tenants, "v1", now).outdated, 1);
@@ -350,11 +365,26 @@ mod tests {
         let now = at(2026, 9, 3);
         let tenants = vec![
             // Ended last month.
-            workspace(TenantStatus::Active, at(2026, 1, 1), Some("v1"), Some(licence(LicenceState::Licensed, Some(at(2026, 8, 1))))),
+            workspace(
+                TenantStatus::Active,
+                at(2026, 1, 1),
+                Some("v1"),
+                Some(licence(LicenceState::Licensed, Some(at(2026, 8, 1)))),
+            ),
             // Ends in a fortnight.
-            workspace(TenantStatus::Active, at(2026, 1, 1), Some("v1"), Some(licence(LicenceState::Licensed, Some(at(2026, 9, 17))))),
+            workspace(
+                TenantStatus::Active,
+                at(2026, 1, 1),
+                Some("v1"),
+                Some(licence(LicenceState::Licensed, Some(at(2026, 9, 17)))),
+            ),
             // No end at all.
-            workspace(TenantStatus::Active, at(2026, 1, 1), Some("v1"), Some(licence(LicenceState::Licensed, None))),
+            workspace(
+                TenantStatus::Active,
+                at(2026, 1, 1),
+                Some("v1"),
+                Some(licence(LicenceState::Licensed, None)),
+            ),
         ];
 
         let tally = tally(&tenants, "v1", now);
@@ -381,8 +411,19 @@ mod tests {
         assert_eq!(series.first().unwrap().start, on(2025, 10, 1));
         assert_eq!(series.last().unwrap().start, on(2026, 9, 1));
         assert_eq!(series.last().unwrap().value, 2);
-        assert_eq!(series.iter().find(|b| b.start == on(2026, 7, 1)).unwrap().value, 1);
-        assert_eq!(series.iter().map(|b| b.value).sum::<i64>(), 3, "the 2024 one is outside");
+        assert_eq!(
+            series
+                .iter()
+                .find(|b| b.start == on(2026, 7, 1))
+                .unwrap()
+                .value,
+            1
+        );
+        assert_eq!(
+            series.iter().map(|b| b.value).sum::<i64>(),
+            3,
+            "the 2024 one is outside"
+        );
     }
 
     /// A licence ending beyond the window is left out rather than heaped onto
@@ -392,14 +433,39 @@ mod tests {
     fn the_runway_holds_only_current_licences_that_end_inside_the_window() {
         let now = at(2026, 9, 3);
         let tenants = vec![
-            workspace(TenantStatus::Active, at(2026, 1, 1), Some("v1"), Some(licence(LicenceState::Licensed, Some(at(2026, 9, 20))))),
-            workspace(TenantStatus::Active, at(2026, 1, 1), Some("v1"), Some(licence(LicenceState::Licensed, Some(at(2026, 11, 2))))),
+            workspace(
+                TenantStatus::Active,
+                at(2026, 1, 1),
+                Some("v1"),
+                Some(licence(LicenceState::Licensed, Some(at(2026, 9, 20)))),
+            ),
+            workspace(
+                TenantStatus::Active,
+                at(2026, 1, 1),
+                Some("v1"),
+                Some(licence(LicenceState::Licensed, Some(at(2026, 11, 2)))),
+            ),
             // Beyond six months.
-            workspace(TenantStatus::Active, at(2026, 1, 1), Some("v1"), Some(licence(LicenceState::Licensed, Some(at(2028, 1, 1))))),
+            workspace(
+                TenantStatus::Active,
+                at(2026, 1, 1),
+                Some("v1"),
+                Some(licence(LicenceState::Licensed, Some(at(2028, 1, 1)))),
+            ),
             // No end date: perpetual, so in no bar.
-            workspace(TenantStatus::Active, at(2026, 1, 1), Some("v1"), Some(licence(LicenceState::Licensed, None))),
+            workspace(
+                TenantStatus::Active,
+                at(2026, 1, 1),
+                Some("v1"),
+                Some(licence(LicenceState::Licensed, None)),
+            ),
             // Already lapsed: not current, so in no bar either.
-            workspace(TenantStatus::Active, at(2026, 1, 1), Some("v1"), Some(licence(LicenceState::Licensed, Some(at(2026, 1, 1))))),
+            workspace(
+                TenantStatus::Active,
+                at(2026, 1, 1),
+                Some("v1"),
+                Some(licence(LicenceState::Licensed, Some(at(2026, 1, 1)))),
+            ),
         ];
 
         let series = licence_runway(&tenants, now);
@@ -407,7 +473,14 @@ mod tests {
         assert_eq!(series.len(), RUNWAY_MONTHS as usize);
         assert_eq!(series.first().unwrap().start, on(2026, 9, 1));
         assert_eq!(series.first().unwrap().value, 1);
-        assert_eq!(series.iter().find(|b| b.start == on(2026, 11, 1)).unwrap().value, 1);
+        assert_eq!(
+            series
+                .iter()
+                .find(|b| b.start == on(2026, 11, 1))
+                .unwrap()
+                .value,
+            1
+        );
         assert_eq!(series.iter().map(|b| b.value).sum::<i64>(), 2);
     }
 
@@ -417,8 +490,14 @@ mod tests {
     fn a_quiet_day_becomes_a_zero_and_does_not_shift_the_series() {
         let now = at(2026, 9, 3);
         let daily = vec![
-            audit::DailyCount { day: on(2026, 9, 3), entries: 7 },
-            audit::DailyCount { day: on(2026, 9, 1), entries: 2 },
+            audit::DailyCount {
+                day: on(2026, 9, 3),
+                entries: 7,
+            },
+            audit::DailyCount {
+                day: on(2026, 9, 1),
+                entries: 2,
+            },
         ];
 
         let series = activity_by_day(&daily, now);

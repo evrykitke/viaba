@@ -14,7 +14,9 @@ use crate::components::page::{Badge, Tone};
 use crate::icons::Icon;
 use crate::l;
 use crate::server_fns::hr_fns::list_work_locations;
-use crate::ui::table::{Align, Cell, Column, Filter, FilterChoice, RowAction, Source, ToolbarAction};
+use crate::ui::table::{
+    Align, Cell, Column, Filter, FilterChoice, RowAction, Source, ToolbarAction,
+};
 
 pub fn work_locations_grid() -> GridConfig<WorkLocationSummary> {
     GridConfig::new("work_locations", Source::in_memory(list_work_locations))

@@ -407,10 +407,7 @@ where
 }
 
 /// Who somebody reports to right now, for the cycle walk.
-pub async fn current_manager<'e, E>(
-    executor: E,
-    employee_id: Uuid,
-) -> Result<Option<Uuid>, DbError>
+pub async fn current_manager<'e, E>(executor: E, employee_id: Uuid) -> Result<Option<Uuid>, DbError>
 where
     E: PgExecutor<'e>,
 {
@@ -650,13 +647,11 @@ pub async fn direct_reports<'e, E>(executor: E, employee_id: Uuid) -> Result<i64
 where
     E: PgExecutor<'e>,
 {
-    sqlx::query_scalar(
-        "SELECT count(*) FROM hr.current_staff WHERE manager_id = $1",
-    )
-    .bind(employee_id)
-    .fetch_one(executor)
-    .await
-    .map_err(DbError::Query)
+    sqlx::query_scalar("SELECT count(*) FROM hr.current_staff WHERE manager_id = $1")
+        .bind(employee_id)
+        .fetch_one(executor)
+        .await
+        .map_err(DbError::Query)
 }
 
 pub async fn delete(conn: &mut PgConnection, id: Uuid) -> Result<bool, DbError> {

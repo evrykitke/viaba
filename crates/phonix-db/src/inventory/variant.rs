@@ -134,7 +134,10 @@ where
         let attribute_id: Uuid = row.try_get("attribute_id").map_err(DbError::Query)?;
         let value_id: Uuid = row.try_get("value_id").map_err(DbError::Query)?;
 
-        match lines.iter_mut().find(|line| line.attribute_id == attribute_id) {
+        match lines
+            .iter_mut()
+            .find(|line| line.attribute_id == attribute_id)
+        {
             Some(line) => line.value_ids.push(value_id),
             None => lines.push(SelectionLine {
                 attribute_id,

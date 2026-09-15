@@ -236,7 +236,10 @@ struct LocationRename {
 }
 
 impl LocationRename {
-    async fn apply(&self, tx: &mut phonix_db::sqlx::Transaction<'_, phonix_db::sqlx::Postgres>) -> ServiceResult<()> {
+    async fn apply(
+        &self,
+        tx: &mut phonix_db::sqlx::Transaction<'_, phonix_db::sqlx::Postgres>,
+    ) -> ServiceResult<()> {
         let Some(location) = locations::find(&mut **tx, self.id).await? else {
             return Ok(());
         };

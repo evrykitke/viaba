@@ -20,7 +20,7 @@
 //! setting somebody can change rather than anything the caller did wrong.
 
 use app_books::account::AccountType;
-use app_books::journal::{DimensionValue, Dimension, JournalEntry, JournalLineInput, Source};
+use app_books::journal::{Dimension, DimensionValue, JournalEntry, JournalLineInput, Source};
 use phonix_core::locale::Currency;
 use phonix_core::money::{Money, Rounding};
 use phonix_db::books::account_role as roles;

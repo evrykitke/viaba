@@ -96,10 +96,7 @@ pub(super) fn fit(field: Rect, viewport: Size, wanted: f64) -> At {
 
     // Left-aligned with the field until that would push it off the right edge,
     // at which point it slides back rather than growing off-screen.
-    let left = field
-        .left
-        .min(viewport.width - width - GAP)
-        .max(GAP);
+    let left = field.left.min(viewport.width - width - GAP).max(GAP);
 
     // Downwards is the default because that is where a reader's eye already
     // is. Upwards when below cannot give a panel the room it wants *and* above

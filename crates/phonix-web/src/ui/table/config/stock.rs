@@ -37,7 +37,11 @@ pub fn stock_grid() -> GridConfig<OnHandRow> {
     .exports_as("stock-on-hand")
     .sorted_by(Sort::ascending("item"))
     .min_width("sm:min-w-[56rem]")
-    .empty(Icon::Boxes, l!("stock.empty.title"), l!("stock.empty.detail"))
+    .empty(
+        Icon::Boxes,
+        l!("stock.empty.title"),
+        l!("stock.empty.detail"),
+    )
     .column(
         Column::new("item", l!("entity.item.singular"), |row: &OnHandRow| {
             Cell::text(&row.item_name)
@@ -80,11 +84,7 @@ pub fn stock_grid() -> GridConfig<OnHandRow> {
         .essential()
         .align(Align::End)
         .render(|row| {
-            let text = format!(
-                "{} {}",
-                row.quantity.to_display_string(),
-                row.unit_code
-            );
+            let text = format!("{} {}", row.quantity.to_display_string(), row.unit_code);
             view! { <span class="tabular-nums">{text}</span> }.into_any()
         }),
     )
@@ -120,17 +120,15 @@ pub fn stock_grid() -> GridConfig<OnHandRow> {
             view! { <span class="tabular-nums">{text}</span> }.into_any()
         }),
     )
-    .filter(
-        Filter::new(
-            "held",
-            l!("stock.held"),
-            vec![
-                FilterChoice::all(l!("common.all")),
-                FilterChoice::new("reserved", l!("stock.only_reserved")),
-                FilterChoice::new("free", l!("stock.only_free")),
-            ],
-        )
-    )
+    .filter(Filter::new(
+        "held",
+        l!("stock.held"),
+        vec![
+            FilterChoice::all(l!("common.all")),
+            FilterChoice::new("reserved", l!("stock.only_reserved")),
+            FilterChoice::new("free", l!("stock.only_free")),
+        ],
+    ))
     .toolbar(
         ToolbarAction::link(l!("stock.moves"), Icon::ArrowRight, "/inventory/moves")
             .require(permissions::STOCK),

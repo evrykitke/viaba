@@ -287,9 +287,7 @@ pub async fn page(pool: &sqlx::PgPool, request: &PageRequest) -> Result<Page<Acc
     // `$3` is the postable predicate, which is an expression rather than a
     // column and so cannot be compared in the `WHERE` constant.
     let postable_clause = format!("AND ($3::bool IS NULL OR {} = $3)", postable_sql());
-    let counting = AssertSqlSafe(format!(
-        "SELECT count(*) {FROM} {WHERE} {postable_clause}"
-    ));
+    let counting = AssertSqlSafe(format!("SELECT count(*) {FROM} {WHERE} {postable_clause}"));
 
     let total: i64 = sqlx::query_scalar(counting)
         .bind(account_type)

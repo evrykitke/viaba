@@ -190,7 +190,9 @@ pub async fn page(
     request: &PageRequest,
 ) -> Result<Page<JournalSummary>, DbError> {
     let request = request.sanitised();
-    let needle = request.needle().map(|needle| crate::search::contains(&needle));
+    let needle = request
+        .needle()
+        .map(|needle| crate::search::contains(&needle));
     let entered = request.range(ENTRY);
 
     let from_day = entered.first_day();
@@ -230,11 +232,7 @@ pub async fn page(
     // Newest first, and the number after it whatever the sort: two journals
     // posted on the same day would otherwise swap places between one page and
     // the next, which shows up as a row that appears twice.
-    let order = listing::order_by(
-        request.sort.as_ref(),
-        SORTABLE,
-        "j.entry_date DESC",
-    );
+    let order = listing::order_by(request.sort.as_ref(), SORTABLE, "j.entry_date DESC");
 
     let selecting = AssertSqlSafe(format!(
         "SELECT j.id, j.number, j.entry_date, j.narration,
@@ -343,7 +341,10 @@ where
 /// The newest first, and one row. A document posts one journal; a document that
 /// somehow posted two has a bug, and returning the later of them is the right
 /// answer for the screen while it is being found.
-pub async fn of_document<'e, E>(executor: E, doc_id: Uuid) -> Result<Option<(Uuid, String)>, DbError>
+pub async fn of_document<'e, E>(
+    executor: E,
+    doc_id: Uuid,
+) -> Result<Option<(Uuid, String)>, DbError>
 where
     E: PgExecutor<'e>,
 {
@@ -425,7 +426,9 @@ where
         .map(|row| {
             let stored: String = row.try_get("dimension").map_err(DbError::Query)?;
             let dimension = Dimension::parse(&stored).ok_or_else(|| {
-                DbError::CorruptRow(format!("unrecognised dimension '{stored}' on a journal line"))
+                DbError::CorruptRow(format!(
+                    "unrecognised dimension '{stored}' on a journal line"
+                ))
             })?;
 
             Ok(DimensionValue {
@@ -445,7 +448,9 @@ fn read_line(
 ) -> Result<PostedLine, DbError> {
     let stored_side: String = row.try_get("side").map_err(DbError::Query)?;
     let side = Side::parse(&stored_side).ok_or_else(|| {
-        DbError::CorruptRow(format!("unrecognised side '{stored_side}' on a journal line"))
+        DbError::CorruptRow(format!(
+            "unrecognised side '{stored_side}' on a journal line"
+        ))
     })?;
 
     let currency = currency_of(row, "currency_code")?;
@@ -497,7 +502,11 @@ fn currency_of(row: &sqlx::postgres::PgRow, column: &str) -> Result<Currency, Db
 }
 
 /// An amount column, read back as text so no digit is lost in the driver.
-fn money_of(row: &sqlx::postgres::PgRow, column: &str, currency: Currency) -> Result<Money, DbError> {
+fn money_of(
+    row: &sqlx::postgres::PgRow,
+    column: &str,
+    currency: Currency,
+) -> Result<Money, DbError> {
     let digits: String = row.try_get(column).map_err(DbError::Query)?;
 
     Money::parse(currency, &digits)

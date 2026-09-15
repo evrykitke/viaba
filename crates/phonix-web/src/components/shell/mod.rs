@@ -148,9 +148,9 @@ impl Shell {
         Effect::new(move |_| {
             let trail = shell.trail.get();
 
-            let stale = shell.overrides.with_untracked(|map| {
-                map.iter().any(|(key, open)| !*open && trail.contains(key))
-            });
+            let stale = shell
+                .overrides
+                .with_untracked(|map| map.iter().any(|(key, open)| !*open && trail.contains(key)));
 
             if stale {
                 shell

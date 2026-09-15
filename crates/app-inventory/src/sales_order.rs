@@ -92,7 +92,10 @@ impl SaleState {
     }
 
     pub fn parse(raw: &str) -> Option<Self> {
-        Self::ALL.iter().copied().find(|state| state.as_str() == raw)
+        Self::ALL
+            .iter()
+            .copied()
+            .find(|state| state.as_str() == raw)
     }
 
     /// Whether the lines may still be changed.
@@ -177,7 +180,10 @@ impl Progress {
     }
 
     pub fn parse(raw: &str) -> Option<Self> {
-        Self::ALL.iter().copied().find(|state| state.as_str() == raw)
+        Self::ALL
+            .iter()
+            .copied()
+            .find(|state| state.as_str() == raw)
     }
 
     /// Whether everything agreed has happened. Over counts, for the reason

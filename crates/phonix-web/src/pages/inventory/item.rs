@@ -278,7 +278,10 @@ fn account_row(
     choose: Callback<(AccountRole, Option<AccountRef>)>,
 ) -> impl IntoView {
     let label = crate::i18n::t(&Message::new(format!("ledger.role.{}", role.as_str())));
-    let wants = crate::i18n::t(&Message::new(format!("ledger.role.{}.wants", role.as_str())));
+    let wants = crate::i18n::t(&Message::new(format!(
+        "ledger.role.{}.wants",
+        role.as_str()
+    )));
 
     // Nothing anywhere: no override here, none on the category, and no account
     // in the chart for the role. Said now, on the screen that can fix it,
@@ -327,32 +330,31 @@ fn account_row(
             .filter(|account| account.fit_for(role) == fit)
             .collect();
 
-        (!accounts.is_empty())
-            .then(|| {
-                let unsuited = fit.is_none();
+        (!accounts.is_empty()).then(|| {
+            let unsuited = fit.is_none();
 
-                view! {
-                    <optgroup label=title>
-                        {accounts
-                            .into_iter()
-                            .map(|account| {
-                                let id = account.id.to_string();
-                                let text = format!(
-                                    "{} \u{b7} {}",
-                                    account.number,
-                                    account.name,
-                                );
+            view! {
+                <optgroup label=title>
+                    {accounts
+                        .into_iter()
+                        .map(|account| {
+                            let id = account.id.to_string();
+                            let text = format!(
+                                "{} \u{b7} {}",
+                                account.number,
+                                account.name,
+                            );
 
-                                view! {
-                                    <option value=id disabled=unsuited>
-                                        {text}
-                                    </option>
-                                }
-                            })
-                            .collect_view()}
-                    </optgroup>
-                }
-            })
+                            view! {
+                                <option value=id disabled=unsuited>
+                                    {text}
+                                </option>
+                            }
+                        })
+                        .collect_view()}
+                </optgroup>
+            }
+        })
     };
 
     view! {

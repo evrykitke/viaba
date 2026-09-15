@@ -16,7 +16,9 @@ use crate::components::page::{Badge, Tone};
 use crate::icons::Icon;
 use crate::l;
 use crate::server_fns::inventory_fns::{delete_item, list_items};
-use crate::ui::table::{Align, Cell, Column, Filter, FilterChoice, RowAction, Source, ToolbarAction};
+use crate::ui::table::{
+    Align, Cell, Column, Filter, FilterChoice, RowAction, Source, ToolbarAction,
+};
 
 /// What this workspace stocks, buys and sells.
 pub fn items_grid() -> GridConfig<ItemSummary> {
@@ -24,7 +26,11 @@ pub fn items_grid() -> GridConfig<ItemSummary> {
         .searching(l!("items.search"))
         .exports_as("items")
         .min_width("sm:min-w-[52rem]")
-        .empty(Icon::Package, l!("items.empty.title"), l!("items.empty.detail"))
+        .empty(
+            Icon::Package,
+            l!("items.empty.title"),
+            l!("items.empty.detail"),
+        )
         .column(
             Column::new("code", l!("field.code"), |row: &ItemSummary| {
                 Cell::text(&row.code)
@@ -89,41 +95,35 @@ pub fn items_grid() -> GridConfig<ItemSummary> {
             .sortable()
             .render(|row| status_cell(row).into_any()),
         )
-        .filter(
-            Filter::new(
-                "kind",
-                l!("items.kind"),
-                vec![
-                    FilterChoice::all(l!("common.all")),
-                    FilterChoice::new("goods", l!("items.kind.goods")),
-                    FilterChoice::new("service", l!("items.kind.service")),
-                ],
-            ),
-        )
-        .filter(
-            Filter::new(
-                "tracking",
-                l!("items.tracked"),
-                vec![
-                    FilterChoice::all(l!("common.all")),
-                    FilterChoice::new("tracked", l!("items.only_tracked")),
-                    FilterChoice::new("untracked", l!("items.only_untracked")),
-                    FilterChoice::new("lot", l!("items.tracking.lot")),
-                    FilterChoice::new("serial", l!("items.tracking.serial")),
-                ],
-            ),
-        )
-        .filter(
-            Filter::new(
-                "status",
-                l!("field.status"),
-                vec![
-                    FilterChoice::all(l!("common.all")),
-                    FilterChoice::new("active", l!("common.active")),
-                    FilterChoice::new("inactive", l!("common.inactive")),
-                ],
-            ),
-        )
+        .filter(Filter::new(
+            "kind",
+            l!("items.kind"),
+            vec![
+                FilterChoice::all(l!("common.all")),
+                FilterChoice::new("goods", l!("items.kind.goods")),
+                FilterChoice::new("service", l!("items.kind.service")),
+            ],
+        ))
+        .filter(Filter::new(
+            "tracking",
+            l!("items.tracked"),
+            vec![
+                FilterChoice::all(l!("common.all")),
+                FilterChoice::new("tracked", l!("items.only_tracked")),
+                FilterChoice::new("untracked", l!("items.only_untracked")),
+                FilterChoice::new("lot", l!("items.tracking.lot")),
+                FilterChoice::new("serial", l!("items.tracking.serial")),
+            ],
+        ))
+        .filter(Filter::new(
+            "status",
+            l!("field.status"),
+            vec![
+                FilterChoice::all(l!("common.all")),
+                FilterChoice::new("active", l!("common.active")),
+                FilterChoice::new("inactive", l!("common.inactive")),
+            ],
+        ))
         .toolbar(
             ToolbarAction::link(l!("items.new"), Icon::Plus, "/inventory/items/new")
                 .require(permissions::ITEMS_CREATE)

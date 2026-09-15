@@ -214,9 +214,14 @@ const WHERE: &str = "WHERE ($1::text IS NULL
 /// Paged because a customer list is one of the two that grow with the business
 /// rather than with how it is configured, and because nobody deletes a customer
 /// who has ever been invoiced.
-pub async fn page(pool: &sqlx::PgPool, request: &PageRequest) -> Result<Page<PartySummary>, DbError> {
+pub async fn page(
+    pool: &sqlx::PgPool,
+    request: &PageRequest,
+) -> Result<Page<PartySummary>, DbError> {
     let request = request.sanitised();
-    let needle = request.needle().map(|needle| crate::search::contains(&needle));
+    let needle = request
+        .needle()
+        .map(|needle| crate::search::contains(&needle));
     let role = request.filter(ROLE);
 
     let active = match request.filter(STATUS) {

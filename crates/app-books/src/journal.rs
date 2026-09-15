@@ -622,12 +622,7 @@ mod tests {
 
     #[test]
     fn a_line_carries_a_side_and_a_magnitude_never_a_sign() {
-        let negative = JournalLineInput::in_base(
-            id(2),
-            Side::Debit,
-            money(gbp(), -100),
-            on(),
-        );
+        let negative = JournalLineInput::in_base(id(2), Side::Debit, money(gbp(), -100), on());
 
         assert_eq!(
             assembled(vec![negative, line(Side::Credit, 100)]),
@@ -717,8 +712,8 @@ mod tests {
         };
 
         let later = NaiveDate::from_ymd_opt(2026, 4, 2).unwrap();
-        let reversal = JournalEntry::reversal_of(&original, later, "Reverses JNL-2026-00001")
-            .unwrap();
+        let reversal =
+            JournalEntry::reversal_of(&original, later, "Reverses JNL-2026-00001").unwrap();
 
         assert_eq!(reversal.reverses_id(), Some(original.id));
         assert_eq!(reversal.source().doc_type, doc_types::REVERSAL);

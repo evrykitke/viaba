@@ -23,15 +23,15 @@
 //! the one that was posted, so the arithmetic is kept.
 
 use app_inventory::landed_cost::{
-    Allocation, AllocationBasis, Charge, CheckedCharge, LandedCost, LandedCostState,
-    LandedCostSummary, Landable, ReceiptLandedCost, Share,
+    Allocation, AllocationBasis, Charge, CheckedCharge, Landable, LandedCost, LandedCostState,
+    LandedCostSummary, ReceiptLandedCost, Share,
 };
 use app_inventory::movement::JournalOutcome;
 use app_inventory::quantity::Quantity;
 use phonix_core::identity::UserId;
 use phonix_core::locale::Currency;
-use phonix_core::query::{Page, PageRequest};
 use phonix_core::money::Money;
+use phonix_core::query::{Page, PageRequest};
 use sqlx::{AssertSqlSafe, PgConnection, PgExecutor, Row};
 use uuid::Uuid;
 
@@ -127,7 +127,9 @@ pub async fn page(
     request: &PageRequest,
 ) -> Result<Page<LandedCostSummary>, DbError> {
     let request = request.sanitised();
-    let needle = request.needle().map(|needle| crate::search::contains(&needle));
+    let needle = request
+        .needle()
+        .map(|needle| crate::search::contains(&needle));
     let state = request.filter(STATE).and_then(LandedCostState::parse);
     let costed = request.range(COSTED);
 
@@ -176,7 +178,6 @@ pub async fn page(
 
     Ok(Page::new(summaries, total, &request))
 }
-
 
 /// What has been landed on one delivery. The receipt screen's question.
 pub async fn for_receipt<'e, E>(
@@ -392,10 +393,7 @@ where
                 variant_code: row.try_get("variant_code")?,
                 description: row.try_get("description")?,
                 basis: read_basis(&basis)?,
-                basis_amount: read_quantity(
-                    &basis_amount,
-                    "landed_cost_allocations.basis_amount",
-                )?,
+                basis_amount: read_quantity(&basis_amount, "landed_cost_allocations.basis_amount")?,
                 amount: read_money(&amount, currency, "landed_cost_allocations.amount")?,
                 capitalised: read_money(
                     &capitalised,

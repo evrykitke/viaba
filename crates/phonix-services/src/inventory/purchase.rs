@@ -95,10 +95,7 @@ pub async fn variant_rules(
 }
 
 /// The confirmed orders with something still to come, for a receipt screen.
-pub async fn awaiting_delivery(
-    pool: &PgPool,
-    caller: &Caller,
-) -> ServiceResult<Vec<OrderSummary>> {
+pub async fn awaiting_delivery(pool: &PgPool, caller: &Caller) -> ServiceResult<Vec<OrderSummary>> {
     caller.require(permissions::RECEIPTS)?;
     Ok(store::awaiting_delivery(pool).await?)
 }
@@ -163,7 +160,10 @@ pub async fn save(
             let before = detail(pool, caller, id).await?;
 
             if !before.state.is_editable() {
-                return Ok(Submission::rejected("state", OrderError::NotEditable.message()));
+                return Ok(Submission::rejected(
+                    "state",
+                    OrderError::NotEditable.message(),
+                ));
             }
 
             before.lines
@@ -187,7 +187,10 @@ pub async fn save(
         Some(id) => {
             if !store::update(&mut tx, id, &checked, &supplier, net, caller.user_id()).await? {
                 tx.rollback().await.map_err(DbError::Query)?;
-                return Ok(Submission::rejected("state", OrderError::NotEditable.message()));
+                return Ok(Submission::rejected(
+                    "state",
+                    OrderError::NotEditable.message(),
+                ));
             }
             id
         }
@@ -246,7 +249,10 @@ pub async fn confirm(
     let order = detail(pool, caller, id).await?;
 
     if !order.state.is_editable() {
-        return Ok(Submission::rejected("state", OrderError::NotEditable.message()));
+        return Ok(Submission::rejected(
+            "state",
+            OrderError::NotEditable.message(),
+        ));
     }
     if order.lines.is_empty() {
         return Ok(Submission::rejected("lines", OrderError::NoLines.message()));
@@ -274,7 +280,10 @@ pub async fn confirm(
         // Somebody confirmed it between the read and the write. Rolling back
         // returns the number rather than leaving a hole.
         tx.rollback().await.map_err(DbError::Query)?;
-        return Ok(Submission::rejected("state", OrderError::NotEditable.message()));
+        return Ok(Submission::rejected(
+            "state",
+            OrderError::NotEditable.message(),
+        ));
     }
 
     tx.commit().await.map_err(DbError::Query)?;
@@ -482,7 +491,11 @@ async fn cost_lines<'a>(
 /// does not convert to kilograms - which is the same refusal `item::save` makes
 /// about a purchase unit, made again here because a line may name a unit the
 /// item does not.
-fn convert(units: &[Unit], line: &CheckedLine, stock_unit_id: Uuid) -> Result<Quantity, OrderError> {
+fn convert(
+    units: &[Unit],
+    line: &CheckedLine,
+    stock_unit_id: Uuid,
+) -> Result<Quantity, OrderError> {
     if line.unit_id == stock_unit_id {
         return Ok(line.quantity);
     }

@@ -158,7 +158,16 @@ pub async fn save(
     let mut tx = pool.begin().await.map_err(DbError::Query)?;
 
     let id = match checked.id {
-        None => store::insert(&mut tx, &checked, &supplier, to_location_id, caller.user_id()).await?,
+        None => {
+            store::insert(
+                &mut tx,
+                &checked,
+                &supplier,
+                to_location_id,
+                caller.user_id(),
+            )
+            .await?
+        }
         Some(id) => {
             if !store::update(
                 &mut tx,
@@ -171,7 +180,10 @@ pub async fn save(
             .await?
             {
                 tx.rollback().await.map_err(DbError::Query)?;
-                return Ok(Submission::rejected("state", ReceiptError::NotEditable.message()));
+                return Ok(Submission::rejected(
+                    "state",
+                    ReceiptError::NotEditable.message(),
+                ));
             }
             id
         }
@@ -215,7 +227,10 @@ pub async fn post(
     let receipt = detail(pool, caller, id).await?;
 
     if !receipt.state.is_editable() {
-        return Ok(Submission::rejected("state", ReceiptError::NotEditable.message()));
+        return Ok(Submission::rejected(
+            "state",
+            ReceiptError::NotEditable.message(),
+        ));
     }
     if !receipt.has_quantity() {
         return Ok(Submission::rejected(
@@ -279,7 +294,10 @@ pub async fn post(
             lot_id: None,
             unit_cost: Some(line.unit_cost),
             reference: receipt.delivery_note.clone(),
-            source: Some(app_inventory::movement::MoveSource::new("goods_receipt", id)),
+            source: Some(app_inventory::movement::MoveSource::new(
+                "goods_receipt",
+                id,
+            )),
             ..app_inventory::movement::MoveRequest::new(
                 line.variant_id,
                 vendor.id,
@@ -291,15 +309,15 @@ pub async fn post(
 
         let request = match &line.lot_number {
             None => request,
-            Some(number) => match resolve_lot(pool, line.variant_id, number, line.expires_on)
-                .await?
-            {
-                Submission::Saved(lot) => app_inventory::movement::MoveRequest {
-                    lot_id: Some(lot),
-                    ..request
-                },
-                Submission::Rejected(errors) => return Ok(Submission::Rejected(errors)),
-            },
+            Some(number) => {
+                match resolve_lot(pool, line.variant_id, number, line.expires_on).await? {
+                    Submission::Saved(lot) => app_inventory::movement::MoveRequest {
+                        lot_id: Some(lot),
+                        ..request
+                    },
+                    Submission::Rejected(errors) => return Ok(Submission::Rejected(errors)),
+                }
+            }
         };
 
         let stored = match crate::inventory::stock::apply(pool, caller, ledger, request).await? {
@@ -334,14 +352,20 @@ pub async fn post(
         Ok(allocated) => allocated,
         Err(ServiceError::Db(DbError::UnusableSequence { .. })) => {
             tx.rollback().await.map_err(DbError::Query)?;
-            return Ok(Submission::rejected("number", msg!("receipts.error.no_series")));
+            return Ok(Submission::rejected(
+                "number",
+                msg!("receipts.error.no_series"),
+            ));
         }
         Err(err) => return Err(err),
     };
 
     if !store::post(&mut tx, id, &allocated.number, value, caller.user_id()).await? {
         tx.rollback().await.map_err(DbError::Query)?;
-        return Ok(Submission::rejected("state", ReceiptError::NotEditable.message()));
+        return Ok(Submission::rejected(
+            "state",
+            ReceiptError::NotEditable.message(),
+        ));
     }
 
     tx.commit().await.map_err(DbError::Query)?;
@@ -378,7 +402,10 @@ pub async fn cancel(pool: &PgPool, caller: &Caller, id: Uuid) -> ServiceResult<S
     tx.commit().await.map_err(DbError::Query)?;
 
     if !done {
-        return Ok(Submission::rejected("state", ReceiptError::NotEditable.message()));
+        return Ok(Submission::rejected(
+            "state",
+            ReceiptError::NotEditable.message(),
+        ));
     }
 
     Ok(Submission::Saved(()))

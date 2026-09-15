@@ -519,7 +519,9 @@ mod tests {
                 .map(|attribute| SelectionLine {
                     attribute_id: id(attribute),
                     attribute_name: "A".to_owned(),
-                    value_ids: (0..10).map(|value| id(attribute * 100 + value + 1)).collect(),
+                    value_ids: (0..10)
+                        .map(|value| id(attribute * 100 + value + 1))
+                        .collect(),
                 })
                 .collect(),
         };
@@ -563,9 +565,11 @@ mod tests {
     #[test]
     fn a_plan_that_changes_nothing_says_so() {
         let existing = vec![variant(2, &[1], true)];
-        assert!(plan(&selection(&[(10, &[1])]), &existing)
-            .unwrap()
-            .changes_nothing());
+        assert!(
+            plan(&selection(&[(10, &[1])]), &existing)
+                .unwrap()
+                .changes_nothing()
+        );
     }
 
     #[test]
@@ -584,7 +588,10 @@ mod tests {
 
     #[test]
     fn a_combination_reads_as_words_and_the_default_reads_as_nothing() {
-        assert_eq!(variant(2, &[1], true).combination_label().as_deref(), Some("Value 1"));
+        assert_eq!(
+            variant(2, &[1], true).combination_label().as_deref(),
+            Some("Value 1")
+        );
         assert_eq!(variant(1, &[], true).combination_label(), None);
     }
 }

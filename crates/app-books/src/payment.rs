@@ -443,7 +443,10 @@ pub struct CheckedPayment {
 
 impl CheckedPayment {
     pub fn allocated(&self) -> Result<Money, MoneyError> {
-        Money::total(self.currency, self.allocations.iter().map(|line| line.amount))
+        Money::total(
+            self.currency,
+            self.allocations.iter().map(|line| line.amount),
+        )
     }
 }
 
@@ -459,7 +462,9 @@ pub struct CheckedAllocation {
 /// terms [`crate::invoice::PostOutcome`] is.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum PostOutcome {
-    Posted { number: String },
+    Posted {
+        number: String,
+    },
     /// It is not a draft any more - somebody else posted it first.
     NotADraft,
     /// There is no active `payment` series in this workspace.
@@ -610,7 +615,10 @@ mod tests {
     fn what_is_left_over_sits_on_the_account() {
         let checked = input("1200.00", &[(1, "500.00")]).check().unwrap();
 
-        let on_account = checked.amount.checked_sub(checked.allocated().unwrap()).unwrap();
+        let on_account = checked
+            .amount
+            .checked_sub(checked.allocated().unwrap())
+            .unwrap();
 
         assert_eq!(on_account, money("700.00"));
     }

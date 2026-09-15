@@ -383,8 +383,12 @@ mod tests {
             "db.statement".to_owned(),
             "SELECT id FROM core.currency".to_owned(),
         ));
-        fields.named.push(("elapsed_secs".to_owned(), "0.25".to_owned()));
-        fields.named.push(("rows_returned".to_owned(), "3".to_owned()));
+        fields
+            .named
+            .push(("elapsed_secs".to_owned(), "0.25".to_owned()));
+        fields
+            .named
+            .push(("rows_returned".to_owned(), "3".to_owned()));
 
         let query = fields.into_query(Caller::none());
 
@@ -411,7 +415,11 @@ mod tests {
                 .named
                 .push(("elapsed_secs".to_owned(), value.to_owned()));
 
-            assert_eq!(fields.into_query(Caller::none()).elapsed, None, "{value} must not convert");
+            assert_eq!(
+                fields.into_query(Caller::none()).elapsed,
+                None,
+                "{value} must not convert"
+            );
         }
     }
 
@@ -425,7 +433,10 @@ mod tests {
         let line = fields.into_log(
             "INFO",
             "phonix_server::middleware",
-            (Some("D:/p/crates/phonix-server/src/middleware.rs"), Some(27)),
+            (
+                Some("D:/p/crates/phonix-server/src/middleware.rs"),
+                Some(27),
+            ),
             Caller::none(),
         );
 

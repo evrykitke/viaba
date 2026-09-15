@@ -253,9 +253,7 @@ const SORTABLE: &[(&str, &str)] = &[
 /// one that exists before the rows are fetched.
 pub async fn page(pool: &PgPool, request: &PageRequest) -> Result<Page<EntityRecord>, DbError> {
     let request = request.sanitised();
-    let needle = request
-        .needle()
-        .map(|needle| search::contains(&needle));
+    let needle = request.needle().map(|needle| search::contains(&needle));
 
     // A filter nobody set is a NULL that discards its own line, so one clause
     // serves every combination and nothing is interpolated.
@@ -394,7 +392,6 @@ pub async fn prune(pool: &PgPool, days: i32, limit: i64) -> Result<u64, DbError>
 mod tests {
     use super::*;
     use phonix_core::audit::kinds;
-
 
     #[test]
     fn a_singleton_entry_keys_itself_without_anybody_inventing_a_key() {

@@ -252,13 +252,11 @@ pub async fn move_count<'e, E>(executor: E, id: Uuid) -> Result<i64, DbError>
 where
     E: PgExecutor<'e>,
 {
-    sqlx::query_scalar(
-        "SELECT count(*) FROM inventory.stock_moves WHERE adjustment_type_id = $1",
-    )
-    .bind(id)
-    .fetch_one(executor)
-    .await
-    .map_err(DbError::Query)
+    sqlx::query_scalar("SELECT count(*) FROM inventory.stock_moves WHERE adjustment_type_id = $1")
+        .bind(id)
+        .fetch_one(executor)
+        .await
+        .map_err(DbError::Query)
 }
 
 /// Remove one. `ON DELETE RESTRICT` from `stock_moves` means Postgres refuses a
@@ -270,13 +268,12 @@ pub async fn delete<'e, E>(executor: E, id: Uuid) -> Result<bool, DbError>
 where
     E: PgExecutor<'e>,
 {
-    let result = sqlx::query(
-        "DELETE FROM inventory.adjustment_types WHERE id = $1 AND NOT is_system",
-    )
-    .bind(id)
-    .execute(executor)
-    .await
-    .map_err(DbError::Query)?;
+    let result =
+        sqlx::query("DELETE FROM inventory.adjustment_types WHERE id = $1 AND NOT is_system")
+            .bind(id)
+            .execute(executor)
+            .await
+            .map_err(DbError::Query)?;
 
     Ok(result.rows_affected() > 0)
 }

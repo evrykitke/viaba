@@ -7,9 +7,7 @@
 
 use app_hr::department::DeleteOutcome;
 use app_hr::department::{Department, DepartmentInput, DepartmentSummary};
-use app_hr::employee::{
-    AssignmentInput, Employee, EmployeeInput, EmployeeSummary, LeavingInput,
-};
+use app_hr::employee::{AssignmentInput, Employee, EmployeeInput, EmployeeSummary, LeavingInput};
 use app_hr::job_position::{JobPosition, JobPositionInput, JobPositionSummary};
 use app_hr::work_location::{WorkLocation, WorkLocationInput, WorkLocationSummary};
 use leptos::prelude::*;

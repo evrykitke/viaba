@@ -205,7 +205,11 @@ pub async fn next_year_to_open(pool: &PgPool) -> ServiceResult<i32> {
         last_day.year() - 1
     };
 
-    Ok(if reached >= current { reached + 1 } else { current })
+    Ok(if reached >= current {
+        reached + 1
+    } else {
+        current
+    })
 }
 
 fn rejected(err: &PeriodError) -> ServiceError {

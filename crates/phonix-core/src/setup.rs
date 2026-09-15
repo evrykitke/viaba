@@ -179,8 +179,7 @@ mod tests {
 
     #[test]
     fn a_note_is_what_was_found() {
-        let status = SetupStatus::of(&ITEMS[0], true)
-            .noted(Message::new("a.found").count(312));
+        let status = SetupStatus::of(&ITEMS[0], true).noted(Message::new("a.found").count(312));
 
         assert_eq!(status.note.and_then(|note| note.count), Some(312));
     }

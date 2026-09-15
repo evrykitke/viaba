@@ -48,8 +48,12 @@ pub async fn list(pool: &PgPool, caller: &Caller) -> ServiceResult<Vec<RoleMappi
             RoleMapping {
                 role,
                 account_id: found.map(|row| row.account_id),
-                number: found.map(|row| row.account_number.clone()).unwrap_or_default(),
-                name: found.map(|row| row.account_name.clone()).unwrap_or_default(),
+                number: found
+                    .map(|row| row.account_number.clone())
+                    .unwrap_or_default(),
+                name: found
+                    .map(|row| row.account_name.clone())
+                    .unwrap_or_default(),
             }
         })
         .collect())

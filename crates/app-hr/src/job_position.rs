@@ -261,10 +261,12 @@ mod tests {
         };
 
         assert!(summary.is_vacant());
-        assert!(!JobPositionSummary {
-            filled: 3,
-            ..summary
-        }
-        .is_vacant());
+        assert!(
+            !JobPositionSummary {
+                filled: 3,
+                ..summary
+            }
+            .is_vacant()
+        );
     }
 }

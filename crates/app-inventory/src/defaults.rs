@@ -447,6 +447,9 @@ mod tests {
             ..valid()
         };
 
-        assert_eq!(twice.check(), Err(DefaultsError::DuplicateUnit("EA".to_owned())));
+        assert_eq!(
+            twice.check(),
+            Err(DefaultsError::DuplicateUnit("EA".to_owned()))
+        );
     }
 }

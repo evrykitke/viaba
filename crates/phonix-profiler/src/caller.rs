@@ -233,7 +233,9 @@ fn is_noise(segment: &str) -> bool {
     // The trailing `h1a2b3c...` that Itanium mangling appends.
     let is_hash = segment.len() == 17
         && segment.starts_with('h')
-        && segment[1..].chars().all(|character| character.is_ascii_hexdigit());
+        && segment[1..]
+            .chars()
+            .all(|character| character.is_ascii_hexdigit());
 
     if is_hash {
         return true;
@@ -376,7 +378,10 @@ mod tests {
             ),
             None
         );
-        assert_eq!(workspace_relative("/rustc/abc/library/core/src/mod.rs"), None);
+        assert_eq!(
+            workspace_relative("/rustc/abc/library/core/src/mod.rs"),
+            None
+        );
     }
 
     /// The profiler is on every stack it captures. Showing itself as the
@@ -417,7 +422,10 @@ mod tests {
     /// starts naming itself as the source of its own log lines.
     #[test]
     fn a_relative_path_into_the_profiler_is_still_excluded() {
-        assert_eq!(workspace_relative("crates/phonix-profiler/src/store.rs"), None);
+        assert_eq!(
+            workspace_relative("crates/phonix-profiler/src/store.rs"),
+            None
+        );
     }
 
     /// Every async function in the workspace symbolicates with these in it.

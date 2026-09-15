@@ -15,7 +15,9 @@ use crate::components::page::{Badge, Tone};
 use crate::icons::Icon;
 use crate::l;
 use crate::server_fns::inventory_fns::{delete_adjustment_type, list_adjustment_types};
-use crate::ui::table::{Align, Cell, Column, Filter, FilterChoice, RowAction, Source, ToolbarAction};
+use crate::ui::table::{
+    Align, Cell, Column, Filter, FilterChoice, RowAction, Source, ToolbarAction,
+};
 
 /// Why a stock figure was corrected by hand.
 pub fn adjustment_types_grid() -> GridConfig<AdjustmentTypeSummary> {
@@ -132,9 +134,7 @@ pub fn adjustment_types_grid() -> GridConfig<AdjustmentTypeSummary> {
             RowAction::link(
                 l!("common.edit"),
                 Icon::Pencil,
-                |row: &AdjustmentTypeSummary| {
-                    format!("/inventory/adjustment-types/{}", row.id)
-                },
+                |row: &AdjustmentTypeSummary| format!("/inventory/adjustment-types/{}", row.id),
             )
             .require(permissions::ADJUSTMENT_TYPES_MANAGE),
         )
@@ -189,10 +189,12 @@ fn direction_choices() -> Vec<FilterChoice> {
 /// "The default" rather than an empty cell: a blank reads as a row somebody has
 /// not finished, and this one is finished and posting somewhere.
 fn account_cell(row: &AdjustmentTypeSummary) -> impl IntoView {
-    let named = row
-        .account_number
-        .as_ref()
-        .map(|number| format!("{number} · {}", row.account_name.clone().unwrap_or_default()));
+    let named = row.account_number.as_ref().map(|number| {
+        format!(
+            "{number} · {}",
+            row.account_name.clone().unwrap_or_default()
+        )
+    });
 
     view! {
         {match named {

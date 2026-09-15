@@ -255,7 +255,13 @@ mod tests {
 
     #[test]
     fn a_month_column_is_short_on_the_axis_and_spelled_out_in_the_table() {
-        let points = monthly(&[Bucket { start: on(2026, 9, 1), value: 2 }], "created");
+        let points = monthly(
+            &[Bucket {
+                start: on(2026, 9, 1),
+                value: 2,
+            }],
+            "created",
+        );
 
         assert_eq!(points[0].axis_label, "Sep");
         assert_eq!(points[0].period, "September 2026");
@@ -264,10 +270,19 @@ mod tests {
 
     #[test]
     fn one_of_something_is_not_written_as_a_plural() {
-        let points = monthly(&[Bucket { start: on(2026, 9, 1), value: 1 }], "created");
+        let points = monthly(
+            &[Bucket {
+                start: on(2026, 9, 1),
+                value: 1,
+            }],
+            "created",
+        );
         assert_eq!(points[0].title, "September 2026: 1 workspace created");
 
-        let days = daily(&[Bucket { start: on(2026, 9, 1), value: 1 }]);
+        let days = daily(&[Bucket {
+            start: on(2026, 9, 1),
+            value: 1,
+        }]);
         assert_eq!(days[0].title, "1 September 2026: 1 entry");
     }
 
@@ -293,9 +308,21 @@ mod tests {
     #[test]
     fn the_page_renders_with_an_estate_in_it() {
         let rendered = page(
-            Tally { total: 3, active: 2, suspended: 1, serving: 2, ..Tally::default() },
-            vec![Bucket { start: on(2026, 9, 1), value: 3 }],
-            vec![Bucket { start: on(2026, 9, 3), value: 5 }],
+            Tally {
+                total: 3,
+                active: 2,
+                suspended: 1,
+                serving: 2,
+                ..Tally::default()
+            },
+            vec![Bucket {
+                start: on(2026, 9, 1),
+                value: 3,
+            }],
+            vec![Bucket {
+                start: on(2026, 9, 3),
+                value: 5,
+            }],
         )
         .render()
         .expect("renders");
@@ -324,7 +351,10 @@ mod tests {
 
     #[test]
     fn a_day_column_is_a_bare_number_on_the_axis() {
-        let points = daily(&[Bucket { start: on(2026, 9, 7), value: 0 }]);
+        let points = daily(&[Bucket {
+            start: on(2026, 9, 7),
+            value: 0,
+        }]);
 
         assert_eq!(points[0].axis_label, "7");
         assert_eq!(points[0].period, "7 September 2026");

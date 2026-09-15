@@ -23,7 +23,7 @@
 //! settled by a cheque that bounced.
 
 use app_books::payment::{
-    Allocation, CheckedPayment, Direction, Payment, PaymentStatus, PaymentSummary, PayerSnapshot,
+    Allocation, CheckedPayment, Direction, PayerSnapshot, Payment, PaymentStatus, PaymentSummary,
     Settleable,
 };
 use phonix_core::identity::UserId;
@@ -99,7 +99,9 @@ pub async fn page(
     request: &PageRequest,
 ) -> Result<Page<PaymentSummary>, DbError> {
     let request = request.sanitised();
-    let needle = request.needle().map(|needle| crate::search::contains(&needle));
+    let needle = request
+        .needle()
+        .map(|needle| crate::search::contains(&needle));
     let status = request.filter(STATUS).and_then(PaymentStatus::parse);
     let unallocated = request.filter_is(ALLOCATION, UNALLOCATED);
 
@@ -148,11 +150,7 @@ pub async fn page(
     // Newest first, and `created_at` after it whatever the sort: two payments
     // received on the same day would otherwise swap places between one page and
     // the next, which shows up as a row that appears twice.
-    let order = listing::order_by(
-        request.sort.as_ref(),
-        SORTABLE,
-        "p.received_on DESC",
-    );
+    let order = listing::order_by(request.sort.as_ref(), SORTABLE, "p.received_on DESC");
 
     let selecting = AssertSqlSafe(format!(
         "SELECT p.id, p.number, p.status, p.party_id, p.party_name, p.received_on,
@@ -193,8 +191,7 @@ pub async fn page(
             Ok(PaymentSummary {
                 id: row.try_get("id")?,
                 number: row.try_get("number")?,
-                status: PaymentStatus::parse(&status)
-                    .ok_or_else(|| unknown("status", &status))?,
+                status: PaymentStatus::parse(&status).ok_or_else(|| unknown("status", &status))?,
                 party_id: row.try_get("party_id")?,
                 party_name: row.try_get("party_name")?,
                 received_on: row.try_get("received_on")?,
@@ -244,8 +241,7 @@ where
 
     let base_code: Option<String> = row.try_get("base_currency_code").map_err(DbError::Query)?;
     let rate_text: Option<String> = row.try_get("exchange_rate").map_err(DbError::Query)?;
-    let rate_date: Option<chrono::NaiveDate> =
-        row.try_get("rate_date").map_err(DbError::Query)?;
+    let rate_date: Option<chrono::NaiveDate> = row.try_get("rate_date").map_err(DbError::Query)?;
     let base_text: Option<String> = row.try_get("base_amount").map_err(DbError::Query)?;
 
     // All four or none: a CHECK constraint says so, and this reads it the same
@@ -402,7 +398,9 @@ where
 
             Ok(Settleable {
                 invoice_id: row.try_get("id")?,
-                number: row.try_get::<Option<String>, _>("number")?.unwrap_or_default(),
+                number: row
+                    .try_get::<Option<String>, _>("number")?
+                    .unwrap_or_default(),
                 issued_on: row.try_get("issued_on")?,
                 due_on: row.try_get("due_on")?,
                 currency,
@@ -483,10 +481,7 @@ where
 /// only ordering that sees what the transaction it waited for actually did; a
 /// single `SELECT ... FOR UPDATE` with the allocation sum in its select list
 /// would return the sum from the snapshot it started with.
-pub async fn lock_invoices(
-    conn: &mut PgConnection,
-    invoice_ids: &[Uuid],
-) -> Result<(), DbError> {
+pub async fn lock_invoices(conn: &mut PgConnection, invoice_ids: &[Uuid]) -> Result<(), DbError> {
     if invoice_ids.is_empty() {
         return Ok(());
     }
@@ -502,7 +497,10 @@ pub async fn lock_invoices(
 
 /// Which customer this invoice belongs to, for the check that a payment is not
 /// settling somebody else's.
-pub async fn party_of<'e, E>(executor: E, invoice_ids: &[Uuid]) -> Result<Vec<(Uuid, Uuid)>, DbError>
+pub async fn party_of<'e, E>(
+    executor: E,
+    invoice_ids: &[Uuid],
+) -> Result<Vec<(Uuid, Uuid)>, DbError>
 where
     E: PgExecutor<'e>,
 {

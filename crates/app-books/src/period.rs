@@ -65,7 +65,9 @@ pub fn year_from(first_day: NaiveDate) -> Vec<NewPeriod> {
         return Vec::new();
     };
 
-    (0..MONTHS_IN_YEAR).filter_map(|offset| month_at(anchor, offset)).collect()
+    (0..MONTHS_IN_YEAR)
+        .filter_map(|offset| month_at(anchor, offset))
+        .collect()
 }
 
 /// The month `offset` months after `anchor`, which must be a first of a month.

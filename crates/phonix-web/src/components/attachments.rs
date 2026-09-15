@@ -31,10 +31,10 @@ use phonix_core::audit::EntityKind;
 use phonix_core::files::attachment::{Attachment, RecordRef};
 use uuid::Uuid;
 
-use crate::icons::{Icon, IconSize};
-use crate::l;
 use crate::components::page::{Notice, Section, Tone};
 use crate::components::preview::{PreviewButton, Previewable, Previews};
+use crate::icons::{Icon, IconSize};
+use crate::l;
 use crate::server_fns::file_fns::record_attachments;
 use crate::ui::alert::{Alert, Alerts, Confirm};
 

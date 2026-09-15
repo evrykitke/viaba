@@ -3,7 +3,9 @@
 //! Same shape as [`super::location`], including the stored path and the
 //! subtree rewrite, and for the same reasons. A few dozen rows.
 
-use app_inventory::category::{Category, CategoryInput, CategorySummary, CostingMethod, RemovalStrategy, Valuation};
+use app_inventory::category::{
+    Category, CategoryInput, CategorySummary, CostingMethod, RemovalStrategy, Valuation,
+};
 use phonix_core::identity::UserId;
 use sqlx::{FromRow, PgExecutor, Row};
 use uuid::Uuid;

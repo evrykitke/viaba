@@ -103,7 +103,9 @@ pub async fn page(
     request: &PageRequest,
 ) -> Result<Page<OrderSummary>, DbError> {
     let request = request.sanitised();
-    let needle = request.needle().map(|needle| crate::search::contains(&needle));
+    let needle = request
+        .needle()
+        .map(|needle| crate::search::contains(&needle));
     let ordered = request.range(ORDERED);
 
     // Groups rather than states: see `OrderState::group`. A name this build
@@ -261,8 +263,7 @@ where
     Ok(Some(PurchaseOrder {
         id,
         number: row.try_get("number").map_err(DbError::Query)?,
-        state: OrderState::parse(&state)
-            .ok_or_else(|| DbError::Query(unknown("state", &state)))?,
+        state: OrderState::parse(&state).ok_or_else(|| DbError::Query(unknown("state", &state)))?,
         supplier: SupplierSnapshot {
             party_id: row.try_get("supplier_id").map_err(DbError::Query)?,
             code: row.try_get("supplier_code").map_err(DbError::Query)?,

@@ -567,9 +567,7 @@ const SORTABLE: &[(&str, &str)] = &[
 /// for as long as the workspace is used.
 pub async fn page(pool: &PgPool, request: &PageRequest) -> Result<Page<FileSummary>, DbError> {
     let request = request.sanitised();
-    let needle = request
-        .needle()
-        .map(|needle| search::contains(&needle));
+    let needle = request.needle().map(|needle| search::contains(&needle));
 
     // The bucket and the status are ordinary named filters, so the screen and
     // the query agree on spelling through `PageRequest::filter` rather than
@@ -692,7 +690,6 @@ mod tests {
         );
         assert!(all.split(", ").all(|column| column.starts_with("f.")));
     }
-
 
     #[test]
     fn truncation_lands_on_a_character_boundary() {

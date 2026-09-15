@@ -9,7 +9,7 @@ use crate::icons::Icon;
 use crate::l;
 use crate::server_fns::books_fns::trial_balance;
 
-use super::shared::{ReportNote, SpanPicker, MONEY_CELL, MONEY_HEAD, MONEY_TOTAL, amount};
+use super::shared::{MONEY_CELL, MONEY_HEAD, MONEY_TOTAL, ReportNote, SpanPicker, amount};
 
 #[component]
 pub fn trial_balance_page() -> impl IntoView {

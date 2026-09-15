@@ -365,7 +365,11 @@ impl ItemInput {
         }
 
         let is_tracked = self.is_tracked && self.kind.can_be_stocked();
-        let tracking = if is_tracked { self.tracking } else { Tracking::None };
+        let tracking = if is_tracked {
+            self.tracking
+        } else {
+            Tracking::None
+        };
         let uses_expiry = self.uses_expiry && tracking.needs_a_number();
 
         Ok(Checked {

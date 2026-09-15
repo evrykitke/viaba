@@ -36,7 +36,10 @@ impl BillState {
     }
 
     pub fn parse(raw: &str) -> Option<Self> {
-        Self::ALL.iter().copied().find(|state| state.as_str() == raw)
+        Self::ALL
+            .iter()
+            .copied()
+            .find(|state| state.as_str() == raw)
     }
 
     pub const fn is_editable(self) -> bool {

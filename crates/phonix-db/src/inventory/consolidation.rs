@@ -31,8 +31,8 @@ use app_inventory::purchase::SupplierSnapshot;
 use app_inventory::quantity::Quantity;
 use phonix_core::identity::UserId;
 use phonix_core::locale::Currency;
-use phonix_core::query::{Page, PageRequest};
 use phonix_core::money::Money;
+use phonix_core::query::{Page, PageRequest};
 use sqlx::{AssertSqlSafe, PgConnection, PgExecutor, Row};
 use uuid::Uuid;
 
@@ -131,7 +131,9 @@ pub async fn page(
     request: &PageRequest,
 ) -> Result<Page<ConsolidationSummary>, DbError> {
     let request = request.sanitised();
-    let needle = request.needle().map(|needle| crate::search::contains(&needle));
+    let needle = request
+        .needle()
+        .map(|needle| crate::search::contains(&needle));
     let state = request.filter(STATE).and_then(ConsolidationState::parse);
     let raised = request.range(RAISED);
 
@@ -180,7 +182,6 @@ pub async fn page(
 
     Ok(Page::new(summaries, total, &request))
 }
-
 
 pub async fn find<'e, E>(executor: E, id: Uuid) -> Result<Option<Consolidation>, DbError>
 where
@@ -435,8 +436,16 @@ pub async fn save_lines(
         .bind(line.source.quantity.to_storage_string())
         .bind(line.source.demand.to_storage_string())
         .bind(line.supplier.as_ref().map(|supplier| supplier.party_id))
-        .bind(line.supplier.as_ref().map(|supplier| supplier.code.as_str()))
-        .bind(line.supplier.as_ref().map(|supplier| supplier.name.as_str()))
+        .bind(
+            line.supplier
+                .as_ref()
+                .map(|supplier| supplier.code.as_str()),
+        )
+        .bind(
+            line.supplier
+                .as_ref()
+                .map(|supplier| supplier.name.as_str()),
+        )
         .bind(line.unit_price.map(|price| price.to_storage_string()))
         .bind(line.unit_price.map(|price| price.currency().to_string()))
         .bind(line.source.note.as_deref())
@@ -498,11 +507,12 @@ pub async fn cancel(
 
 /// A draft, thrown away. Lines go with it by `ON DELETE CASCADE`.
 pub async fn delete(conn: &mut PgConnection, id: Uuid) -> Result<bool, DbError> {
-    let done = sqlx::query("DELETE FROM inventory.consolidations WHERE id = $1 AND state = 'draft'")
-        .bind(id)
-        .execute(conn)
-        .await
-        .map_err(DbError::Query)?;
+    let done =
+        sqlx::query("DELETE FROM inventory.consolidations WHERE id = $1 AND state = 'draft'")
+            .bind(id)
+            .execute(conn)
+            .await
+            .map_err(DbError::Query)?;
 
     Ok(done.rows_affected() == 1)
 }

@@ -178,7 +178,10 @@ impl QuantError {
     pub fn message(self) -> Message {
         match self {
             Self::WouldGoNegative { short } => {
-                msg!("quants.error.would_go_negative", short = short.to_display_string())
+                msg!(
+                    "quants.error.would_go_negative",
+                    short = short.to_display_string()
+                )
             }
             Self::NotEnoughAvailable { available } => msg!(
                 "quants.error.not_enough_available",
@@ -279,6 +282,9 @@ mod tests {
         }
 
         assert_eq!(on_hand, Quantity::parse("0.3").unwrap());
-        assert_eq!(take(on_hand, tenth, true).unwrap().to_display_string(), "0.2");
+        assert_eq!(
+            take(on_hand, tenth, true).unwrap().to_display_string(),
+            "0.2"
+        );
     }
 }

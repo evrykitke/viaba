@@ -170,9 +170,7 @@ fn on_account(row: &PaymentSummary) -> Option<Money> {
 
 fn number_cell(row: &PaymentSummary) -> impl IntoView {
     match row.number.clone() {
-        Some(number) => {
-            view! { <span class="font-mono tabular-nums">{number}</span> }.into_any()
-        }
+        Some(number) => view! { <span class="font-mono tabular-nums">{number}</span> }.into_any(),
         None => view! {
             <span class="text-xs italic text-content-muted">{l!("payments.status.draft")}</span>
         }
@@ -291,7 +289,11 @@ mod tests {
         }
 
         // `phonix_db::books::payment::ALLOCATION` and `UNALLOCATED`.
-        let allocation = grid.filters.iter().find(|f| f.key() == "allocation").unwrap();
+        let allocation = grid
+            .filters
+            .iter()
+            .find(|f| f.key() == "allocation")
+            .unwrap();
 
         assert!(allocation.choices.iter().any(|c| c.value == "unallocated"));
     }

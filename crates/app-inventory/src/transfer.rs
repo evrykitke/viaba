@@ -71,7 +71,10 @@ impl TransferState {
     }
 
     pub fn parse(raw: &str) -> Option<Self> {
-        Self::ALL.iter().copied().find(|state| state.as_str() == raw)
+        Self::ALL
+            .iter()
+            .copied()
+            .find(|state| state.as_str() == raw)
     }
 
     /// Only a draft may be edited, cancelled or deleted.
@@ -423,7 +426,10 @@ impl ArrivalInput {
                 continue;
             }
 
-            let Some(stored) = document.lines.iter().find(|stored| stored.id == line.line_id)
+            let Some(stored) = document
+                .lines
+                .iter()
+                .find(|stored| stored.id == line.line_id)
             else {
                 return Err(TransferError::LineNotOnTransfer);
             };
@@ -732,7 +738,10 @@ mod tests {
             }],
         };
 
-        assert_eq!(arrival.check(&document), Err(TransferError::NothingArriving));
+        assert_eq!(
+            arrival.check(&document),
+            Err(TransferError::NothingArriving)
+        );
     }
 
     #[test]

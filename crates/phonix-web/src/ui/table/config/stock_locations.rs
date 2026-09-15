@@ -81,17 +81,15 @@ pub fn stock_locations_grid() -> GridConfig<LocationSummary> {
         // "where is our stock actually sitting", as opposed to the counterpart
         // locations. It is not a kind, and the store maps it to the one that is.
         .filter(Filter::new("kind", l!("locations.kind"), kind_choices()))
-        .filter(
-            Filter::new(
-                "status",
-                l!("field.status"),
-                vec![
-                    FilterChoice::all(l!("common.all")),
-                    FilterChoice::new("active", l!("common.active")),
-                    FilterChoice::new("inactive", l!("common.inactive")),
-                ],
-            ),
-        )
+        .filter(Filter::new(
+            "status",
+            l!("field.status"),
+            vec![
+                FilterChoice::all(l!("common.all")),
+                FilterChoice::new("active", l!("common.active")),
+                FilterChoice::new("inactive", l!("common.inactive")),
+            ],
+        ))
         .toolbar(
             ToolbarAction::link(l!("locations.new"), Icon::Plus, "/inventory/locations/new")
                 .require(permissions::STOCK_LOCATIONS_MANAGE)

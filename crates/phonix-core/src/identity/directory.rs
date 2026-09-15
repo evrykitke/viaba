@@ -83,7 +83,6 @@ impl UserListing {
         }
     }
 
-
     /// Whether the text matches this row, for the search box.
     ///
     /// Case-insensitive across the three fields somebody would actually type:
@@ -164,7 +163,10 @@ mod tests {
         assert!(lockout_holds(Some(now + chrono::Duration::minutes(5)), now));
         // Nothing clears the column, so this is the ordinary resting state of
         // any account that was ever locked out.
-        assert!(!lockout_holds(Some(now - chrono::Duration::minutes(5)), now));
+        assert!(!lockout_holds(
+            Some(now - chrono::Duration::minutes(5)),
+            now
+        ));
         assert!(!lockout_holds(None, now));
     }
 

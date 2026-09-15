@@ -16,14 +16,14 @@ use phonix_core::locale::Currency;
 use phonix_core::money::WorkspaceCurrency;
 
 use crate::components::page::{GhostButton, Panel, PrimaryButton};
-use crate::ui::card::CollapsibleCard;
 use crate::icons::Icon;
 use crate::l;
 use crate::server_fns::currency_fns::save_currency;
 use crate::ui::alert::{Alert, Alerts};
-use crate::ui::table::DataGrid;
+use crate::ui::card::CollapsibleCard;
 use crate::ui::form::field::Choice;
 use crate::ui::lookup::SelectField;
+use crate::ui::table::DataGrid;
 use crate::ui::table::config::currencies::currencies_grid;
 
 /// Every currency there is, as something to pick from.

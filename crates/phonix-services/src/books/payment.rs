@@ -42,9 +42,9 @@ use chrono::NaiveDate;
 use phonix_core::form::Submission;
 use phonix_core::locale::Currency;
 use phonix_core::money::{ExchangeRate, Money, Rounding};
+use phonix_core::msg;
 use phonix_core::permissions;
 use phonix_core::query::{Page, PageRequest};
-use phonix_core::msg;
 use phonix_db::books::payment as store;
 use phonix_db::error::DbError;
 use phonix_db::numbering::SequenceKey;
@@ -247,7 +247,9 @@ pub async fn post(pool: &PgPool, caller: &Caller, id: Uuid) -> ServiceResult<Pos
     // The conversion, worked out before the transaction opens: it reads two
     // tables and does not need the sequence's row lock held while it does.
     let conversion = conversion_for(pool, &payment).await?;
-    let base_amount = conversion.as_ref().map_or(payment.amount, |(_, base)| *base);
+    let base_amount = conversion
+        .as_ref()
+        .map_or(payment.amount, |(_, base)| *base);
 
     let generator = crate::numbering::NumberGenerator::open(pool).await?;
     let mut tx = pool.begin().await.map_err(DbError::Query)?;
@@ -319,14 +321,7 @@ pub async fn post(pool: &PgPool, caller: &Caller, id: Uuid) -> ServiceResult<Pos
         super::journal::record(pool, caller, &posted).await;
     }
 
-    audit::updated(
-        pool,
-        caller,
-        target,
-        &PaymentStatus::Draft,
-        &after.status,
-    )
-    .await;
+    audit::updated(pool, caller, target, &PaymentStatus::Draft, &after.status).await;
 
     Ok(PostOutcome::Posted {
         number: allocated.number,
@@ -503,9 +498,7 @@ async fn validate(
     let outstanding = store::settled_on(pool, &invoice_ids).await?;
 
     for line in &checked.allocations {
-        let Some((_, code, left)) = outstanding
-            .iter()
-            .find(|(id, _, _)| *id == line.invoice_id)
+        let Some((_, code, left)) = outstanding.iter().find(|(id, _, _)| *id == line.invoice_id)
         else {
             return Ok(Err(PaymentError::InvoiceNotPosted));
         };

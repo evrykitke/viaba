@@ -23,7 +23,7 @@
 //! password, so nobody - including whoever pressed the button - ever knows it.
 
 use app_hr::employee::{
-    Assignment, AssignmentInput, Employee, EmployeeInput, EmploymentType, Engagement, EndReason,
+    Assignment, AssignmentInput, Employee, EmployeeInput, EmploymentType, EndReason, Engagement,
     LeavingInput,
 };
 use chrono::NaiveDate;
@@ -1071,9 +1071,10 @@ fn login_panel(
                             let emailed = issued.delivery_note.is_none();
 
                             alerts.post(if emailed {
-                                Alert::success(
-                                    l!("employees.login.created", email = issued.email.clone()),
-                                )
+                                Alert::success(l!(
+                                    "employees.login.created",
+                                    email = issued.email.clone()
+                                ))
                             } else {
                                 // The account exists and the link works; only
                                 // the email failed. Showing the link is what
@@ -1231,7 +1232,9 @@ fn engagement_block(engagement: Engagement) -> impl IntoView {
     let started = engagement.started_on.to_string();
     let ended = engagement.ended_on.map(|on| on.to_string());
     let kind = crate::i18n::t(&engagement.employment_type.label());
-    let reason = engagement.end_reason.map(|why| crate::i18n::t(&why.label()));
+    let reason = engagement
+        .end_reason
+        .map(|why| crate::i18n::t(&why.label()));
     let note = engagement.end_note.clone();
     let overrunning = engagement.is_overrunning(today());
     let assignments = StoredValue::new(engagement.assignments.clone());

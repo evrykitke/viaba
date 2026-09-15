@@ -7,7 +7,9 @@
 //! because changing it is a revaluation - so the help text says that before
 //! somebody tries, rather than the save refusing afterwards.
 
-use app_inventory::category::{CategoryInput, CategorySummary, CostingMethod, RemovalStrategy, Valuation};
+use app_inventory::category::{
+    CategoryInput, CategorySummary, CostingMethod, RemovalStrategy, Valuation,
+};
 use phonix_core::permissions;
 use uuid::Uuid;
 

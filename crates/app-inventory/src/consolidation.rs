@@ -279,11 +279,7 @@ pub struct ConsolidationLineInput {
 impl ConsolidationLineInput {
     /// A line drawn from a demand row: buy exactly what was asked for, from
     /// nobody in particular yet.
-    pub fn from_demand(
-        variant_id: Uuid,
-        description: String,
-        outstanding: Quantity,
-    ) -> Self {
+    pub fn from_demand(variant_id: Uuid, description: String, outstanding: Quantity) -> Self {
         Self {
             id: None,
             variant_id: Some(variant_id),
@@ -511,10 +507,7 @@ impl ConsolidationError {
     pub fn field(self) -> &'static str {
         match self {
             Self::WarehouseRequired => "warehouse_id",
-            Self::NoLines
-            | Self::ItemRequired
-            | Self::ItemTwice
-            | Self::NotPurchasable => "lines",
+            Self::NoLines | Self::ItemRequired | Self::ItemTwice | Self::NotPurchasable => "lines",
             Self::SupplierRequired | Self::NotASupplier => "supplier_id",
             Self::QuantityRequired | Self::Quantity(_) => "quantity",
             Self::Money(_) => "unit_price",

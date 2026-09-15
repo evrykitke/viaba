@@ -1,8 +1,6 @@
 //! `hr.work_locations` — where people work.
 
-use app_hr::work_location::{
-    CheckedWorkLocation, LocationKind, WorkLocation, WorkLocationSummary,
-};
+use app_hr::work_location::{CheckedWorkLocation, LocationKind, WorkLocation, WorkLocationSummary};
 use phonix_core::identity::UserId;
 use sqlx::{PgExecutor, Row};
 use uuid::Uuid;

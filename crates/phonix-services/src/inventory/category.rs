@@ -11,7 +11,9 @@
 //! it moves the items to a category that already has the method they want,
 //! which is the same act done visibly.
 
-use app_inventory::category::{Category, CategoryError, CategoryInput, CategorySummary, DeleteOutcome, MAX_CATEGORY_DEPTH};
+use app_inventory::category::{
+    Category, CategoryError, CategoryInput, CategorySummary, DeleteOutcome, MAX_CATEGORY_DEPTH,
+};
 use app_inventory::location::path_under;
 use phonix_core::form::Submission;
 use phonix_core::msg;
@@ -71,7 +73,9 @@ pub async fn save(
 
     let parent_path = match checked.parent_id {
         None => None,
-        Some(parent_id) => store::find(pool, parent_id).await?.map(|parent| parent.code),
+        Some(parent_id) => store::find(pool, parent_id)
+            .await?
+            .map(|parent| parent.code),
     };
     let path = path_under(parent_path.as_deref(), &checked.name);
 

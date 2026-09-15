@@ -56,7 +56,11 @@ pub fn landed_costs_page() -> impl IntoView {
 pub fn landed_cost_new_page() -> impl IntoView {
     let query = leptos_router::hooks::use_query_map();
     let against = move || {
-        query.with(|query| query.get("receipt").and_then(|raw| raw.parse::<Uuid>().ok()))
+        query.with(|query| {
+            query
+                .get("receipt")
+                .and_then(|raw| raw.parse::<Uuid>().ok())
+        })
     };
 
     let prefilled = Resource::new(against, |receipt_id| async move {
@@ -281,8 +285,10 @@ fn editor_body(
         .iter()
         .filter(|receipt| receipt.state.is_posted())
         .map(|receipt| {
-            Choice::new(receipt.id.to_string(), receipt.number.clone())
-                .detail(format!("{} · {}", receipt.supplier_name, receipt.received_on))
+            Choice::new(receipt.id.to_string(), receipt.number.clone()).detail(format!(
+                "{} · {}",
+                receipt.supplier_name, receipt.received_on
+            ))
         })
         .collect::<Vec<_>>();
 
@@ -343,10 +349,11 @@ fn editor_body(
                         match result {
                             Ok(Submission::Saved(document)) => {
                                 alerts.post(
-                                    Alert::success(
-                                            l!("landed_costs.posted", number = document.number),
-                                        )
-                                        .titled(l!("landed_costs.post")),
+                                    Alert::success(l!(
+                                        "landed_costs.posted",
+                                        number = document.number
+                                    ))
+                                    .titled(l!("landed_costs.post")),
                                 );
                                 navigate(
                                     &format!("/inventory/landed-costs/{id}"),

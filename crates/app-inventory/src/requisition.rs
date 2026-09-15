@@ -200,7 +200,10 @@ impl OrderProgress {
     }
 
     pub fn parse(raw: &str) -> Option<Self> {
-        Self::ALL.iter().copied().find(|state| state.as_str() == raw)
+        Self::ALL
+            .iter()
+            .copied()
+            .find(|state| state.as_str() == raw)
     }
 
     /// Returns complete or incomplete progress states.
@@ -740,9 +743,10 @@ impl RequisitionError {
         match self {
             Self::CostCentreRequired | Self::UnknownCostCentre => "cost_centre_id",
             Self::WarehouseRequired => "warehouse_id",
-            Self::NoLines | Self::ItemRequired | Self::NotPurchasable | Self::NothingOutstanding => {
-                "lines"
-            }
+            Self::NoLines
+            | Self::ItemRequired
+            | Self::NotPurchasable
+            | Self::NothingOutstanding => "lines",
             Self::UnitRequired | Self::UnitMismatch => "unit_id",
             Self::QuantityRequired | Self::Quantity(_) => "quantity",
             Self::Money(_) => "estimate",

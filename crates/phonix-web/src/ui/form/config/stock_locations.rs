@@ -133,9 +133,7 @@ pub fn stock_location_form(
         Field::number(
             "count_frequency_days",
             l!("locations.count_frequency"),
-            |m: &LocationInput| {
-                FieldValue::Number(m.count_frequency_days.map(f64::from))
-            },
+            |m: &LocationInput| FieldValue::Number(m.count_frequency_days.map(f64::from)),
         )
         .writing(|m, value| {
             m.count_frequency_days = value

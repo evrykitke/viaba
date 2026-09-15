@@ -75,7 +75,10 @@ impl AllocationBasis {
     }
 
     pub fn parse(raw: &str) -> Option<Self> {
-        Self::ALL.iter().copied().find(|basis| basis.as_str() == raw)
+        Self::ALL
+            .iter()
+            .copied()
+            .find(|basis| basis.as_str() == raw)
     }
 
     pub fn label(self) -> Message {
@@ -117,7 +120,10 @@ impl LandedCostState {
     }
 
     pub fn parse(raw: &str) -> Option<Self> {
-        Self::ALL.iter().copied().find(|state| state.as_str() == raw)
+        Self::ALL
+            .iter()
+            .copied()
+            .find(|state| state.as_str() == raw)
     }
 
     pub const fn is_editable(self) -> bool {
@@ -358,17 +364,23 @@ pub fn spread(
 
         let weights = bases
             .iter()
-            .map(|amount| i64::try_from(amount.scaled()).map_err(|_| LandedCostError::BasisTooLarge))
+            .map(|amount| {
+                i64::try_from(amount.scaled()).map_err(|_| LandedCostError::BasisTooLarge)
+            })
             .collect::<Result<Vec<_>, _>>()?;
 
         if weights.iter().all(|weight| *weight == 0) {
-            return Err(LandedCostError::NoBasis { basis: charge.basis });
+            return Err(LandedCostError::NoBasis {
+                basis: charge.basis,
+            });
         }
         // A negative basis cannot happen - a layer's quantity and value are
         // both positive by CHECK - but `allocate` refuses one, and saying so
         // here names the line rather than the arithmetic.
         if weights.iter().any(|weight| *weight < 0) {
-            return Err(LandedCostError::NoBasis { basis: charge.basis });
+            return Err(LandedCostError::NoBasis {
+                basis: charge.basis,
+            });
         }
 
         let portions = charge.amount.allocate(&weights)?;
@@ -418,7 +430,11 @@ fn split_capitalised(amount: Money, line: &Landable) -> Result<Money, LandedCost
         return Ok(Money::zero(amount.currency()));
     }
 
-    Ok(amount.scale_by(line.remaining.scaled(), line.quantity.scaled(), Rounding::HalfUp)?)
+    Ok(amount.scale_by(
+        line.remaining.scaled(),
+        line.quantity.scaled(),
+        Rounding::HalfUp,
+    )?)
 }
 
 // --- Input ----------------------------------------------------------------
@@ -674,7 +690,11 @@ mod tests {
         let quantity = qty(quantity);
         let value = Money::parse(currency(), unit_cost)
             .expect("cost")
-            .scale_by(quantity.scaled(), crate::quantity::SCALE_FACTOR, Rounding::HalfUp)
+            .scale_by(
+                quantity.scaled(),
+                crate::quantity::SCALE_FACTOR,
+                Rounding::HalfUp,
+            )
             .expect("value");
 
         Landable {
@@ -700,14 +720,22 @@ mod tests {
             line(2, "10", "10.00", Some(900)),
         ];
 
-        let by_weight = spread(&[charge(9, AllocationBasis::Weight, "100.00")], &lines, currency())
-            .expect("spread");
+        let by_weight = spread(
+            &[charge(9, AllocationBasis::Weight, "100.00")],
+            &lines,
+            currency(),
+        )
+        .expect("spread");
 
         assert_eq!(by_weight.shares[0].amount, gbp("10.00"));
         assert_eq!(by_weight.shares[1].amount, gbp("90.00"));
 
-        let by_value = spread(&[charge(9, AllocationBasis::Value, "100.00")], &lines, currency())
-            .expect("spread");
+        let by_value = spread(
+            &[charge(9, AllocationBasis::Value, "100.00")],
+            &lines,
+            currency(),
+        )
+        .expect("spread");
 
         assert_eq!(by_value.shares[0].amount, gbp("50.00"));
         assert_eq!(by_value.shares[1].amount, gbp("50.00"));
@@ -724,11 +752,16 @@ mod tests {
             line(3, "1", "1.00", Some(1)),
         ];
 
-        let spread = spread(&[charge(9, AllocationBasis::Quantity, "100.00")], &lines, currency())
-            .expect("spread");
+        let spread = spread(
+            &[charge(9, AllocationBasis::Quantity, "100.00")],
+            &lines,
+            currency(),
+        )
+        .expect("spread");
 
         assert_eq!(
-            Money::total(currency(), spread.shares.iter().map(|share| share.amount)).expect("total"),
+            Money::total(currency(), spread.shares.iter().map(|share| share.amount))
+                .expect("total"),
             gbp("100.00")
         );
         assert_eq!(spread.total, gbp("100.00"));
@@ -745,15 +778,21 @@ mod tests {
         let mut sold = line(1, "100", "5.00", Some(1));
         sold.remaining = qty("25");
 
-        let spread =
-            spread(&[charge(9, AllocationBasis::Quantity, "400.00")], &[sold], currency())
-                .expect("spread");
+        let spread = spread(
+            &[charge(9, AllocationBasis::Quantity, "400.00")],
+            &[sold],
+            currency(),
+        )
+        .expect("spread");
 
         assert_eq!(spread.capitalised, gbp("100.00"));
         assert_eq!(spread.expensed, gbp("300.00"));
         // And the two halves are the whole, which is the CHECK on the row.
         assert_eq!(
-            spread.capitalised.checked_add(spread.expensed).expect("sum"),
+            spread
+                .capitalised
+                .checked_add(spread.expensed)
+                .expect("sum"),
             spread.total
         );
     }
@@ -763,8 +802,12 @@ mod tests {
         let mut gone = line(1, "40", "2.00", Some(1));
         gone.remaining = Quantity::ZERO;
 
-        let spread = spread(&[charge(9, AllocationBasis::Value, "80.00")], &[gone], currency())
-            .expect("spread");
+        let spread = spread(
+            &[charge(9, AllocationBasis::Value, "80.00")],
+            &[gone],
+            currency(),
+        )
+        .expect("spread");
 
         assert_eq!(spread.capitalised, gbp("0"));
         assert_eq!(spread.expensed, gbp("80.00"));
@@ -777,8 +820,12 @@ mod tests {
             line(2, "10", "10.00", None),
         ];
 
-        let spread = spread(&[charge(9, AllocationBasis::Weight, "60.00")], &lines, currency())
-            .expect("spread");
+        let spread = spread(
+            &[charge(9, AllocationBasis::Weight, "60.00")],
+            &lines,
+            currency(),
+        )
+        .expect("spread");
 
         assert_eq!(spread.shares.len(), 1);
         assert_eq!(spread.shares[0].receipt_line_id, Uuid::from_u128(1));
@@ -792,7 +839,11 @@ mod tests {
         let lines = [line(1, "10", "10.00", None)];
 
         assert_eq!(
-            spread(&[charge(9, AllocationBasis::Weight, "60.00")], &lines, currency()),
+            spread(
+                &[charge(9, AllocationBasis::Weight, "60.00")],
+                &lines,
+                currency()
+            ),
             Err(LandedCostError::NoBasis {
                 basis: AllocationBasis::Weight
             })
@@ -834,8 +885,12 @@ mod tests {
         // overcharge refunded is a second document with a negative on it.
         let lines = [line(1, "10", "10.00", Some(100))];
 
-        let spread = spread(&[charge(9, AllocationBasis::Value, "-25.00")], &lines, currency())
-            .expect("spread");
+        let spread = spread(
+            &[charge(9, AllocationBasis::Value, "-25.00")],
+            &lines,
+            currency(),
+        )
+        .expect("spread");
 
         assert_eq!(spread.total, gbp("-25.00"));
         assert_eq!(spread.capitalised, gbp("-25.00"));
@@ -848,7 +903,11 @@ mod tests {
             Err(LandedCostError::NothingToSpread)
         );
         assert_eq!(
-            spread(&[charge(9, AllocationBasis::Value, "10.00")], &[], currency()),
+            spread(
+                &[charge(9, AllocationBasis::Value, "10.00")],
+                &[],
+                currency()
+            ),
             Err(LandedCostError::NothingToSpreadOver)
         );
     }

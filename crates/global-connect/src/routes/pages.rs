@@ -69,10 +69,22 @@ pub static APP_MARKS: [Mark; 3] = [
             },
             // The fold, a tone up. Two tones of one hue plus an accent is the
             // whole colour rule here.
-            Layer { d: "M30 4l10 10H32a2 2 0 0 1-2-2V4z", fill: "#9db2ff" },
-            Layer { d: "M17 32h5v7h-5z", fill: "#ffc24b" },
-            Layer { d: "M25 26h5v13h-5z", fill: "#ffffff" },
-            Layer { d: "M33 21h5v18h-5z", fill: "#3ddc97" },
+            Layer {
+                d: "M30 4l10 10H32a2 2 0 0 1-2-2V4z",
+                fill: "#9db2ff",
+            },
+            Layer {
+                d: "M17 32h5v7h-5z",
+                fill: "#ffc24b",
+            },
+            Layer {
+                d: "M25 26h5v13h-5z",
+                fill: "#ffffff",
+            },
+            Layer {
+                d: "M33 21h5v18h-5z",
+                fill: "#3ddc97",
+            },
         ],
     },
     // Inventory - a box in isometric, three faces in three tones, with a strip
@@ -81,10 +93,22 @@ pub static APP_MARKS: [Mark; 3] = [
     Mark {
         class: "app-inventory",
         layers: &[
-            Layer { d: "M24 5l18 9-18 9-18-9z", fill: "#5ee6c5" },
-            Layer { d: "M6 14v20l18 9V23z", fill: "#128f77" },
-            Layer { d: "M42 14v20l-18 9V23z", fill: "#2bc4a4" },
-            Layer { d: "M24 9.5l9 4.5-9 4.5-9-4.5z", fill: "#ffc24b" },
+            Layer {
+                d: "M24 5l18 9-18 9-18-9z",
+                fill: "#5ee6c5",
+            },
+            Layer {
+                d: "M6 14v20l18 9V23z",
+                fill: "#128f77",
+            },
+            Layer {
+                d: "M42 14v20l-18 9V23z",
+                fill: "#2bc4a4",
+            },
+            Layer {
+                d: "M24 9.5l9 4.5-9 4.5-9-4.5z",
+                fill: "#ffc24b",
+            },
         ],
     },
     // People - two figures, the front one overlapping the back. The overlap is
@@ -96,9 +120,18 @@ pub static APP_MARKS: [Mark; 3] = [
                 d: "M26.5,16 a5.5,5.5 0 1,0 11,0 a5.5,5.5 0 1,0 -11,0z",
                 fill: "#b79cff",
             },
-            Layer { d: "M32 24c5.5 0 10 4.5 10 10v7H22v-7c0-5.5 4.5-10 10-10z", fill: "#b79cff" },
-            Layer { d: "M12,19 a7,7 0 1,0 14,0 a7,7 0 1,0 -14,0z", fill: "#ff5d73" },
-            Layer { d: "M19 28c7.2 0 13 5.8 13 13v3H6v-3c0-7.2 5.8-13 13-13z", fill: "#ff5d73" },
+            Layer {
+                d: "M32 24c5.5 0 10 4.5 10 10v7H22v-7c0-5.5 4.5-10 10-10z",
+                fill: "#b79cff",
+            },
+            Layer {
+                d: "M12,19 a7,7 0 1,0 14,0 a7,7 0 1,0 -14,0z",
+                fill: "#ff5d73",
+            },
+            Layer {
+                d: "M19 28c7.2 0 13 5.8 13 13v3H6v-3c0-7.2 5.8-13 13-13z",
+                fill: "#ff5d73",
+            },
         ],
     },
 ];
@@ -251,11 +284,7 @@ impl Frame {
             }),
             origin,
             industry_slugs: INDUSTRY_SLUGS,
-            app_classes: [
-                APP_MARKS[0].class,
-                APP_MARKS[1].class,
-                APP_MARKS[2].class,
-            ],
+            app_classes: [APP_MARKS[0].class, APP_MARKS[1].class, APP_MARKS[2].class],
             // Overwritten by `titled` before the page renders. Empty rather
             // than a placeholder: a title that says "TODO" is worse in a search
             // result than one that is short.
@@ -419,7 +448,14 @@ fn app_views(t: &'static Strings, product: &str) -> Vec<AppView> {
 /// One list, so a page that exists cannot be missing from the sitemap and an
 /// address in the sitemap cannot 404. Both are things a crawler reports and
 /// nobody reads.
-pub const PATHS: [&str; 6] = ["", "/solutions", "/product", "/pricing", "/about", "/contact"];
+pub const PATHS: [&str; 6] = [
+    "",
+    "/solutions",
+    "/product",
+    "/pricing",
+    "/about",
+    "/contact",
+];
 
 // ---------------------------------------------------------------------------
 // The pages

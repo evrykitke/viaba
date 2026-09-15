@@ -16,7 +16,9 @@ use crate::components::page::{Badge, Tone};
 use crate::icons::Icon;
 use crate::l;
 use crate::server_fns::inventory_fns::list_warehouses;
-use crate::ui::table::{Align, Cell, Column, Filter, FilterChoice, RowAction, Source, ToolbarAction};
+use crate::ui::table::{
+    Align, Cell, Column, Filter, FilterChoice, RowAction, Source, ToolbarAction,
+};
 
 /// The buildings, and how each one works.
 pub fn warehouses_grid() -> GridConfig<WarehouseSummary> {

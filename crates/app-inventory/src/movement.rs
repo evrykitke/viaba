@@ -104,7 +104,10 @@ pub enum JournalOutcome {
     NotRequired,
     /// Nobody implements the `Ledger` port here. The stock moved anyway.
     NoLedger,
-    Posted { journal_id: Uuid, number: String },
+    Posted {
+        journal_id: Uuid,
+        number: String,
+    },
 }
 
 impl JournalOutcome {
@@ -302,7 +305,10 @@ impl MoveRequest {
 pub fn posting_roles(
     from: LocationKind,
     to: LocationKind,
-) -> Option<(phonix_ports::ledger::AccountRole, phonix_ports::ledger::AccountRole)> {
+) -> Option<(
+    phonix_ports::ledger::AccountRole,
+    phonix_ports::ledger::AccountRole,
+)> {
     let debit = to.account_role()?;
     let credit = from.account_role()?;
 
@@ -677,9 +683,7 @@ mod tests {
                         assert_ne!(debit, credit, "{from:?} -> {to:?}");
                     }
                     None => assert!(
-                        !kind.changes_stock_value()
-                            || from == K::Production
-                            || to == K::Production,
+                        !kind.changes_stock_value() || from == K::Production || to == K::Production,
                         "{from:?} -> {to:?} moves value and posts nothing"
                     ),
                 }

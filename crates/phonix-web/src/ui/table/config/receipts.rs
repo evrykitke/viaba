@@ -64,9 +64,7 @@ pub fn receipts_grid() -> GridConfig<ReceiptSummary> {
             Column::new(
                 "delivery_note",
                 l!("receipts.delivery_note"),
-                |row: &ReceiptSummary| {
-                    Cell::text(row.delivery_note.clone().unwrap_or_default())
-                },
+                |row: &ReceiptSummary| Cell::text(row.delivery_note.clone().unwrap_or_default()),
             )
             .searchable()
             .essential()
@@ -102,11 +100,9 @@ pub fn receipts_grid() -> GridConfig<ReceiptSummary> {
             }),
         )
         .column(
-            Column::new(
-                "warehouse",
-                l!("nav.warehouses"),
-                |row: &ReceiptSummary| Cell::text(&row.warehouse_name),
-            )
+            Column::new("warehouse", l!("nav.warehouses"), |row: &ReceiptSummary| {
+                Cell::text(&row.warehouse_name)
+            })
             .searchable()
             .class("text-xs text-content-muted"),
         )
@@ -122,18 +118,16 @@ pub fn receipts_grid() -> GridConfig<ReceiptSummary> {
         )
         // No `matching`: a closure could only narrow the rows already
         // fetched, and "only the drafts" is a question about the list.
-        .filter(
-            Filter::new(
-                "state",
-                l!("field.status"),
-                vec![
-                    FilterChoice::all(l!("common.all")),
-                    FilterChoice::new("done", l!("receipts.state.done")),
-                    FilterChoice::new("draft", l!("receipts.state.draft")),
-                    FilterChoice::new("cancelled", l!("receipts.state.cancelled")),
-                ],
-            ),
-        )
+        .filter(Filter::new(
+            "state",
+            l!("field.status"),
+            vec![
+                FilterChoice::all(l!("common.all")),
+                FilterChoice::new("done", l!("receipts.state.done")),
+                FilterChoice::new("draft", l!("receipts.state.draft")),
+                FilterChoice::new("cancelled", l!("receipts.state.cancelled")),
+            ],
+        ))
         .date_filter(DateFilter::new("received", l!("receipts.received_on")))
         .toolbar(
             ToolbarAction::link(l!("common.add"), Icon::Plus, "/inventory/receipts/new")
@@ -206,7 +200,14 @@ mod tests {
     /// on `phonix-db`, and the point of the test is that the two lists were
     /// written to agree. The source is
     /// `phonix_db::inventory::receipt::SORTABLE`.
-    const SERVER_SORTS: &[&str] = &["number", "supplier", "received_on", "order", "value", "line_count"];
+    const SERVER_SORTS: &[&str] = &[
+        "number",
+        "supplier",
+        "received_on",
+        "order",
+        "value",
+        "line_count",
+    ];
 
     /// The columns the `WHERE` actually looks inside. Same reasoning.
     const SERVER_SEARCHES: &[&str] = &["number", "supplier", "delivery_note", "order", "warehouse"];

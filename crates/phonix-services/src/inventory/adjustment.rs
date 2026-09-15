@@ -46,10 +46,7 @@ fn reject<T>(err: AdjustmentError) -> Submission<T> {
 
 /// Every reason, retired ones included, with how much has been booked under
 /// each.
-pub async fn list(
-    pool: &PgPool,
-    caller: &Caller,
-) -> ServiceResult<Vec<AdjustmentTypeSummary>> {
+pub async fn list(pool: &PgPool, caller: &Caller) -> ServiceResult<Vec<AdjustmentTypeSummary>> {
     caller.require(permissions::ADJUSTMENT_TYPES)?;
     Ok(store::list(pool).await?)
 }
@@ -72,11 +69,7 @@ pub async fn detail(pool: &PgPool, caller: &Caller, id: Uuid) -> ServiceResult<A
         .ok_or_else(|| ServiceError::rejected("type_id", msg!("adjustment_types.gone")))
 }
 
-pub async fn edit(
-    pool: &PgPool,
-    caller: &Caller,
-    id: Uuid,
-) -> ServiceResult<AdjustmentTypeInput> {
+pub async fn edit(pool: &PgPool, caller: &Caller, id: Uuid) -> ServiceResult<AdjustmentTypeInput> {
     Ok(AdjustmentTypeInput::from_type(
         &detail(pool, caller, id).await?,
     ))

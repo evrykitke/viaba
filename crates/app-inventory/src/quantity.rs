@@ -94,7 +94,8 @@ impl Quantity {
         if whole.is_empty() && fraction.is_empty() {
             return Err(QuantityError::Malformed);
         }
-        if !whole.bytes().all(|b| b.is_ascii_digit()) || !fraction.bytes().all(|b| b.is_ascii_digit())
+        if !whole.bytes().all(|b| b.is_ascii_digit())
+            || !fraction.bytes().all(|b| b.is_ascii_digit())
         {
             return Err(QuantityError::Malformed);
         }
@@ -315,7 +316,10 @@ mod tests {
     fn a_typed_quantity_keeps_every_digit_it_was_given() {
         assert_eq!(Quantity::parse("12").unwrap().to_display_string(), "12");
         assert_eq!(Quantity::parse("0.35").unwrap().to_display_string(), "0.35");
-        assert_eq!(Quantity::parse("1 200.5").unwrap().to_display_string(), "1200.5");
+        assert_eq!(
+            Quantity::parse("1 200.5").unwrap().to_display_string(),
+            "1200.5"
+        );
         assert_eq!(Quantity::parse("-2.5").unwrap().to_display_string(), "-2.5");
         assert_eq!(
             Quantity::parse(".5").unwrap().to_storage_string(),

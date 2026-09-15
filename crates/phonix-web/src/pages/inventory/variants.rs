@@ -29,7 +29,10 @@ use crate::ui::alert::{Alert, Alerts};
 #[component]
 pub fn variants_panel(item_id: Uuid) -> impl IntoView {
     let attributes = Resource::new(|| (), |()| async move { list_attributes().await });
-    let chosen = Resource::new(move || item_id, |id| async move { item_selection(id).await });
+    let chosen = Resource::new(
+        move || item_id,
+        |id| async move { item_selection(id).await },
+    );
     let variants = RwSignal::new(Vec::<VariantSummary>::new());
 
     let reload = Callback::new(move |()| {

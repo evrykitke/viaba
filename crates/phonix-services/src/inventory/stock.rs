@@ -139,10 +139,7 @@ pub async fn apply(
     };
 
     let Some(context) = store::context(pool, checked.variant_id, currency).await? else {
-        return Ok(Submission::rejected(
-            "variant_id",
-            msg!("items.gone"),
-        ));
+        return Ok(Submission::rejected("variant_id", msg!("items.gone")));
     };
 
     if !context.holds_stock() {
@@ -210,15 +207,7 @@ pub async fn apply(
     settle(&mut tx, &context, &costed, move_id, lot.as_ref(), currency).await?;
 
     let outcome = post(
-        &mut tx,
-        ledger,
-        &context,
-        &from,
-        &to,
-        &checked,
-        &costed,
-        move_id,
-        currency,
+        &mut tx, ledger, &context, &from, &to, &checked, &costed, move_id, currency,
     )
     .await?;
 
@@ -303,8 +292,13 @@ async fn cost(
             let on_hand = quant_store::item_on_hand(&mut **tx, context.item_id).await?;
 
             Some(
-                valuation::weighted_average(on_hand, context.item_cost, request.quantity, unit_cost)
-                    .map_err(rejected_valuation)?,
+                valuation::weighted_average(
+                    on_hand,
+                    context.item_cost,
+                    request.quantity,
+                    unit_cost,
+                )
+                .map_err(rejected_valuation)?,
             )
         } else {
             None
@@ -338,7 +332,9 @@ async fn cost(
             Err(err) => return Ok(Err(Submission::rejected("quantity", err.message()))),
         };
 
-        let unit_cost = issue.unit_cost(request.quantity).map_err(rejected_valuation)?;
+        let unit_cost = issue
+            .unit_cost(request.quantity)
+            .map_err(rejected_valuation)?;
 
         return Ok(Ok(Costed {
             quantity: request.quantity,
@@ -536,12 +532,8 @@ async fn post(
         // still falls back to whatever the workspace mapped the role to, which
         // is what every adjustment did before types existed.
         account_id: match role {
-            phonix_ports::ledger::AccountRole::InventoryAdjustment => {
-                request.adjustment_account_id
-            }
-            role => {
-                app_inventory::accounts::account_for(role, &item_accounts, &category_accounts)
-            }
+            phonix_ports::ledger::AccountRole::InventoryAdjustment => request.adjustment_account_id,
+            role => app_inventory::accounts::account_for(role, &item_accounts, &category_accounts),
         },
         side,
         amount: amount.clone(),
@@ -630,9 +622,10 @@ fn rejected_valuation(err: valuation::ValuationError) -> ServiceError {
 pub(crate) fn refused(err: LedgerError) -> ServiceError {
     match err {
         LedgerError::Refused(message) => ServiceError::rejected("moved_on", message),
-        LedgerError::PeriodClosed(detail) => {
-            ServiceError::rejected("moved_on", msg!("moves.error.period_closed", detail = detail))
-        }
+        LedgerError::PeriodClosed(detail) => ServiceError::rejected(
+            "moved_on",
+            msg!("moves.error.period_closed", detail = detail),
+        ),
         LedgerError::UnmappedRole(role) => ServiceError::rejected(
             "variant_id",
             msg!("moves.error.unmapped_role", role = role.to_owned()),

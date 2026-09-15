@@ -245,11 +245,13 @@ pub async fn record_journal(
 /// Answers `false` rather than failing where the row is already final, so a
 /// screen can say so instead of showing a trigger's words.
 pub async fn cancel(conn: &mut PgConnection, id: Uuid) -> Result<bool, DbError> {
-    let done = sqlx::query("UPDATE inventory.stock_moves SET state = 'cancelled' WHERE id = $1 AND state = 'draft'")
-        .bind(id)
-        .execute(conn)
-        .await
-        .map_err(DbError::Query)?;
+    let done = sqlx::query(
+        "UPDATE inventory.stock_moves SET state = 'cancelled' WHERE id = $1 AND state = 'draft'",
+    )
+    .bind(id)
+    .execute(conn)
+    .await
+    .map_err(DbError::Query)?;
 
     Ok(done.rows_affected() == 1)
 }
@@ -372,7 +374,9 @@ pub async fn page(
     request: &PageRequest,
 ) -> Result<Page<MoveSummary>, DbError> {
     let request = request.sanitised();
-    let needle = request.needle().map(|needle| crate::search::contains(&needle));
+    let needle = request
+        .needle()
+        .map(|needle| crate::search::contains(&needle));
     let state = request.filter(STATE).and_then(MoveState::parse);
 
     let moved = request.range(MOVED);
@@ -416,11 +420,7 @@ pub async fn page(
     // Newest first, and `created_at` after it whatever the sort: two movements
     // on the same day would otherwise swap places between one page and the
     // next, which shows up as a row that appears twice.
-    let order = listing::order_by(
-        request.sort.as_ref(),
-        SORTABLE,
-        "m.moved_on DESC",
-    );
+    let order = listing::order_by(request.sort.as_ref(), SORTABLE, "m.moved_on DESC");
 
     let selecting = AssertSqlSafe(format!(
         "SELECT {SUMMARY}
@@ -456,7 +456,10 @@ pub async fn page(
 }
 
 /// One grid row.
-fn read_summary(row: &sqlx::postgres::PgRow, currency: Currency) -> Result<MoveSummary, sqlx::Error> {
+fn read_summary(
+    row: &sqlx::postgres::PgRow,
+    currency: Currency,
+) -> Result<MoveSummary, sqlx::Error> {
     let quantity: String = row.try_get("quantity")?;
     let value: String = row.try_get("value")?;
     let state: String = row.try_get("state")?;

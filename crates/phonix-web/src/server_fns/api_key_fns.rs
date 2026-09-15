@@ -47,9 +47,7 @@ pub async fn list_api_keys(request: PageRequest) -> Result<Page<ApiKeySummary>, 
 /// arrives at the scopes field rather than as a sentence at the top of the
 /// form.
 #[server(name = IssueApiKey, prefix = "/api", endpoint = "admin/api-keys/issue")]
-pub async fn issue_api_key(
-    draft: ApiKeyDraft,
-) -> Result<Submission<ApiKeyIssued>, ServerFnError> {
+pub async fn issue_api_key(draft: ApiKeyDraft) -> Result<Submission<ApiKeyIssued>, ServerFnError> {
     use crate::state::{pool_and_caller, service_error};
 
     let (pool, caller) = pool_and_caller().await?;

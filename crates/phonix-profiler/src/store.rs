@@ -71,7 +71,12 @@ impl Store {
 
     /// The most recent profiles, newest first.
     pub fn recent(&self, limit: usize) -> Vec<Arc<Profile>> {
-        self.lock().iter().rev().take(limit).map(Arc::clone).collect()
+        self.lock()
+            .iter()
+            .rev()
+            .take(limit)
+            .map(Arc::clone)
+            .collect()
     }
 
     /// Every profile belonging to one page load, oldest first.

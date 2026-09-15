@@ -57,9 +57,11 @@ pub fn transfers_grid() -> GridConfig<TransferSummary> {
             .class("font-mono text-xs"),
         )
         .column(
-            Column::new("planned_on", l!("transfers.planned"), |row: &TransferSummary| {
-                Cell::text(row.planned_on.to_string())
-            })
+            Column::new(
+                "planned_on",
+                l!("transfers.planned"),
+                |row: &TransferSummary| Cell::text(row.planned_on.to_string()),
+            )
             .sortable()
             .essential()
             .class("tabular-nums"),
@@ -101,9 +103,11 @@ pub fn transfers_grid() -> GridConfig<TransferSummary> {
             .render(|row| on_the_road_cell(row).into_any()),
         )
         .column(
-            Column::new("reference", l!("transfers.reference"), |row: &TransferSummary| {
-                Cell::text(row.reference.clone().unwrap_or_default())
-            })
+            Column::new(
+                "reference",
+                l!("transfers.reference"),
+                |row: &TransferSummary| Cell::text(row.reference.clone().unwrap_or_default()),
+            )
             .searchable()
             .findable()
             .class("text-xs text-content-muted"),
@@ -116,19 +120,17 @@ pub fn transfers_grid() -> GridConfig<TransferSummary> {
             .class("tabular-nums text-content-muted"),
         )
         // Filtering is handled by the paged source.
-        .filter(
-            Filter::new(
-                "state",
-                l!("field.status"),
-                vec![
-                    FilterChoice::all(l!("common.all")),
-                    FilterChoice::new("draft", l!("transfers.state.draft")),
-                    FilterChoice::new("in_transit", l!("transfers.state.in_transit")),
-                    FilterChoice::new("done", l!("transfers.state.done")),
-                    FilterChoice::new("cancelled", l!("transfers.state.cancelled")),
-                ],
-            ),
-        )
+        .filter(Filter::new(
+            "state",
+            l!("field.status"),
+            vec![
+                FilterChoice::all(l!("common.all")),
+                FilterChoice::new("draft", l!("transfers.state.draft")),
+                FilterChoice::new("in_transit", l!("transfers.state.in_transit")),
+                FilterChoice::new("done", l!("transfers.state.done")),
+                FilterChoice::new("cancelled", l!("transfers.state.cancelled")),
+            ],
+        ))
         .date_filter(DateFilter::new("planned", l!("transfers.planned")))
         .toolbar(
             ToolbarAction::link(l!("common.add"), Icon::Plus, "/inventory/transfers/new")
@@ -136,9 +138,11 @@ pub fn transfers_grid() -> GridConfig<TransferSummary> {
                 .primary(),
         )
         .action(
-            RowAction::link(l!("common.open"), Icon::ArrowRight, |row: &TransferSummary| {
-                format!("/inventory/transfers/{}", row.id)
-            })
+            RowAction::link(
+                l!("common.open"),
+                Icon::ArrowRight,
+                |row: &TransferSummary| format!("/inventory/transfers/{}", row.id),
+            )
             .require(permissions::TRANSFERS),
         )
 }
@@ -190,7 +194,15 @@ mod tests {
     }
 
     /// Mirrors the database sort fields without adding a crate dependency.
-    const SERVER_SORTS: &[&str] = &["number", "from", "to", "planned_on", "despatched_on", "in_transit", "reference"];
+    const SERVER_SORTS: &[&str] = &[
+        "number",
+        "from",
+        "to",
+        "planned_on",
+        "despatched_on",
+        "in_transit",
+        "reference",
+    ];
 
     /// Mirrors the database search fields.
     const SERVER_SEARCHES: &[&str] = &["number", "from", "to", "reference"];

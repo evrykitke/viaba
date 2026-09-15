@@ -63,8 +63,8 @@ use crate::l;
 use crate::pages::inventory::item_lookup::ItemLookup;
 use crate::server_fns::inventory_fns::{
     blank_requisition, cancel_requisition, chargeable_cost_centres, decide_requisition,
-    delete_requisition, requisition_detail, save_requisition,
-    selectable_units, selectable_warehouses, submit_requisition,
+    delete_requisition, requisition_detail, save_requisition, selectable_units,
+    selectable_warehouses, submit_requisition,
 };
 use crate::ui::alert::{Alert, Alerts, Confirm};
 use crate::ui::form::field::Choice;
@@ -349,10 +349,11 @@ fn editor_body(
                         match result {
                             Ok(Submission::Saved(stored)) => {
                                 alerts.post(
-                                    Alert::success(
-                                            l!("requisitions.submitted_as", number = stored.number),
-                                        )
-                                        .titled(l!("requisitions.submit")),
+                                    Alert::success(l!(
+                                        "requisitions.submitted_as",
+                                        number = stored.number
+                                    ))
+                                    .titled(l!("requisitions.submit")),
                                 );
                                 // Reload the route: it is a document now, and
                                 // this screen draws a different thing for one.
@@ -841,7 +842,9 @@ fn requisition_document(requisition: Requisition, reload: Callback<()>) -> impl 
     let justification = requisition.justification.clone();
     let note = requisition.note.clone();
     let decision = requisition.decision.clone();
-    let estimate = requisition.estimate().map(|total| total.to_display_string());
+    let estimate = requisition
+        .estimate()
+        .map(|total| total.to_display_string());
     let lines = requisition.lines.clone();
 
     let reason = RwSignal::new(String::new());

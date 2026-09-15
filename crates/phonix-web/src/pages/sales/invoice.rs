@@ -719,7 +719,10 @@ fn line_row(
         treatments
             .iter()
             .map(|treatment| {
-                Choice::new(treatment.tax_group_id.to_string(), treatment.group_code.clone())
+                Choice::new(
+                    treatment.tax_group_id.to_string(),
+                    treatment.group_code.clone(),
+                )
             })
             .collect::<Vec<_>>()
     });

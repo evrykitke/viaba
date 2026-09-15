@@ -301,10 +301,14 @@ impl CategoryInput {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum DeleteOutcome {
     Deleted,
-    HasChildren { count: i64 },
+    HasChildren {
+        count: i64,
+    },
     /// Items are filed here. Moving them somewhere else would change how they
     /// are costed, which is not a thing a delete may do quietly.
-    HasItems { count: i64 },
+    HasItems {
+        count: i64,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]

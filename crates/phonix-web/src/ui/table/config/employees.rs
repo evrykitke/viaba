@@ -103,11 +103,7 @@ pub fn employees_grid() -> GridConfig<EmployeeSummary> {
                 "started_on",
                 l!("employees.started_on"),
                 |row: &EmployeeSummary| {
-                    Cell::text(
-                        row.started_on
-                            .map(|on| on.to_string())
-                            .unwrap_or_default(),
-                    )
+                    Cell::text(row.started_on.map(|on| on.to_string()).unwrap_or_default())
                 },
             )
             .sortable()

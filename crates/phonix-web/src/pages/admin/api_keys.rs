@@ -54,8 +54,11 @@ pub fn api_keys_page() -> impl IntoView {
 #[component]
 fn api_access() -> impl IntoView {
     let viewer = Viewer::get();
-    let may_change =
-        Signal::derive(move || viewer.get().is_some_and(|user| user.can(permissions::SETTINGS)));
+    let may_change = Signal::derive(move || {
+        viewer
+            .get()
+            .is_some_and(|user| user.can(permissions::SETTINGS))
+    });
 
     // The switch is a fact about the workspace, so it is fetched rather than
     // assumed. `Resource` and not a plain signal: it is read on the server

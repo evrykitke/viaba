@@ -144,11 +144,13 @@ pub fn date_span_picker(
     #[prop(into)] label: String,
     presets: &'static [DatePreset],
     /// Whether the viewer may pick a time of day as well as a date.
-    #[prop(optional)] with_time: bool,
+    #[prop(optional)]
+    with_time: bool,
     /// Whether the span may be dropped altogether. A grid opens unnarrowed and
     /// has to be able to go back to it; a report is always over something, and
     /// offering to clear its dates would offer a state it cannot render.
-    #[prop(optional)] clearable: bool,
+    #[prop(optional)]
+    clearable: bool,
     range: Signal<DateRange>,
     on_change: Callback<DateRange>,
 ) -> impl IntoView {

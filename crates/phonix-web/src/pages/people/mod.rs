@@ -21,8 +21,8 @@
 //! a flag, so it is a filter on the grid rather than a second screen.
 
 pub mod department;
-pub mod employee;
 pub mod departments;
+pub mod employee;
 pub mod home;
 pub mod lists;
 pub mod reference;

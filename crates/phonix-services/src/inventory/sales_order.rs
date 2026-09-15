@@ -77,10 +77,7 @@ pub async fn find_variants(
 }
 
 /// The confirmed orders with something still to ship, for a despatch screen.
-pub async fn awaiting_despatch(
-    pool: &PgPool,
-    caller: &Caller,
-) -> ServiceResult<Vec<SaleSummary>> {
+pub async fn awaiting_despatch(pool: &PgPool, caller: &Caller) -> ServiceResult<Vec<SaleSummary>> {
     caller.require(permissions::SALES_ORDERS)?;
     Ok(store::awaiting_despatch(pool).await?)
 }
@@ -145,7 +142,10 @@ pub async fn save(
             let before = detail(pool, caller, id).await?;
 
             if !before.state.is_editable() {
-                return Ok(Submission::rejected("state", SaleError::NotEditable.message()));
+                return Ok(Submission::rejected(
+                    "state",
+                    SaleError::NotEditable.message(),
+                ));
             }
 
             before.lines
@@ -169,7 +169,10 @@ pub async fn save(
         Some(id) => {
             if !store::update(&mut tx, id, &checked, &customer, net, caller.user_id()).await? {
                 tx.rollback().await.map_err(DbError::Query)?;
-                return Ok(Submission::rejected("state", SaleError::NotEditable.message()));
+                return Ok(Submission::rejected(
+                    "state",
+                    SaleError::NotEditable.message(),
+                ));
             }
             id
         }
@@ -235,7 +238,10 @@ async fn issue(
     let order = detail(pool, caller, id).await?;
 
     if !order.state.is_editable() {
-        return Ok(Submission::rejected("state", SaleError::NotEditable.message()));
+        return Ok(Submission::rejected(
+            "state",
+            SaleError::NotEditable.message(),
+        ));
     }
     if order.lines.is_empty() {
         return Ok(Submission::rejected("lines", SaleError::NoLines.message()));
@@ -273,7 +279,10 @@ async fn issue(
         // Somebody moved it between the read and the write. Rolling back
         // returns the number rather than leaving a hole.
         tx.rollback().await.map_err(DbError::Query)?;
-        return Ok(Submission::rejected("state", SaleError::NotEditable.message()));
+        return Ok(Submission::rejected(
+            "state",
+            SaleError::NotEditable.message(),
+        ));
     }
 
     tx.commit().await.map_err(DbError::Query)?;
@@ -448,7 +457,9 @@ async fn price_lines<'a>(
             Err(err) => return Ok(Err(SaleError::Money(err))),
         };
 
-        let previous = line.id.and_then(|id| carried.iter().find(|old| old.id == id));
+        let previous = line
+            .id
+            .and_then(|id| carried.iter().find(|old| old.id == id));
 
         priced.push(store::PricedLine {
             source: line,

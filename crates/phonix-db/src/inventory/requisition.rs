@@ -43,8 +43,8 @@ use app_inventory::requisition::{
 use chrono::{DateTime, NaiveDate, Utc};
 use phonix_core::identity::UserId;
 use phonix_core::locale::Currency;
-use phonix_core::query::{Page, PageRequest};
 use phonix_core::money::Money;
+use phonix_core::query::{Page, PageRequest};
 use phonix_ports::cost_centre::CostCentre;
 use sqlx::{AssertSqlSafe, PgConnection, PgExecutor, Row};
 use uuid::Uuid;
@@ -182,7 +182,9 @@ pub async fn page(
     request: &PageRequest,
 ) -> Result<Page<RequisitionSummary>, DbError> {
     let request = request.sanitised();
-    let needle = request.needle().map(|needle| crate::search::contains(&needle));
+    let needle = request
+        .needle()
+        .map(|needle| crate::search::contains(&needle));
     let raised = request.range(RAISED);
 
     // Ignore unknown state groups.
@@ -267,7 +269,6 @@ pub async fn page(
 
     Ok(Page::new(summaries, total, &request))
 }
-
 
 /// What is waiting on somebody. The approver's own screen.
 pub async fn awaiting_decision<'e, E>(
@@ -403,10 +404,7 @@ where
                 quantity: read_quantity(&quantity, "requisition_lines.quantity")?,
                 unit_id: row.try_get("unit_id")?,
                 unit_code: row.try_get("unit_code")?,
-                quantity_stock: read_quantity(
-                    &quantity_stock,
-                    "requisition_lines.quantity_stock",
-                )?,
+                quantity_stock: read_quantity(&quantity_stock, "requisition_lines.quantity_stock")?,
                 ordered: read_quantity(&ordered, "requisition_lines.ordered")?,
                 estimate: estimate
                     .map(|raw| read_money(&raw, currency, "requisition_lines.estimate"))

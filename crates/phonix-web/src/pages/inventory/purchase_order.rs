@@ -41,8 +41,8 @@ use crate::l;
 use crate::pages::inventory::item_lookup::ItemLookup;
 use crate::server_fns::inventory_fns::{
     blank_purchase_order, cancel_purchase_order, confirm_purchase_order, delete_purchase_order,
-    order_allocation, purchase_order_detail, save_purchase_order,
-    selectable_units, selectable_warehouses,
+    order_allocation, purchase_order_detail, save_purchase_order, selectable_units,
+    selectable_warehouses,
 };
 use crate::server_fns::master_fns::list_parties;
 use crate::ui::alert::{Alert, Alerts, Confirm};
@@ -357,10 +357,11 @@ fn editor_body(
                         match result {
                             Ok(Submission::Saved(order)) => {
                                 alerts.post(
-                                    Alert::success(
-                                            l!("purchase_orders.confirmed", number = order.number),
-                                        )
-                                        .titled(l!("purchase_orders.confirm")),
+                                    Alert::success(l!(
+                                        "purchase_orders.confirmed",
+                                        number = order.number
+                                    ))
+                                    .titled(l!("purchase_orders.confirm")),
                                 );
                                 // Reload the route: it is a document now, and
                                 // this screen draws a different thing for one.

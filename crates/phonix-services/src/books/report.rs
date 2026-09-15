@@ -100,22 +100,14 @@ pub async fn customer_statement(
     };
 
     let currency = crate::workspace::profile::current(pool).await?.currency;
-    let entries =
-        phonix_db::books::report::statement_entries(pool, party_id, to, currency).await?;
+    let entries = phonix_db::books::report::statement_entries(pool, party_id, to, currency).await?;
     // Asked separately rather than derived from the entries: what is on account
     // is every payment less every allocation, and the entries carry the
     // allocation only per invoice.
     let on_account = phonix_db::books::report::on_account(pool, party_id, to, currency).await?;
 
     CustomerStatement::assemble(
-        party.id,
-        party.code,
-        party.name,
-        from,
-        to,
-        currency,
-        entries,
-        on_account,
+        party.id, party.code, party.name, from, to, currency, entries, on_account,
     )
     .map_err(unusable)
 }
@@ -146,10 +138,7 @@ pub async fn statement_customers(
 /// both matter: only this side knows when the workspace's financial year began,
 /// and a date computed during the server's render and again during hydration is
 /// a mismatch on any night the two disagree about the date.
-pub async fn default_span(
-    pool: &PgPool,
-    caller: &Caller,
-) -> ServiceResult<(NaiveDate, NaiveDate)> {
+pub async fn default_span(pool: &PgPool, caller: &Caller) -> ServiceResult<(NaiveDate, NaiveDate)> {
     caller.require(permissions::REPORTS)?;
 
     let profile = crate::workspace::profile::current(pool).await?;
@@ -236,13 +225,7 @@ mod tests {
     fn january_belongs_to_the_year_that_opened_in_april() {
         let january = NaiveDate::from_ymd_opt(2026, 1, 15).unwrap();
 
-        assert_eq!(
-            year_opened(january, 4),
-            NaiveDate::from_ymd_opt(2025, 4, 1)
-        );
-        assert_eq!(
-            year_opened(january, 1),
-            NaiveDate::from_ymd_opt(2026, 1, 1)
-        );
+        assert_eq!(year_opened(january, 4), NaiveDate::from_ymd_opt(2025, 4, 1));
+        assert_eq!(year_opened(january, 1), NaiveDate::from_ymd_opt(2026, 1, 1));
     }
 }

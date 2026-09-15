@@ -24,8 +24,8 @@ use axum::Json;
 use axum::http::StatusCode;
 use phonix_core::identity::{AuthUser, Credentials, LoginResult, MfaChallengeResult};
 use phonix_db::identity::session::ClientFacts;
-use phonix_services::identity::{authentication, mfa, session as session_service};
 use phonix_services::Delivery;
+use phonix_services::identity::{authentication, mfa, session as session_service};
 use secrecy::ExposeSecret;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
@@ -84,7 +84,6 @@ impl SessionStatus {
             LoginResult::Rejected | LoginResult::Locked { .. } => None,
         }
     }
-
 }
 
 /// A session, as the only response that ever carries its token.
@@ -387,7 +386,12 @@ mod tests {
         // variant has to be placed on one side or the other here, and the
         // exhaustive match in `SessionStatus::of` is what forces the choice.
         assert!(SessionStatus::of(&LoginResult::Rejected).is_none());
-        assert!(SessionStatus::of(&LoginResult::Locked { retry_after_secs: 30 }).is_none());
+        assert!(
+            SessionStatus::of(&LoginResult::Locked {
+                retry_after_secs: 30
+            })
+            .is_none()
+        );
     }
 
     #[test]

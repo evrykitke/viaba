@@ -4,9 +4,7 @@
 //! not clear puts a reason box on the screen with the reason for it beside it,
 //! so somebody decides with the facts in front of them.
 
-use app_inventory::bill::{
-    Bill, BillInput, BillLineInput, BillState, MatchGrade, UnbilledReceipt,
-};
+use app_inventory::bill::{Bill, BillInput, BillLineInput, BillState, MatchGrade, UnbilledReceipt};
 use app_inventory::variant::VariantChoice;
 use leptos::prelude::*;
 use leptos_meta::Title;
@@ -23,8 +21,8 @@ use crate::icons::Icon;
 use crate::l;
 use crate::pages::inventory::item_lookup::ItemLookup;
 use crate::server_fns::inventory_fns::{
-    bill_against_order, bill_detail, bill_match, blank_bill, cancel_bill, delete_bill,
-    post_bill, save_bill, unbilled_receipts,
+    bill_against_order, bill_detail, bill_match, blank_bill, cancel_bill, delete_bill, post_bill,
+    save_bill, unbilled_receipts,
 };
 use crate::server_fns::master_fns::list_parties;
 use crate::ui::alert::{Alert, Alerts, Confirm};
@@ -54,9 +52,8 @@ pub fn bills_page() -> impl IntoView {
 #[component]
 pub fn bill_new_page() -> impl IntoView {
     let query = leptos_router::hooks::use_query_map();
-    let against = move || {
-        query.with(|query| query.get("order").and_then(|raw| raw.parse::<Uuid>().ok()))
-    };
+    let against =
+        move || query.with(|query| query.get("order").and_then(|raw| raw.parse::<Uuid>().ok()));
 
     let prefilled = Resource::new(against, |order_id| async move {
         match order_id {
@@ -698,9 +695,7 @@ fn header_fields(draft: RwSignal<BillInput>, suppliers: Vec<PartySummary>) -> im
 }
 
 #[component]
-fn line_table(
-    draft: RwSignal<BillInput>,
-) -> impl IntoView {
+fn line_table(draft: RwSignal<BillInput>) -> impl IntoView {
     view! {
         <div class="space-y-2">
             <div class="overflow-x-auto">
@@ -744,10 +739,7 @@ fn line_table(
 }
 
 #[component]
-fn line_row(
-    draft: RwSignal<BillInput>,
-    index: usize,
-) -> impl IntoView {
+fn line_row(draft: RwSignal<BillInput>, index: usize) -> impl IntoView {
     let field = move |read: fn(&BillLineInput) -> String| {
         draft.with(|d| d.lines.get(index).map(read).unwrap_or_default())
     };

@@ -56,9 +56,8 @@ const BACK: &str = "/inventory/deliveries";
 #[component]
 pub fn delivery_new_page() -> impl IntoView {
     let query = leptos_router::hooks::use_query_map();
-    let against = move || {
-        query.with(|query| query.get("order").and_then(|raw| raw.parse::<Uuid>().ok()))
-    };
+    let against =
+        move || query.with(|query| query.get("order").and_then(|raw| raw.parse::<Uuid>().ok()));
 
     let prefilled = Resource::new(against, move |order_id| async move {
         match order_id {
@@ -306,10 +305,11 @@ fn editor_body(
                         match result {
                             Ok(Submission::Saved(delivery)) => {
                                 alerts.post(
-                                    Alert::success(
-                                            l!("deliveries.posted", number = delivery.number),
-                                        )
-                                        .titled(l!("deliveries.post")),
+                                    Alert::success(l!(
+                                        "deliveries.posted",
+                                        number = delivery.number
+                                    ))
+                                    .titled(l!("deliveries.post")),
                                 );
                                 // Reload the route: it is evidence now, and
                                 // this screen draws a different thing for one.
@@ -569,9 +569,8 @@ fn line_row(draft: RwSignal<DeliveryInput>, index: usize) -> impl IntoView {
         draft.with(|d| d.lines.get(index).map(read).unwrap_or_default())
     };
 
-    let variant = Signal::derive(move || {
-        draft.with(|d| d.lines.get(index).and_then(|line| line.variant_id))
-    });
+    let variant =
+        Signal::derive(move || draft.with(|d| d.lines.get(index).and_then(|line| line.variant_id)));
 
     let initial = draft.with_untracked(|d| {
         let line = d.lines.get(index)?;

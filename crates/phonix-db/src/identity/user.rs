@@ -417,7 +417,6 @@ pub async fn listing_page(
     Ok(Page::new(listings, total, &request))
 }
 
-
 pub async fn count<'e, E>(executor: E) -> Result<i64, DbError>
 where
     E: PgExecutor<'e>,

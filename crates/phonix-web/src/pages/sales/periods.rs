@@ -120,12 +120,11 @@ fn period_row(period: Period, refresh: Callback<()>) -> impl IntoView {
                     leptos::task::spawn_local(async move {
                         match set_period_closed(id, !closed).await {
                             Ok(period) => {
-                                alerts
-                                    .post(Alert::success(if period.is_closed {
-                                        l!("periods.closed", period = period.label.clone())
-                                    } else {
-                                        l!("periods.reopened", period = period.label.clone())
-                                    }));
+                                alerts.post(Alert::success(if period.is_closed {
+                                    l!("periods.closed", period = period.label.clone())
+                                } else {
+                                    l!("periods.reopened", period = period.label.clone())
+                                }));
                                 refresh.run(());
                             }
                             Err(err) => alerts.post(Alert::failure(err.to_string())),

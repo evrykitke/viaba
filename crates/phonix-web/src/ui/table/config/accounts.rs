@@ -89,31 +89,25 @@ pub fn accounts_grid() -> GridConfig<Account> {
             // and has a filter of its own; the type is the sharper one.
             Filter::new("account_type", l!("field.type"), type_choices()),
         )
-        .filter(
-            Filter::new("class", l!("accounts.class"), class_choices()),
-        )
-        .filter(
-            Filter::new(
-                "postable",
-                l!("accounts.postable"),
-                vec![
-                    FilterChoice::all(l!("common.all")),
-                    FilterChoice::new("yes", l!("accounts.only_postable")),
-                    FilterChoice::new("no", l!("accounts.only_control")),
-                ],
-            ),
-        )
-        .filter(
-            Filter::new(
-                "status",
-                l!("field.status"),
-                vec![
-                    FilterChoice::all(l!("common.all")),
-                    FilterChoice::new("active", l!("common.active")),
-                    FilterChoice::new("inactive", l!("common.inactive")),
-                ],
-            ),
-        )
+        .filter(Filter::new("class", l!("accounts.class"), class_choices()))
+        .filter(Filter::new(
+            "postable",
+            l!("accounts.postable"),
+            vec![
+                FilterChoice::all(l!("common.all")),
+                FilterChoice::new("yes", l!("accounts.only_postable")),
+                FilterChoice::new("no", l!("accounts.only_control")),
+            ],
+        ))
+        .filter(Filter::new(
+            "status",
+            l!("field.status"),
+            vec![
+                FilterChoice::all(l!("common.all")),
+                FilterChoice::new("active", l!("common.active")),
+                FilterChoice::new("inactive", l!("common.inactive")),
+            ],
+        ))
         .toolbar(
             ToolbarAction::link(l!("accounts.new"), Icon::Plus, "/sales/accounts/new")
                 .require(permissions::ACCOUNTS_CREATE)
@@ -269,7 +263,11 @@ mod tests {
         // no rows and read as an empty chart rather than a bug.
         let grid = grid();
 
-        let types = grid.filters.iter().find(|f| f.key() == "account_type").unwrap();
+        let types = grid
+            .filters
+            .iter()
+            .find(|f| f.key() == "account_type")
+            .unwrap();
         for choice in types.choices.iter().filter(|c| !c.value.is_empty()) {
             assert!(
                 AccountType::parse(choice.value).is_some(),

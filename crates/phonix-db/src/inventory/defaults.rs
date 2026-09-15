@@ -113,10 +113,11 @@ async fn install_units(pool: &PgPool, defaults: &Defaults) -> Result<u64, DbErro
     for entry in &defaults.unit {
         // Parsed here rather than bound as text so a factor the file spelled
         // wrongly is a refusal naming the unit, not a NUMERIC cast error.
-        let factor = unit::parse_factor(&entry.factor).map_err(|err| DbError::CorruptCatalogRow {
-            slug: entry.code.clone(),
-            reason: format!("unit factor is unusable: {err}"),
-        })?;
+        let factor =
+            unit::parse_factor(&entry.factor).map_err(|err| DbError::CorruptCatalogRow {
+                slug: entry.code.clone(),
+                reason: format!("unit factor is unusable: {err}"),
+            })?;
 
         codes.push(entry.code.trim().to_uppercase());
         names.push(entry.name.trim().to_owned());

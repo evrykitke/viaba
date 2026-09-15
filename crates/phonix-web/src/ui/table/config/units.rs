@@ -14,7 +14,9 @@ use crate::components::page::{Badge, Tone};
 use crate::icons::Icon;
 use crate::l;
 use crate::server_fns::inventory_fns::{delete_unit, list_units};
-use crate::ui::table::{Align, Cell, Column, Filter, FilterChoice, RowAction, Source, ToolbarAction};
+use crate::ui::table::{
+    Align, Cell, Column, Filter, FilterChoice, RowAction, Source, ToolbarAction,
+};
 
 /// What stock is counted in.
 pub fn units_grid() -> GridConfig<Unit> {
@@ -22,7 +24,11 @@ pub fn units_grid() -> GridConfig<Unit> {
         .searching(l!("units.search"))
         .exports_as("units")
         .min_width("sm:min-w-[40rem]")
-        .empty(Icon::Ruler, l!("units.empty.title"), l!("units.empty.detail"))
+        .empty(
+            Icon::Ruler,
+            l!("units.empty.title"),
+            l!("units.empty.detail"),
+        )
         .column(
             Column::new("code", l!("field.code"), |row: &Unit| Cell::text(&row.code))
                 .findable()
@@ -58,9 +64,8 @@ pub fn units_grid() -> GridConfig<Unit> {
             .render(|row| status_cell(row).into_any()),
         )
         .filter(
-            Filter::new("class", l!("units.class"), class_choices()).matching(
-                |row: &Unit, wanted| row.class.as_str() == wanted,
-            ),
+            Filter::new("class", l!("units.class"), class_choices())
+                .matching(|row: &Unit, wanted| row.class.as_str() == wanted),
         )
         .filter(
             Filter::new(
@@ -90,32 +95,28 @@ pub fn units_grid() -> GridConfig<Unit> {
             .require(permissions::UNITS_MANAGE),
         )
         .action(
-            RowAction::run(
-                l!("common.delete"),
-                Icon::Trash2,
-                |row: Unit, grid| {
-                    leptos::task::spawn_local(async move {
-                        use app_inventory::unit::DeleteOutcome;
+            RowAction::run(l!("common.delete"), Icon::Trash2, |row: Unit, grid| {
+                leptos::task::spawn_local(async move {
+                    use app_inventory::unit::DeleteOutcome;
 
-                        // Both refusals are reported, not thrown: neither is a
-                        // fault, and both are reached from a list that was
-                        // right when it was drawn.
-                        match delete_unit(row.id).await {
-                            Ok(DeleteOutcome::Deleted) => {
-                                grid.report(l!("units.deleted", name = row.code));
-                                grid.refresh();
-                            }
-                            Ok(DeleteOutcome::InUse { count }) => {
-                                grid.warn(l!("units.delete.in_use", count = count));
-                            }
-                            Ok(DeleteOutcome::IsTheReference) => {
-                                grid.warn(l!("units.delete.is_reference"));
-                            }
-                            Err(err) => grid.warn(err.to_string()),
+                    // Both refusals are reported, not thrown: neither is a
+                    // fault, and both are reached from a list that was
+                    // right when it was drawn.
+                    match delete_unit(row.id).await {
+                        Ok(DeleteOutcome::Deleted) => {
+                            grid.report(l!("units.deleted", name = row.code));
+                            grid.refresh();
                         }
-                    });
-                },
-            )
+                        Ok(DeleteOutcome::InUse { count }) => {
+                            grid.warn(l!("units.delete.in_use", count = count));
+                        }
+                        Ok(DeleteOutcome::IsTheReference) => {
+                            grid.warn(l!("units.delete.is_reference"));
+                        }
+                        Err(err) => grid.warn(err.to_string()),
+                    }
+                });
+            })
             // Offered only where it could do something. The reference unit of a
             // class is what every other unit in it is measured against, and the
             // service refuses it.

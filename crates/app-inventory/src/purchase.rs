@@ -170,7 +170,10 @@ impl ReceiptState {
     }
 
     pub fn parse(raw: &str) -> Option<Self> {
-        Self::ALL.iter().copied().find(|state| state.as_str() == raw)
+        Self::ALL
+            .iter()
+            .copied()
+            .find(|state| state.as_str() == raw)
     }
 
     /// Whether everything ordered has arrived.
@@ -257,7 +260,11 @@ impl PurchaseOrder {
     /// second fact about the same thing, and the two disagree the first time a
     /// receipt is cancelled.
     pub fn receipt_state(&self) -> ReceiptState {
-        let orderable: Vec<&OrderLine> = self.lines.iter().filter(|line| !line.is_cancelled).collect();
+        let orderable: Vec<&OrderLine> = self
+            .lines
+            .iter()
+            .filter(|line| !line.is_cancelled)
+            .collect();
 
         if orderable.is_empty() {
             return ReceiptState::Nothing;
@@ -860,10 +867,7 @@ mod tests {
             ..input()
         };
 
-        assert_eq!(
-            backwards.check(),
-            Err(OrderError::ExpectedBeforeOrdered)
-        );
+        assert_eq!(backwards.check(), Err(OrderError::ExpectedBeforeOrdered));
     }
 
     #[test]

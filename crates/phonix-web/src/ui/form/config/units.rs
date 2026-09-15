@@ -22,69 +22,72 @@ use crate::ui::form::{Choice, Field, FieldValue, FormAction, Then};
 /// the base of whichever class is chosen. Passed in rather than fetched here,
 /// which keeps this a pure description of a form.
 pub fn unit_form(existing: Vec<Unit>) -> FormConfig<UnitInput> {
-    FormConfig::new("unit", |draft: UnitInput| async move { save_unit(draft).await })
-        .field(
-            Field::text("code", l!("field.code"), |m: &UnitInput| {
-                FieldValue::text(&m.code)
-            })
-            .writing(|m, value| m.code = value.as_input())
-            .placeholder("KG")
-            .help(l!("units.code_help"))
-            .require(permissions::UNITS_MANAGE)
-            .required(),
+    FormConfig::new(
+        "unit",
+        |draft: UnitInput| async move { save_unit(draft).await },
+    )
+    .field(
+        Field::text("code", l!("field.code"), |m: &UnitInput| {
+            FieldValue::text(&m.code)
+        })
+        .writing(|m, value| m.code = value.as_input())
+        .placeholder("KG")
+        .help(l!("units.code_help"))
+        .require(permissions::UNITS_MANAGE)
+        .required(),
+    )
+    .field(
+        Field::text("name", l!("field.name"), |m: &UnitInput| {
+            FieldValue::text(&m.name)
+        })
+        .writing(|m, value| m.name = value.as_input())
+        .placeholder("Kilogram")
+        .require(permissions::UNITS_MANAGE)
+        .required(),
+    )
+    .field(
+        Field::select(
+            "class",
+            l!("units.class"),
+            class_choices(),
+            |m: &UnitInput| FieldValue::choice(m.class.as_str()),
         )
-        .field(
-            Field::text("name", l!("field.name"), |m: &UnitInput| {
-                FieldValue::text(&m.name)
-            })
-            .writing(|m, value| m.name = value.as_input())
-            .placeholder("Kilogram")
-            .require(permissions::UNITS_MANAGE)
-            .required(),
-        )
-        .field(
-            Field::select(
-                "class",
-                l!("units.class"),
-                class_choices(),
-                |m: &UnitInput| FieldValue::choice(m.class.as_str()),
-            )
-            // Anything unparseable stays a count, which is the default and the
-            // one class that needs no conversion to be useful.
-            .writing(|m, value| {
-                m.class = value
-                    .as_choice()
-                    .and_then(UnitClass::parse)
-                    .unwrap_or(UnitClass::Count);
-            })
-            .help(l!("units.class_help"))
-            .require(permissions::UNITS_MANAGE)
-            .required(),
-        )
-        .field(
-            Field::text("factor", l!("units.factor"), |m: &UnitInput| {
-                FieldValue::text(&m.factor)
-            })
-            .writing(|m, value| m.factor = value.as_input())
-            .placeholder("1000")
-            .help(factor_help(&existing))
-            .require(permissions::UNITS_MANAGE)
-            .required(),
-        )
-        .field(
-            Field::toggle("is_active", l!("field.in_use"), |m: &UnitInput| {
-                FieldValue::Bool(m.is_active)
-            })
-            .writing(|m, value| m.is_active = value.as_bool())
-            .help(l!("units.active_help"))
+        // Anything unparseable stays a count, which is the default and the
+        // one class that needs no conversion to be useful.
+        .writing(|m, value| {
+            m.class = value
+                .as_choice()
+                .and_then(UnitClass::parse)
+                .unwrap_or(UnitClass::Count);
+        })
+        .help(l!("units.class_help"))
+        .require(permissions::UNITS_MANAGE)
+        .required(),
+    )
+    .field(
+        Field::text("factor", l!("units.factor"), |m: &UnitInput| {
+            FieldValue::text(&m.factor)
+        })
+        .writing(|m, value| m.factor = value.as_input())
+        .placeholder("1000")
+        .help(factor_help(&existing))
+        .require(permissions::UNITS_MANAGE)
+        .required(),
+    )
+    .field(
+        Field::toggle("is_active", l!("field.in_use"), |m: &UnitInput| {
+            FieldValue::Bool(m.is_active)
+        })
+        .writing(|m, value| m.is_active = value.as_bool())
+        .help(l!("units.active_help"))
+        .require(permissions::UNITS_MANAGE),
+    )
+    .action(
+        FormAction::submit(l!("common.save"))
+            .icon(Icon::Save)
+            .then(Then::Say("Unit saved."))
             .require(permissions::UNITS_MANAGE),
-        )
-        .action(
-            FormAction::submit(l!("common.save"))
-                .icon(Icon::Save)
-                .then(Then::Say("Unit saved."))
-                .require(permissions::UNITS_MANAGE),
-        )
+    )
 }
 
 fn class_choices() -> Vec<Choice> {

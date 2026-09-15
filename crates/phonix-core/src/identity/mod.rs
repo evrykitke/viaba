@@ -27,10 +27,10 @@ pub mod signup;
 pub mod user;
 pub mod validation;
 
+pub use api_key::{ApiKeyDraft, ApiKeyIssued, ApiKeySummary, KeyState};
 pub use audit::{
     AuditEvent, AuditEventDetail, Change, ChangeKind, Fact, FieldChange, NOTABLE_EVENTS,
 };
-pub use api_key::{ApiKeyDraft, ApiKeyIssued, ApiKeySummary, KeyState};
 pub use card::UserCard;
 pub use directory::UserListing;
 pub use edit::UserEdit;

@@ -13,13 +13,13 @@
 //! hands them over once, and everything after that is local.
 
 use app_books::account::{Account, AccountInput, AccountSummary, RoleMapping};
+use app_books::invoice::{Invoice, InvoiceInput, InvoiceSummary, PostOutcome};
 use app_books::journal::{JournalDraft, JournalSummary, Posted};
+use app_books::payment::{Payment, PaymentInput, PaymentSummary, Settleable};
 use app_books::period::Period;
 use app_books::report::{
     BalanceSheet, CustomerStatement, IncomeStatement, LedgerSummary, TrialBalance,
 };
-use app_books::invoice::{Invoice, InvoiceInput, InvoiceSummary, PostOutcome};
-use app_books::payment::{Payment, PaymentInput, PaymentSummary, Settleable};
 use chrono::NaiveDate;
 use leptos::prelude::*;
 use leptos::server_fn::codec::Json;
@@ -359,10 +359,7 @@ pub async fn report_span() -> Result<(NaiveDate, NaiveDate), ServerFnError> {
 
 /// Every account, both columns, for a span.
 #[server(name = TrialBalanceReport, prefix = "/api", endpoint = "books/reports/trial-balance")]
-pub async fn trial_balance(
-    from: NaiveDate,
-    to: NaiveDate,
-) -> Result<TrialBalance, ServerFnError> {
+pub async fn trial_balance(from: NaiveDate, to: NaiveDate) -> Result<TrialBalance, ServerFnError> {
     use crate::state::{pool_and_caller, service_error};
 
     let (pool, caller) = pool_and_caller().await?;
@@ -661,9 +658,7 @@ pub async fn cash_accounts() -> Result<Vec<AccountSummary>, ServerFnError> {
 }
 
 #[server(name = SavePayment, prefix = "/api", endpoint = "books/payments/save", input = Json)]
-pub async fn save_payment(
-    draft: PaymentInput,
-) -> Result<Submission<PaymentInput>, ServerFnError> {
+pub async fn save_payment(draft: PaymentInput) -> Result<Submission<PaymentInput>, ServerFnError> {
     use crate::state::{pool_and_caller, service_error};
 
     let (pool, caller) = pool_and_caller().await?;

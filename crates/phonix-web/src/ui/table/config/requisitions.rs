@@ -158,32 +158,28 @@ pub fn requisitions_grid() -> GridConfig<RequisitionSummary> {
             .align(Align::End)
             .class("tabular-nums text-content-muted"),
         )
-        .filter(
-            Filter::new(
-                "state",
-                l!("field.status"),
-                vec![
-                    FilterChoice::all(l!("common.all")),
-                    // First, because it is the one somebody opens this screen
-                    // to work through.
-                    FilterChoice::new("submitted", l!("requisitions.awaiting")),
-                    FilterChoice::new("approved", l!("requisitions.state.approved")),
-                    FilterChoice::new("draft", l!("requisitions.state.draft")),
-                    FilterChoice::new("closed", l!("requisitions.state.rejected")),
-                ],
-            ),
-        )
-        .filter(
-            Filter::new(
-                "ordered",
-                l!("requisitions.ordered"),
-                vec![
-                    FilterChoice::all(l!("common.all")),
-                    FilterChoice::new("outstanding", l!("requisitions.ordered.nothing")),
-                    FilterChoice::new("complete", l!("requisitions.ordered.everything")),
-                ],
-            ),
-        )
+        .filter(Filter::new(
+            "state",
+            l!("field.status"),
+            vec![
+                FilterChoice::all(l!("common.all")),
+                // First, because it is the one somebody opens this screen
+                // to work through.
+                FilterChoice::new("submitted", l!("requisitions.awaiting")),
+                FilterChoice::new("approved", l!("requisitions.state.approved")),
+                FilterChoice::new("draft", l!("requisitions.state.draft")),
+                FilterChoice::new("closed", l!("requisitions.state.rejected")),
+            ],
+        ))
+        .filter(Filter::new(
+            "ordered",
+            l!("requisitions.ordered"),
+            vec![
+                FilterChoice::all(l!("common.all")),
+                FilterChoice::new("outstanding", l!("requisitions.ordered.nothing")),
+                FilterChoice::new("complete", l!("requisitions.ordered.everything")),
+            ],
+        ))
         .date_filter(DateFilter::new("raised", l!("requisitions.raised_on")))
         .toolbar(
             ToolbarAction::link(
@@ -283,7 +279,13 @@ mod tests {
     }
 
     /// Mirrors the database sort fields without adding a crate dependency.
-    const SERVER_SORTS: &[&str] = &["cost_centre", "raised_on", "needed_by", "estimate", "line_count"];
+    const SERVER_SORTS: &[&str] = &[
+        "cost_centre",
+        "raised_on",
+        "needed_by",
+        "estimate",
+        "line_count",
+    ];
 
     /// Mirrors the database search fields.
     const SERVER_SEARCHES: &[&str] = &["number", "cost_centre", "raised_by", "warehouse"];

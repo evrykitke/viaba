@@ -30,31 +30,29 @@ use crate::pages::inventory::adjust::AdjustStockPage;
 use crate::pages::inventory::adjustment_types::{
     AdjustmentTypeNewPage, AdjustmentTypePage, AdjustmentTypesPage,
 };
+use crate::pages::inventory::bill::{BillNewPage, BillPage, BillsPage, UnbilledPage};
+use crate::pages::inventory::consolidation::{ConsolidationNewPage, ConsolidationPage};
+use crate::pages::inventory::delivery::{DeliveryNewPage, DeliveryPage};
 use crate::pages::inventory::home::InventoryHomePage;
 use crate::pages::inventory::item::ItemPage;
 use crate::pages::inventory::item_categories::{
     ItemCategoriesPage, ItemCategoryNewPage, ItemCategoryPage,
 };
 use crate::pages::inventory::items::{ItemNewPage, ItemsPage};
-use crate::pages::inventory::consolidation::{ConsolidationNewPage, ConsolidationPage};
-use crate::pages::inventory::delivery::{DeliveryNewPage, DeliveryPage};
-use crate::pages::inventory::sales_order::{SalesOrderNewPage, SalesOrderPage};
+use crate::pages::inventory::landed_cost::{LandedCostNewPage, LandedCostPage, LandedCostsPage};
 use crate::pages::inventory::procurement::{
     ConsolidationsPage, DeliveriesPage, PurchaseOrdersPage, ReceiptsPage, RequisitionsPage,
     SalesOrdersPage,
 };
-use crate::pages::inventory::bill::{BillNewPage, BillPage, BillsPage, UnbilledPage};
-use crate::pages::inventory::transfer::{TransferNewPage, TransferPage, TransfersPage};
-use crate::pages::inventory::landed_cost::{
-    LandedCostNewPage, LandedCostPage, LandedCostsPage,
-};
 use crate::pages::inventory::purchase_order::{PurchaseOrderNewPage, PurchaseOrderPage};
-use crate::pages::inventory::requisition::{RequisitionNewPage, RequisitionPage};
 use crate::pages::inventory::receipt::{ReceiptNewPage, ReceiptPage};
+use crate::pages::inventory::requisition::{RequisitionNewPage, RequisitionPage};
+use crate::pages::inventory::sales_order::{SalesOrderNewPage, SalesOrderPage};
 use crate::pages::inventory::stock::{StockMovesPage, StockPage};
 use crate::pages::inventory::stock_locations::{
     StockLocationNewPage, StockLocationPage, StockLocationsPage,
 };
+use crate::pages::inventory::transfer::{TransferNewPage, TransferPage, TransfersPage};
 use crate::pages::inventory::units::{UnitNewPage, UnitPage, UnitsPage};
 use crate::pages::inventory::warehouses::{WarehouseNewPage, WarehousePage, WarehousesPage};
 use crate::pages::master::home::MasterHomePage;
@@ -66,15 +64,17 @@ use crate::pages::master::taxes::{TaxNewPage, TaxesPage};
 use crate::pages::people::department::DepartmentPage;
 use crate::pages::people::departments::{DepartmentNewPage, DepartmentsPage};
 use crate::pages::people::employee::{EmployeeNewPage, EmployeePage};
+use crate::pages::people::home::PeopleHomePage;
 use crate::pages::people::lists::{EmployeesPage, JobPositionsPage, WorkLocationsPage};
 use crate::pages::people::reference::{JobPositionPage, WorkLocationPage};
-use crate::pages::people::home::PeopleHomePage;
 // Aliased: `pages::account` is the viewer's own profile, and both are called
 // AccountPage in their own module.
 use crate::pages::sales::account::AccountPage as ChartAccountPage;
 use crate::pages::sales::account_roles::AccountRolesPage;
 use crate::pages::sales::accounts::{AccountNewPage, AccountsPage};
 use crate::pages::sales::home::SalesHomePage;
+use crate::pages::sales::invoice::{InvoiceNewPage, InvoicePage};
+use crate::pages::sales::invoices::InvoicesPage;
 use crate::pages::sales::journal::JournalPage;
 use crate::pages::sales::journal_new::JournalNewPage;
 use crate::pages::sales::journals::JournalsPage;
@@ -84,8 +84,6 @@ use crate::pages::sales::reports::balance_sheet::BalanceSheetPage;
 use crate::pages::sales::reports::customer_statement::CustomerStatementPage;
 use crate::pages::sales::reports::profit_and_loss::ProfitAndLossPage;
 use crate::pages::sales::reports::trial_balance::TrialBalancePage;
-use crate::pages::sales::invoice::{InvoiceNewPage, InvoicePage};
-use crate::pages::sales::invoices::InvoicesPage;
 use crate::pages::{dashboard::DashboardPage, not_found::NotFoundPage};
 use crate::profiler::ProfilerBridge;
 use crate::theme::{Theme, ThemePreference};

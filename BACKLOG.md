@@ -46,103 +46,16 @@ commits it is three items.
                whether you want that default and it goes in; say no and this
                item should be deleted rather than left here.
 
-- [ ] `workspace` `cargo fmt` reformats this workspace wholesale
-      why: there is no `rustfmt.toml`, and `cargo fmt --all -- --check` reports
-           520 hunks at HEAD, so `cargo fmt -p <crate>` rewrites every file in
-           the crate rather than the ones just edited - it silently reformatted
-           four files of work in progress on 2026-09-15. `check.ps1` gates on
-           that same command and has never been run (`var/check.log` does not
-           exist), so the gate fails wholesale the first time it is.
-      measured: widening does not help, it inverts the problem - `max_width`
-           110 gives 1633 hunks and 120 gives 2533, because rustfmt then wants
-           to join lines this code deliberately splits. The code is a hand
-           style rustfmt does not produce at any width, so no config makes it
-           a no-op.
-      blocked: a decision only you can make. Either the workspace adopts
-               rustfmt - one reformatting commit touching every crate, after
-               which the gate passes and `cargo fmt` is safe - or the fmt gate
-               comes out of `check.ps1` and nothing ever runs `cargo fmt`. Say
-               which and it is a small commit either way.
-
-- [ ] `app-books` The invoice that bills a delivery rather than free text
-      why: ADR 0006 names this as the link still missing from the sell side,
-           and it is what the goods-delivered-not-invoiced accrual is waiting
-           for. Today an invoice line is typed, so "delivered and not billed"
-           is an investigation rather than a query.
-      touch: crates/app-books/src/invoice.rs, crates/app-inventory/src/delivery.rs
-      done: an invoice line can reference a delivery line, billing twice is
-            refused, and the accrual can be computed.
-
-- [ ] `app-books` Price lists, and the prices an item has in each
-      why: `pricing.rs` computes from a single price on the item. Both ERPNext
-           (Price List plus Item Price) and Odoo (pricelists) treat "what this
-           costs" as a function of customer, quantity and date — a wholesale
-           customer and a walk-in cannot share one number.
-      touch: crates/app-books/src/pricing.rs
-      done: an item resolves a price through a named price list, with a
-            validity window, and the sales order and invoice both resolve
-            through it rather than reading a bare item price.
-
-- [ ] `app-books` The credit note, which has a numbering series and nothing else
-      why: `phonix-config/src/numbering.rs` already reserves a credit-note
-           series, so the gap is visible from the configuration alone. A sales
-           return currently has no document that reverses the revenue.
-      touch: crates/phonix-config/src/numbering.rs, crates/app-books/src/invoice.rs
-      done: a credit note posts against an invoice, reverses the revenue and
-            tax lines, and the invoice shows what has been credited.
-
-### People — the Frappe HR revamp
-
-Read `WORKFLOWS.md` before starting any of these, and obey the dated-assignment
-rule: what changes about somebody is an `assignments` row, never a column on
-`employees`.
-
-- [ ] `app-hr` The holiday calendar, which leave cannot be counted without
-      why: Frappe HR makes the regional holiday list the thing leave, attendance
-           and payroll all count against. It is the only piece of the people
-           revamp with no dependency of its own, so it goes first.
-      done: a workspace has named holiday lists with dated entries, an employee
-            resolves to one through their assignment, and a date can be asked
-            whether it is a working day.
-
-- [ ] `app-hr` Attendance, as what was recorded rather than what was expected
-      why: check-in and check-out is the input every other HR number is derived
-           from, and Frappe HR treats it as its own record rather than a
-           side-effect of a shift.
-      touch: crates/app-hr/src/ — a new module beside employee.rs
-      done: an employee has dated attendance records, a day resolves to
-            present/absent/half-day against the holiday calendar, and the
-            record says which device or person asserted it.
-      blocked: geolocation check-in is in the Frappe docs and is a privacy
-               decision, not a technical one. Say whether you want it before
-               this is taken.
-
-- [ ] `app-hr` Shift types, and the roster that assigns them
-      why: attendance without an expected shift can say somebody was present
-           but not whether they were late, and Frappe HR separates the two for
-           exactly that reason.
-      done: shift types carry start, end and a grace window; an employee's
-            shift is a dated assignment row like every other assignment.
-
-- [ ] `app-hr` The employee lifecycle documents
-      why: the dated chain underneath onboarding, promotion, transfer and exit
-           already exists — engagements and assignments. What is missing is the
-           workflow on top: a promotion today is a hand-written assignment row.
-      done: a promotion or transfer is a document that writes the assignment
-            rows, and an exit writes the engagement end with its reason from
-            the existing list.
-
-- [ ] `app-hr` Recruitment against the vacancies that already exist
-      why: job positions are rows precisely so that "what are we recruiting
-           for" has a query, and nothing yet answers it. `filled` is already
-           counted over open assignments.
-      done: an applicant applies against a job position, moves through named
-            stages, and a hire opens an engagement rather than duplicating the
-            person.
-
 ## Done
 
 <!-- The loop appends here with the commit sha. Newest first. -->
+
+- [x] `workspace` The workspace adopts rustfmt
+      Decided: adopt rather than drop the gate. `cargo fmt --all` in one sweep,
+      206 files, no `rustfmt.toml` - default rustfmt is what the gate runs and
+      measuring showed no width makes this code a no-op anyway. `check.ps1`'s
+      fmt gate passes from here, and a scoped `cargo fmt -p <crate>` now touches
+      only what was just edited.
 
 - [x] `phonix-web` The chart of accounts grid, last of the four that grow
       All four are now paged. Class and postable are derived from the account

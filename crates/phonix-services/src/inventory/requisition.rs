@@ -446,7 +446,10 @@ fn from_port(err: phonix_ports::PortError) -> ServiceError {
         }
         unavailable @ phonix_ports::PortError::Unavailable { .. } => {
             tracing::error!(error = %unavailable, "the cost centre port failed");
-            ServiceError::rejected("cost_centre_id", msg!("requisitions.error.port_unavailable"))
+            ServiceError::rejected(
+                "cost_centre_id",
+                msg!("requisitions.error.port_unavailable"),
+            )
         }
     }
 }
@@ -460,8 +463,9 @@ async fn prepare_lines<'a>(
     pool: &PgPool,
     checked: &'a Checked,
     currency: Currency,
-) -> ServiceResult<Result<Vec<phonix_db::inventory::requisition::EstimatedLine<'a>>, RequisitionError>>
-{
+) -> ServiceResult<
+    Result<Vec<phonix_db::inventory::requisition::EstimatedLine<'a>>, RequisitionError>,
+> {
     let units = phonix_db::inventory::unit::list(pool).await?;
     let mut prepared = Vec::with_capacity(checked.lines.len());
 

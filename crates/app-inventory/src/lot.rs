@@ -291,13 +291,21 @@ mod tests {
             Ok(())
         );
         // A lot covers as many as it covers.
-        assert_eq!(check_on_move(Tracking::Lot, Some(&lot(1)), one, two), Ok(()));
+        assert_eq!(
+            check_on_move(Tracking::Lot, Some(&lot(1)), one, two),
+            Ok(())
+        );
     }
 
     #[test]
     fn a_lot_belongs_to_the_variant_it_was_made_for() {
         assert_eq!(
-            check_on_move(Tracking::Lot, Some(&lot(1)), Uuid::from_u128(2), Quantity::ONE),
+            check_on_move(
+                Tracking::Lot,
+                Some(&lot(1)),
+                Uuid::from_u128(2),
+                Quantity::ONE
+            ),
             Err(LotError::WrongVariant)
         );
     }
@@ -308,7 +316,10 @@ mod tests {
             number: "  LOT-8841  ".to_owned(),
             ..LotInput::for_variant(Uuid::nil())
         };
-        assert_eq!(input.check(Tracking::Lot, false).unwrap().number, "LOT-8841");
+        assert_eq!(
+            input.check(Tracking::Lot, false).unwrap().number,
+            "LOT-8841"
+        );
 
         let spaced = LotInput {
             number: "LOT 8841".to_owned(),

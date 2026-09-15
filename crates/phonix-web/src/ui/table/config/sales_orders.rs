@@ -153,9 +153,11 @@ pub fn sales_orders_grid() -> GridConfig<SaleSummary> {
             .class("text-xs text-content-muted"),
         )
         .column(
-            Column::new("line_count", l!("sales_orders.lines"), |row: &SaleSummary| {
-                Cell::number(row.line_count as f64)
-            })
+            Column::new(
+                "line_count",
+                l!("sales_orders.lines"),
+                |row: &SaleSummary| Cell::number(row.line_count as f64),
+            )
             .sortable()
             .align(Align::End)
             .class("tabular-nums text-content-muted"),

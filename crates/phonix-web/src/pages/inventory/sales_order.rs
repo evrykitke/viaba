@@ -28,10 +28,8 @@
 //! buying side there is no fallback to work around: every line that is priced
 //! is counted, and an unpriced one is the thing the save will refuse.
 
-use app_inventory::sales_order::{
-    Progress, SaleInput, SaleLineInput, SaleState, SalesOrder,
-};
 use app_inventory::quantity::{self, Quantity};
+use app_inventory::sales_order::{Progress, SaleInput, SaleLineInput, SaleState, SalesOrder};
 use app_inventory::variant::VariantChoice;
 use leptos::prelude::*;
 use leptos_meta::Title;
@@ -52,8 +50,8 @@ use crate::l;
 use crate::pages::inventory::item_lookup::ItemLookup;
 use crate::server_fns::inventory_fns::{
     blank_sales_order, cancel_sales_order, close_sales_order, confirm_sales_order,
-    delete_sales_order, order_outstanding, sales_order_detail, save_sales_order,
-    selectable_units, selectable_warehouses, send_sales_order,
+    delete_sales_order, order_outstanding, sales_order_detail, save_sales_order, selectable_units,
+    selectable_warehouses, send_sales_order,
 };
 use crate::server_fns::master_fns::list_parties;
 use crate::ui::alert::{Alert, Alerts, Confirm};

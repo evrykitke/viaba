@@ -40,9 +40,7 @@ use phonix_core::identity::{
 };
 
 use crate::components::history::RecordHistory;
-use crate::components::page::{
-    FormActions, GhostButton, Notice, PageHeader, PrimaryButton, Tone,
-};
+use crate::components::page::{FormActions, GhostButton, Notice, PageHeader, PrimaryButton, Tone};
 use crate::icons::{Icon, IconSize};
 use crate::l;
 use crate::pages::admin::currencies::CurrenciesTab;
@@ -230,8 +228,12 @@ fn settings_form(initial: WorkspaceSecuritySettings) -> impl IntoView {
     // than leaving three shut boxes and a red sentence at the top.
     let problems_on = move |card: SecurityCard| {
         Signal::derive(move || {
-            let count = errors
-                .with(|errors| errors.iter().filter(|error| card_of(&error.field) == card).count());
+            let count = errors.with(|errors| {
+                errors
+                    .iter()
+                    .filter(|error| card_of(&error.field) == card)
+                    .count()
+            });
             u32::try_from(count).unwrap_or(u32::MAX)
         })
     };
@@ -857,7 +859,11 @@ mod tests {
             panic!("these settings are meant to be rejected");
         };
 
-        for card in [SecurityCard::Password, SecurityCard::Mfa, SecurityCard::Audit] {
+        for card in [
+            SecurityCard::Password,
+            SecurityCard::Mfa,
+            SecurityCard::Audit,
+        ] {
             assert!(
                 errors.iter().any(|error| card_of(&error.field) == card),
                 "nothing counted on {card:?}, from {:?}",

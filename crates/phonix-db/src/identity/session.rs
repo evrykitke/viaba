@@ -68,15 +68,12 @@ impl<'r> FromRow<'r, sqlx::postgres::PgRow> for SessionRecord {
             // default: guessing 'browser' would sign a phone out on a
             // browser's schedule, which reads as an application that randomly
             // forgets people.
-            kind: row
-                .try_get::<String, _>("kind")?
-                .parse()
-                .map_err(|err: phonix_core::identity::UnknownSessionKind| {
-                    sqlx::Error::ColumnDecode {
-                        index: "kind".to_owned(),
-                        source: Box::new(std::io::Error::other(err.to_string())),
-                    }
-                })?,
+            kind: row.try_get::<String, _>("kind")?.parse().map_err(
+                |err: phonix_core::identity::UnknownSessionKind| sqlx::Error::ColumnDecode {
+                    index: "kind".to_owned(),
+                    source: Box::new(std::io::Error::other(err.to_string())),
+                },
+            )?,
             mfa_satisfied: row.try_get("mfa_satisfied")?,
             ip: row.try_get("ip")?,
             user_agent: row.try_get("user_agent")?,

@@ -63,8 +63,8 @@
 pub mod accounts;
 pub mod adjustment;
 pub mod bill;
-pub mod consolidation;
 pub mod category;
+pub mod consolidation;
 pub mod defaults;
 pub mod delivery;
 pub mod image;
@@ -79,8 +79,8 @@ pub mod quantity;
 pub mod receipt;
 pub mod requisition;
 pub mod sales_order;
-pub mod unit;
 pub mod transfer;
+pub mod unit;
 pub mod valuation;
 pub mod variant;
 pub mod warehouse;
@@ -139,16 +139,17 @@ pub const SETUP: &[phonix_core::SetupItem] = &[
 ];
 
 pub use accounts::{AccountOverrides, AccountRef};
-pub use category::{Category, CategoryInput, CategorySummary, CostingMethod, RemovalStrategy, Valuation};
-pub use image::{Gallery, Image};
 pub use bill::{Bill, BillInput, BillLine, BillState, BillSummary, MatchGrade};
+pub use category::{
+    Category, CategoryInput, CategorySummary, CostingMethod, RemovalStrategy, Valuation,
+};
+pub use image::{Gallery, Image};
 pub use item::{Item, ItemInput, ItemKind, ItemSummary, Tracking};
 pub use landed_cost::{
     AllocationBasis, LandedCost, LandedCostInput, LandedCostState, LandedCostSummary,
     ReceiptLandedCost,
 };
 pub use location::{Location, LocationInput, LocationKind, LocationSummary, MoveKind};
-pub use transfer::{Transfer, TransferInput, TransferState, TransferSummary};
 pub use lot::{Lot, LotInput, LotRules, LotSummary};
 pub use movement::{JournalOutcome, MoveRequest, MoveState, MoveSummary, StockMove};
 pub use purchase::{OrderInput, OrderLine, OrderState, OrderSummary, PurchaseOrder};
@@ -159,6 +160,7 @@ pub use requisition::{
     OrderProgress, Requisition, RequisitionInput, RequisitionLine, RequisitionState,
     RequisitionSummary,
 };
+pub use transfer::{Transfer, TransferInput, TransferState, TransferSummary};
 pub use unit::{Conversion, Unit, UnitClass, UnitInput};
 pub use valuation::{Consumed, Issue, Layer};
 pub use variant::{Attribute, AttributeValue, Selection, Variant, VariantChoice, VariantSummary};

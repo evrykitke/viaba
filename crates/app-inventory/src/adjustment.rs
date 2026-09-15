@@ -337,10 +337,11 @@ impl AdjustmentInput {
     ///
     /// The type is checked against here rather than looked up again later, so
     /// that "damage cannot bring stock in" is answered before anything moves.
-    pub fn check(&self, kind: Option<&AdjustmentType>) -> Result<CheckedAdjustment, AdjustmentError> {
-        let location_id = self
-            .location_id
-            .ok_or(AdjustmentError::LocationRequired)?;
+    pub fn check(
+        &self,
+        kind: Option<&AdjustmentType>,
+    ) -> Result<CheckedAdjustment, AdjustmentError> {
+        let location_id = self.location_id.ok_or(AdjustmentError::LocationRequired)?;
         let variant_id = self.variant_id.ok_or(AdjustmentError::ItemRequired)?;
 
         let quantity = match self.quantity.trim() {
@@ -605,7 +606,9 @@ mod tests {
         });
         damage.needs_approval = true;
 
-        let checked = asking(false).check(Some(&damage)).expect("a valid adjustment");
+        let checked = asking(false)
+            .check(Some(&damage))
+            .expect("a valid adjustment");
 
         assert_eq!(checked.account_id, Some(account_id));
         assert!(checked.needs_approval);

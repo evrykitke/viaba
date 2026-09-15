@@ -56,7 +56,10 @@ mod tests {
 
     #[test]
     fn nothing_asked_is_the_list_in_its_usual_order() {
-        assert_eq!(order_by(None, SORTABLE, "d.created_at DESC"), "d.created_at DESC");
+        assert_eq!(
+            order_by(None, SORTABLE, "d.created_at DESC"),
+            "d.created_at DESC"
+        );
     }
 
     #[test]

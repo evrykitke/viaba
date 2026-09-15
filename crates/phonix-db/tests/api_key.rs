@@ -265,9 +265,12 @@ async fn the_list_narrows_to_live_or_to_stopped() {
     // ask a second time per row.
     assert!(all.rows.iter().all(|row| row.owner_name == "Ada Lovelace"));
 
-    let live = api_key::page(&pool, &PageRequest::default().filtered_by("revoked", "live"))
-        .await
-        .expect("list the live ones");
+    let live = api_key::page(
+        &pool,
+        &PageRequest::default().filtered_by("revoked", "live"),
+    )
+    .await
+    .expect("list the live ones");
     assert_eq!(live.total, 1);
     assert_eq!(live.rows[0].key.name, "live one");
 

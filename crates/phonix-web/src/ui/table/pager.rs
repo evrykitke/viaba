@@ -41,9 +41,9 @@ use leptos::prelude::*;
 
 use super::state::GridState;
 use crate::icons::{Icon, IconSize};
+use crate::l;
 use crate::ui::form::field::Choice;
 use crate::ui::lookup::SelectField;
-use crate::l;
 
 /// What the pager is describing. Computed by the grid from the page it drew.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]

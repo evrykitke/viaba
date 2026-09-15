@@ -245,7 +245,8 @@ impl Preview {
 /// nothing else. An unknown type previews as nothing, which is the right answer
 /// for a row still in quarantine as much as for a format nobody listed.
 pub fn preview_for(mime: Option<&str>) -> Preview {
-    mime.and_then(by_mime).map_or(Preview::None, |file_type| file_type.preview())
+    mime.and_then(by_mime)
+        .map_or(Preview::None, |file_type| file_type.preview())
 }
 
 // ---------------------------------------------------------------------------

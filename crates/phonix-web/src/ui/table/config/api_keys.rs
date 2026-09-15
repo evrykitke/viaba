@@ -123,11 +123,9 @@ pub fn api_keys_grid() -> GridConfig<ApiKeySummary> {
             .class("whitespace-nowrap text-xs text-content-muted"),
         )
         .column(
-            Column::new(
-                "created_at",
-                l!("field.created"),
-                |key: &ApiKeySummary| Cell::timestamp(key.created_at),
-            )
+            Column::new("created_at", l!("field.created"), |key: &ApiKeySummary| {
+                Cell::timestamp(key.created_at)
+            })
             .sortable()
             .class("whitespace-nowrap text-xs text-content-muted"),
         )

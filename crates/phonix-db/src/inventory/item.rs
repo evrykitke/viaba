@@ -17,8 +17,8 @@
 use app_inventory::item::{Checked, Item, ItemKind, ItemSummary, Tracking};
 use phonix_core::identity::UserId;
 use phonix_core::locale::Currency;
-use phonix_core::query::{Page, PageRequest};
 use phonix_core::money::Money;
+use phonix_core::query::{Page, PageRequest};
 use sqlx::{AssertSqlSafe, PgConnection, PgExecutor, Row};
 use uuid::Uuid;
 
@@ -137,7 +137,9 @@ pub async fn page(
     request: &PageRequest,
 ) -> Result<Page<ItemSummary>, DbError> {
     let request = request.sanitised();
-    let needle = request.needle().map(|needle| crate::search::contains(&needle));
+    let needle = request
+        .needle()
+        .map(|needle| crate::search::contains(&needle));
     let kind = request.filter(KIND).and_then(ItemKind::parse);
 
     let (tracked, tracking) = match request.filter(TRACKING) {
@@ -238,13 +240,8 @@ pub async fn page(
     Ok(Page::new(summaries, total, &request))
 }
 
-
 /// One item, with everything a detail screen shows above its tabs.
-pub async fn find<'e, E>(
-    executor: E,
-    id: Uuid,
-    currency: Currency,
-) -> Result<Option<Item>, DbError>
+pub async fn find<'e, E>(executor: E, id: Uuid, currency: Currency) -> Result<Option<Item>, DbError>
 where
     E: PgExecutor<'e>,
 {
@@ -517,11 +514,13 @@ pub async fn set_cost(conn: &mut PgConnection, id: Uuid, cost: Money) -> Result<
 /// `ON DELETE CASCADE` for the first two, and the third explicitly, because
 /// `account_mappings` carries a discriminator rather than a foreign key.
 pub async fn delete(conn: &mut PgConnection, id: Uuid) -> Result<bool, DbError> {
-    sqlx::query("DELETE FROM inventory.account_mappings WHERE owner_kind = 'item' AND owner_id = $1")
-        .bind(id)
-        .execute(&mut *conn)
-        .await
-        .map_err(DbError::Query)?;
+    sqlx::query(
+        "DELETE FROM inventory.account_mappings WHERE owner_kind = 'item' AND owner_id = $1",
+    )
+    .bind(id)
+    .execute(&mut *conn)
+    .await
+    .map_err(DbError::Query)?;
 
     let result = sqlx::query("DELETE FROM inventory.items WHERE id = $1")
         .bind(id)

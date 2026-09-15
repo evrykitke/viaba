@@ -16,8 +16,8 @@
 use app_inventory::quant::{OnHandFilter, OnHandRow, Quant};
 use app_inventory::quantity::Quantity;
 use phonix_core::locale::Currency;
-use phonix_core::query::{Page, PageRequest};
 use phonix_core::money::Money;
+use phonix_core::query::{Page, PageRequest};
 use sqlx::{AssertSqlSafe, FromRow, PgConnection, PgExecutor, Row};
 use uuid::Uuid;
 
@@ -169,10 +169,7 @@ pub async fn write(
 }
 
 /// One row of what is on hand.
-fn read_on_hand(
-    row: &sqlx::postgres::PgRow,
-    currency: Currency,
-) -> Result<OnHandRow, sqlx::Error> {
+fn read_on_hand(row: &sqlx::postgres::PgRow, currency: Currency) -> Result<OnHandRow, sqlx::Error> {
     let quantity: String = row.try_get("quantity")?;
     let reserved: String = row.try_get("reserved")?;
     let value: String = row.try_get("value")?;
@@ -237,7 +234,9 @@ pub async fn page(
     request: &PageRequest,
 ) -> Result<Page<OnHandRow>, DbError> {
     let request = request.sanitised();
-    let needle = request.needle().map(|needle| crate::search::contains(&needle));
+    let needle = request
+        .needle()
+        .map(|needle| crate::search::contains(&needle));
 
     let reserved = match request.filter(HELD) {
         Some("reserved") => Some(true),
@@ -357,7 +356,6 @@ pub async fn page(
     Ok(Page::new(summaries, total, &request))
 }
 
-
 /// What is on hand of one variant across every internal location.
 ///
 /// Internal only: stock at a vendor's is not ours and stock in transit is not
@@ -378,7 +376,9 @@ where
     .map_err(DbError::Query)?;
 
     Quantity::parse(&total).map_err(|err| {
-        DbError::CorruptRow(format!("stock_quants sums to '{total}', which is not a quantity: {err}"))
+        DbError::CorruptRow(format!(
+            "stock_quants sums to '{total}', which is not a quantity: {err}"
+        ))
     })
 }
 

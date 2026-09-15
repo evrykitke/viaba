@@ -470,7 +470,9 @@ pub fn path_under(parent: Option<&str>, name: &str) -> String {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum DeleteOutcome {
     Deleted,
-    HasChildren { count: i64 },
+    HasChildren {
+        count: i64,
+    },
     /// Stock has moved across this location. Deleting it would orphan a move,
     /// and the moves are the audit trail.
     HasMovements,
@@ -632,7 +634,10 @@ mod tests {
             MoveKind::between(K::Customer, K::Internal),
             MoveKind::Receipt
         );
-        assert_eq!(MoveKind::between(K::Internal, K::Vendor), MoveKind::Delivery);
+        assert_eq!(
+            MoveKind::between(K::Internal, K::Vendor),
+            MoveKind::Delivery
+        );
     }
 
     #[test]
@@ -674,7 +679,11 @@ mod tests {
         // could go, with nothing to say which.
         for kind in [K::Vendor, K::Customer, K::InventoryLoss, K::Production] {
             let typed = LocationInput { kind, ..input() };
-            assert_eq!(typed.check(), Err(LocationError::KindNotCreatable), "{kind:?}");
+            assert_eq!(
+                typed.check(),
+                Err(LocationError::KindNotCreatable),
+                "{kind:?}"
+            );
         }
     }
 

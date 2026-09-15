@@ -646,9 +646,8 @@ fn allocation_table(draft: RwSignal<PaymentInput>) -> impl IntoView {
     // Refetched when the customer or the currency changes, and when the payment
     // itself is saved: what is available depends on what other posted payments
     // have taken, and this screen's own allocations are excluded from that.
-    let key = Signal::derive(move || {
-        draft.with(|d| (d.party_id, d.currency.code().to_owned(), d.id))
-    });
+    let key =
+        Signal::derive(move || draft.with(|d| (d.party_id, d.currency.code().to_owned(), d.id)));
 
     let owed = Resource::new(
         move || key.get(),

@@ -65,7 +65,10 @@ pub fn account_roles_page() -> impl IntoView {
     // Fetched once. The chart does not change while somebody is mapping roles
     // against it, and refetching two hundred accounts per row would be two
     // hundred accounts per row.
-    let chart = Resource::new(|| (), |()| async move { role_chart().await.unwrap_or_default() });
+    let chart = Resource::new(
+        || (),
+        |()| async move { role_chart().await.unwrap_or_default() },
+    );
 
     let choose = Callback::new(move |(role, account_id): (AccountRole, Option<Uuid>)| {
         leptos::task::spawn_local(async move {
@@ -134,7 +137,10 @@ fn role_row(
 ) -> impl IntoView {
     let role = mapping.role;
     let label = crate::i18n::t(&Message::new(format!("ledger.role.{}", role.as_str())));
-    let wants = crate::i18n::t(&Message::new(format!("ledger.role.{}.wants", role.as_str())));
+    let wants = crate::i18n::t(&Message::new(format!(
+        "ledger.role.{}.wants",
+        role.as_str()
+    )));
 
     let unmapped = !mapping.is_mapped();
     let selected = mapping

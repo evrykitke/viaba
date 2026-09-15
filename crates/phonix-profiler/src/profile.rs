@@ -162,10 +162,7 @@ fn is_static_file(path: &str) -> bool {
 /// consumer then has to reassemble. Milliseconds as a float is what the report
 /// prints and what a toolbar would want, and it is the same unit throughout so
 /// a column of them can be compared without reading units.
-pub(crate) fn millis<S: Serializer>(
-    duration: &Duration,
-    serializer: S,
-) -> Result<S::Ok, S::Error> {
+pub(crate) fn millis<S: Serializer>(duration: &Duration, serializer: S) -> Result<S::Ok, S::Error> {
     serializer.serialize_f64(duration.as_secs_f64() * 1000.0)
 }
 
@@ -174,10 +171,7 @@ pub(crate) fn millis<S: Serializer>(
 /// `None` stays `null` rather than becoming zero: "not measured" and "took no
 /// time" are different answers, and only one of them is a reason to look
 /// closer.
-fn millis_of<S: Serializer>(
-    duration: &Option<Duration>,
-    serializer: S,
-) -> Result<S::Ok, S::Error> {
+fn millis_of<S: Serializer>(duration: &Option<Duration>, serializer: S) -> Result<S::Ok, S::Error> {
     match duration {
         Some(duration) => millis(duration, serializer),
         None => serializer.serialize_none(),

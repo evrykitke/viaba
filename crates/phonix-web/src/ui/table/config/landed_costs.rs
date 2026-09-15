@@ -80,9 +80,11 @@ pub fn landed_costs_grid() -> GridConfig<LandedCostSummary> {
             }),
         )
         .column(
-            Column::new("total", l!("landed_costs.total"), |row: &LandedCostSummary| {
-                Cell::number(row.total.scaled() as f64)
-            })
+            Column::new(
+                "total",
+                l!("landed_costs.total"),
+                |row: &LandedCostSummary| Cell::number(row.total.scaled() as f64),
+            )
             .sortable()
             .essential()
             .align(Align::End)
@@ -114,18 +116,16 @@ pub fn landed_costs_grid() -> GridConfig<LandedCostSummary> {
             .class("tabular-nums text-content-muted"),
         )
         // Filtering is handled by the paged source.
-        .filter(
-            Filter::new(
-                "state",
-                l!("field.status"),
-                vec![
-                    FilterChoice::all(l!("common.all")),
-                    FilterChoice::new("draft", l!("landed_costs.state.draft")),
-                    FilterChoice::new("done", l!("landed_costs.state.done")),
-                    FilterChoice::new("cancelled", l!("landed_costs.state.cancelled")),
-                ],
-            ),
-        )
+        .filter(Filter::new(
+            "state",
+            l!("field.status"),
+            vec![
+                FilterChoice::all(l!("common.all")),
+                FilterChoice::new("draft", l!("landed_costs.state.draft")),
+                FilterChoice::new("done", l!("landed_costs.state.done")),
+                FilterChoice::new("cancelled", l!("landed_costs.state.cancelled")),
+            ],
+        ))
         .date_filter(DateFilter::new("costed", l!("landed_costs.dated")))
         .toolbar(
             ToolbarAction::link(l!("common.add"), Icon::Plus, "/inventory/landed-costs/new")
@@ -177,7 +177,14 @@ mod tests {
     }
 
     /// Mirrors the database sort fields without adding a crate dependency.
-    const SERVER_SORTS: &[&str] = &["number", "receipt", "supplier", "cost_date", "total", "capitalised"];
+    const SERVER_SORTS: &[&str] = &[
+        "number",
+        "receipt",
+        "supplier",
+        "cost_date",
+        "total",
+        "capitalised",
+    ];
 
     /// Mirrors the database search fields.
     const SERVER_SEARCHES: &[&str] = &["number", "receipt", "supplier"];

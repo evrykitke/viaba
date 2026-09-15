@@ -35,8 +35,7 @@ use crate::icons::Icon;
 use crate::l;
 use crate::pages::inventory::item_lookup::ItemLookup;
 use crate::server_fns::inventory_fns::{
-    record_adjustment, selectable_adjustment_types, selectable_locations,
-    variant_lots,
+    record_adjustment, selectable_adjustment_types, selectable_locations, variant_lots,
 };
 use crate::ui::alert::{Alert, Alerts};
 use crate::ui::form::field::Choice;
@@ -51,7 +50,10 @@ fn today() -> NaiveDate {
 
 #[component]
 pub fn adjust_stock_page() -> impl IntoView {
-    let types = Resource::new(|| (), |()| async move { selectable_adjustment_types().await });
+    let types = Resource::new(
+        || (),
+        |()| async move { selectable_adjustment_types().await },
+    );
     let locations = Resource::new(|| (), |()| async move { selectable_locations().await });
 
     view! {
@@ -96,10 +98,7 @@ pub fn adjust_stock_page() -> impl IntoView {
 }
 
 #[component]
-fn adjust_form(
-    types: Vec<AdjustmentType>,
-    locations: Vec<Location>,
-) -> impl IntoView {
+fn adjust_form(types: Vec<AdjustmentType>, locations: Vec<Location>) -> impl IntoView {
     let alerts = Alerts::get();
     let viewer = Viewer::get();
 
@@ -111,15 +110,18 @@ fn adjust_form(
     let type_options: Vec<Choice> = types.with_value(|types| {
         types
             .iter()
-            .map(|kind| Choice::new(kind.id.to_string(), kind.name.clone()).detail(kind.code.clone()))
+            .map(|kind| {
+                Choice::new(kind.id.to_string(), kind.name.clone()).detail(kind.code.clone())
+            })
             .collect()
     });
 
     let location_options: Vec<Choice> = locations
         .iter()
-        .map(|place| Choice::new(place.id.to_string(), place.name.clone()).detail(place.code.clone()))
+        .map(|place| {
+            Choice::new(place.id.to_string(), place.name.clone()).detail(place.code.clone())
+        })
         .collect();
-
 
     // The reason as chosen, which is what decides the rest of the form.
     let chosen = Signal::derive(move || {
@@ -428,10 +430,7 @@ fn direction_field(
 
 /// The lot, where the item keeps them.
 #[component]
-fn lot_field(
-    draft: RwSignal<AdjustmentInput>,
-    lots: Resource<Vec<LotSummary>>,
-) -> impl IntoView {
+fn lot_field(draft: RwSignal<AdjustmentInput>, lots: Resource<Vec<LotSummary>>) -> impl IntoView {
     view! {
         <Transition fallback=|| ()>
             {move || Suspend::new(async move {

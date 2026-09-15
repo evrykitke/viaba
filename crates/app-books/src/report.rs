@@ -34,8 +34,8 @@
 
 use chrono::NaiveDate;
 use phonix_core::locale::Currency;
-use phonix_core::{Message, msg};
 use phonix_core::money::{Money, MoneyError};
+use phonix_core::{Message, msg};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -360,8 +360,7 @@ impl BalanceSheet {
 
             if class.closes_at_year_end() {
                 // Credit-positive, so a profit adds to what funds the assets.
-                brought_forward =
-                    brought_forward.checked_sub(movement.opening)?;
+                brought_forward = brought_forward.checked_sub(movement.opening)?;
                 result_for_year = result_for_year.checked_sub(movement.movement()?)?;
                 continue;
             }

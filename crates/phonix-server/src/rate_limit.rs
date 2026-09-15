@@ -300,10 +300,8 @@ pub async fn enforce(
             // one would spend more of this server than the request being
             // refused.
             let body = match tier {
-                Tier::Api => crate::api::problem::Problem::from(
-                    phonix_core::Error::RateLimited,
-                )
-                .into_response(),
+                Tier::Api => crate::api::problem::Problem::from(phonix_core::Error::RateLimited)
+                    .into_response(),
                 _ => "Too many requests. Try again shortly.".into_response(),
             };
 
@@ -332,11 +330,7 @@ pub async fn enforce(
 fn api_key_of(headers: &HeaderMap) -> Option<String> {
     use std::hash::{Hash, Hasher};
 
-    let presented = headers
-        .get(header::AUTHORIZATION)?
-        .to_str()
-        .ok()?
-        .trim();
+    let presented = headers.get(header::AUTHORIZATION)?.to_str().ok()?.trim();
 
     // Case-insensitive on the scheme, as RFC 7235 requires and as the
     // extractor that will later read this same header does.
@@ -416,8 +410,14 @@ mod tests {
         // The rest of `/api/` is a browser holding a session cookie, where
         // `Caller::require` is the better control. `/api/v1` is a key a script
         // can hold in a loop.
-        assert_eq!(classify(&Method::GET, "/api/v1/currencies"), Some(Tier::Api));
-        assert_eq!(classify(&Method::PUT, "/api/v1/currencies/EUR"), Some(Tier::Api));
+        assert_eq!(
+            classify(&Method::GET, "/api/v1/currencies"),
+            Some(Tier::Api)
+        );
+        assert_eq!(
+            classify(&Method::PUT, "/api/v1/currencies/EUR"),
+            Some(Tier::Api)
+        );
         assert_eq!(classify(&Method::GET, "/api/v1/docs"), Some(Tier::Api));
         // Ends in `.json`, and would be waved through as a static file if the
         // API were classified after the asset test rather than before it.

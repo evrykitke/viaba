@@ -17,8 +17,8 @@ use app_inventory::quantity::Quantity;
 use app_inventory::receipt::{CheckedReceipt, Receipt, ReceiptLine, ReceiptState, ReceiptSummary};
 use phonix_core::identity::UserId;
 use phonix_core::locale::Currency;
-use phonix_core::query::{Page, PageRequest};
 use phonix_core::money::Money;
+use phonix_core::query::{Page, PageRequest};
 use sqlx::{AssertSqlSafe, PgConnection, PgExecutor, Row};
 use uuid::Uuid;
 
@@ -92,7 +92,9 @@ pub async fn page(
     request: &PageRequest,
 ) -> Result<Page<ReceiptSummary>, DbError> {
     let request = request.sanitised();
-    let needle = request.needle().map(|needle| crate::search::contains(&needle));
+    let needle = request
+        .needle()
+        .map(|needle| crate::search::contains(&needle));
     let state = request.filter(STATE).and_then(ReceiptState::parse);
     let received = request.range(RECEIVED);
 

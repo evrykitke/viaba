@@ -421,12 +421,7 @@ impl<T: 'static> Field<T> {
     /// The icon is the tab's, not the field's: the first field to name a tab is
     /// the one whose icon it wears, and the rest may leave it off.
     #[must_use]
-    pub fn on_tab_with(
-        mut self,
-        key: &'static str,
-        label: impl Into<String>,
-        icon: Icon,
-    ) -> Self {
+    pub fn on_tab_with(mut self, key: &'static str, label: impl Into<String>, icon: Icon) -> Self {
         self.group = Some(FieldGroup {
             key,
             label: label.into(),
@@ -546,11 +541,7 @@ impl<T: 'static> Field<T> {
     /// What every screen should ask. [`editable_by`](Self::editable_by) is the
     /// half of the answer that does not depend on the record.
     pub fn editable_in(&self, draft: &T, user: Option<&AuthUser>) -> bool {
-        if self
-            .locked
-            .as_ref()
-            .is_some_and(|locked| locked(draft))
-        {
+        if self.locked.as_ref().is_some_and(|locked| locked(draft)) {
             return false;
         }
 
@@ -740,9 +731,12 @@ mod tests {
     fn a_quick_add_only_goes_on_a_lookup() {
         // The panel is the lookup's. There is nowhere on a text box to put one,
         // so the builder leaves the field alone and says so in development.
-        let field = Field::lookup("code", "Currency", Choices::List(Vec::new()), |_: &Draft| {
-            FieldValue::record(None)
-        })
+        let field = Field::lookup(
+            "code",
+            "Currency",
+            Choices::List(Vec::new()),
+            |_: &Draft| FieldValue::record(None),
+        )
         .adding(QuickAdd::page("Add one", "/admin/settings"));
 
         assert!(matches!(
@@ -758,12 +752,18 @@ mod tests {
     fn choosing_several_records_takes_the_whole_width() {
         // Chips wrap, and a column-wide box of them is three lines deep by the
         // third one chosen.
-        let field = Field::lookup_many("codes", "Currencies", Choices::List(Vec::new()), |_: &Draft| {
-            FieldValue::records([])
-        });
+        let field = Field::lookup_many(
+            "codes",
+            "Currencies",
+            Choices::List(Vec::new()),
+            |_: &Draft| FieldValue::records([]),
+        );
 
         assert!(field.wide);
-        assert!(matches!(field.kind, FieldKind::Lookup { multiple: true, .. }));
+        assert!(matches!(
+            field.kind,
+            FieldKind::Lookup { multiple: true, .. }
+        ));
     }
 
     #[test]

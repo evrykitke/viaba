@@ -100,9 +100,11 @@ impl Issue {
             return Ok(Money::zero(self.value.currency()));
         }
 
-        Ok(self
-            .value
-            .scale_by(crate::quantity::SCALE_FACTOR, quantity.scaled(), Rounding::HalfUp)?)
+        Ok(self.value.scale_by(
+            crate::quantity::SCALE_FACTOR,
+            quantity.scaled(),
+            Rounding::HalfUp,
+        )?)
     }
 }
 
@@ -121,7 +123,11 @@ pub fn unit_cost_of(quantity: Quantity, value: Money) -> Result<Money, Valuation
         return Err(ValuationError::NoQuantity);
     }
 
-    Ok(value.scale_by(crate::quantity::SCALE_FACTOR, quantity.scaled(), Rounding::HalfUp)?)
+    Ok(value.scale_by(
+        crate::quantity::SCALE_FACTOR,
+        quantity.scaled(),
+        Rounding::HalfUp,
+    )?)
 }
 
 /// The new average after a receipt.
@@ -206,7 +212,9 @@ pub fn consume_fifo(layers: &[Layer], quantity: Quantity) -> Result<Issue, Valua
             value: value_of(taken, unit_cost)?,
         });
 
-        left = left.checked_sub(taken).map_err(|_| ValuationError::OutOfRange)?;
+        left = left
+            .checked_sub(taken)
+            .map_err(|_| ValuationError::OutOfRange)?;
     }
 
     if !left.is_zero() {
@@ -280,7 +288,10 @@ impl ValuationError {
         match self {
             Self::NoLayers => msg!("valuation.error.no_layers"),
             Self::LayersExhausted { short } => {
-                msg!("valuation.error.layers_exhausted", short = short.to_display_string())
+                msg!(
+                    "valuation.error.layers_exhausted",
+                    short = short.to_display_string()
+                )
             }
             Self::NoQuantity => msg!("valuation.error.no_quantity"),
             Self::NegativeIssue => msg!("valuation.error.negative_issue"),
@@ -368,8 +379,7 @@ mod tests {
     #[test]
     fn the_average_moves_towards_what_just_arrived() {
         // 10 at 2.00 plus 10 at 3.00 is 20 at 2.50.
-        let blended =
-            weighted_average(qty("10"), gbp("2.00"), qty("10"), gbp("3.00")).unwrap();
+        let blended = weighted_average(qty("10"), gbp("2.00"), qty("10"), gbp("3.00")).unwrap();
 
         assert_eq!(blended, gbp("2.50"));
     }
@@ -386,8 +396,13 @@ mod tests {
         // The whole point of a standard: the difference is a number an
         // accountant looks at, not a drift in what the shelf is said to be
         // worth.
-        let variance =
-            price_variance(CostingMethod::Standard, qty("100"), gbp("2.00"), gbp("2.15")).unwrap();
+        let variance = price_variance(
+            CostingMethod::Standard,
+            qty("100"),
+            gbp("2.00"),
+            gbp("2.15"),
+        )
+        .unwrap();
 
         assert_eq!(variance, gbp("15.00"));
         // Under the other two the price simply becomes the cost.

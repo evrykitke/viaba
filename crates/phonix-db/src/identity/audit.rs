@@ -362,9 +362,7 @@ impl AuditScope {
 pub async fn page(pool: &PgPool, request: &PageRequest) -> Result<Page<AuditRecord>, DbError> {
     let request = request.sanitised();
     let scope = AuditScope::of(&request);
-    let needle = request
-        .needle()
-        .map(|needle| search::contains(&needle));
+    let needle = request.needle().map(|needle| search::contains(&needle));
 
     // One clause, six bound parameters, no interpolation: a scope that is not
     // in force compiles to `NOT false OR ...`, which Postgres discards, and an
@@ -465,7 +463,6 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-
 
     #[test]
     fn the_scope_comes_from_the_request_and_defaults_to_everything() {

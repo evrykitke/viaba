@@ -105,7 +105,9 @@ pub async fn save(
 
     let parent_path = match checked.parent_id {
         None => None,
-        Some(parent_id) => store::find(pool, parent_id).await?.map(|parent| parent.code),
+        Some(parent_id) => store::find(pool, parent_id)
+            .await?
+            .map(|parent| parent.code),
     };
     let path = path_under(parent_path.as_deref(), &checked.name);
 

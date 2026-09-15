@@ -174,9 +174,24 @@ mod tests {
     #[test]
     fn a_statement_repeated_across_requests_is_the_finding() {
         let group = vec![
-            profile(1, "/api/users_list", &["SELECT * FROM roles WHERE id = $1"], 200),
-            profile(2, "/api/roles_get", &["SELECT * FROM roles WHERE id = $1"], 200),
-            profile(3, "/api/roles_get", &["SELECT * FROM roles WHERE id = $1"], 200),
+            profile(
+                1,
+                "/api/users_list",
+                &["SELECT * FROM roles WHERE id = $1"],
+                200,
+            ),
+            profile(
+                2,
+                "/api/roles_get",
+                &["SELECT * FROM roles WHERE id = $1"],
+                200,
+            ),
+            profile(
+                3,
+                "/api/roles_get",
+                &["SELECT * FROM roles WHERE id = $1"],
+                200,
+            ),
         ];
 
         let summary = PageSummary::of("p1", &group);

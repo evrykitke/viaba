@@ -108,7 +108,9 @@ pub async fn page(
     request: &PageRequest,
 ) -> Result<Page<TransferSummary>, DbError> {
     let request = request.sanitised();
-    let needle = request.needle().map(|needle| crate::search::contains(&needle));
+    let needle = request
+        .needle()
+        .map(|needle| crate::search::contains(&needle));
     let state = request.filter(STATE).and_then(TransferState::parse);
     let planned = request.range(PLANNED);
 
@@ -157,7 +159,6 @@ pub async fn page(
 
     Ok(Page::new(summaries, total, &request))
 }
-
 
 /// Journeys with stock still on them. The transit account's own screen.
 pub async fn in_transit<'e, E>(executor: E) -> Result<Vec<TransferSummary>, DbError>

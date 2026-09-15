@@ -31,7 +31,6 @@ use phonix_master::party::{PartySummary, roles};
 use uuid::Uuid;
 
 use crate::components::attachments::{Attachments, AttachmentsPending};
-use crate::pages::inventory::item_lookup::ItemLookup;
 use crate::components::dock::{DockField, DockHeader};
 use crate::components::history::RecordHistory;
 use crate::components::page::{
@@ -39,6 +38,7 @@ use crate::components::page::{
 };
 use crate::icons::Icon;
 use crate::l;
+use crate::pages::inventory::item_lookup::ItemLookup;
 use crate::server_fns::inventory_fns::{
     cancel_receipt, landed_costs_for_receipt, landed_on_receipt, post_receipt,
     receipt_against_order, receipt_detail, save_receipt, selectable_warehouses, variant_lot_rules,
@@ -59,13 +59,8 @@ const BACK: &str = "/inventory/receipts";
 #[component]
 pub fn receipt_new_page() -> impl IntoView {
     let query = leptos_router::hooks::use_query_map();
-    let against = move || {
-        query.with(|query| {
-            query
-                .get("order")
-                .and_then(|raw| raw.parse::<Uuid>().ok())
-        })
-    };
+    let against =
+        move || query.with(|query| query.get("order").and_then(|raw| raw.parse::<Uuid>().ok()));
 
     // Today from the browser's own clock: a receipt is dated where the person
     // booking it in is standing.

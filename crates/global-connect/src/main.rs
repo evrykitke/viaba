@@ -125,8 +125,7 @@ async fn serve(config: AppConfig) -> Result<()> {
     // because the rate limiter falls back to the peer address when no proxy
     // header is configured - and without this the extension is simply absent
     // and every visitor shares one key.
-    let app = routes::router(state)
-        .into_make_service_with_connect_info::<std::net::SocketAddr>();
+    let app = routes::router(state).into_make_service_with_connect_info::<std::net::SocketAddr>();
 
     axum::serve(listener, app)
         .with_graceful_shutdown(shutdown_signal())

@@ -293,7 +293,8 @@ pub async fn confirm(
 
         for line in &group.lines {
             let Some(context) =
-                phonix_db::inventory::movement::context(&mut *tx, line.variant_id, currency).await?
+                phonix_db::inventory::movement::context(&mut *tx, line.variant_id, currency)
+                    .await?
             else {
                 tx.rollback().await.map_err(DbError::Query)?;
                 return Ok(Submission::rejected(

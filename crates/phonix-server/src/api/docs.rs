@@ -57,7 +57,10 @@ mod tests {
     #[test]
     fn loads_the_bundle_from_this_origin() {
         let html = template();
-        assert!(html.contains(SCALAR_SRC), "the vendored bundle is not linked");
+        assert!(
+            html.contains(SCALAR_SRC),
+            "the vendored bundle is not linked"
+        );
         assert!(!html.contains("//cdn."), "the page still reaches for a CDN");
     }
 }

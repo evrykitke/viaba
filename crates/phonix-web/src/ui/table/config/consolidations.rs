@@ -123,20 +123,18 @@ pub fn consolidations_grid() -> GridConfig<ConsolidationSummary> {
             .class("tabular-nums"),
         )
         // Filtering is handled by the paged source.
-        .filter(
-            Filter::new(
-                "state",
-                l!("field.status"),
-                vec![
-                    FilterChoice::all(l!("common.all")),
-                    // First, because an unfinished consolidation is the one
-                    // thing on this screen that is somebody's outstanding work.
-                    FilterChoice::new("draft", l!("consolidations.state.draft")),
-                    FilterChoice::new("confirmed", l!("consolidations.state.confirmed")),
-                    FilterChoice::new("cancelled", l!("consolidations.state.cancelled")),
-                ],
-            ),
-        )
+        .filter(Filter::new(
+            "state",
+            l!("field.status"),
+            vec![
+                FilterChoice::all(l!("common.all")),
+                // First, because an unfinished consolidation is the one
+                // thing on this screen that is somebody's outstanding work.
+                FilterChoice::new("draft", l!("consolidations.state.draft")),
+                FilterChoice::new("confirmed", l!("consolidations.state.confirmed")),
+                FilterChoice::new("cancelled", l!("consolidations.state.cancelled")),
+            ],
+        ))
         .date_filter(DateFilter::new("raised", l!("consolidations.raised_on")))
         .toolbar(
             ToolbarAction::link(
@@ -199,7 +197,14 @@ mod tests {
     }
 
     /// Mirrors the database sort fields without adding a crate dependency.
-    const SERVER_SORTS: &[&str] = &["number", "warehouse", "raised_on", "line_count", "suppliers", "orders"];
+    const SERVER_SORTS: &[&str] = &[
+        "number",
+        "warehouse",
+        "raised_on",
+        "line_count",
+        "suppliers",
+        "orders",
+    ];
 
     /// Mirrors the database search fields.
     const SERVER_SEARCHES: &[&str] = &["number", "warehouse", "raised_by"];

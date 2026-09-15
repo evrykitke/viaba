@@ -365,13 +365,11 @@ fn editor_body(
                         match result {
                             Ok(Submission::Saved(stored)) => {
                                 alerts.post(
-                                    Alert::success(
-                                            l!(
-                                                "consolidations.confirmed_as", number = stored
-                                                .number
-                                            ),
-                                        )
-                                        .titled(l!("consolidations.confirm")),
+                                    Alert::success(l!(
+                                        "consolidations.confirmed_as",
+                                        number = stored.number
+                                    ))
+                                    .titled(l!("consolidations.confirm")),
                                 );
                                 // Reload the route: it is a document now, and
                                 // this screen draws a different thing for one.

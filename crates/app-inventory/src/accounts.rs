@@ -169,7 +169,11 @@ mod tests {
         };
 
         assert_eq!(
-            account_for(AccountRole::Inventory, &AccountOverrides::default(), &category),
+            account_for(
+                AccountRole::Inventory,
+                &AccountOverrides::default(),
+                &category
+            ),
             Some(Uuid::from_u128(1))
         );
     }

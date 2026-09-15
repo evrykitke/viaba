@@ -92,7 +92,9 @@ pub async fn save(
     }
 
     let written = match checked.id {
-        None => store::insert(&mut *tx, &checked, caller.user_id()).await.map(Some),
+        None => store::insert(&mut *tx, &checked, caller.user_id())
+            .await
+            .map(Some),
         Some(id) => store::update(&mut *tx, id, &checked, caller.user_id())
             .await
             .map(|done| done.then_some(id)),

@@ -302,7 +302,11 @@ pub fn rich_text(
 }
 
 fn apply_link(dispatch: Dispatch, link_box: RwSignal<Option<String>>) {
-    let href = link_box.get_untracked().unwrap_or_default().trim().to_owned();
+    let href = link_box
+        .get_untracked()
+        .unwrap_or_default()
+        .trim()
+        .to_owned();
     dispatch.run(Command::Link, Some(href));
     link_box.set(None);
 }

@@ -202,7 +202,10 @@ where
         .map_err(|err| DbError::CorruptRow(format!("unusable invoice total: {err}")))
 }
 
-fn read_movement(row: &sqlx::postgres::PgRow, currency: Currency) -> Result<AccountMovement, DbError> {
+fn read_movement(
+    row: &sqlx::postgres::PgRow,
+    currency: Currency,
+) -> Result<AccountMovement, DbError> {
     let number: String = row.try_get("number").map_err(DbError::Query)?;
     let raw: String = row.try_get("account_type").map_err(DbError::Query)?;
 

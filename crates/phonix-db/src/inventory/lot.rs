@@ -72,16 +72,14 @@ pub async fn find<'e, E>(executor: E, id: Uuid) -> Result<Option<Lot>, DbError>
 where
     E: PgExecutor<'e>,
 {
-    Ok(
-        sqlx::query_as::<_, RowOf<Lot>>(AssertSqlSafe(format!(
-            "SELECT {COLUMNS} FROM inventory.lots WHERE id = $1"
-        )))
-            .bind(id)
-            .fetch_optional(executor)
-            .await
-            .map_err(DbError::Query)?
-            .map(|row| row.0),
-    )
+    Ok(sqlx::query_as::<_, RowOf<Lot>>(AssertSqlSafe(format!(
+        "SELECT {COLUMNS} FROM inventory.lots WHERE id = $1"
+    )))
+    .bind(id)
+    .fetch_optional(executor)
+    .await
+    .map_err(DbError::Query)?
+    .map(|row| row.0))
 }
 
 /// One by the number on the carton, case-insensitively - `lot-1` and `LOT-1`

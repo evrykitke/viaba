@@ -159,7 +159,10 @@ pub async fn save(
     if let Some(id) = checked.id {
         let before = detail(pool, caller, id).await?;
         if !before.state.is_editable() {
-            return Ok(Submission::rejected("state", BillError::NotEditable.message()));
+            return Ok(Submission::rejected(
+                "state",
+                BillError::NotEditable.message(),
+            ));
         }
     }
 
@@ -226,7 +229,10 @@ pub async fn save(
                 Ok(true) => id,
                 Ok(false) => {
                     tx.rollback().await.map_err(DbError::Query)?;
-                    return Ok(Submission::rejected("state", BillError::NotEditable.message()));
+                    return Ok(Submission::rejected(
+                        "state",
+                        BillError::NotEditable.message(),
+                    ));
                 }
                 Err(DbError::Query(sqlx::Error::Database(err)))
                     if err.constraint() == Some("bills_supplier_reference") =>
@@ -359,7 +365,10 @@ pub async fn post(
     let bill = detail(pool, caller, id).await?;
 
     if !bill.state.is_editable() {
-        return Ok(Submission::rejected("state", BillError::NotEditable.message()));
+        return Ok(Submission::rejected(
+            "state",
+            BillError::NotEditable.message(),
+        ));
     }
     if !bill.has_lines() {
         return Ok(Submission::rejected("lines", BillError::NoLines.message()));
@@ -394,7 +403,10 @@ pub async fn post(
         Ok(allocated) => allocated,
         Err(ServiceError::Db(DbError::UnusableSequence { .. })) => {
             tx.rollback().await.map_err(DbError::Query)?;
-            return Ok(Submission::rejected("number", msg!("bills.error.no_series")));
+            return Ok(Submission::rejected(
+                "number",
+                msg!("bills.error.no_series"),
+            ));
         }
         Err(err) => return Err(err),
     };
@@ -409,7 +421,10 @@ pub async fn post(
     .await?
     {
         tx.rollback().await.map_err(DbError::Query)?;
-        return Ok(Submission::rejected("state", BillError::NotEditable.message()));
+        return Ok(Submission::rejected(
+            "state",
+            BillError::NotEditable.message(),
+        ));
     }
 
     // What each receipt line has now been charged for. Inside the same
@@ -519,12 +534,18 @@ pub async fn cancel(pool: &PgPool, caller: &Caller, id: Uuid) -> ServiceResult<S
 
     let bill = detail(pool, caller, id).await?;
     if !bill.state.is_editable() {
-        return Ok(Submission::rejected("state", BillError::NotEditable.message()));
+        return Ok(Submission::rejected(
+            "state",
+            BillError::NotEditable.message(),
+        ));
     }
 
     let mut conn = pool.acquire().await.map_err(DbError::Query)?;
     if !store::cancel(&mut conn, id).await? {
-        return Ok(Submission::rejected("state", BillError::NotEditable.message()));
+        return Ok(Submission::rejected(
+            "state",
+            BillError::NotEditable.message(),
+        ));
     }
 
     audit::updated(
@@ -588,7 +609,8 @@ async fn cost_lines<'a>(
         let accrued = match line.receipt_line_id {
             None => Money::zero(currency),
             Some(receipt_line_id) => {
-                let Some(state) = store::receipt_line_state(pool, receipt_line_id, currency).await?
+                let Some(state) =
+                    store::receipt_line_state(pool, receipt_line_id, currency).await?
                 else {
                     return Ok(Err(BillError::AlreadyBilled));
                 };

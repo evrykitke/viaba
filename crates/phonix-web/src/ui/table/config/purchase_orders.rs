@@ -129,11 +129,9 @@ pub fn purchase_orders_grid() -> GridConfig<OrderSummary> {
             }),
         )
         .column(
-            Column::new(
-                "warehouse",
-                l!("nav.warehouses"),
-                |row: &OrderSummary| Cell::text(&row.warehouse_name),
-            )
+            Column::new("warehouse", l!("nav.warehouses"), |row: &OrderSummary| {
+                Cell::text(&row.warehouse_name)
+            })
             .searchable()
             .class("text-xs text-content-muted"),
         )

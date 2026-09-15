@@ -15,7 +15,9 @@ use crate::components::page::{Badge, Tone};
 use crate::icons::Icon;
 use crate::l;
 use crate::server_fns::inventory_fns::{delete_item_category, list_item_categories};
-use crate::ui::table::{Align, Cell, Column, Filter, FilterChoice, RowAction, Source, ToolbarAction};
+use crate::ui::table::{
+    Align, Cell, Column, Filter, FilterChoice, RowAction, Source, ToolbarAction,
+};
 
 /// How each kind of stock is costed, valued and picked.
 pub fn item_categories_grid() -> GridConfig<CategorySummary> {
@@ -84,9 +86,12 @@ pub fn item_categories_grid() -> GridConfig<CategorySummary> {
             .class("font-mono text-xs"),
         )
         .filter(
-            Filter::new("costing_method", l!("categories.costing"), costing_choices()).matching(
-                |row: &CategorySummary, wanted| row.costing_method.as_str() == wanted,
-            ),
+            Filter::new(
+                "costing_method",
+                l!("categories.costing"),
+                costing_choices(),
+            )
+            .matching(|row: &CategorySummary, wanted| row.costing_method.as_str() == wanted),
         )
         .filter(
             Filter::new(

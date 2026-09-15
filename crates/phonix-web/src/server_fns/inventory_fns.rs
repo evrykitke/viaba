@@ -11,29 +11,27 @@ use app_inventory::adjustment::{
     AdjustmentInput, AdjustmentType, AdjustmentTypeInput, AdjustmentTypeSummary,
 };
 use app_inventory::bill::{Bill, BillInput, BillSummary, MatchGrade, UnbilledReceipt};
-use app_inventory::transfer::{
-    ArrivalInput, Transfer, TransferInput, TransferSummary,
-};
-use app_inventory::landed_cost::{
-    Landable, LandedCost, LandedCostInput, LandedCostSummary, ReceiptLandedCost,
-};
 use app_inventory::category::{Category, CategoryInput, CategorySummary};
 use app_inventory::consolidation::{
     Consolidation, ConsolidationInput, ConsolidationSummary, LineAllocation,
 };
+use app_inventory::delivery::{Delivery, DeliveryInput, DeliverySummary, Outstanding};
 use app_inventory::image::{Gallery, ImageInput};
 use app_inventory::item::{Item, ItemInput, ItemSummary};
+use app_inventory::landed_cost::{
+    Landable, LandedCost, LandedCostInput, LandedCostSummary, ReceiptLandedCost,
+};
 use app_inventory::location::{Location, LocationInput, LocationSummary};
 use app_inventory::lot::{LotRules, LotSummary};
 use app_inventory::movement::{MoveFilter, MoveSummary, StockMove};
 use app_inventory::purchase::{OrderInput, OrderSummary, PurchaseOrder};
-use app_inventory::delivery::{Delivery, DeliveryInput, DeliverySummary, Outstanding};
-use app_inventory::sales_order::{SaleInput, SaleSummary, SalesOrder};
 use app_inventory::quant::{OnHandFilter, OnHandRow};
 use app_inventory::receipt::{Backorder, Receipt, ReceiptInput, ReceiptSummary};
 use app_inventory::requisition::{
     DecisionInput, Demand, Requisition, RequisitionInput, RequisitionSummary,
 };
+use app_inventory::sales_order::{SaleInput, SaleSummary, SalesOrder};
+use app_inventory::transfer::{ArrivalInput, Transfer, TransferInput, TransferSummary};
 use app_inventory::unit::{Unit, UnitInput};
 use app_inventory::variant::{Attribute, Plan, Selection, VariantChoice, VariantSummary};
 use app_inventory::warehouse::{Warehouse, WarehouseInput, WarehouseSummary};
@@ -528,8 +526,8 @@ pub async fn item_accounts(
 /// not depend on the accounting app. Empty where there is no ledger, so the
 /// picker renders as "the default for this role" and the screen still works.
 #[server(name = PostableAccounts, prefix = "/api", endpoint = "inventory/accounts")]
-pub async fn postable_accounts()
--> Result<Vec<phonix_ports::ledger::LedgerAccount>, ServerFnError> {
+pub async fn postable_accounts() -> Result<Vec<phonix_ports::ledger::LedgerAccount>, ServerFnError>
+{
     use phonix_core::permissions;
     use phonix_ports::Ledger;
 
@@ -597,7 +595,6 @@ pub async fn mapped_roles() -> Result<Vec<phonix_ports::ledger::AccountRole>, Se
         .await
         .map_err(service_error)
 }
-
 
 // --- Stock ---------------------------------------------------------------
 //
@@ -788,7 +785,9 @@ pub async fn record_adjustment(
 // from a document - see ADR 0006 sections 2 and 7.
 
 #[server(name = ListRequisitions, prefix = "/api", endpoint = "inventory/requisitions", input = Json)]
-pub async fn list_requisitions(request: PageRequest) -> Result<Page<RequisitionSummary>, ServerFnError> {
+pub async fn list_requisitions(
+    request: PageRequest,
+) -> Result<Page<RequisitionSummary>, ServerFnError> {
     use crate::state::{pool_and_caller, service_error};
 
     let (pool, caller) = pool_and_caller().await?;
@@ -952,7 +951,9 @@ pub async fn requisition_demand() -> Result<Vec<Demand>, ServerFnError> {
 // after the fact - which requisitions each order line was raised for.
 
 #[server(name = ListConsolidations, prefix = "/api", endpoint = "inventory/consolidations", input = Json)]
-pub async fn list_consolidations(request: PageRequest) -> Result<Page<ConsolidationSummary>, ServerFnError> {
+pub async fn list_consolidations(
+    request: PageRequest,
+) -> Result<Page<ConsolidationSummary>, ServerFnError> {
     use crate::state::{pool_and_caller, service_error};
 
     let (pool, caller) = pool_and_caller().await?;
@@ -1562,9 +1563,7 @@ pub async fn order_backorder(order_id: Uuid) -> Result<Option<Backorder>, Server
 }
 
 #[server(name = SaveReceipt, prefix = "/api", endpoint = "inventory/receipts/save")]
-pub async fn save_receipt(
-    draft: ReceiptInput,
-) -> Result<Submission<ReceiptInput>, ServerFnError> {
+pub async fn save_receipt(draft: ReceiptInput) -> Result<Submission<ReceiptInput>, ServerFnError> {
     use crate::state::{pool_and_caller, service_error};
 
     let (pool, caller) = pool_and_caller().await?;
@@ -1729,7 +1728,9 @@ pub async fn unbilled_receipts() -> Result<Vec<UnbilledReceipt>, ServerFnError> 
 // charges the rest of it to cost of sales.
 
 #[server(name = ListLandedCosts, prefix = "/api", endpoint = "inventory/landed-costs", input = Json)]
-pub async fn list_landed_costs(request: PageRequest) -> Result<Page<LandedCostSummary>, ServerFnError> {
+pub async fn list_landed_costs(
+    request: PageRequest,
+) -> Result<Page<LandedCostSummary>, ServerFnError> {
     use crate::state::{pool_and_caller, service_error};
 
     let (pool, caller) = pool_and_caller().await?;
@@ -2016,9 +2017,7 @@ pub async fn save_transfer(
 }
 
 #[server(name = DespatchTransfer, prefix = "/api", endpoint = "inventory/transfers/despatch")]
-pub async fn despatch_transfer(
-    transfer_id: Uuid,
-) -> Result<Submission<Transfer>, ServerFnError> {
+pub async fn despatch_transfer(transfer_id: Uuid) -> Result<Submission<Transfer>, ServerFnError> {
     use crate::state::{pool_and_caller, service_error};
 
     let (pool, caller) = pool_and_caller().await?;

@@ -232,6 +232,8 @@ where
     .map_err(DbError::Query)?;
 
     Money::parse(currency, &raw).map_err(|err| {
-        DbError::CorruptRow(format!("valuation_layers sum to '{raw}', which is not an amount: {err}"))
+        DbError::CorruptRow(format!(
+            "valuation_layers sum to '{raw}', which is not an amount: {err}"
+        ))
     })
 }

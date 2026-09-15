@@ -87,17 +87,20 @@ pub static MENU: &[NavNode] = &[
             // Beside the invoices rather than under the chart: the person who
             // keys a bank statement is the person who raised the invoices it
             // settles, and they are looking at the same customer either way.
-            NavNode::leaf(
-                "payments",
-                "nav.payments",
-                Icon::Receipt,
-                "/sales/payments",
-            )
-            .require(names::PAYMENTS)
-            .keywords(&[
-                "receipt", "cash", "remittance", "settle", "allocate", "paid",
-                "bank", "cheque", "check", "on account",
-            ]),
+            NavNode::leaf("payments", "nav.payments", Icon::Receipt, "/sales/payments")
+                .require(names::PAYMENTS)
+                .keywords(&[
+                    "receipt",
+                    "cash",
+                    "remittance",
+                    "settle",
+                    "allocate",
+                    "paid",
+                    "bank",
+                    "cheque",
+                    "check",
+                    "on account",
+                ]),
             NavNode::leaf(
                 "accounts",
                 "nav.accounts",
@@ -116,7 +119,13 @@ pub static MENU: &[NavNode] = &[
                 "/sales/accounts/roles",
             )
             .require(names::ACCOUNTS)
-            .keywords(&["determination", "mapping", "default accounts", "posting", "role"]),
+            .keywords(&[
+                "determination",
+                "mapping",
+                "default accounts",
+                "posting",
+                "role",
+            ]),
             NavNode::leaf(
                 "journals",
                 "nav.journals",
@@ -159,7 +168,12 @@ pub static MENU: &[NavNode] = &[
                         "/sales/reports/profit-and-loss",
                     )
                     .require(names::REPORTS)
-                    .keywords(&["p&l", "income statement", "earnings", "result"]),
+                    .keywords(&[
+                        "p&l",
+                        "income statement",
+                        "earnings",
+                        "result",
+                    ]),
                     NavNode::leaf(
                         "customer-statement",
                         "reports.customer_statement",
@@ -167,7 +181,13 @@ pub static MENU: &[NavNode] = &[
                         "/sales/reports/statement",
                     )
                     .require(names::REPORTS)
-                    .keywords(&["ageing", "aging", "owed", "debtors", "receivable"]),
+                    .keywords(&[
+                        "ageing",
+                        "aging",
+                        "owed",
+                        "debtors",
+                        "receivable",
+                    ]),
                 ],
             )
             .require(names::REPORTS),
@@ -229,7 +249,12 @@ pub static MENU: &[NavNode] = &[
             NavNode::leaf("stock", "nav.stock", Icon::Boxes, "/inventory/stock")
                 .require(names::STOCK)
                 .keywords(&[
-                    "on hand", "quantity", "availability", "quants", "count", "lots",
+                    "on hand",
+                    "quantity",
+                    "availability",
+                    "quants",
+                    "count",
+                    "lots",
                 ]),
             // The buying chain, in the order it happens: asked for, planned,
             // ordered, received, billed, and then what the freight added.
@@ -246,8 +271,14 @@ pub static MENU: &[NavNode] = &[
                     )
                     .require(names::REQUISITIONS)
                     .keywords(&[
-                        "request", "ask", "pr", "purchase requisition", "approval",
-                        "cost centre", "department", "consolidate",
+                        "request",
+                        "ask",
+                        "pr",
+                        "purchase requisition",
+                        "approval",
+                        "cost centre",
+                        "department",
+                        "consolidate",
                     ]),
                     NavNode::leaf(
                         "consolidations",
@@ -257,8 +288,13 @@ pub static MENU: &[NavNode] = &[
                     )
                     .require(names::CONSOLIDATIONS)
                     .keywords(&[
-                        "consolidate", "combine", "merge", "group demand", "batch",
-                        "aggregate", "buying plan",
+                        "consolidate",
+                        "combine",
+                        "merge",
+                        "group demand",
+                        "batch",
+                        "aggregate",
+                        "buying plan",
                     ]),
                     NavNode::leaf(
                         "purchase-orders",
@@ -267,7 +303,14 @@ pub static MENU: &[NavNode] = &[
                         "/inventory/orders",
                     )
                     .require(names::PURCHASE_ORDERS)
-                    .keywords(&["po", "buying", "procurement", "supplier", "vendor", "order"]),
+                    .keywords(&[
+                        "po",
+                        "buying",
+                        "procurement",
+                        "supplier",
+                        "vendor",
+                        "order",
+                    ]),
                     NavNode::leaf(
                         "receipts",
                         "nav.receipts",
@@ -276,14 +319,24 @@ pub static MENU: &[NavNode] = &[
                     )
                     .require(names::RECEIPTS)
                     .keywords(&[
-                        "goods in", "grn", "delivery note", "receiving", "incoming",
+                        "goods in",
+                        "grn",
+                        "delivery note",
+                        "receiving",
+                        "incoming",
                         "backorder",
                     ]),
                     NavNode::leaf("bills", "nav.bills", Icon::Receipt, "/inventory/bills")
                         .require(names::BILLS)
                         .keywords(&[
-                            "invoice", "supplier invoice", "payable", "ap",
-                            "three-way match", "grni", "accrual", "variance",
+                            "invoice",
+                            "supplier invoice",
+                            "payable",
+                            "ap",
+                            "three-way match",
+                            "grni",
+                            "accrual",
+                            "variance",
                         ]),
                     NavNode::leaf(
                         "landed_costs",
@@ -293,8 +346,15 @@ pub static MENU: &[NavNode] = &[
                     )
                     .require(names::LANDED_COSTS)
                     .keywords(&[
-                        "freight", "duty", "customs", "shipping", "handling", "insurance",
-                        "carriage", "landed", "capitalise",
+                        "freight",
+                        "duty",
+                        "customs",
+                        "shipping",
+                        "handling",
+                        "insurance",
+                        "carriage",
+                        "landed",
+                        "capitalise",
                     ]),
                 ],
             ),
@@ -316,8 +376,14 @@ pub static MENU: &[NavNode] = &[
                     )
                     .require(names::SALES_ORDERS)
                     .keywords(&[
-                        "so", "quotation", "quote", "selling", "customer", "order",
-                        "proposal", "backorder",
+                        "so",
+                        "quotation",
+                        "quote",
+                        "selling",
+                        "customer",
+                        "order",
+                        "proposal",
+                        "backorder",
                     ]),
                     NavNode::leaf(
                         "deliveries",
@@ -327,8 +393,15 @@ pub static MENU: &[NavNode] = &[
                     )
                     .require(names::DELIVERIES)
                     .keywords(&[
-                        "goods out", "despatch", "dispatch", "shipping", "shipment",
-                        "picking", "consignment", "carrier", "outgoing",
+                        "goods out",
+                        "despatch",
+                        "dispatch",
+                        "shipping",
+                        "shipment",
+                        "picking",
+                        "consignment",
+                        "carrier",
+                        "outgoing",
                     ]),
                 ],
             ),
@@ -347,8 +420,14 @@ pub static MENU: &[NavNode] = &[
                     )
                     .require(names::TRANSFERS)
                     .keywords(&[
-                        "move", "internal", "in transit", "despatch", "dispatch",
-                        "put away", "between warehouses", "consignment",
+                        "move",
+                        "internal",
+                        "in transit",
+                        "despatch",
+                        "dispatch",
+                        "put away",
+                        "between warehouses",
+                        "consignment",
                     ]),
                     NavNode::leaf(
                         "stock-moves",
@@ -358,7 +437,11 @@ pub static MENU: &[NavNode] = &[
                     )
                     .require(names::STOCK)
                     .keywords(&[
-                        "movements", "history", "receipts", "deliveries", "adjustments",
+                        "movements",
+                        "history",
+                        "receipts",
+                        "deliveries",
+                        "adjustments",
                         "stock card",
                     ]),
                 ],
@@ -380,7 +463,11 @@ pub static MENU: &[NavNode] = &[
                     // looking for "FIFO" is looking for this screen without
                     // knowing its name.
                     .keywords(&[
-                        "costing", "valuation", "fifo", "average", "standard cost",
+                        "costing",
+                        "valuation",
+                        "fifo",
+                        "average",
+                        "standard cost",
                         "removal",
                     ]),
                     NavNode::leaf(
@@ -391,7 +478,12 @@ pub static MENU: &[NavNode] = &[
                     )
                     .require(names::WAREHOUSES)
                     .keywords(&[
-                        "depot", "site", "building", "receiving", "shipping", "steps",
+                        "depot",
+                        "site",
+                        "building",
+                        "receiving",
+                        "shipping",
+                        "steps",
                     ]),
                     NavNode::leaf(
                         "stock-locations",
@@ -400,7 +492,14 @@ pub static MENU: &[NavNode] = &[
                         "/inventory/locations",
                     )
                     .require(names::STOCK_LOCATIONS)
-                    .keywords(&["bin", "shelf", "zone", "aisle", "transit", "inventory loss"]),
+                    .keywords(&[
+                        "bin",
+                        "shelf",
+                        "zone",
+                        "aisle",
+                        "transit",
+                        "inventory loss",
+                    ]),
                     NavNode::leaf("units", "nav.units", Icon::Ruler, "/inventory/units")
                         .require(names::UNITS)
                         .keywords(&["uom", "measure", "kilogram", "litre", "each", "conversion"]),
@@ -415,8 +514,17 @@ pub static MENU: &[NavNode] = &[
                     )
                     .require(names::ADJUSTMENT_TYPES)
                     .keywords(&[
-                        "adjustment", "reason", "shrinkage", "damage", "expiry", "write-off",
-                        "scrap", "sample", "count difference", "stocktake", "loss",
+                        "adjustment",
+                        "reason",
+                        "shrinkage",
+                        "damage",
+                        "expiry",
+                        "write-off",
+                        "scrap",
+                        "sample",
+                        "count difference",
+                        "stocktake",
+                        "loss",
                     ]),
                 ],
             ),
@@ -451,8 +559,16 @@ pub static MENU: &[NavNode] = &[
             )
             .require(names::EMPLOYEES)
             .keywords(&[
-                "staff", "employee", "person", "people", "headcount", "hire", "leaver",
-                "starter", "org chart", "who",
+                "staff",
+                "employee",
+                "person",
+                "people",
+                "headcount",
+                "hire",
+                "leaver",
+                "starter",
+                "org chart",
+                "who",
             ]),
             NavNode::leaf(
                 "job-positions",

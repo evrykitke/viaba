@@ -80,7 +80,9 @@ pub async fn detail(pool: &PgPool, caller: &Caller, id: Uuid) -> ServiceResult<D
 }
 
 pub async fn edit(pool: &PgPool, caller: &Caller, id: Uuid) -> ServiceResult<DeliveryInput> {
-    Ok(DeliveryInput::from_delivery(&detail(pool, caller, id).await?))
+    Ok(DeliveryInput::from_delivery(
+        &detail(pool, caller, id).await?,
+    ))
 }
 
 pub async fn blank(_pool: &PgPool, caller: &Caller) -> ServiceResult<DeliveryInput> {
@@ -180,8 +182,16 @@ pub async fn save(
     let mut tx = pool.begin().await.map_err(DbError::Query)?;
 
     let id = match checked.id {
-        None => store::insert(&mut tx, &checked, &customer, from_location_id, caller.user_id())
-            .await?,
+        None => {
+            store::insert(
+                &mut tx,
+                &checked,
+                &customer,
+                from_location_id,
+                caller.user_id(),
+            )
+            .await?
+        }
         Some(id) => {
             if !store::update(
                 &mut tx,
@@ -294,7 +304,10 @@ pub async fn post(
         if rules.wants_a_number() && line.lot_id.is_none() {
             return Ok(Submission::rejected(
                 "lines",
-                msg!("deliveries.error.lot_required_for", item = context.item_name),
+                msg!(
+                    "deliveries.error.lot_required_for",
+                    item = context.item_name
+                ),
             ));
         }
     }

@@ -24,7 +24,7 @@ use std::collections::HashMap;
 
 use app_inventory::accounts::{AccountOverrides, account_for};
 use app_inventory::landed_cost::{
-    LandedCost, LandedCostError, LandedCostInput, LandedCostState, LandedCostSummary, Landable,
+    Landable, LandedCost, LandedCostError, LandedCostInput, LandedCostState, LandedCostSummary,
     ReceiptLandedCost, Share, Spread, spread,
 };
 use app_inventory::movement::JournalOutcome;
@@ -38,8 +38,8 @@ use phonix_core::permissions;
 use phonix_core::query::{Page, PageRequest};
 use phonix_db::error::DbError;
 use phonix_db::inventory::landed_cost::{self as store, PricedCharge, VariantCosting};
-use phonix_db::inventory::{account_mapping, item as item_store, quant as quant_store};
 use phonix_db::inventory::valuation as layer_store;
+use phonix_db::inventory::{account_mapping, item as item_store, quant as quant_store};
 use phonix_db::numbering::SequenceKey;
 use phonix_db::sqlx::{PgPool, Postgres, Transaction};
 use phonix_ports::ledger::{AccountRole, JournalRequest, Ledger, LedgerError, Posting, Side};
@@ -193,7 +193,10 @@ pub async fn save(
     let mut priced = Vec::with_capacity(checked.charges.len());
     for charge in &checked.charges {
         match Money::parse(currency, &charge.amount) {
-            Ok(amount) => priced.push(PricedCharge { checked: charge, amount }),
+            Ok(amount) => priced.push(PricedCharge {
+                checked: charge,
+                amount,
+            }),
             Err(err) => return Ok(reject(LandedCostError::Money(err))),
         }
     }
@@ -627,7 +630,9 @@ fn accumulate(
         return Ok(());
     }
 
-    let running = into.entry(account_id).or_insert_with(|| Money::zero(currency));
+    let running = into
+        .entry(account_id)
+        .or_insert_with(|| Money::zero(currency));
     *running = running
         .checked_add(amount)
         .map_err(|err| ServiceError::rejected("charges", err.message()))?;

@@ -32,8 +32,8 @@
 
 pub mod alert;
 pub mod calendar;
-pub mod clipboard;
 pub mod card;
+pub mod clipboard;
 pub mod editor;
 pub mod form;
 pub mod lookup;

@@ -68,282 +68,282 @@ pub fn item_form(categories: Vec<Category>, units: Vec<Unit>) -> FormConfig<Item
     // fetched and finds the label there.
     let named = categories.clone();
 
-    FormConfig::new("item", |draft: ItemInput| async move { save_item(draft).await })
-        // A workbench rather than a questionnaire: five tabs of a handful of
-        // fields each, where the reading measure would leave two thirds of a
-        // wide screen empty and the person scrolling the third that is not.
-        .full_width()
-        .field(
-            Field::text("name", l!("field.name"), |m: &ItemInput| {
-                FieldValue::text(&m.name)
-            })
-            .writing(|m, value| m.name = value.as_input())
-            .placeholder("Widget, 12mm")
-            .on_tab_with(GENERAL, l!("items.tab.general"), Icon::Package)
-            .require(permissions::ITEMS_EDIT)
-            .required(),
+    FormConfig::new(
+        "item",
+        |draft: ItemInput| async move { save_item(draft).await },
+    )
+    // A workbench rather than a questionnaire: five tabs of a handful of
+    // fields each, where the reading measure would leave two thirds of a
+    // wide screen empty and the person scrolling the third that is not.
+    .full_width()
+    .field(
+        Field::text("name", l!("field.name"), |m: &ItemInput| {
+            FieldValue::text(&m.name)
+        })
+        .writing(|m, value| m.name = value.as_input())
+        .placeholder("Widget, 12mm")
+        .on_tab_with(GENERAL, l!("items.tab.general"), Icon::Package)
+        .require(permissions::ITEMS_EDIT)
+        .required(),
+    )
+    .field(
+        Field::text("code", l!("field.code"), |m: &ItemInput| {
+            FieldValue::text(&m.code)
+        })
+        .writing(|m, value| m.code = value.as_input())
+        // No placeholder: grey `ITM-00042` reads as a promise.
+        .help(l!("items.code_help"))
+        .on_tab(GENERAL, l!("items.tab.general"))
+        .require(permissions::ITEMS_EDIT),
+    )
+    .field(
+        Field::text("barcode", l!("items.barcode"), |m: &ItemInput| {
+            FieldValue::text(&m.barcode)
+        })
+        .writing(|m, value| m.barcode = value.as_input())
+        .placeholder("5012345678900")
+        .help(l!("items.barcode_help"))
+        .on_tab(GENERAL, l!("items.tab.general"))
+        .require(permissions::ITEMS_EDIT),
+    )
+    .field(
+        Field::select("kind", l!("items.kind"), kind_choices(), |m: &ItemInput| {
+            FieldValue::choice(m.kind.as_str())
+        })
+        .writing(|m, value| {
+            m.kind = value
+                .as_choice()
+                .and_then(ItemKind::parse)
+                .unwrap_or(ItemKind::Goods);
+        })
+        .on_tab(GENERAL, l!("items.tab.general"))
+        .require(permissions::ITEMS_EDIT)
+        .required(),
+    )
+    .field(
+        Field::lookup(
+            "category_id",
+            l!("items.category"),
+            Choices::List(category_choices(&categories)),
+            move |m: &ItemInput| {
+                FieldValue::record(m.category_id.and_then(|id| {
+                    named
+                        .iter()
+                        .find(|row| row.id == id)
+                        .map(|row| Choice::new(row.id.to_string(), &row.code))
+                }))
+            },
         )
-        .field(
-            Field::text("code", l!("field.code"), |m: &ItemInput| {
-                FieldValue::text(&m.code)
-            })
-            .writing(|m, value| m.code = value.as_input())
-            // No placeholder: grey `ITM-00042` reads as a promise.
-            .help(l!("items.code_help"))
-            .on_tab(GENERAL, l!("items.tab.general"))
+        .writing(|m, value| {
+            m.category_id = value
+                .as_records()
+                .first()
+                .and_then(|chosen| chosen.value.parse().ok());
+        })
+        // Discovering the category is missing must not cost the form.
+        .adding(QuickAdd::form(
+            l!("categories.new"),
+            l!("categories.new"),
+            |answer| view! { <AddCategory answer=answer /> }.into_any(),
+        ))
+        // What decides how it is costed, so it is not a filing decision.
+        .help(l!("items.category_help"))
+        .on_tab(GENERAL, l!("items.tab.general"))
+        .require(permissions::ITEMS_EDIT)
+        .required(),
+    )
+    .field(
+        Field::toggle("is_active", l!("field.in_use"), |m: &ItemInput| {
+            FieldValue::Bool(m.is_active)
+        })
+        .writing(|m, value| m.is_active = value.as_bool())
+        .help(l!("items.active_help"))
+        .on_tab(GENERAL, l!("items.tab.general"))
+        .require(permissions::ITEMS_EDIT),
+    )
+    .field(
+        Field::toggle("is_tracked", l!("items.tracked"), |m: &ItemInput| {
+            FieldValue::Bool(m.is_tracked)
+        })
+        .writing(|m, value| m.is_tracked = value.as_bool())
+        .help(l!("items.tracked_help"))
+        // A service has no quantity, ever.
+        .when(|m: &ItemInput| m.kind.can_be_stocked())
+        .on_tab_with(STOCK, l!("items.tab.stock"), Icon::Boxes)
+        .require(permissions::ITEMS_EDIT),
+    )
+    .field(
+        Field::select(
+            "stock_unit_id",
+            l!("items.stock_unit"),
+            unit_choices(&units),
+            |m: &ItemInput| {
+                FieldValue::choice(
+                    m.stock_unit_id
+                        .map(|id| id.to_string())
+                        .unwrap_or_else(|| NOT_SET.to_owned()),
+                )
+            },
+        )
+        .writing(|m, value| {
+            m.stock_unit_id = value
+                .as_choice()
+                .filter(|raw| !raw.is_empty())
+                .and_then(|raw| Uuid::parse_str(raw).ok());
+        })
+        .help(l!("items.stock_unit_help"))
+        .on_tab(STOCK, l!("items.tab.stock"))
+        .require(permissions::ITEMS_EDIT)
+        .required(),
+    )
+    .field(
+        Field::select(
+            "tracking",
+            l!("items.tracking"),
+            tracking_choices(),
+            |m: &ItemInput| FieldValue::choice(m.tracking.as_str()),
+        )
+        .writing(|m, value| {
+            m.tracking = value
+                .as_choice()
+                .and_then(Tracking::parse)
+                .unwrap_or(Tracking::None);
+        })
+        // Frozen once stock exists, and the reason is worth saying: the
+        // units already on the shelf would belong to no lot.
+        .help(l!("items.tracking_help"))
+        .when(|m: &ItemInput| m.is_tracked && m.kind.can_be_stocked())
+        .on_tab(STOCK, l!("items.tab.stock"))
+        .require(permissions::ITEMS_EDIT),
+    )
+    .field(
+        Field::toggle("uses_expiry", l!("items.expiry"), |m: &ItemInput| {
+            FieldValue::Bool(m.uses_expiry)
+        })
+        .writing(|m, value| m.uses_expiry = value.as_bool())
+        .help(l!("items.expiry_help"))
+        // An expiry date belongs to a lot; without lot numbers there is
+        // nothing to date.
+        .when(|m: &ItemInput| m.tracking.needs_a_number())
+        .on_tab(STOCK, l!("items.tab.stock"))
+        .require(permissions::ITEMS_EDIT),
+    )
+    .field(
+        Field::number("weight_grams", l!("items.weight"), |m: &ItemInput| {
+            FieldValue::Number(m.weight_grams.map(|grams| grams as f64))
+        })
+        .writing(|m, value| {
+            m.weight_grams = value
+                .as_number()
+                .filter(|grams| *grams >= 0.0)
+                .map(|grams| grams as i64);
+        })
+        .help(l!("items.weight_help"))
+        .when(|m: &ItemInput| m.kind.can_be_stocked())
+        .on_tab(STOCK, l!("items.tab.stock"))
+        .require(permissions::ITEMS_EDIT),
+    )
+    .field(
+        Field::toggle(
+            "can_be_purchased",
+            l!("items.purchasable"),
+            |m: &ItemInput| FieldValue::Bool(m.can_be_purchased),
+        )
+        .writing(|m, value| m.can_be_purchased = value.as_bool())
+        .on_tab_with(BUYING, l!("items.tab.buying"), Icon::Truck)
+        .require(permissions::ITEMS_EDIT),
+    )
+    .field(
+        Field::select(
+            "purchase_unit_id",
+            l!("items.purchase_unit"),
+            unit_choices(&units),
+            |m: &ItemInput| {
+                FieldValue::choice(
+                    m.purchase_unit_id
+                        .map(|id| id.to_string())
+                        .unwrap_or_else(|| NOT_SET.to_owned()),
+                )
+            },
+        )
+        .writing(|m, value| {
+            m.purchase_unit_id = value
+                .as_choice()
+                .filter(|raw| !raw.is_empty())
+                .and_then(|raw| Uuid::parse_str(raw).ok());
+        })
+        .none_label(l!("items.purchase_unit.same"))
+        .help(l!("items.purchase_unit_help"))
+        .when(|m: &ItemInput| m.can_be_purchased)
+        .on_tab(BUYING, l!("items.tab.buying"))
+        .require(permissions::ITEMS_EDIT),
+    )
+    .field(
+        Field::text("cost", l!("items.cost"), |m: &ItemInput| {
+            FieldValue::text(&m.cost)
+        })
+        .writing(|m, value| m.cost = value.as_input())
+        .placeholder("0.00")
+        .help(l!("items.cost_help"))
+        .on_tab(BUYING, l!("items.tab.buying"))
+        .require(permissions::ITEMS_EDIT),
+    )
+    .field(
+        Field::number(
+            "purchase_lead_days",
+            l!("items.lead_days"),
+            |m: &ItemInput| FieldValue::Number(m.purchase_lead_days.map(f64::from)),
+        )
+        .writing(|m, value| {
+            m.purchase_lead_days = value
+                .as_number()
+                .filter(|days| *days >= 0.0)
+                .map(|days| days as i32);
+        })
+        // What a reordering rule needs to fire before the shelf is empty
+        // rather than when it is.
+        .help(l!("items.lead_days_help"))
+        .when(|m: &ItemInput| m.can_be_purchased)
+        .on_tab(BUYING, l!("items.tab.buying"))
+        .require(permissions::ITEMS_EDIT),
+    )
+    .field(
+        Field::toggle("can_be_sold", l!("items.sellable"), |m: &ItemInput| {
+            FieldValue::Bool(m.can_be_sold)
+        })
+        .writing(|m, value| m.can_be_sold = value.as_bool())
+        .on_tab_with(SELLING, l!("items.tab.selling"), Icon::ShoppingCart)
+        .require(permissions::ITEMS_EDIT),
+    )
+    .field(
+        Field::text("sale_price", l!("items.sale_price"), |m: &ItemInput| {
+            FieldValue::text(&m.sale_price)
+        })
+        .writing(|m, value| m.sale_price = value.as_input())
+        // No placeholder of 0.00: free and unpriced are different, and an
+        // empty box is what "not priced yet" looks like.
+        .help(l!("items.sale_price_help"))
+        .when(|m: &ItemInput| m.can_be_sold)
+        .on_tab(SELLING, l!("items.tab.selling"))
+        .require(permissions::ITEMS_EDIT),
+    )
+    .field(
+        // The editor rather than a textarea: what goes here is what a
+        // catalogue prints and what a quotation pastes, and a specification
+        // is a list and a table more often than it is a paragraph.
+        Field::rich_text("description", l!("field.description"), |m: &ItemInput| {
+            FieldValue::text(&m.description)
+        })
+        .writing(|m, value| m.description = value.as_input())
+        .on_tab_with(NOTES, l!("items.tab.notes"), Icon::FileText)
+        .require(permissions::ITEMS_EDIT),
+    )
+    .action(
+        FormAction::submit(l!("common.save"))
+            .icon(Icon::Save)
+            .then(Then::Say("Item saved."))
             .require(permissions::ITEMS_EDIT),
-        )
-        .field(
-            Field::text("barcode", l!("items.barcode"), |m: &ItemInput| {
-                FieldValue::text(&m.barcode)
-            })
-            .writing(|m, value| m.barcode = value.as_input())
-            .placeholder("5012345678900")
-            .help(l!("items.barcode_help"))
-            .on_tab(GENERAL, l!("items.tab.general"))
-            .require(permissions::ITEMS_EDIT),
-        )
-        .field(
-            Field::select(
-                "kind",
-                l!("items.kind"),
-                kind_choices(),
-                |m: &ItemInput| FieldValue::choice(m.kind.as_str()),
-            )
-            .writing(|m, value| {
-                m.kind = value
-                    .as_choice()
-                    .and_then(ItemKind::parse)
-                    .unwrap_or(ItemKind::Goods);
-            })
-            .on_tab(GENERAL, l!("items.tab.general"))
-            .require(permissions::ITEMS_EDIT)
-            .required(),
-        )
-        .field(
-            Field::lookup(
-                "category_id",
-                l!("items.category"),
-                Choices::List(category_choices(&categories)),
-                move |m: &ItemInput| {
-                    FieldValue::record(m.category_id.and_then(|id| {
-                        named
-                            .iter()
-                            .find(|row| row.id == id)
-                            .map(|row| Choice::new(row.id.to_string(), &row.code))
-                    }))
-                },
-            )
-            .writing(|m, value| {
-                m.category_id = value
-                    .as_records()
-                    .first()
-                    .and_then(|chosen| chosen.value.parse().ok());
-            })
-            // Discovering the category is missing must not cost the form.
-            .adding(QuickAdd::form(
-                l!("categories.new"),
-                l!("categories.new"),
-                |answer| view! { <AddCategory answer=answer /> }.into_any(),
-            ))
-            // What decides how it is costed, so it is not a filing decision.
-            .help(l!("items.category_help"))
-            .on_tab(GENERAL, l!("items.tab.general"))
-            .require(permissions::ITEMS_EDIT)
-            .required(),
-        )
-        .field(
-            Field::toggle("is_active", l!("field.in_use"), |m: &ItemInput| {
-                FieldValue::Bool(m.is_active)
-            })
-            .writing(|m, value| m.is_active = value.as_bool())
-            .help(l!("items.active_help"))
-            .on_tab(GENERAL, l!("items.tab.general"))
-            .require(permissions::ITEMS_EDIT),
-        )
-        .field(
-            Field::toggle("is_tracked", l!("items.tracked"), |m: &ItemInput| {
-                FieldValue::Bool(m.is_tracked)
-            })
-            .writing(|m, value| m.is_tracked = value.as_bool())
-            .help(l!("items.tracked_help"))
-            // A service has no quantity, ever.
-            .when(|m: &ItemInput| m.kind.can_be_stocked())
-            .on_tab_with(STOCK, l!("items.tab.stock"), Icon::Boxes)
-            .require(permissions::ITEMS_EDIT),
-        )
-        .field(
-            Field::select(
-                "stock_unit_id",
-                l!("items.stock_unit"),
-                unit_choices(&units),
-                |m: &ItemInput| {
-                    FieldValue::choice(
-                        m.stock_unit_id
-                            .map(|id| id.to_string())
-                            .unwrap_or_else(|| NOT_SET.to_owned()),
-                    )
-                },
-            )
-            .writing(|m, value| {
-                m.stock_unit_id = value
-                    .as_choice()
-                    .filter(|raw| !raw.is_empty())
-                    .and_then(|raw| Uuid::parse_str(raw).ok());
-            })
-            .help(l!("items.stock_unit_help"))
-            .on_tab(STOCK, l!("items.tab.stock"))
-            .require(permissions::ITEMS_EDIT)
-            .required(),
-        )
-        .field(
-            Field::select(
-                "tracking",
-                l!("items.tracking"),
-                tracking_choices(),
-                |m: &ItemInput| FieldValue::choice(m.tracking.as_str()),
-            )
-            .writing(|m, value| {
-                m.tracking = value
-                    .as_choice()
-                    .and_then(Tracking::parse)
-                    .unwrap_or(Tracking::None);
-            })
-            // Frozen once stock exists, and the reason is worth saying: the
-            // units already on the shelf would belong to no lot.
-            .help(l!("items.tracking_help"))
-            .when(|m: &ItemInput| m.is_tracked && m.kind.can_be_stocked())
-            .on_tab(STOCK, l!("items.tab.stock"))
-            .require(permissions::ITEMS_EDIT),
-        )
-        .field(
-            Field::toggle("uses_expiry", l!("items.expiry"), |m: &ItemInput| {
-                FieldValue::Bool(m.uses_expiry)
-            })
-            .writing(|m, value| m.uses_expiry = value.as_bool())
-            .help(l!("items.expiry_help"))
-            // An expiry date belongs to a lot; without lot numbers there is
-            // nothing to date.
-            .when(|m: &ItemInput| m.tracking.needs_a_number())
-            .on_tab(STOCK, l!("items.tab.stock"))
-            .require(permissions::ITEMS_EDIT),
-        )
-        .field(
-            Field::number("weight_grams", l!("items.weight"), |m: &ItemInput| {
-                FieldValue::Number(m.weight_grams.map(|grams| grams as f64))
-            })
-            .writing(|m, value| {
-                m.weight_grams = value
-                    .as_number()
-                    .filter(|grams| *grams >= 0.0)
-                    .map(|grams| grams as i64);
-            })
-            .help(l!("items.weight_help"))
-            .when(|m: &ItemInput| m.kind.can_be_stocked())
-            .on_tab(STOCK, l!("items.tab.stock"))
-            .require(permissions::ITEMS_EDIT),
-        )
-        .field(
-            Field::toggle(
-                "can_be_purchased",
-                l!("items.purchasable"),
-                |m: &ItemInput| FieldValue::Bool(m.can_be_purchased),
-            )
-            .writing(|m, value| m.can_be_purchased = value.as_bool())
-            .on_tab_with(BUYING, l!("items.tab.buying"), Icon::Truck)
-            .require(permissions::ITEMS_EDIT),
-        )
-        .field(
-            Field::select(
-                "purchase_unit_id",
-                l!("items.purchase_unit"),
-                unit_choices(&units),
-                |m: &ItemInput| {
-                    FieldValue::choice(
-                        m.purchase_unit_id
-                            .map(|id| id.to_string())
-                            .unwrap_or_else(|| NOT_SET.to_owned()),
-                    )
-                },
-            )
-            .writing(|m, value| {
-                m.purchase_unit_id = value
-                    .as_choice()
-                    .filter(|raw| !raw.is_empty())
-                    .and_then(|raw| Uuid::parse_str(raw).ok());
-            })
-            .none_label(l!("items.purchase_unit.same"))
-            .help(l!("items.purchase_unit_help"))
-            .when(|m: &ItemInput| m.can_be_purchased)
-            .on_tab(BUYING, l!("items.tab.buying"))
-            .require(permissions::ITEMS_EDIT),
-        )
-        .field(
-            Field::text("cost", l!("items.cost"), |m: &ItemInput| {
-                FieldValue::text(&m.cost)
-            })
-            .writing(|m, value| m.cost = value.as_input())
-            .placeholder("0.00")
-            .help(l!("items.cost_help"))
-            .on_tab(BUYING, l!("items.tab.buying"))
-            .require(permissions::ITEMS_EDIT),
-        )
-        .field(
-            Field::number(
-                "purchase_lead_days",
-                l!("items.lead_days"),
-                |m: &ItemInput| FieldValue::Number(m.purchase_lead_days.map(f64::from)),
-            )
-            .writing(|m, value| {
-                m.purchase_lead_days = value
-                    .as_number()
-                    .filter(|days| *days >= 0.0)
-                    .map(|days| days as i32);
-            })
-            // What a reordering rule needs to fire before the shelf is empty
-            // rather than when it is.
-            .help(l!("items.lead_days_help"))
-            .when(|m: &ItemInput| m.can_be_purchased)
-            .on_tab(BUYING, l!("items.tab.buying"))
-            .require(permissions::ITEMS_EDIT),
-        )
-        .field(
-            Field::toggle("can_be_sold", l!("items.sellable"), |m: &ItemInput| {
-                FieldValue::Bool(m.can_be_sold)
-            })
-            .writing(|m, value| m.can_be_sold = value.as_bool())
-            .on_tab_with(SELLING, l!("items.tab.selling"), Icon::ShoppingCart)
-            .require(permissions::ITEMS_EDIT),
-        )
-        .field(
-            Field::text("sale_price", l!("items.sale_price"), |m: &ItemInput| {
-                FieldValue::text(&m.sale_price)
-            })
-            .writing(|m, value| m.sale_price = value.as_input())
-            // No placeholder of 0.00: free and unpriced are different, and an
-            // empty box is what "not priced yet" looks like.
-            .help(l!("items.sale_price_help"))
-            .when(|m: &ItemInput| m.can_be_sold)
-            .on_tab(SELLING, l!("items.tab.selling"))
-            .require(permissions::ITEMS_EDIT),
-        )
-        .field(
-            // The editor rather than a textarea: what goes here is what a
-            // catalogue prints and what a quotation pastes, and a specification
-            // is a list and a table more often than it is a paragraph.
-            Field::rich_text("description", l!("field.description"), |m: &ItemInput| {
-                FieldValue::text(&m.description)
-            })
-            .writing(|m, value| m.description = value.as_input())
-            .on_tab_with(NOTES, l!("items.tab.notes"), Icon::FileText)
-            .require(permissions::ITEMS_EDIT),
-        )
-        .action(
-            FormAction::submit(l!("common.save"))
-                .icon(Icon::Save)
-                .then(Then::Say("Item saved."))
-                .require(permissions::ITEMS_EDIT),
-        )
+    )
 }
 
 /// A category, without leaving the item.
@@ -465,8 +465,11 @@ fn unit_choices(units: &[Unit]) -> Vec<Choice> {
     units
         .iter()
         .map(|unit| {
-            Choice::new(unit.id.to_string(), format!("{} \u{b7} {}", unit.code, unit.name))
-                .detail(crate::i18n::t(&unit.class.label()))
+            Choice::new(
+                unit.id.to_string(),
+                format!("{} \u{b7} {}", unit.code, unit.name),
+            )
+            .detail(crate::i18n::t(&unit.class.label()))
         })
         .collect()
 }

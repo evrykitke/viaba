@@ -250,7 +250,10 @@ mod tests {
 
         key.expires_at = Some(now - Duration::hours(1));
         assert_eq!(key.state(now), KeyState::Expired);
-        assert!(key.can_be_revoked(), "an expired key is still worth stopping");
+        assert!(
+            key.can_be_revoked(),
+            "an expired key is still worth stopping"
+        );
 
         key.revoked_at = Some(now - Duration::days(1));
         assert_eq!(key.state(now), KeyState::Revoked);

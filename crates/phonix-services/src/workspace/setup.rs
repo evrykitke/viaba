@@ -99,7 +99,11 @@ async fn hr(pool: &PgPool) -> ServiceResult<Vec<SetupStatus>> {
 fn answered(item: &SetupItem, satisfied: bool, found: Message) -> SetupStatus {
     let status = SetupStatus::of(item, satisfied);
 
-    if satisfied { status.noted(found) } else { status }
+    if satisfied {
+        status.noted(found)
+    } else {
+        status
+    }
 }
 
 #[cfg(test)]
@@ -129,7 +133,11 @@ mod tests {
 
     #[test]
     fn a_satisfied_item_reports_what_was_found() {
-        let status = answered(&app_books::SETUP[0], true, pmsg!("books.setup.chart_found", 312));
+        let status = answered(
+            &app_books::SETUP[0],
+            true,
+            pmsg!("books.setup.chart_found", 312),
+        );
 
         assert!(status.satisfied);
         assert_eq!(status.note.and_then(|note| note.count), Some(312));
@@ -137,12 +145,13 @@ mod tests {
 
     #[test]
     fn an_unsatisfied_item_keeps_the_sentence_that_says_why() {
-        let status = answered(&app_books::SETUP[0], false, pmsg!("books.setup.chart_found", 0));
+        let status = answered(
+            &app_books::SETUP[0],
+            false,
+            pmsg!("books.setup.chart_found", 0),
+        );
 
         assert!(!status.satisfied);
-        assert_eq!(
-            status.note,
-            Some(Message::new(app_books::SETUP[0].missing))
-        );
+        assert_eq!(status.note, Some(Message::new(app_books::SETUP[0].missing)));
     }
 }

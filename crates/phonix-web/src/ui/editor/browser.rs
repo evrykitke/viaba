@@ -83,8 +83,7 @@ fn fetch_bundle() -> Promise {
                 .and_then(|window| window.document())
                 .ok_or_else(|| JsValue::from_str("no document"))?;
 
-            let script: HtmlScriptElement =
-                document.create_element("script")?.unchecked_into();
+            let script: HtmlScriptElement = document.create_element("script")?.unchecked_into();
             script.set_src(EDITOR_SRC);
             // Defaulted to true by `async` on a dynamically inserted script,
             // and stated anyway: there is exactly one of these and nothing

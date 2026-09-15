@@ -185,9 +185,7 @@ pub async fn record_attachments(record: RecordRef) -> Result<Vec<Attachment>, Se
 /// The bytes went to `/files/upload?bucket=attachments` first; this is only the
 /// link, which is why it is a server function and the upload is not.
 #[server(name = AttachFile, prefix = "/api", endpoint = "files/attach")]
-pub async fn attach_file(
-    input: AttachmentInput,
-) -> Result<Submission<Attachment>, ServerFnError> {
+pub async fn attach_file(input: AttachmentInput) -> Result<Submission<Attachment>, ServerFnError> {
     use crate::state::{pool_and_caller, service_error};
 
     let (pool, caller) = pool_and_caller().await?;

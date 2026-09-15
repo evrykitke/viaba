@@ -232,9 +232,7 @@ fn group(accounts: Vec<Account>) -> Vec<(AccountClass, Vec<(AccountType, Vec<Acc
 
             let types = types
                 .into_iter()
-                .filter_map(|(type_at, accounts)| {
-                    Some((*AccountType::ALL.get(type_at)?, accounts))
-                })
+                .filter_map(|(type_at, accounts)| Some((*AccountType::ALL.get(type_at)?, accounts)))
                 .collect();
 
             Some((class, types))

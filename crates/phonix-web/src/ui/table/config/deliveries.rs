@@ -126,18 +126,16 @@ pub fn deliveries_grid() -> GridConfig<DeliverySummary> {
         )
         // No `matching`: a closure could only narrow the rows already
         // fetched, and "only the drafts" is a question about the list.
-        .filter(
-            Filter::new(
-                "state",
-                l!("field.status"),
-                vec![
-                    FilterChoice::all(l!("common.all")),
-                    FilterChoice::new("done", l!("deliveries.state.done")),
-                    FilterChoice::new("draft", l!("deliveries.state.draft")),
-                    FilterChoice::new("cancelled", l!("deliveries.state.cancelled")),
-                ],
-            ),
-        )
+        .filter(Filter::new(
+            "state",
+            l!("field.status"),
+            vec![
+                FilterChoice::all(l!("common.all")),
+                FilterChoice::new("done", l!("deliveries.state.done")),
+                FilterChoice::new("draft", l!("deliveries.state.draft")),
+                FilterChoice::new("cancelled", l!("deliveries.state.cancelled")),
+            ],
+        ))
         .date_filter(DateFilter::new("despatched", l!("deliveries.despatched")))
         .toolbar(
             ToolbarAction::link(l!("common.add"), Icon::Plus, "/inventory/deliveries/new")
@@ -209,10 +207,23 @@ mod tests {
     /// on `phonix-db`, and the point of the test is that the two lists were
     /// written to agree. The source is
     /// `phonix_db::inventory::delivery::SORTABLE`.
-    const SERVER_SORTS: &[&str] = &["number", "customer", "despatched_on", "order", "value", "line_count"];
+    const SERVER_SORTS: &[&str] = &[
+        "number",
+        "customer",
+        "despatched_on",
+        "order",
+        "value",
+        "line_count",
+    ];
 
     /// The columns the `WHERE` actually looks inside. Same reasoning.
-    const SERVER_SEARCHES: &[&str] = &["number", "customer", "carrier_reference", "order", "warehouse"];
+    const SERVER_SEARCHES: &[&str] = &[
+        "number",
+        "customer",
+        "carrier_reference",
+        "order",
+        "warehouse",
+    ];
 
     #[test]
     fn every_sortable_column_is_one_the_server_can_order_by() {

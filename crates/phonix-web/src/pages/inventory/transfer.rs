@@ -12,10 +12,10 @@
 //! and usually two different people. The state decides which one is drawn, and
 //! the permissions decide whether the person looking may press it.
 
+use app_inventory::location::Location;
 use app_inventory::transfer::{
     ArrivalInput, Transfer, TransferInput, TransferLineInput, TransferState,
 };
-use app_inventory::location::Location;
 use app_inventory::variant::VariantChoice;
 use leptos::prelude::*;
 use leptos_meta::Title;
@@ -32,8 +32,7 @@ use crate::l;
 use crate::pages::inventory::item_lookup::ItemLookup;
 use crate::server_fns::inventory_fns::{
     blank_transfer, cancel_transfer, delete_transfer, despatch_transfer, edit_transfer,
-    receive_transfer, save_transfer, selectable_locations, transfer_arrival,
-    transfer_detail,
+    receive_transfer, save_transfer, selectable_locations, transfer_arrival, transfer_detail,
 };
 use crate::ui::alert::{Alert, Alerts, Confirm};
 use crate::ui::form::field::Choice;
@@ -229,7 +228,6 @@ fn editor_body(
     let alerts = Alerts::get();
     let navigate = leptos_router::hooks::use_navigate();
 
-
     // A grouping holds nothing of its own, so it is not offered as an end.
     // Refusing it at the gate would be finding out too late.
     let location_options = locations
@@ -299,10 +297,11 @@ fn editor_body(
                         match result {
                             Ok(Submission::Saved(document)) => {
                                 alerts.post(
-                                    Alert::success(
-                                            l!("transfers.despatched.done", number = document.number),
-                                        )
-                                        .titled(l!("transfers.despatch")),
+                                    Alert::success(l!(
+                                        "transfers.despatched.done",
+                                        number = document.number
+                                    ))
+                                    .titled(l!("transfers.despatch")),
                                 );
                                 navigate(
                                     &format!("/inventory/transfers/{id}"),
@@ -544,9 +543,7 @@ fn editor_body(
 }
 
 #[component]
-fn line_table(
-    draft: RwSignal<TransferInput>,
-) -> impl IntoView {
+fn line_table(draft: RwSignal<TransferInput>) -> impl IntoView {
     view! {
         <div class="space-y-2">
             <div class="overflow-x-auto">
@@ -587,10 +584,7 @@ fn line_table(
 }
 
 #[component]
-fn line_row(
-    draft: RwSignal<TransferInput>,
-    index: usize,
-) -> impl IntoView {
+fn line_row(draft: RwSignal<TransferInput>, index: usize) -> impl IntoView {
     let field = move |read: fn(&TransferLineInput) -> String| {
         draft.with(|d| d.lines.get(index).map(read).unwrap_or_default())
     };

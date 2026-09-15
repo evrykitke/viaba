@@ -15,9 +15,9 @@ use crate::ui::table::DataGrid;
 use crate::ui::table::config::consolidations::consolidations_grid;
 use crate::ui::table::config::deliveries::deliveries_grid;
 use crate::ui::table::config::purchase_orders::purchase_orders_grid;
+use crate::ui::table::config::receipts::receipts_grid;
 use crate::ui::table::config::requisitions::requisitions_grid;
 use crate::ui::table::config::sales_orders::sales_orders_grid;
-use crate::ui::table::config::receipts::receipts_grid;
 
 #[component]
 pub fn purchase_orders_page() -> impl IntoView {

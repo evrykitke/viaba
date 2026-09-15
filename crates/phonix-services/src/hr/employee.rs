@@ -67,7 +67,10 @@ pub async fn page(
 ///
 /// Employees rather than users: most managers never sign in, and a reporting
 /// line that only exists for people with accounts is an org chart with holes.
-pub async fn employed(pool: &PgPool, caller: &Caller) -> ServiceResult<Vec<(Uuid, String, String)>> {
+pub async fn employed(
+    pool: &PgPool,
+    caller: &Caller,
+) -> ServiceResult<Vec<(Uuid, String, String)>> {
     caller.require(permissions::EMPLOYEES)?;
     Ok(store::employed(pool).await?)
 }
@@ -109,10 +112,7 @@ pub fn blank(caller: &Caller) -> ServiceResult<EmployeeInput> {
 }
 
 /// What each department currently costs in people.
-pub async fn headcount(
-    pool: &PgPool,
-    caller: &Caller,
-) -> ServiceResult<Vec<(Uuid, String, i64)>> {
+pub async fn headcount(pool: &PgPool, caller: &Caller) -> ServiceResult<Vec<(Uuid, String, i64)>> {
     caller.require(permissions::EMPLOYEES)?;
     Ok(store::headcount(pool).await?)
 }
@@ -557,8 +557,8 @@ pub async fn create_login(
     };
 
     let mut tx = pool.begin().await.map_err(DbError::Query)?;
-    let linked = store::set_login(&mut tx, employee_id, Some(issued.user_id), caller.user_id())
-        .await;
+    let linked =
+        store::set_login(&mut tx, employee_id, Some(issued.user_id), caller.user_id()).await;
 
     match linked {
         Ok(true) => tx.commit().await.map_err(DbError::Query)?,

@@ -81,11 +81,7 @@ pub fn adjustment_type_form(chart: Vec<LedgerAccount>) -> FormConfig<AdjustmentT
             l!("adjustment_types.account"),
             account_choices(&chart),
             |m: &AdjustmentTypeInput| {
-                FieldValue::choice(
-                    m.account_id
-                        .map(|id| id.to_string())
-                        .unwrap_or_default(),
-                )
+                FieldValue::choice(m.account_id.map(|id| id.to_string()).unwrap_or_default())
             },
         )
         // All three fields or none. The number and the name are a snapshot the

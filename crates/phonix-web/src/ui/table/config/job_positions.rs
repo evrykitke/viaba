@@ -15,7 +15,9 @@ use crate::components::page::{Badge, Tone};
 use crate::icons::Icon;
 use crate::l;
 use crate::server_fns::hr_fns::list_job_positions;
-use crate::ui::table::{Align, Cell, Column, Filter, FilterChoice, RowAction, Source, ToolbarAction};
+use crate::ui::table::{
+    Align, Cell, Column, Filter, FilterChoice, RowAction, Source, ToolbarAction,
+};
 
 pub fn job_positions_grid() -> GridConfig<JobPositionSummary> {
     GridConfig::new("job_positions", Source::in_memory(list_job_positions))

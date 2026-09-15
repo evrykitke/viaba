@@ -51,7 +51,6 @@ const SWEEP_BATCH: usize = 100;
 /// collects is measured in hours by definition.
 const SWEEP_INTERVAL: Duration = Duration::from_secs(300);
 
-
 /// How many change-trail entries one prune pass deletes per tenant.
 ///
 /// Bounded because the first pass after somebody switches retention on can have
@@ -257,10 +256,7 @@ async fn relay_loop(state: AppState, shutdown: CancellationToken) {
 
     let interval = Duration::from_secs(state.config.rabbitmq.relay_interval_secs);
 
-    tracing::info!(
-        every_secs = interval.as_secs(),
-        "outbox relay started"
-    );
+    tracing::info!(every_secs = interval.as_secs(), "outbox relay started");
 
     loop {
         if !wait(&shutdown, interval).await {

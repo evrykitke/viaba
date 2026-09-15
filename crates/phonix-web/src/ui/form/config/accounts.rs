@@ -74,9 +74,12 @@ pub fn account_form(editing: bool, chart: Vec<Account>) -> FormConfig<AccountInp
         // Recomputed as the type changes, and offered rather than filled in.
         // Nothing is suggested while editing: an account that has been posted
         // to keeps the number the ledger already recorded.
-        .suggest(l!("accounts.suggest_number"), move |draft: &AccountInput| {
-            (!editing).then(|| suggest_number(draft.account_type, &chart))?
-        })
+        .suggest(
+            l!("accounts.suggest_number"),
+            move |draft: &AccountInput| {
+                (!editing).then(|| suggest_number(draft.account_type, &chart))?
+            },
+        )
         .require(gate)
         .required(),
     )
@@ -90,9 +93,12 @@ pub fn account_form(editing: bool, chart: Vec<Account>) -> FormConfig<AccountInp
         .required(),
     )
     .field(
-        Field::multiline("description", l!("field.description"), 3, |m: &AccountInput| {
-            FieldValue::text(m.description.clone().unwrap_or_default())
-        })
+        Field::multiline(
+            "description",
+            l!("field.description"),
+            3,
+            |m: &AccountInput| FieldValue::text(m.description.clone().unwrap_or_default()),
+        )
         .writing(|m, value| {
             let text = value.as_input();
             m.description = (!text.is_empty()).then_some(text);

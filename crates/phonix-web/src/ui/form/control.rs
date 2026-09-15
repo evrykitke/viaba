@@ -60,7 +60,8 @@ pub fn form_field<T>(
     field: Field<T>,
     /// Whether this viewer may change it. Decided by the form, which knows the
     /// viewer, rather than looked up again here.
-    #[prop(into)] editable: Signal<bool>,
+    #[prop(into)]
+    editable: Signal<bool>,
 ) -> impl IntoView
 where
     T: Clone + PartialEq + Send + Sync + 'static,

@@ -81,8 +81,9 @@ pub fn stock_moves_grid() -> GridConfig<MoveSummary> {
             Cell::text(kind_label(row.kind()))
         })
         .essential()
-        .render(|row| view! { <Badge label=kind_label(row.kind()) tone=kind_tone(row.kind()) /> }
-            .into_any()),
+        .render(|row| {
+            view! { <Badge label=kind_label(row.kind()) tone=kind_tone(row.kind()) /> }.into_any()
+        }),
     )
     .column(
         Column::new("from", l!("field.from"), |row: &MoveSummary| {
@@ -289,10 +290,7 @@ mod tests {
     #[test]
     fn the_span_is_answered_by_the_server_and_named_what_the_reader_reads() {
         let grid = grid();
-        let range = grid
-            .date_filters
-            .first()
-            .expect("the grid offers a span");
+        let range = grid.date_filters.first().expect("the grid offers a span");
 
         // `phonix_db::inventory::movement::MOVED`, written down twice because
         // the two crates do not depend on each other.

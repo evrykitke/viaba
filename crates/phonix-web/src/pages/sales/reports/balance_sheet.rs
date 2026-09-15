@@ -56,7 +56,10 @@ pub fn balance_sheet_page() -> impl IntoView {
 fn sheet(report: BalanceSheet) -> impl IntoView {
     let currency = report.currency.code().to_owned();
     let balanced = report.is_balanced();
-    let note = l!("reports.balance_sheet.note", opened = report.year_opened.to_string());
+    let note = l!(
+        "reports.balance_sheet.note",
+        opened = report.year_opened.to_string()
+    );
 
     let empty = report.assets.is_empty()
         && report.liabilities.is_empty()

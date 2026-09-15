@@ -317,14 +317,7 @@ pub async fn post(pool: &PgPool, caller: &Caller, id: Uuid) -> ServiceResult<Pos
         super::journal::record(pool, caller, &posted).await;
     }
 
-    audit::updated(
-        pool,
-        caller,
-        target,
-        &InvoiceStatus::Draft,
-        &after.status,
-    )
-    .await;
+    audit::updated(pool, caller, target, &InvoiceStatus::Draft, &after.status).await;
 
     Ok(PostOutcome::Posted {
         number: allocated.number,

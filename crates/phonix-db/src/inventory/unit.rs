@@ -51,9 +51,11 @@ impl<'r> FromRow<'r, sqlx::postgres::PgRow> for RowOf<Unit> {
             // A class the build does not know means a row written by a newer
             // deployment. Counted rather than guessed at: `Count` would put a
             // kilogram in the wrong conversion group.
-            class: UnitClass::parse(&class).ok_or_else(|| sqlx::Error::Decode(
-                format!("units.class holds '{class}', which this build does not know").into(),
-            ))?,
+            class: UnitClass::parse(&class).ok_or_else(|| {
+                sqlx::Error::Decode(
+                    format!("units.class holds '{class}', which this build does not know").into(),
+                )
+            })?,
             factor_scaled: app_inventory::unit::parse_factor(&factor).map_err(|err| {
                 sqlx::Error::Decode(format!("units.factor holds '{factor}': {err}").into())
             })?,

@@ -141,8 +141,14 @@ fn journal_editor(context: JournalContext) -> impl IntoView {
         leptos::task::spawn_local(async move {
             match post_journal(submitted).await {
                 Ok(posted) => {
-                    alerts.post(Alert::success(l!("journals.posted", number = posted.number)));
-                    navigate(&format!("/sales/journals/{}", posted.id), Default::default());
+                    alerts.post(Alert::success(l!(
+                        "journals.posted",
+                        number = posted.number
+                    )));
+                    navigate(
+                        &format!("/sales/journals/{}", posted.id),
+                        Default::default(),
+                    );
                 }
                 Err(err) => {
                     alerts.post(Alert::failure(err.to_string()));
@@ -372,9 +378,15 @@ fn line_row(
         })
     };
 
-    let memo_value =
-        move || draft.with(|draft| draft.lines.get(index).map(|line| line.memo.clone())
-            .unwrap_or_default());
+    let memo_value = move || {
+        draft.with(|draft| {
+            draft
+                .lines
+                .get(index)
+                .map(|line| line.memo.clone())
+                .unwrap_or_default()
+        })
+    };
 
     // Typing in one side clears the other: a line is a debit or a credit, never
     // both, and this is the model's side-plus-magnitude on screen.
