@@ -60,6 +60,7 @@ pub mod receipts;
 pub mod requisitions;
 pub mod roles;
 pub mod sales_orders;
+pub mod shift_types;
 pub mod stock;
 pub mod stock_locations;
 pub mod stock_moves;

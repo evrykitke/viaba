@@ -11,6 +11,7 @@ use app_hr::department::{Department, DepartmentInput, DepartmentSummary};
 use app_hr::employee::{AssignmentInput, Employee, EmployeeInput, EmployeeSummary, LeavingInput};
 use app_hr::holiday::{HolidayList, HolidayListInput, HolidayListSummary};
 use app_hr::job_position::{JobPosition, JobPositionInput, JobPositionSummary};
+use app_hr::shift::{ShiftType, ShiftTypeInput, ShiftTypeSummary};
 use app_hr::work_location::{WorkLocation, WorkLocationInput, WorkLocationSummary};
 use leptos::prelude::*;
 use leptos::server_fn::codec::Json;
@@ -398,6 +399,74 @@ pub async fn delete_job_position(position_id: Uuid) -> Result<Submission<()>, Se
     let (pool, caller) = pool_and_caller().await?;
 
     phonix_services::hr::job_position::delete(&pool, &caller, position_id)
+        .await
+        .map_err(service_error)
+}
+
+// --- Shifts ----------------------------------------------------------------
+
+#[server(name = ListShiftTypes, prefix = "/api", endpoint = "hr/shifts")]
+pub async fn list_shift_types() -> Result<Vec<ShiftTypeSummary>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::hr::shift::list(&pool, &caller)
+        .await
+        .map_err(service_error)
+}
+
+#[server(name = SelectableShiftTypes, prefix = "/api", endpoint = "hr/shifts/selectable")]
+pub async fn selectable_shift_types() -> Result<Vec<ShiftType>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::hr::shift::selectable(&pool, &caller)
+        .await
+        .map_err(service_error)
+}
+
+#[server(name = ShiftTypeEdit, prefix = "/api", endpoint = "hr/shifts/edit")]
+pub async fn shift_type_edit(shift_id: Uuid) -> Result<ShiftTypeInput, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::hr::shift::edit(&pool, &caller, shift_id)
+        .await
+        .map_err(service_error)
+}
+
+#[server(name = BlankShiftType, prefix = "/api", endpoint = "hr/shifts/blank")]
+pub async fn blank_shift_type() -> Result<ShiftTypeInput, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (_pool, caller) = pool_and_caller().await?;
+
+    phonix_services::hr::shift::blank(&caller).map_err(service_error)
+}
+
+#[server(name = SaveShiftType, prefix = "/api", endpoint = "hr/shifts/save")]
+pub async fn save_shift_type(
+    draft: ShiftTypeInput,
+) -> Result<Submission<ShiftTypeInput>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::hr::shift::save(&pool, &caller, draft)
+        .await
+        .map_err(service_error)
+}
+
+#[server(name = DeleteShiftType, prefix = "/api", endpoint = "hr/shifts/delete")]
+pub async fn delete_shift_type(shift_id: Uuid) -> Result<Submission<()>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::hr::shift::delete(&pool, &caller, shift_id)
         .await
         .map_err(service_error)
 }

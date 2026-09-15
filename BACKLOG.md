@@ -31,22 +31,6 @@ Read `WORKFLOWS.md` before starting any of these, and obey the dated-assignment
 rule: what changes about somebody is an `assignments` row, never a column on
 `employees`.
 
-- [ ] `phonix-web` Shifts, on a screen, and lateness on the timesheet
-      why: the model and the service exist and nothing drives them - the
-           third time this pattern has appeared, and the last of them. The
-           payoff the shift was built for is still missing too: the
-           timesheet shows a check-in time but not whether it was late.
-      touch: server fns beside the attendance ones, a list and form under
-           crates/phonix-web/src/pages/people/, the shift picker on both
-           employee forms, and `TimesheetDay` to carry the arrival
-      done: a workspace can define a shift, put somebody on one through
-            their assignment, and see on the timesheet whether each day's
-            check-in was inside the grace window.
-      note: `ShiftType::arrival` takes a local clock time on purpose. Turning
-           `checked_in_at` into one needs the workspace time zone -
-           `phonix_core::locale::Timezone` exists; nothing here reads it yet,
-           and that is the decision this item has to make.
-
 - [ ] `app-hr` The employee lifecycle documents
       why: the dated chain underneath onboarding, promotion, transfer and exit
            already exists — engagements and assignments. What is missing is the
@@ -71,6 +55,17 @@ rule: what changes about somebody is an `assignments` row, never a column on
 ## Done
 
 <!-- The loop appends here with the commit sha. Newest first. -->
+
+- [x] `phonix-web` Shifts, on a screen, and lateness on the timesheet
+      The shift list and form, the picker on both employee forms, and the
+      column the shift was built for. Lateness needed the workspace zone, so
+      `chrono-tz` joins the workspace as a **server-only** dependency - the
+      user chose this on 2026-09-15 over comparing in UTC, which would have
+      been quietly wrong by the offset everywhere but London. An unresolvable
+      zone name falls back to UTC with a `tracing::warn!`, which is what
+      `phonix_core::locale::timezone` says should happen. The verdict is
+      absent rather than invented where either half is missing: no shift on
+      the assignment, or no check-in time on the record.
 
 - [x] `app-hr` Shift types, and the roster that assigns them
       The model, as with the two before it. A shift carries its hours and

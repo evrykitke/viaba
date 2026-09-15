@@ -214,6 +214,12 @@ uuid = { version = "1", features = ["serde"] }
 # finishes. It costs nothing on the server: chrono declares wasm-bindgen and
 # js-sys under a wasm32-only target table.
 chrono = { version = "0.4", default-features = false, features = ["serde", "clock", "wasmbind"] }
+
+# The IANA transition tables, for turning an instant into a local clock time.
+# Server-side only - see the head of `phonix_core::locale::timezone`, which
+# says why this is not in the browser bundle: the tables are large and nothing
+# there needs them.
+chrono-tz = { version = "0.10", default-features = false }
 async-trait = "0.1"
 futures = "0.3"
 # Stack walking for the development profiler, so a SQL statement can name the

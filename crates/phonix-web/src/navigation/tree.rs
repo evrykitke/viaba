@@ -635,6 +635,16 @@ pub static MENU: &[NavNode] = &[
                 "half day",
                 "who was here",
             ]),
+            NavNode::leaf(
+                "shift-types",
+                "nav.shift_types",
+                Icon::Clock,
+                "/people/shifts",
+            )
+            .require(names::SHIFT_TYPES)
+            .keywords(&[
+                "shift", "rota", "roster", "nights", "grace", "late", "hours",
+            ]),
             // Beside the places rather than under a settings heading: it is
             // reference data an assignment points at, exactly as a place is.
             NavNode::leaf(

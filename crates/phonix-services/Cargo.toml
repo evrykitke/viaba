@@ -37,6 +37,7 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 uuid = { workspace = true, features = ["v4", "v7"] }
 chrono = { workspace = true }
+chrono-tz = { workspace = true }
 # Only for the port implementations in `hr::cost_centre`: `phonix_ports`' traits
 # are `async_trait`, so implementing one needs the same attribute.
 async-trait = { workspace = true }

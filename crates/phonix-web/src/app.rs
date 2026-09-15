@@ -69,9 +69,10 @@ use crate::pages::people::employee::{EmployeeNewPage, EmployeePage};
 use crate::pages::people::holidays::HolidayListPage;
 use crate::pages::people::home::PeopleHomePage;
 use crate::pages::people::lists::{
-    EmployeesPage, HolidayListsPage, JobPositionsPage, WorkLocationsPage,
+    EmployeesPage, HolidayListsPage, JobPositionsPage, ShiftTypesPage, WorkLocationsPage,
 };
 use crate::pages::people::reference::{JobPositionPage, WorkLocationPage};
+use crate::pages::people::shifts::ShiftTypePage;
 // Aliased: `pages::account` is the viewer's own profile, and both are called
 // AccountPage in their own module.
 use crate::pages::sales::account::AccountPage as ChartAccountPage;
@@ -311,6 +312,9 @@ pub fn app() -> impl IntoView {
                     <Route path=path!("/people/places/new") view=WorkLocationPage />
                     <Route path=path!("/people/places/:id") view=WorkLocationPage />
                     <Route path=path!("/people/attendance") view=AttendancePage />
+                    <Route path=path!("/people/shifts") view=ShiftTypesPage />
+                    <Route path=path!("/people/shifts/new") view=ShiftTypePage />
+                    <Route path=path!("/people/shifts/:id") view=ShiftTypePage />
                     <Route path=path!("/people/holidays") view=HolidayListsPage />
                     <Route path=path!("/people/holidays/new") view=HolidayListPage />
                     <Route path=path!("/people/holidays/:id") view=HolidayListPage />

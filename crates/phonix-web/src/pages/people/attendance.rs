@@ -12,6 +12,7 @@
 use app_hr::attendance::{
     AttendanceInput, AttendanceSource, AttendanceStatus, DayOutcome, TimesheetDay,
 };
+use app_hr::shift::Arrival;
 use chrono::{Datelike, NaiveDate};
 use leptos::prelude::*;
 use leptos_meta::Title;
@@ -68,6 +69,24 @@ fn outcome_badge(outcome: &DayOutcome) -> (String, Tone) {
     };
 
     (crate::i18n::t(&outcome.label()), tone)
+}
+
+/// What an arrival reads as, where there is one to judge.
+///
+/// Absent where either half is missing: no shift on the assignment, or no
+/// check-in time on the record. A column that said "on time" about a day
+/// somebody marked present after the fact would be inventing the verdict.
+fn arrival_badge(arrival: Option<Arrival>) -> Option<(String, Tone)> {
+    match arrival? {
+        Arrival::OnTime => Some((crate::i18n::t(&Arrival::OnTime.label()), Tone::Success)),
+        Arrival::Late { by_minutes } => Some((
+            crate::i18n::t(&phonix_core::msg!(
+                "attendance.late_by",
+                minutes = by_minutes
+            )),
+            Tone::Danger,
+        )),
+    }
 }
 
 /// The day off's own name, where the answer carries one.
@@ -260,6 +279,7 @@ fn timesheet_table(
                         <th class="py-1.5 font-medium">{l!("attendance.day")}</th>
                         <th class="py-1.5 font-medium">{l!("attendance.in")}</th>
                         <th class="py-1.5 font-medium">{l!("attendance.out")}</th>
+                        <th class="py-1.5 font-medium">{l!("attendance.arrival")}</th>
                         <th class="py-1.5 font-medium">{l!("attendance.source")}</th>
                         <th class="py-1.5"></th>
                     </tr>
@@ -284,6 +304,8 @@ fn timesheet_table(
                                 .and_then(|record| record.checked_out_at)
                                 .map(|at| at.format("%H:%M").to_string())
                                 .unwrap_or_default();
+                            let arrival = arrival_badge(day.arrival);
+                            let shift_name = day.shift_name.clone();
                             let source = day
                                 .record
                                 .as_ref()
@@ -313,6 +335,22 @@ fn timesheet_table(
                                     </td>
                                     <td class="py-1.5 tabular-nums text-content-muted">
                                         {checked_out}
+                                    </td>
+                                    <td class="py-1.5">
+                                        <div class="flex flex-wrap items-center gap-1.5">
+                                            {arrival
+                                                .map(|(label, tone)| {
+                                                    view! { <Badge label=label tone=tone /> }
+                                                })}
+                                            {shift_name
+                                                .map(|name| {
+                                                    view! {
+                                                        <span class="text-2xs text-content-subtle">
+                                                            {name}
+                                                        </span>
+                                                    }
+                                                })}
+                                        </div>
                                     </td>
                                     <td class="py-1.5 text-xs text-content-muted">{source}</td>
                                     <td class="py-1.5 text-right">

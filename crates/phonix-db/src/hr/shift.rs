@@ -118,6 +118,64 @@ where
     row.map(read).transpose()
 }
 
+/// The shift somebody was on for every date in a span, earliest first.
+///
+/// [`on_date`] once per date would be thirty-one statements for a month. The
+/// same shape `holiday::working_days` uses, and for the same reason: the
+/// assignment can change inside the span, so the answer is per day rather than
+/// one shift stretched across it.
+///
+/// `None` on a date where nobody has said which shift applies, which is every
+/// date until somebody fills the column.
+pub async fn for_span<'e, E>(
+    executor: E,
+    employee_id: Uuid,
+    from: chrono::NaiveDate,
+    to: chrono::NaiveDate,
+) -> Result<Vec<(chrono::NaiveDate, Option<ShiftType>)>, DbError>
+where
+    E: PgExecutor<'e>,
+{
+    let rows = sqlx::query(
+        "SELECT d.day::date AS on_date,
+                s.id, s.code, s.name, s.starts_at, s.ends_at,
+                s.late_grace_minutes, s.early_exit_grace_minutes, s.is_active
+           FROM generate_series($2::date, $3::date, interval '1 day') AS d(day)
+           LEFT JOIN LATERAL (
+               SELECT s.*
+                 FROM hr.assignments a
+                 JOIN hr.engagements e ON e.id = a.engagement_id
+                 JOIN hr.shift_types s ON s.id = a.shift_type_id
+                WHERE e.employee_id = $1
+                  AND a.effective_from <= d.day::date
+                  AND (a.effective_to IS NULL OR a.effective_to >= d.day::date)
+                ORDER BY a.effective_from DESC
+                LIMIT 1
+           ) s ON TRUE
+          ORDER BY d.day",
+    )
+    .bind(employee_id)
+    .bind(from)
+    .bind(to)
+    .fetch_all(executor)
+    .await
+    .map_err(DbError::Query)?;
+
+    rows.into_iter()
+        .map(|row| {
+            let on_date: chrono::NaiveDate = row.try_get("on_date").map_err(DbError::Query)?;
+            let id: Option<Uuid> = row.try_get("id").map_err(DbError::Query)?;
+
+            // The LEFT JOIN leaves every shift column null on a date with no
+            // assignment, so the id is what says whether there is one to read.
+            match id {
+                None => Ok((on_date, None)),
+                Some(_) => Ok((on_date, Some(read(row)?))),
+            }
+        })
+        .collect()
+}
+
 fn read(row: sqlx::postgres::PgRow) -> Result<ShiftType, DbError> {
     let late: i32 = row.try_get("late_grace_minutes").map_err(DbError::Query)?;
     let early: i32 = row

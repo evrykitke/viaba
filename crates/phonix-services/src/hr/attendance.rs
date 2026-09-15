@@ -15,6 +15,7 @@ use phonix_core::permissions;
 use phonix_db::error::DbError;
 use phonix_db::hr::attendance as store;
 use phonix_db::hr::holiday as calendar;
+use phonix_db::hr::shift as shifts;
 use phonix_db::sqlx::PgPool;
 use uuid::Uuid;
 
@@ -28,6 +29,31 @@ use crate::error::{ServiceError, ServiceResult};
 /// here rather than there: a screen asks for a month, an export asks for a
 /// year, and anything wider is a report nobody has designed yet.
 pub const MAX_SPAN_DAYS: i64 = 366;
+
+/// The workspace's own zone, or UTC where the stored name is not one this
+/// build can resolve.
+///
+/// The fallback is what `phonix_core::locale::timezone` says it should be:
+/// the name is shape-checked when it is stored and the tables live only here,
+/// so a name that passes there and fails here resolves to UTC with a warning
+/// rather than failing the request. A timesheet that loses its verdicts is a
+/// worse answer than one whose verdicts are an hour out, and the log says
+/// which happened.
+async fn workspace_zone(pool: &PgPool) -> ServiceResult<chrono_tz::Tz> {
+    let profile = phonix_db::organization::load(pool).await?;
+    let named = profile.profile.timezone.as_str().to_owned();
+
+    match named.parse::<chrono_tz::Tz>() {
+        Ok(zone) => Ok(zone),
+        Err(_) => {
+            tracing::warn!(
+                timezone = %named,
+                "the workspace time zone is not one this build can resolve; reading times as UTC",
+            );
+            Ok(chrono_tz::UTC)
+        }
+    }
+}
 
 /// Everybody's records on one date.
 pub async fn on_date(
@@ -67,6 +93,8 @@ pub async fn timesheet(
 
     let days = calendar::working_days(pool, employee_id, from, to).await?;
     let records = store::for_employee(pool, employee_id, from, to).await?;
+    let rostered = shifts::for_span(pool, employee_id, from, to).await?;
+    let zone = workspace_zone(pool).await?;
 
     Ok(days
         .into_iter()
@@ -76,10 +104,24 @@ pub async fn timesheet(
                 .find(|record| record.on_date == on_date)
                 .cloned();
 
+            let shift = rostered
+                .iter()
+                .find(|(day, _)| *day == on_date)
+                .and_then(|(_, shift)| shift.as_ref());
+
+            // Both halves or nothing: a shift with no check-in has no minutes
+            // to judge, and a check-in with no shift has nothing to judge them
+            // against.
+            let arrival = shift
+                .zip(record.as_ref().and_then(|r| r.checked_in_at))
+                .map(|(shift, at)| shift.arrival(at.with_timezone(&zone).time()));
+
             TimesheetDay {
                 outcome: DayOutcome::resolve(record.as_ref(), &working),
                 on_date,
                 record,
+                shift_name: shift.map(|shift| shift.name.clone()),
+                arrival,
             }
         })
         .collect())

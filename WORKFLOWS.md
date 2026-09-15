@@ -116,9 +116,10 @@ wants a status column on a person is the bug this schema was built to refuse.
 - [x] **Attendance** — check-in/check-out, with each day resolved against the
       holiday calendar in force then. Geolocation is deliberately **not**
       built — decided 2026-09-15.
-- [~] **Shift management** — shift types with hours and grace windows, and the
-      shift as a dated assignment. Model and service built; no screen yet,
-      and the timesheet does not show lateness.
+- [x] **Shift management** — shift types with hours and grace windows, the
+      shift as a dated assignment, and lateness on the timesheet, resolved
+      in the workspace's own time zone. Rosters beyond the dated assignment
+      are not built.
 - [-] **Payroll and taxation** — salary structures, tax slabs, salary slips.
       Not built, deliberately. See ADR 0006 §9.
 - [-] **Contracts / salary on the employee** — not built, deliberately.

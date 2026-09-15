@@ -222,6 +222,15 @@ pub struct TimesheetDay {
     pub outcome: DayOutcome,
     /// The record behind it, where somebody keyed one.
     pub record: Option<Attendance>,
+    /// The shift they were expected on, where the assignment names one.
+    pub shift_name: Option<String>,
+    /// Whether the check-in was inside the grace window.
+    ///
+    /// `None` where either half is missing - no shift on the assignment, or
+    /// no check-in time on the record. A day marked present after the fact
+    /// has no minutes to judge, and saying "on time" about it would be an
+    /// answer nobody can support.
+    pub arrival: Option<crate::shift::Arrival>,
 }
 
 /// A record being written on a screen.

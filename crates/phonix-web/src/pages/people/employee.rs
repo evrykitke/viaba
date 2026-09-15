@@ -44,7 +44,7 @@ use crate::server_fns::hr_fns::{
     blank_employee, create_employee_login, delete_employee, direct_reports, employed_people,
     employee_assignment, employee_detail, list_departments, move_employee, record_leaver,
     rehire_employee, save_employee, selectable_holiday_lists, selectable_job_positions,
-    selectable_work_locations, unlink_employee_login,
+    selectable_shift_types, selectable_work_locations, unlink_employee_login,
 };
 use crate::ui::alert::{Alert, Alerts, Confirm};
 use crate::ui::form::field::Choice;
@@ -60,6 +60,7 @@ struct Choices {
     roles: Vec<Choice>,
     places: Vec<Choice>,
     calendars: Vec<Choice>,
+    shifts: Vec<Choice>,
     managers: Vec<Choice>,
 }
 
@@ -321,6 +322,7 @@ fn employee_form(draft: EmployeeInput, hiring: bool) -> impl IntoView {
     let roles = Resource::new(|| (), |()| async move { selectable_job_positions().await });
     let places = Resource::new(|| (), |()| async move { selectable_work_locations().await });
     let calendars = Resource::new(|| (), |()| async move { selectable_holiday_lists().await });
+    let shifts = Resource::new(|| (), |()| async move { selectable_shift_types().await });
     let managers = Resource::new(|| (), |()| async move { employed_people().await });
 
     view! {
@@ -363,6 +365,15 @@ fn employee_form(draft: EmployeeInput, hiring: bool) -> impl IntoView {
                             .unwrap_or_default()
                             .into_iter()
                             .map(|(id, code, name)| Choice::new(id.to_string(), name).detail(code))
+                            .collect(),
+                        shifts: shifts
+                            .await
+                            .unwrap_or_default()
+                            .into_iter()
+                            .map(|shift| {
+                                Choice::new(shift.id.to_string(), shift.name)
+                                    .detail(shift.code)
+                            })
                             .collect(),
                         managers: managers
                             .await
@@ -728,6 +739,23 @@ fn employee_fields(
                         />
 
                         <Picker
+                            id="emp-shift"
+                            label=l!("employees.shift_type")
+                            options=choices.with_value(|c| c.shifts.clone())
+                            value=Signal::derive(move || {
+                                draft
+                                    .with(|d| {
+                                        d.shift_type_id
+                                            .map(|id| id.to_string())
+                                            .unwrap_or_default()
+                                    })
+                            })
+                            on_change=Callback::new(move |chosen: Option<Uuid>| {
+                                draft.update(|d| d.shift_type_id = chosen);
+                            })
+                        />
+
+                        <Picker
                             id="emp-manager"
                             label=l!("employees.manager")
                             options=choices.with_value(|c| c.managers.clone())
@@ -822,6 +850,7 @@ fn move_panel(employee_id: Uuid, reload: Callback<()>) -> impl IntoView {
     let roles = Resource::new(|| (), |()| async move { selectable_job_positions().await });
     let places = Resource::new(|| (), |()| async move { selectable_work_locations().await });
     let calendars = Resource::new(|| (), |()| async move { selectable_holiday_lists().await });
+    let shifts = Resource::new(|| (), |()| async move { selectable_shift_types().await });
     let managers = Resource::new(|| (), |()| async move { employed_people().await });
 
     view! {
@@ -880,6 +909,15 @@ fn move_panel(employee_id: Uuid, reload: Callback<()>) -> impl IntoView {
                                 .into_iter()
                                 .map(|(id, code, name)| {
                                     Choice::new(id.to_string(), name).detail(code)
+                                })
+                                .collect(),
+                            shifts: shifts
+                                .await
+                                .unwrap_or_default()
+                                .into_iter()
+                                .map(|shift| {
+                                    Choice::new(shift.id.to_string(), shift.name)
+                                        .detail(shift.code)
                                 })
                                 .collect(),
                             managers: managers
@@ -1026,6 +1064,21 @@ fn move_fields(
                     })
                     on_change=Callback::new(move |chosen: Option<Uuid>| {
                         draft.update(|d| d.holiday_list_id = chosen);
+                    })
+                />
+
+                <Picker
+                    id="move-shift"
+                    label=l!("employees.shift_type")
+                    options=choices.shifts
+                    value=Signal::derive(move || {
+                        draft
+                            .with(|d| {
+                                d.shift_type_id.map(|id| id.to_string()).unwrap_or_default()
+                            })
+                    })
+                    on_change=Callback::new(move |chosen: Option<Uuid>| {
+                        draft.update(|d| d.shift_type_id = chosen);
                     })
                 />
 
