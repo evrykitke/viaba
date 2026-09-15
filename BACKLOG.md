@@ -25,13 +25,13 @@ commits it is three items.
 
 ## Next
 
-> **Where the loop stopped, 2026-09-15.** Paused by the user after
-> `0ea7fd6` so they could verify the People screens in a browser. Nothing
-> is half-done: the tree was clean at the stop and every item below is
-> untouched. Resume with `/loop /advance` and take the first item.
+> **Read this first.** The loop paused for browser verification after
+> `0ea7fd6` and has since resumed. Nothing is ever half-done at a stop:
+> the tree is clean and every item below is untouched.
 >
 > **Nothing in this branch has run against a database.** Migrations
-> `hr/0003` (holidays), `hr/0004` (attendance), `hr/0005` (shifts) and
+> `hr/0003` (holidays), `hr/0004` (attendance), `hr/0005` (shifts),
+> `hr/0006` (movements) and
 > `core/0023` (the `Pages.Sales` → `Pages.Accounting` rename) are all
 > unapplied and compiler-checked only. The `generate_series` + `LATERAL`
 > queries in `hr::holiday::working_days` and `hr::shift::for_span` are the
@@ -43,6 +43,10 @@ commits it is three items.
 > root renamed with a migration rather than dropping the home-to-permission
 > invariant; no geolocation on attendance; `chrono-tz` as a server-only
 > dependency for lateness.
+>
+> **The People app is model-heavy and screen-light.** Calendar, attendance
+> and shifts are built end to end; the lifecycle documents have a model and
+> a gated service and no screen. That is the one queued screen item.
 
 ### People — the Frappe HR revamp
 
