@@ -30,25 +30,15 @@ commits it is three items.
 <!-- Items waiting on something outside the loop's reach. Each carries a
      `blocked:` line saying what it waits for. -->
 
-- [ ] `phonix-web` A grid that opens already narrowed
-      why: `GridState::new` starts with no filters and `default_value()` is read
-           only by tests, so a screen cannot open on anything but everything.
-           The employees list wanted to open on current staff and could not say
-           so; the comment asking for it has been removed rather than honoured.
-      touch: crates/phonix-web/src/ui/table/{state.rs,config.rs}
-      done: a `GridConfig` can declare a filter's opening value, `GridState`
-            seeds it, and the twenty-odd `default_value() == ""` tests still
-            describe the grids that did not ask for one.
-      blocked: nothing would call it but the employees grid, so building it
-               means also deciding that the staff list opens on current staff
-               rather than everybody - a change to what a screen shows, on the
-               authority of one comment that had never been implemented. Say
-               whether you want that default and it goes in; say no and this
-               item should be deleted rather than left here.
-
 ## Done
 
 <!-- The loop appends here with the commit sha. Newest first. -->
+
+- [x] `phonix-web` A grid that opens already narrowed
+      `Filter::opening_on` declares it, and `GridState` and `initial_request`
+      seed it from one shared function so the two cannot disagree. The staff
+      list opens on current staff; every other grid still opens on everything,
+      and their `default_value() == ""` tests are untouched.
 
 - [x] `workspace` The workspace adopts rustfmt
       Decided: adopt rather than drop the gate. `cargo fmt --all` in one sweep,

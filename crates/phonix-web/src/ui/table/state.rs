@@ -35,6 +35,20 @@ pub struct GridState {
     pub columns_open: RwSignal<bool>,
 }
 
+/// What each filter opens narrowed to, which is usually nothing at all.
+///
+/// Shared with [`GridConfig::initial_request`], because a state that opened on
+/// one set of filters and a request built from another would disagree about
+/// what the screen is showing.
+pub(super) fn opening_filters<T: 'static>(config: &GridConfig<T>) -> BTreeMap<String, String> {
+    config
+        .filters
+        .iter()
+        .filter(|filter| !filter.default_value().is_empty())
+        .map(|filter| (filter.key().to_owned(), filter.default_value().to_owned()))
+        .collect()
+}
+
 impl GridState {
     /// Opened as the configuration describes it.
     pub fn new<T: 'static>(config: &GridConfig<T>) -> Self {
@@ -43,7 +57,7 @@ impl GridState {
             page: RwSignal::new(1),
             per_page: RwSignal::new(config.pagination.default),
             sort: RwSignal::new(config.initial_sort.clone()),
-            filters: RwSignal::new(BTreeMap::new()),
+            filters: RwSignal::new(opening_filters(config)),
             hidden: RwSignal::new(config.hidden_by_default().into_iter().collect()),
             columns_open: RwSignal::new(false),
         }

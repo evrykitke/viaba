@@ -8,6 +8,10 @@
 //! tells them apart, and it is derived from whether there is an open engagement
 //! rather than stored.
 //!
+//! The screen opens on current staff all the same, because leavers accumulate
+//! for ever and would eventually be most of it. That is one click from
+//! everybody, and the filter says which it is showing.
+//!
 //! # The login column is a fact, not a status
 //!
 //! Most people who work somewhere never sign in. A blank here is the ordinary
@@ -150,15 +154,20 @@ pub fn employees_grid() -> GridConfig<EmployeeSummary> {
                 view! { <Icon icon=Icon::KeyRound size=crate::icons::IconSize::Xs /> }.into_any()
             }),
         )
-        .filter(Filter::new(
-            "state",
-            l!("field.status"),
-            vec![
-                FilterChoice::all(l!("common.all")),
-                FilterChoice::new("employed", l!("employees.state.employed")),
-                FilterChoice::new("left", l!("employees.state.left")),
-            ],
-        ))
+        .filter(
+            Filter::new(
+                "state",
+                l!("field.status"),
+                vec![
+                    FilterChoice::all(l!("common.all")),
+                    FilterChoice::new("employed", l!("employees.state.employed")),
+                    FilterChoice::new("left", l!("employees.state.left")),
+                ],
+            )
+            // Leavers never stop accumulating, so the unnarrowed list is the
+            // one question this screen is least often opened to ask.
+            .opening_on("employed"),
+        )
         .filter(Filter::new(
             "login",
             l!("employees.filter.login"),
@@ -240,19 +249,21 @@ mod tests {
     }
 
     #[test]
-    fn it_opens_on_everybody_by_name() {
-        // A grid opens with no filter set, whatever its choices say, so a
-        // narrowing choice listed first is a dropdown disagreeing with the
-        // rows underneath it.
+    fn it_opens_on_current_staff_by_name() {
+        // The one grid that opens narrowed. `employed` is a state the store
+        // answers, so this reaches the reader rather than being ignored.
         let grid = grid();
-        let sort = grid.initial_request().sort.expect("an opening order");
+        let request = grid.initial_request();
+        let sort = request.sort.clone().expect("an opening order");
 
         assert_eq!(sort, Sort::ascending("name"));
         assert!(SERVER_SORTS.contains(&sort.field.as_str()));
-        assert!(grid.initial_request().filters.is_empty());
+        assert_eq!(request.filter("state"), Some("employed"));
 
+        // Everything else opens on everything, and no filter is answered in
+        // the browser now that the source is paged.
+        assert_eq!(request.filter("login"), None);
         for filter in &grid.filters {
-            assert_eq!(filter.default_value(), "", "{}", filter.key());
             assert!(!filter.is_local(), "{}", filter.key());
         }
     }

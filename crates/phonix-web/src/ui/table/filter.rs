@@ -80,6 +80,9 @@ pub struct Filter<T: 'static> {
     /// How to answer it over rows already in the browser. `None` on a paged
     /// grid, where the server answers instead.
     pub(crate) matches: Option<Matches<T>>,
+    /// What the grid opens narrowed to. Empty for the ordinary case, which is
+    /// everything; see [`Filter::opening_on`].
+    pub(crate) opens_on: &'static str,
 }
 
 impl<T: 'static> Clone for Filter<T> {
@@ -89,6 +92,7 @@ impl<T: 'static> Clone for Filter<T> {
             label: self.label.clone(),
             choices: self.choices.clone(),
             matches: self.matches.clone(),
+            opens_on: self.opens_on,
         }
     }
 }
@@ -110,7 +114,20 @@ impl<T: 'static> Filter<T> {
             label: label.into(),
             choices,
             matches: None,
+            opens_on: "",
         }
+    }
+
+    /// Open the grid narrowed to `value` rather than to everything.
+    ///
+    /// For a list whose unnarrowed form is not what the screen is for - a staff
+    /// list where leavers accumulate for ever. The choice stays in the list, so
+    /// the reader can widen to it in one click; this only decides where the
+    /// screen starts.
+    #[must_use]
+    pub const fn opening_on(mut self, value: &'static str) -> Self {
+        self.opens_on = value;
+        self
     }
 
     /// How to answer this filter in the browser. Required for an in-memory
@@ -142,9 +159,14 @@ impl<T: 'static> Filter<T> {
         self.matches.is_some()
     }
 
-    /// The value this filter opens on: the first choice.
+    /// The value this filter opens on: what [`Filter::opening_on`] declared,
+    /// and otherwise the first choice - which by convention is "everything".
     pub fn default_value(&self) -> &'static str {
-        self.choices.first().map_or("", |choice| choice.value)
+        if self.opens_on.is_empty() {
+            self.choices.first().map_or("", |choice| choice.value)
+        } else {
+            self.opens_on
+        }
     }
 }
 
@@ -198,5 +220,17 @@ mod tests {
     #[test]
     fn a_filter_opens_on_its_first_choice_and_that_choice_is_everything() {
         assert_eq!(evens().default_value(), "");
+    }
+
+    #[test]
+    fn a_filter_may_open_somewhere_other_than_everything() {
+        let filter = evens().opening_on("even");
+
+        assert_eq!(filter.default_value(), "even");
+
+        // The choice it opens on is still one of the choices, so the reader
+        // can widen from it rather than being stuck in it.
+        assert!(filter.choices.iter().any(|choice| choice.value == "even"));
+        assert!(filter.choices.iter().any(|choice| choice.value.is_empty()));
     }
 }

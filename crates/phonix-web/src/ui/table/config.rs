@@ -431,9 +431,9 @@ impl<T: 'static> GridConfig<T> {
             },
             search: String::new(),
             sort: self.initial_sort.clone(),
-            // Every filter opens on its first choice, which is "everything" -
-            // so an opening request carries none of them.
-            filters: std::collections::BTreeMap::new(),
+            // Usually empty: a filter opens on "everything" unless it said
+            // otherwise with `Filter::opening_on`.
+            filters: super::state::opening_filters(self),
         }
     }
 
