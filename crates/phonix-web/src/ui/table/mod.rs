@@ -118,17 +118,8 @@ use crate::icons::{Icon, IconSize};
 use crate::l;
 use crate::ui::viewer::Viewer;
 
-/// What a row type has to be for a grid to hold it.
-///
-/// `Serialize`/`DeserializeOwned` because rows are fetched by a resource, which
-/// serialises what the server rendered so the browser does not fetch it again.
-/// The padding of one cell, header and body alike.
-///
-/// Density is the thing a list screen spends its space on, so it is one
-/// constant rather than a number repeated at six call sites. `py-1.5` with
-/// tight leading inside the cells is about as far as this goes before a row
-/// stops being a comfortable touch target - the controls inside it are still
-/// 28px, which is what actually has to be hit.
+/// Row requirements for a data grid.
+/// Shared padding for table headers and cells.
 const CELL: &str = "px-2 py-1.5 sm:px-3";
 
 pub trait GridRow: Clone + Send + Sync + Serialize + DeserializeOwned + 'static {}
@@ -138,12 +129,7 @@ impl<T: Clone + Send + Sync + Serialize + DeserializeOwned + 'static> GridRow fo
 /// Which columns are turned off right now.
 type Hidden = BTreeSet<&'static str>;
 
-/// The last thing the source handed over.
-///
-/// Kept so that the export - which runs from a click, long after hydration -
-/// has rows to write without reading the resource. Reading a resource outside a
-/// `<Transition/>` is exactly how a hydration mismatch is made, and leptos says
-/// so in the console every time.
+/// Most recently loaded rows, used for export.
 enum Loaded<T> {
     All(Vec<T>),
     Page(Page<T>),
@@ -167,11 +153,7 @@ pub fn data_grid<T: GridRow>(config: GridConfig<T>) -> impl IntoView {
     // `GridConfig::choosing` for what it loses and why.
     let picking = config.is_picker();
 
-    // Fixed for the life of the grid, so they are taken now rather than read
-    // out of the configuration on every render.
-    //
-    // None of them for a picker: an empty list is what turns the column menu
-    // off, in the same way an absent export stem turns the export off.
+    // Read fixed grid settings once.
     let choices: Vec<ColumnChoice> = if picking {
         Vec::new()
     } else {
@@ -217,15 +199,7 @@ pub fn data_grid<T: GridRow>(config: GridConfig<T>) -> impl IntoView {
     let on_export =
         export_stem.map(|stem| Callback::new(move |()| export_now(stem, config, state, loaded)));
 
-    // Made here rather than in the pager, for the same reason `on_export` is: a
-    // `Callback` lives in whichever owner is current when it is made, and the
-    // pager is built inside the `Transition` below - whose owner is disposed the
-    // instant a refetch starts, while its markup stays on the screen. A page
-    // size chosen from a callback allocated there is a panic rather than a
-    // narrower table. This one belongs to the grid and outlives every reload.
-    //
-    // A value that will not parse is one the control did not offer, so it is
-    // dropped rather than guessed at.
+    // This callback must outlive transition reloads.
     let on_per_page = Callback::new(move |value: String| {
         if let Ok(per_page) = value.parse::<u32>() {
             state.set_per_page(per_page);
@@ -237,10 +211,7 @@ pub fn data_grid<T: GridRow>(config: GridConfig<T>) -> impl IntoView {
         // that is already a card, and a bordered box inset from another
         // bordered box is two frames where the eye expects one.
         <div class=if picking { "" } else { "space-y-3" }>
-            // Pinned for a picker, because the panel it sits in is what
-            // scrolls: a search box that leaves the top of the list is a
-            // search box that cannot be corrected without scrolling back for
-            // it. A list screen scrolls the whole page and needs none of this.
+            // Keep picker search visible while its panel scrolls.
             <div class=if picking {
                 "sticky top-0 z-10 border-b border-edge bg-surface-raised px-2 py-2"
             } else {
@@ -274,26 +245,7 @@ pub fn data_grid<T: GridRow>(config: GridConfig<T>) -> impl IntoView {
                     })
             }}
 
-            // Inert while it reloads. A transition holds the previous rows on
-            // the screen until the next page arrives, but their reactive owner
-            // is disposed the moment the refetch starts - so for one round trip
-            // the table looks live and every signal behind it is gone. Clicking
-            // one of those rows used to be a panic, and a panic in wasm freezes
-            // the whole page.
-            //
-            // The handlers guard themselves as well (see the note on zombie
-            // rows in `menu`), because the pending flag is set by an effect and
-            // is therefore a tick behind the disposal. This is the part that
-            // makes the window unreachable rather than merely survivable, and
-            // it is also the honest answer: rows that are being replaced should
-            // not accept a click.
-            //
-            // Only the table. The toolbar above stays live, so a new search or
-            // filter can be typed over a slow load.
-            //
-            // Dimming is delayed and eased, the block is not: a refetch that
-            // finishes in 30ms should not flash, but it must not accept a click
-            // in those 30ms either.
+            // Previous rows remain visible during reload, but cannot be used.
             <div
                 class=if picking {
                     "transition-opacity delay-150 duration-200"
@@ -389,13 +341,7 @@ pub fn data_grid<T: GridRow>(config: GridConfig<T>) -> impl IntoView {
     }
 }
 
-/// The grid's rows, whichever way they arrive.
-///
-/// Two resources rather than one because the *key* differs, and the key is the
-/// whole difference between the two sources: an in-memory grid fetches once and
-/// never again, so its resource is keyed on nothing; a paged grid fetches per
-/// request, so its resource is keyed on the request. Keying the first on the
-/// request would refetch the entire list on every keystroke.
+/// Grid rows from either an in-memory or paged source.
 enum Rows<T: Send + Sync + 'static> {
     All(Resource<Result<Vec<T>, String>>),
     Paged(Resource<Result<Page<T>, String>>),
@@ -507,10 +453,7 @@ fn grid_body<T: GridRow>(
             .cloned()
             .collect()
     });
-    // What a phone cannot see. Below `sm` the non-essential columns are
-    // switched off by CSS, so each row offers to unfold them instead - see
-    // `grid_row_view`. If every visible column is essential there is nothing
-    // to unfold and the control is not drawn at all.
+    // Non-essential columns are available in the mobile row detail.
     let has_detail = visible.iter().any(|column| !column.essential);
 
     // How many cells wide the row is *on a phone*, which is what the detail

@@ -93,30 +93,14 @@ pub type Picker = Arc<dyn Fn(Callback<Choice>) -> AnyView + Send + Sync>;
 
 /// Where a lookup's options come from, and how they are shown.
 pub enum Choices {
-    /// A flat list, filtered here in the browser.
-    ///
-    /// For a set small enough to send with the page. A lookup whose entity has
-    /// thousands of rows wants [`Choices::Table`], which pages.
+    /// Flat list filtered in the browser.
     List(Vec<Choice>),
-    /// A list somebody else keeps filled.
-    ///
-    /// The rows come from a signal and are shown **unfiltered** - whoever owns
-    /// the signal has already decided what matches, which for a catalogue of
-    /// forty thousand items means the database did it and sent fifty rows.
-    /// `on_query` is run with what has been typed, on every keystroke and once
-    /// when the panel opens; answering it is the owner's job, and so is any
-    /// debouncing that job needs.
-    ///
-    /// [`List`](Self::List) is still the right thing for a set small enough to
-    /// send with the page. This is for the ones that are not.
+    /// Externally filtered list, refreshed by `on_query`.
     Live {
         choices: Signal<Vec<Choice>>,
         on_query: Callback<String>,
     },
-    /// A grid in the panel.
-    ///
-    /// `width` is what the panel asks for in pixels; it still gets cut down to
-    /// the window on a phone, and it is never narrower than the field.
+    /// Grid picker displayed in the panel.
     Table { width: f64, view: Picker },
 }
 
@@ -161,11 +145,7 @@ impl Clone for Choices {
 }
 
 impl Choices {
-    /// A grid picker, from a closure that builds one.
-    ///
-    /// The closure is handed the callback to answer with; what it does with it
-    /// is the entity's business - in practice `DataGrid` over that entity's
-    /// `GridConfig` in `choosing` mode.
+    /// Grid picker created with a selection callback.
     pub fn table(view: impl Fn(Callback<Choice>) -> AnyView + Send + Sync + 'static) -> Self {
         Self::Table {
             width: 640.0,
@@ -196,10 +176,7 @@ pub enum QuickAdd {
         title: String,
         view: Picker,
     },
-    /// A link to the entity's own page, for one too big to fit in a dialog.
-    ///
-    /// This leaves the form, and there is no getting around that - which is
-    /// exactly why it is the fallback and not the default.
+    /// Link to an entity page when a dialog is unsuitable.
     Page { label: String, href: String },
 }
 
@@ -266,20 +243,10 @@ impl QuickAdd {
     }
 }
 
-/// A field whose choices are records.
-///
-/// See the [module documentation](self) for the two presentations, the quick
-/// add, and why the value is a `Vec` even when only one may be chosen.
+/// Form field for selecting records.
 #[component]
 pub fn lookup_field(
-    /// What is chosen. Empty is nothing chosen; with [`multiple`] unset it
-    /// holds at most one.
-    ///
-    /// A `Choice` rather than an id, because the field has to draw a label for
-    /// what is selected and a table picker has no id-to-label map to consult -
-    /// it has a row. The caller keeps whichever half it needs.
-    ///
-    /// [`multiple`]: LookupField
+    /// Selected choices; single-select fields contain at most one.
     selected: RwSignal<Vec<Choice>>,
     choices: Choices,
     /// Let more than one be chosen. Choosing then toggles rather than
@@ -915,11 +882,7 @@ fn list_body(
 /// the buttons inside belong to that form rather than to this. A dialog that
 /// drew its own Save would be a dialog that had to know what saving meant.
 #[component]
-fn quick_add_dialog(
-    title: String,
-    close: Callback<()>,
-    children: Children,
-) -> impl IntoView {
+fn quick_add_dialog(title: String, close: Callback<()>, children: Children) -> impl IntoView {
     view! {
         <div
             class="fixed inset-0 z-[70] grid place-items-center bg-overlay p-4"

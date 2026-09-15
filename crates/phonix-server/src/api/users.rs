@@ -79,13 +79,7 @@ use super::paging::{ListParams, ListRequest, PageEnvelope, cut};
 use super::path::ApiPath;
 use super::problem::Problem;
 
-/// Where an account stands.
-///
-/// Declared here rather than deriving `ToSchema` on `UserStatus`, for the
-/// reason the whole module set exists: a variant renamed in `phonix-core` has
-/// to stop this file compiling. It is also the one enum in `v1` that a client
-/// will match on exhaustively, so adding a variant is a real event and should
-/// look like one from here.
+/// Account status exposed by the API.
 #[derive(Debug, Clone, Copy, serde::Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 #[schema(as = UserStatus)]
@@ -175,14 +169,7 @@ impl From<&UserListing> for UserResource {
     }
 }
 
-/// Everybody with an account on this workspace.
-///
-/// Searches display name, address and role name - the three the screen's own
-/// search box looks in, so a script and a person typing find the same rows.
-///
-/// Sorts by `display_name` (the default), `email`, `status`, `mfa_enabled`,
-/// `created_at` or `last_login_at`. Ties always break the same way, so paging
-/// through the list shows every row exactly once.
+/// Returns a searchable, sortable page of workspace users.
 #[utoipa::path(
     get,
     path = "/users",
@@ -232,14 +219,7 @@ pub async fn get(
     caller: ApiCaller,
     ApiPath(id): ApiPath<UserId>,
 ) -> Result<Json<UserResource>, Problem> {
-    // `directory::find` is the obvious call and the wrong one: it answers a
-    // missing account with `ServiceError::rejected`, which this router renders
-    // as a 422 carrying a field error. That is right for a form, where the id
-    // came from a hidden input and being wrong is a validation failure. It is
-    // wrong here, where the id is the address and there is nothing at it.
-    // `list` applies the same `Caller::require`, and `find` scans the same
-    // whole list anyway, so this costs nothing and gives a client's router the
-    // 404 it expects.
+    // Use the list so an unknown resource returns 404 rather than 422.
     let rows = directory::list(&caller.pool, &caller.caller).await?;
 
     rows.iter()
@@ -283,12 +263,7 @@ pub struct SaveUser {
     #[schema(example = "Lovelace")]
     pub last_name: String,
     pub status: UserStatusResource,
-    /// Role names. The whole set, not a diff - the same rule the permission
-    /// editor follows, for the same reason: a diff would be a diff against
-    /// whatever this caller last read.
-    ///
-    /// Changing this requires `Users.ChangePermissions`; leaving it as it
-    /// stands does not.
+    /// Complete role set; changes require `Users.ChangePermissions`.
     pub roles: Vec<String>,
 }
 
@@ -381,29 +356,12 @@ impl From<&UserPermissionView> for UserPermissionsResource {
 #[derive(Debug, Clone, Deserialize, ToSchema)]
 #[schema(as = UserPermissionsSave)]
 pub struct SaveUserPermissions {
-    /// The whole **effective** set this account should end up with - not the
-    /// overrides. What gets stored is the difference from what the roles
-    /// already give, worked out server-side, so that changing a role still
-    /// reaches this person afterwards. Storing an effective set would freeze
-    /// them at the moment somebody last saved this.
-    ///
-    /// A set rather than a diff, and idempotent: two administrators saving the
-    /// same set twice get the same answer.
+    /// Complete effective permission set; role-derived grants remain dynamic.
     #[schema(example = json!(["Pages", "Pages.Dashboard", "Pages.Administration"]))]
     pub permissions: Vec<String>,
 }
 
-/// Invite somebody, creating their account.
-///
-/// The account is created `pending` with **no password**: the person sets one
-/// by opening the link, and opening it is also what proves their address
-/// receives mail.
-///
-/// The mail send is outside the transaction that creates the account and is
-/// **not allowed to fail this request** - see [`InvitationResource::link`].
-///
-/// Requires `Pages.Administration.Users.Create`, plus
-/// `Users.ChangePermissions` if any role is named.
+/// Creates a pending account and issues an invitation.
 #[utoipa::path(
     post,
     path = "/users",
@@ -464,17 +422,7 @@ pub async fn invite(
     }
 }
 
-/// Issue a fresh invitation for somebody who has not accepted yet.
-///
-/// For the invitation that expired, went to a spam folder, or was sent before
-/// the relay worked. Safe to call twice: issuing supersedes the outstanding
-/// token, so the older link stops working the moment a newer one exists.
-///
-/// Refused for an account that is not `pending`. Re-inviting an active account
-/// would mint a link that sets its password, which is an account takeover with
-/// a friendly name.
-///
-/// Requires `Pages.Administration.Users.Create`.
+/// Reissues an invitation for a pending account.
 #[utoipa::path(
     post,
     path = "/users/{id}/invitation",

@@ -11,28 +11,10 @@ use chrono::Datelike;
 
 use crate::error::DbError;
 
-/// Create a tenant's database, migrate it, and mark the tenant active.
+/// Creates and migrates a tenant database, then activates the tenant.
 ///
-/// Safe to call for a tenant that already exists: the catalog insert is the
-/// serialisation point, and both `CREATE DATABASE` and the migrations are
-/// applied conditionally.
-///
-/// Creates no users. A workspace with a database but nobody in it is exactly
-/// what auto-provisioning and operator tooling want; the onboarding flow adds
-/// the owner afterwards (see [`crate::onboarding`]).
-///
-/// # Why a licence is an argument and not a default
-///
-/// `serves_traffic` is "active **and** currently licensed", so a workspace
-/// provisioned without one is created switched off. Rather than pick a term
-/// here - the database layer is not where a commercial decision belongs - the
-/// caller states it: self-service signup issues a trial of
-/// `[desk] trial_days`, Desk issues what the person filling in the form chose,
-/// and development's auto-provisioning issues an open licence to itself.
-///
-/// It is issued only if the workspace has none. Provisioning is retryable by
-/// design and a retry must not reinstate a licence somebody has since
-/// withdrawn.
+/// Provisioning is idempotent and creates no users. The caller supplies an
+/// initial licence when appropriate.
 pub async fn provision_tenant(
     catalog: &Catalog,
     cfg: &DatabaseConfig,
@@ -101,22 +83,10 @@ pub async fn provision_tenant(
         .ok_or_else(|| DbError::UnknownTenant(slug.to_string()))
 }
 
-/// Bring every tenant database up to the current schema.
+/// Migrates every tenant database to the current schema.
 ///
-/// Without this, adding a migration reaches new workspaces only. Existing ones
-/// keep the schema they were created with, and the first query that needs a new
-/// column fails at runtime, per tenant, in production - which is the worst
-/// possible place to discover a migration was written.
-///
-/// Runs on boot behind `database.migrate_on_start`, the same flag that governs
-/// the catalog. Sequential rather than concurrent: a migration takes locks, and
-/// a hundred tenants racing for connections at boot is a thundering herd for no
-/// gain on a step that runs once per deploy.
-///
-/// One tenant failing does not stop the rest. The error is logged with its
-/// slug and the count comes back, because a workspace that cannot be migrated
-/// is a problem for that workspace, and refusing to boot at all would take out
-/// every other one with it.
+/// Tenants are processed sequentially; failures are logged and do not stop the
+/// remaining migrations.
 pub async fn migrate_outdated_tenants(
     catalog: &Catalog,
     cfg: &DatabaseConfig,
@@ -209,12 +179,7 @@ pub struct MigrationSweep {
     pub failed: Vec<String>,
 }
 
-/// `CREATE DATABASE`, skipped when it already exists.
-///
-/// The name is interpolated rather than bound because Postgres does not accept
-/// parameters for identifiers. That is safe here only because the name is
-/// derived from a [`TenantSlug`], which is restricted to `[a-z0-9-]` at
-/// construction; the assertion below refuses anything else outright.
+/// Creates a tenant database when it does not already exist.
 async fn create_database_if_absent(cfg: &DatabaseConfig, database: &str) -> Result<(), DbError> {
     assert_safe_identifier(database)?;
 
@@ -234,13 +199,7 @@ async fn create_database_if_absent(cfg: &DatabaseConfig, database: &str) -> Resu
 
     tracing::info!(database, "creating tenant database");
 
-    // CREATE DATABASE cannot run inside a transaction block, which is why this
-    // uses a bare connection rather than the pool's transaction helpers.
-    //
-    // `AssertSqlSafe` is required because sqlx 0.9 rejects runtime-built SQL by
-    // default. It is justified here and only here: Postgres has no bind
-    // parameter for an identifier, and `database` has just been through
-    // `assert_safe_identifier`, which allows only `[a-z0-9_]`.
+    // PostgreSQL cannot bind database identifiers or run this inside a transaction.
     let sql = format!(r#"CREATE DATABASE "{database}" ENCODING 'UTF8'"#);
     sqlx::raw_sql(sqlx::AssertSqlSafe(sql))
         .execute(&mut conn)
@@ -251,20 +210,7 @@ async fn create_database_if_absent(cfg: &DatabaseConfig, database: &str) -> Resu
     Ok(())
 }
 
-/// Bring one tenant database up to date, app by app.
-///
-/// Each app owns a schema and a migration stream, applied on a search path
-/// rooted at that schema - so sqlx's own `_sqlx_migrations` bookkeeping lands
-/// inside the app's schema and the streams stay independent without sqlx
-/// needing to know that apps exist.
-///
-/// Sequential, and in registry order: core first, because `core.installed_apps`
-/// is what the others record themselves in.
-///
-/// A failing app aborts the pass. Stopping is right here even though the boot
-/// sweep goes on to the next *tenant*: apps installed after a failed one may
-/// depend on it, and half-migrating a database is a worse place to be than not
-/// starting.
+/// Migrates one tenant database in application order.
 pub async fn migrate_tenant(cfg: &DatabaseConfig, database: &str) -> Result<(), DbError> {
     assert_safe_identifier(database)?;
 
@@ -286,14 +232,12 @@ async fn migrate_app(
     database: &str,
     app: &AppMigrations,
 ) -> Result<(), DbError> {
-    // The app id reaches DDL as a schema name. A test in `apps` enforces the
-    // same rule at build time; this is the check that runs against the value
-    // actually used.
+    // App IDs are used as schema names.
     assert_safe_identifier(app.app_id)?;
 
     let pool = crate::connect::schema_migration_pool(cfg, database, &app.search_path());
 
-    // One future so the pool is closed on every path, including an early error.
+    // Close the migration pool on every path.
     let result = async {
         create_schema_if_absent(&pool, app.app_id).await?;
         adopt_legacy_bookkeeping(&pool, app.app_id, database).await?;
@@ -314,7 +258,7 @@ async fn migrate_app(
     }
     .await;
 
-    // The pool exists only for this migration; hold no connections afterwards.
+    // Release migration connections promptly.
     pool.close().await;
     result?;
 
@@ -617,12 +561,7 @@ async fn open_first_periods(pool: &sqlx::PgPool, database: &str) -> Result<(), D
 
     let created = crate::books::period::open_year(pool, &periods).await?;
 
-    tracing::info!(
-        database,
-        start_month,
-        created,
-        "accounting periods opened"
-    );
+    tracing::info!(database, start_month, created, "accounting periods opened");
     Ok(())
 }
 

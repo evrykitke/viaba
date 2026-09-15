@@ -1,12 +1,7 @@
-//! Redis caching, namespaced per tenant.
+//! Tenant-scoped Redis cache.
 //!
-//! Every key is written as `<key_prefix>:<tenant-slug>:<key>`. Callers reach the
-//! cache through [`Cache::for_tenant`], which owns the namespace, so a handler
-//! cannot accidentally read another tenant's entry by passing a bare key.
-//!
-//! With `redis.fail_open = true` (the default) a cache failure degrades to a
-//! miss and the request continues against Postgres. That is right for a cache
-//! and wrong for a lock or a session store - do not reuse this type for those.
+//! Keys use `<prefix>:<tenant>:<key>`. With `redis.fail_open`, failures are
+//! treated as cache misses.
 
 use std::time::Duration;
 
@@ -48,11 +43,7 @@ pub struct Cache {
 }
 
 impl Cache {
-    /// Connect using the supplied configuration.
-    ///
-    /// When `redis.enabled` is false this returns a disabled cache whose
-    /// operations are no-ops, so the rest of the application needs no
-    /// conditional logic.
+    /// Connects using the supplied configuration, or returns a disabled cache.
     pub async fn connect(cfg: &RedisConfig) -> Result<Self, CacheError> {
         if !cfg.enabled {
             tracing::info!("redis is disabled; cache operations will be no-ops");
@@ -71,8 +62,7 @@ impl Cache {
         };
         let display_addr = format!("{}:{}", cfg.host, cfg.port);
 
-        // Built from parts rather than from a `redis://` URL so that a password
-        // containing '@', ':' or '/' needs no percent-encoding.
+        // Build settings directly so passwords need no URL encoding.
         let mut redis_settings = RedisConnectionInfo::default().set_db(cfg.database as i64);
         if !cfg.username.trim().is_empty() {
             redis_settings = redis_settings.set_username(&cfg.username);
@@ -94,8 +84,7 @@ impl Cache {
             source,
         })?;
 
-        // ConnectionManager multiplexes over one connection and reconnects on
-        // its own, so a Redis restart does not require restarting the app.
+        // The connection manager reconnects automatically.
         let manager_config = ConnectionManagerConfig::new()
             .set_connection_timeout(Some(Duration::from_secs(cfg.connect_timeout_secs)))
             .set_response_timeout(Some(Duration::from_secs(cfg.response_timeout_secs)));
@@ -172,11 +161,7 @@ impl TenantCache {
         format!("{}:{}", self.namespace, key)
     }
 
-    /// Fetch and deserialise a value. `Ok(None)` is a miss.
-    ///
-    /// A stored value that no longer deserialises (because the type changed) is
-    /// treated as a miss and deleted, rather than failing every request until
-    /// the key expires.
+    /// Fetches and deserialises a value; stale values are removed as misses.
     pub async fn get<T: DeserializeOwned>(&self, key: &str) -> Result<Option<T>, CacheError> {
         let Some(mut conn) = self.cache.inner.clone() else {
             return Ok(None);
@@ -211,10 +196,7 @@ impl TenantCache {
         self.set_with_ttl(key, value, self.cache.default_ttl).await
     }
 
-    /// Store a value with an explicit TTL.
-    ///
-    /// A zero TTL would mean "no expiry" to Redis, which turns a cache into a
-    /// leak, so it falls back to the configured default.
+    /// Stores a value with an explicit TTL; zero uses the default TTL.
     pub async fn set_with_ttl<T: Serialize>(
         &self,
         key: &str,
@@ -268,19 +250,14 @@ impl TenantCache {
         Ok(())
     }
 
-    /// Read through the cache, computing and storing the value on a miss.
-    ///
-    /// Deliberately does NOT lock: two concurrent misses both compute, and the
-    /// second write wins. Adding a distributed lock here would trade a cheap
-    /// duplicate computation for a correctness problem when a lock holder dies.
+    /// Reads through the cache, computing and storing a value on a miss.
     pub async fn get_or_insert_with<T, F, Fut, E>(&self, key: &str, compute: F) -> Result<T, E>
     where
         T: Serialize + DeserializeOwned,
         F: FnOnce() -> Fut,
         Fut: std::future::Future<Output = Result<T, E>>,
     {
-        // A cache failure must never fail the request when fail_open is set, so
-        // errors here fall through to `compute`.
+        // On a cache error, compute the value instead.
         if let Ok(Some(hit)) = self.get::<T>(key).await {
             tracing::trace!(key = %self.key(key), "cache hit");
             return Ok(hit);

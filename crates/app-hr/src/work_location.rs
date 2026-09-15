@@ -1,13 +1,4 @@
-//! Where somebody works.
-//!
-//! Three kinds, and the distinction that earns its place is whether the
-//! workspace controls the premises: it decides who is covered by the building's
-//! insurance, who is in scope for a fire drill, and who has to be asked about
-//! their own desk rather than told.
-//!
-//! Not `inventory.warehouses`, which is where *stock* is. The two overlap in a
-//! small workspace and diverge immediately in a large one - most people do not
-//! work at a warehouse, and a dark store has nobody assigned to it at all.
+//! Employee work locations, distinct from inventory warehouses.
 
 use phonix_core::Message;
 use phonix_core::msg;
@@ -45,8 +36,7 @@ impl LocationKind {
         Self::ALL.iter().copied().find(|kind| kind.as_str() == raw)
     }
 
-    /// Whether the workspace controls the premises. What the fire register and
-    /// the insurance schedule are drawn from.
+    /// Whether the workspace controls the premises.
     pub const fn is_ours(self) -> bool {
         matches!(self, Self::Office)
     }

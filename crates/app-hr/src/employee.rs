@@ -1,35 +1,7 @@
-//! A person, one or more periods of employment, and what they were doing
-//! during each.
+//! Employee records, employment periods, and dated assignments.
 //!
-//! # Why this is three types and not one
-//!
-//! The single most common failure in HR systems is carrying the *current
-//! state* - job title, department, manager - as fields on the person, and then
-//! having no record of when any of it changed. The current answer stays right,
-//! which is what makes it dangerous: tenure analysis, cost-centre reporting and
-//! every "what did this team look like last March" question break silently.
-//!
-//! So [`Employee`] holds only what stays true when somebody is promoted, and
-//! everything that moves is a dated [`Assignment`].
-//!
-//! # An engagement is not an assignment
-//!
-//! An [`Engagement`] is a period of employment - hired on a date, ended on a
-//! date, for a reason. An [`Assignment`] is what somebody was doing during part
-//! of one.
-//!
-//! Fusing them is how systems get rehires wrong: model employment as a flag on
-//! the person and somebody who leaves and comes back either loses their first
-//! stint or becomes a second person - two national insurance numbers for one
-//! human being, and a tenure figure that restarts at zero. Here a rehire is a
-//! second engagement, so the history is continuous and the person stays one row.
-//!
-//! # "Is this person employed" is a question, not a flag
-//!
-//! It is [`Engagement::is_open`] - no end date. There is deliberately no
-//! `is_active` on an employee: a flag and a set of dates are two facts about
-//! one thing, and the first time somebody backdates a leaving date without
-//! clearing the flag they disagree for ever.
+//! An employee may have multiple engagements; assignments record changes within
+//! an engagement. Employment status is derived from an open engagement.
 
 use chrono::NaiveDate;
 use phonix_core::Message;
@@ -46,11 +18,7 @@ pub const MAX_NATIONAL_ID_LEN: usize = 60;
 pub const MAX_NOTE_LEN: usize = 2000;
 pub const MAX_REASON_LEN: usize = 500;
 
-/// How deep a reporting line may go before this refuses to walk it further.
-///
-/// A cycle - A reports to B who reports to A - cannot be seen from one row, so
-/// the service walks the chain when a manager is chosen. Sixteen is already an
-/// organization with more layers than anybody defends.
+/// Maximum reporting-chain depth when validating managers.
 pub const MAX_REPORTING_DEPTH: usize = 16;
 
 // ---------------------------------------------------------------------------
@@ -66,8 +34,7 @@ pub struct Employee {
     pub preferred_name: Option<String>,
     pub work_email: Option<String>,
     pub work_phone: Option<String>,
-    /// The login, where there is one. See the module docs of the migration for
-    /// why this is optional in both directions and unique.
+    /// Optional linked login.
     pub user_id: Option<UserId>,
     pub date_of_birth: Option<NaiveDate>,
     pub national_id: Option<String>,
@@ -95,7 +62,9 @@ impl Employee {
 
     /// The period of employment they are in now, if any.
     pub fn current_engagement(&self) -> Option<&Engagement> {
-        self.engagements.iter().find(|engagement| engagement.is_open())
+        self.engagements
+            .iter()
+            .find(|engagement| engagement.is_open())
     }
 
     /// Whether they work here now.
@@ -109,12 +78,7 @@ impl Employee {
             .and_then(Engagement::current_assignment)
     }
 
-    /// Whether a login may be created for them.
-    ///
-    /// Three conditions, and each refuses a different mistake: somebody who has
-    /// already got one must not get a second (one login is one person), a
-    /// former employee must not be given fresh access on their way out, and an
-    /// invitation needs an address to go to.
+    /// Whether the employee can receive a login invitation.
     pub fn can_be_invited(&self) -> bool {
         self.user_id.is_none() && self.is_employed() && self.work_email.is_some()
     }
@@ -134,11 +98,7 @@ impl Employee {
         None
     }
 
-    /// Whole years since they first started here, counting every engagement's
-    /// span - which is the point of keeping them.
-    ///
-    /// `as_at` rather than "today" because this crate compiles to wasm and a
-    /// domain type that reads the clock is one that cannot be tested.
+    /// Total days across all engagements, calculated as of `as_at`.
     pub fn service_days(&self, as_at: NaiveDate) -> i64 {
         self.engagements
             .iter()
@@ -241,12 +201,7 @@ impl EmploymentType {
     }
 }
 
-/// Why an engagement ended.
-///
-/// Required the moment there is an end date. "Fifteen leavers and no reason on
-/// any of them" is a named symptom of an HR system nobody can report from, and
-/// it is the rule this codebase already applies to a requisition's decision: an
-/// outcome carries its reason or it is not recorded.
+/// Reason an engagement ended.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum EndReason {
@@ -289,9 +244,7 @@ impl EndReason {
         Self::ALL.iter().copied().find(|kind| kind.as_str() == raw)
     }
 
-    /// Whether the person chose to go. The split every turnover figure is
-    /// reported on, and getting it from a list rather than from free text is
-    /// the only reason the list exists.
+    /// Whether the employee chose to leave.
     pub const fn is_voluntary(self) -> bool {
         matches!(self, Self::Resigned | Self::Retirement)
     }
@@ -358,7 +311,10 @@ impl Engagement {
     /// paperwork appear.
     pub fn is_overrunning(&self, as_at: NaiveDate) -> bool {
         self.is_open()
-            .then(|| self.expected_end_on.is_some_and(|expected| expected < as_at))
+            .then(|| {
+                self.expected_end_on
+                    .is_some_and(|expected| expected < as_at)
+            })
             .unwrap_or(false)
     }
 }
@@ -460,10 +416,9 @@ impl EmployeeInput {
             national_id: employee.national_id.clone().unwrap_or_default(),
             note: employee.note.clone().unwrap_or_default(),
             started_on: current.map(|engagement| engagement.started_on),
-            employment_type: current
-                .map_or(EmploymentType::Permanent, |engagement| {
-                    engagement.employment_type
-                }),
+            employment_type: current.map_or(EmploymentType::Permanent, |engagement| {
+                engagement.employment_type
+            }),
             department_id: assignment.and_then(|a| a.department_id),
             job_position_id: assignment.and_then(|a| a.job_position_id),
             work_location_id: assignment.and_then(|a| a.work_location_id),
@@ -771,10 +726,14 @@ impl EmployeeError {
             Self::NotEmployed => msg!("employees.error.not_employed"),
             Self::AlreadyEmployed => msg!("employees.error.already_employed"),
             Self::AlreadyHasLogin => msg!("employees.error.already_has_login"),
-            Self::WorkEmailRequiredForLogin => msg!("employees.error.work_email_required_for_login"),
+            Self::WorkEmailRequiredForLogin => {
+                msg!("employees.error.work_email_required_for_login")
+            }
             Self::ReportingCycle => msg!("employees.error.reporting_cycle"),
             Self::ManagerNotEmployed => msg!("employees.error.manager_not_employed"),
-            Self::AssignmentBeforeEngagement => msg!("employees.error.assignment_before_engagement"),
+            Self::AssignmentBeforeEngagement => {
+                msg!("employees.error.assignment_before_engagement")
+            }
             Self::HasHistory => msg!("employees.error.has_history"),
         }
     }

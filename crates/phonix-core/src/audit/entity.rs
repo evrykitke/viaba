@@ -1,33 +1,7 @@
-//! The change trail: one row per change to one record.
+//! Entity audit trail metadata.
 //!
-//! # Why this is not more events on the security trail
-//!
-//! `identity_events` grew a CRUD event at a time - `user_updated`,
-//! `role_created`, `organization_profile_changed` - and each one cost a
-//! migration restating a CHECK constraint across every tenant database. Two
-//! things were wrong with that:
-//!
-//! * **Auditing a new entity was a schema change.** So the cheapest thing to do
-//!   when adding an entity was not to audit it, which is exactly backwards.
-//! * **Nothing in the row said which record it was.** The trail could answer
-//!   "what happened on Tuesday" and never "what has ever happened to *this*
-//!   role", which is the question a detail page is looking at when it asks.
-//!
-//! A change here names its record - [`EntityKind`] and an id - so both
-//! questions are one index away, and adding an entity is a `const` in
-//! [`kinds`] rather than a migration.
-//!
-//! # The vocabulary is declared here, not in SQL
-//!
-//! `entity_events.entity_type` has no CHECK constraint on purpose. This module
-//! is what knows the set, because it is also what knows what to call each kind
-//! on screen and where its record lives - and a constraint in the database
-//! could only ever repeat that, one migration behind.
-//!
-//! The cost is that an unknown value can be read. That is handled rather than
-//! prevented: a kind this build has never heard of renders as itself, which is
-//! the right behaviour on a rolling deploy where a newer release is already
-//! writing rows an older screen has to show.
+//! Events identify a record by kind and ID. Entity kinds are declared here so
+//! new auditable records do not require a database schema change.
 
 use serde::{Deserialize, Serialize};
 
@@ -39,33 +13,15 @@ use crate::{Message, msg};
 /// A kind of record the trail can talk about.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct EntityKind {
-    /// Stored verbatim in `entity_events.entity_type`.
-    ///
-    /// Renaming one orphans its history, in the sense that the old rows keep
-    /// the old name and stop being found by the new one. Treat it the way a
-    /// permission name is treated: stable, and changed by a data migration if
-    /// it must change at all.
+    /// Stable value stored in `entity_events.entity_type`.
     pub name: &'static str,
-    /// The key for what one of them is called on screen.
-    ///
-    /// A key rather than the word, and a field rather than a `match`, because
-    /// this is a const table: the words come out of the catalog at render time
-    /// and `every_kind_names_itself_with_keys_that_exist` keeps the two in
-    /// step. Read it through [`singular`](Self::singular).
+    /// Translation key for the singular name.
     pub singular_key: &'static str,
     /// The key for what a list of them is called.
     pub plural_key: &'static str,
-    /// Where the record itself lives, with `{id}` standing in for its id.
-    ///
-    /// `None` for a record with no page of its own. Used to turn a trail row
-    /// back into the thing it is about, which is the first thing somebody
-    /// wants after reading one.
+    /// Record URL template; `{id}` is replaced with the record ID.
     pub href: Option<&'static str>,
-    /// One row, workspace-wide, with no id to point at.
-    ///
-    /// The organization's own details are the example: there is exactly one
-    /// profile, and it records [`Self::singleton_id`] as its id so that the
-    /// history section on the settings screen has something to look up.
+    /// Whether this kind has one workspace-wide record.
     pub singleton: bool,
 }
 
@@ -80,10 +36,7 @@ impl EntityKind {
         Message::new(self.plural_key)
     }
 
-    /// The id a singleton records: its own name.
-    ///
-    /// A real key would have to be invented, and an invented key is one that
-    /// two call sites can spell differently. This one cannot be.
+    /// Stable identifier used by singleton records.
     pub const fn singleton_id(&self) -> &'static str {
         self.name
     }
@@ -94,11 +47,7 @@ impl EntityKind {
     }
 }
 
-/// Every kind of record this build audits.
-///
-/// Adding one is a `const` here plus the calls that record it - no migration,
-/// because `entity_events.entity_type` is deliberately unconstrained. See the
-/// module docs.
+/// Entity kinds audited by this build.
 pub mod kinds {
     use super::EntityKind;
 

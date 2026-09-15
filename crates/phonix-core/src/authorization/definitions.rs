@@ -69,11 +69,7 @@
 
 use serde::{Deserialize, Serialize};
 
-/// Every permission name, as a constant.
-///
-/// Always refer to a permission through one of these rather than by writing the
-/// string at the call site: a typo in a literal fails *open* - the check simply
-/// never matches a granted name, and the guard silently does nothing.
+/// Permission names used throughout the application.
 pub mod names {
     pub const PAGES: &str = "Pages";
     pub const DASHBOARD: &str = "Pages.Dashboard";
@@ -234,10 +230,7 @@ pub mod names {
 /// One node of the permission tree.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PermissionDefinition {
-    /// Dotted, stable, and stored verbatim in `role_permissions.name`.
-    ///
-    /// Renaming one is a data migration, not an edit - existing grants are
-    /// keyed by this string.
+    /// Stable dotted name stored in `role_permissions.name`.
     pub name: &'static str,
     /// What the role editor shows.
     pub display_name: &'static str,
@@ -261,18 +254,14 @@ impl PermissionDefinition {
     }
 }
 
-/// The complete tree, in depth-first order.
-///
-/// Declaration order is the display order in the role editor, so parents come
-/// before their children and siblings are grouped. A test enforces both.
+/// Permission tree in depth-first display order.
 pub const DEFINITIONS: &[PermissionDefinition] = &[
     PermissionDefinition {
         name: names::PAGES,
         display_name: "Pages",
         description: Some("Access the application at all."),
         parent: None,
-        // Without this the User role cannot reach any page, since every other
-        // permission hangs beneath it.
+        // Base permission required to access the application.
         default_for_user: true,
     },
     PermissionDefinition {
@@ -283,11 +272,7 @@ pub const DEFINITIONS: &[PermissionDefinition] = &[
         default_for_user: true,
     },
     // -- Files ------------------------------------------------------------
-    //
-    // Not under Administration: uploading an attachment is ordinary work, and
-    // putting it there would mean granting the administration area to anybody
-    // who needs to attach a document. Deleting is the exception - a stored file
-    // is a record, and removing one is not the same act as adding one.
+    // File access is separate from administration.
     PermissionDefinition {
         name: names::FILES,
         display_name: "Files",
@@ -324,10 +309,7 @@ pub const DEFINITIONS: &[PermissionDefinition] = &[
         parent: Some(names::PAGES),
         default_for_user: false,
     },
-    // No Delete. An account that has been posted to can never be removed - the
-    // history would stop naming anything - and one that has not is retired by
-    // clearing Active. A gate over an act nobody may perform is a promise the
-    // software does not keep.
+    // Accounts are retired, not deleted.
     PermissionDefinition {
         name: names::ACCOUNTS,
         display_name: "Chart of accounts",
@@ -351,10 +333,7 @@ pub const DEFINITIONS: &[PermissionDefinition] = &[
         parent: Some(names::ACCOUNTS),
         default_for_user: false,
     },
-    // Posting and reversing are separate grants because they are separate
-    // acts. Posting records what happened; reversing withdraws something
-    // already filed, and an organization that lets everybody do the first and
-    // nobody the second is expressing a real control.
+    // Posting and reversing require separate grants.
     PermissionDefinition {
         name: names::JOURNALS,
         display_name: "Journals",
@@ -376,10 +355,7 @@ pub const DEFINITIONS: &[PermissionDefinition] = &[
         parent: Some(names::JOURNALS),
         default_for_user: false,
     },
-    // One grant for all four statements. A trial balance and a profit and loss
-    // are the same figures arranged twice, and somebody who may read one may
-    // work out the other with a pencil - so splitting them would be a control
-    // that looks like one without being one.
+    // Financial reports share one read permission.
     PermissionDefinition {
         name: names::REPORTS,
         display_name: "Financial reports",
@@ -433,14 +409,18 @@ pub const DEFINITIONS: &[PermissionDefinition] = &[
         // where the money reaches the ledger and stops being somebody's note
         // about a bank statement. Whoever keys the statement and whoever agrees
         // it is right are routinely two people.
-        description: Some("Post a payment: the money reaches the ledger and the invoices it settles stop being owed."),
+        description: Some(
+            "Post a payment: the money reaches the ledger and the invoices it settles stop being owed.",
+        ),
         parent: Some(names::PAYMENTS),
         default_for_user: false,
     },
     PermissionDefinition {
         name: names::PAYMENTS_VOID,
         display_name: "Withdraw",
-        description: Some("Withdraw a posted payment - a cheque that bounced. Its entry is reversed."),
+        description: Some(
+            "Withdraw a posted payment - a cheque that bounced. Its entry is reversed.",
+        ),
         parent: Some(names::PAYMENTS),
         default_for_user: false,
     },
@@ -671,9 +651,7 @@ pub const DEFINITIONS: &[PermissionDefinition] = &[
         // permission asked at the moment the button is pressed, so a
         // storekeeper may book a miscount and only a manager may write forty
         // thousand pounds off.
-        description: Some(
-            "Make an adjustment whose reason is marked as needing approval.",
-        ),
+        description: Some("Make an adjustment whose reason is marked as needing approval."),
         parent: Some(names::STOCK_ADJUST),
         default_for_user: false,
     },
@@ -822,7 +800,9 @@ pub const DEFINITIONS: &[PermissionDefinition] = &[
         // for the mirror reason: it is where an offer becomes stock this
         // workspace has promised somebody else, and whoever quotes a price and
         // whoever accepts an order are routinely two people.
-        description: Some("Accept an order, making its quantities what deliveries are measured against."),
+        description: Some(
+            "Accept an order, making its quantities what deliveries are measured against.",
+        ),
         parent: Some(names::SALES_ORDERS),
         default_for_user: false,
     },
@@ -1027,9 +1007,7 @@ pub const DEFINITIONS: &[PermissionDefinition] = &[
         // the same person's job, and a grant that let somebody add an employee
         // but not move them would leave the record wrong the first time
         // anybody changed desks.
-        description: Some(
-            "Add somebody, move them between departments, and record a leaver.",
-        ),
+        description: Some("Add somebody, move them between departments, and record a leaver."),
         parent: Some(names::EMPLOYEES),
         default_for_user: false,
     },

@@ -1,8 +1,4 @@
-//! Typed mirror of `config/*.toml`.
-//!
-//! Every field here has a counterpart in `config/base.toml`. Adding a field
-//! without a default means the process refuses to start until the TOML is
-//! updated, which is the behaviour we want for anything load-bearing.
+//! Typed configuration loaded from `config/*.toml`.
 
 use secrecy::{ExposeSecret, SecretString};
 use serde::Deserialize;
@@ -38,35 +34,10 @@ pub struct AppSection {
     pub name: String,
     /// Overwritten from `PHONIX_ENV` during load; the TOML value is advisory.
     pub environment: String,
-    /// Where `<code>.json` translation files are read from at boot.
-    ///
-    /// Relative to the working directory. Defaulted rather than required,
-    /// because English needs no files at all - it is compiled in - so a
-    /// deployment that ships one language should not have to say so.
+    /// Relative directory containing translation files.
     #[serde(default = "default_locales_dir")]
     pub locales_dir: String,
-    /// What the badge in the public top bar says, if anything.
-    ///
-    /// # Why this is not just [`Self::environment`]
-    ///
-    /// It was, and the rule was "show it unless the environment is
-    /// production". That reads sensibly and is wrong for the case that
-    /// actually matters: a deployment running `PHONIX_ENV=production` because
-    /// it needs production's *hardening* - real TLS, a real proxy header for
-    /// the rate limiter, no auto-provisioning - while still being a test box
-    /// somebody is trying things on. Under the old rule that box silently
-    /// claimed to be the real thing.
-    ///
-    /// Turning `PHONIX_ENV` down to `development` to get the badge back is the
-    /// trap this exists to close, because it does not merely relax a label. It
-    /// stops `production.toml` loading at all: the session cookie loses
-    /// `Secure`, `auto_provision` comes back on, and the rate limiter's
-    /// `client_ip_header` empties out - which behind nginx keys every request
-    /// in the world to `127.0.0.1` and puts the entire internet in one bucket.
-    ///
-    /// So: an explicit label, set per deployment. Empty falls back to
-    /// [`Self::environment`] outside production, which keeps a developer's
-    /// machine labelled without configuring anything.
+    /// Optional public environment label. Empty uses non-production `environment`.
     #[serde(default)]
     pub public_label: String,
     /// Where the footer of a public screen points.
@@ -75,11 +46,7 @@ pub struct AppSection {
 }
 
 impl AppSection {
-    /// What to print in the public top bar, or `None` for nothing.
-    ///
-    /// A badge that is always there is furniture nobody reads, so the final
-    /// production deployment shows none - it is the one deployment where
-    /// "which copy of this am I looking at" has an obvious answer.
+    /// Returns the public label, if applicable.
     pub fn badge(&self) -> Option<&str> {
         let explicit = self.public_label.trim();
         if !explicit.is_empty() {
@@ -99,16 +66,7 @@ fn default_locales_dir() -> String {
     "locales".to_owned()
 }
 
-/// The handful of destinations a signed-out visitor might want.
-///
-/// Every one is optional and every one defaults to empty, which renders no
-/// link at all. That is the point: these are pages this application does not
-/// serve, so the alternative to configuring them is not a sensible default, it
-/// is a footer full of links to a 404. A deployment that has a privacy policy
-/// says where it is; one that has not says nothing.
-///
-/// Absolute URLs. They may well live on a marketing site that is not this
-/// application - which is exactly why they are configuration and not routes.
+/// Optional public-site links.
 #[derive(Debug, Clone, Default, Deserialize)]
 pub struct PublicLinks {
     #[serde(default)]
@@ -123,10 +81,7 @@ pub struct PublicLinks {
 }
 
 impl PublicLinks {
-    /// One link, or `None` when it is not configured.
-    ///
-    /// Trimmed, because a value that is spaces is a value somebody meant to
-    /// remove - and a footer link with an empty `href` reloads the page.
+    /// Returns a trimmed link when configured.
     fn some(value: &str) -> Option<&str> {
         let value = value.trim();
         (!value.is_empty()).then_some(value)

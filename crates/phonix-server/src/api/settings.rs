@@ -60,12 +60,7 @@ use super::problem::Problem;
 // The security policy
 // ---------------------------------------------------------------------------
 
-/// What this workspace requires of a password.
-///
-/// One type for both directions, unlike the currency resource. The shapes are
-/// genuinely identical - this is a policy that is read and written whole - and
-/// declaring two would be two places to add the next field to, one of which
-/// would eventually be forgotten.
+/// Workspace password policy.
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[schema(as = PasswordPolicy)]
 pub struct PasswordPolicyResource {
@@ -241,11 +236,7 @@ impl From<SecurityPolicyResource> for WorkspaceSecuritySettings {
     }
 }
 
-/// What this workspace requires of the people in it.
-///
-/// **Ungated**, because the service is: somebody about to choose a password has
-/// to be told the rules, and somebody being sent to enrolment has to be told
-/// why. Neither is a secret from the person it applies to.
+/// Returns the workspace security policy.
 #[utoipa::path(
     get,
     path = "/settings/security",
@@ -264,12 +255,7 @@ pub async fn get_security(caller: ApiCaller) -> Result<Json<SecurityPolicyResour
     Ok(Json(SecurityPolicyResource::from(&stored)))
 }
 
-/// Replace the three policies.
-///
-/// Whole-document, and validated field by field by the service - so a minimum
-/// length below the compiled floor comes back as a 422 naming `min_length`
-/// rather than as a refusal of the whole body with nothing to act on. Requires
-/// `Pages.Administration.Settings`.
+/// Replaces the workspace security policies.
 #[utoipa::path(
     put,
     path = "/settings/security",
@@ -307,11 +293,7 @@ pub async fn save_security(
 // The organization
 // ---------------------------------------------------------------------------
 
-/// Who this workspace legally is.
-///
-/// What appears on everything it issues, which is why the change trail records
-/// it as a `{from, to}` pair and why `GET /audit/changes?filter[kind]=organization`
-/// is worth knowing about.
+/// Workspace legal identity.
 #[derive(Debug, Clone, Serialize, ToSchema)]
 #[schema(as = Organization)]
 pub struct OrganizationResource {
@@ -379,13 +361,7 @@ impl From<&OrganizationProfile> for OrganizationResource {
     }
 }
 
-/// What `PUT /settings/organization` accepts.
-///
-/// The read type minus `logo_file_id`, and the difference is real rather than
-/// cosmetic: a draft opened before somebody else replaced the logo would put
-/// the old one back on every document the workspace issues, without anybody
-/// having chosen that. The field is therefore not something this endpoint can
-/// be handed at all.
+/// Input accepted by `PUT /settings/organization`.
 #[derive(Debug, Clone, Deserialize, ToSchema)]
 #[schema(as = OrganizationSave)]
 pub struct SaveOrganization {
@@ -658,11 +634,7 @@ pub struct SaveMail {
     pub encryption: MailEncryptionResource,
 }
 
-/// This workspace's relay.
-///
-/// Gated on `Pages.Administration.Settings`. A host and a username are not a
-/// secret from an administrator; the password is not returned by this or any
-/// other read.
+/// Workspace mail relay; passwords are never returned.
 #[utoipa::path(
     get,
     path = "/settings/mail",
