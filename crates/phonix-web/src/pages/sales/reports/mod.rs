@@ -1,10 +1,10 @@
 //! The four statements.
 //!
 //! ```text
-//! /sales/reports/trial-balance       every account, both columns
-//! /sales/reports/balance-sheet       what is owned and owed, at a date
-//! /sales/reports/profit-and-loss     what was earned and spent, between two
-//! /sales/reports/statement           one customer's account
+//! /accounting/reports/trial-balance       every account, both columns
+//! /accounting/reports/balance-sheet       what is owned and owed, at a date
+//! /accounting/reports/profit-and-loss     what was earned and spent, between two
+//! /accounting/reports/statement           one customer's account
 //! ```
 //!
 //! # Nothing here reads the clock

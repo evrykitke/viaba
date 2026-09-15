@@ -556,7 +556,7 @@ event, and back-dating it into the period being corrected would mean a
 withdrawal is only possible in a month still open — which is to say, not when it
 is noticed.
 
-**And account determination has a screen.** `/sales/accounts/roles`, which the
+**And account determination has a screen.** `/accounting/accounts/roles`, which the
 chart had been missing since 0004 invented the table: until now a role the
 defaults could not fill left its posting refused with no way to fix it from
 inside the application. It applies the same rule the item's accounts panel

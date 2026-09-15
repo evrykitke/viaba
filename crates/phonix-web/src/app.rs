@@ -226,46 +226,59 @@ pub fn app() -> impl IntoView {
                     <Route path=path!("/dashboard") view=DashboardPage />
                     <Route path=path!("/account") view=AccountPage />
 
-                    // Sales. The first app, and the first routes that are a
-                    // product rather than infrastructure.
-                    // The app's own front page, which is where the launcher
-                    // and the store send anybody who picks Books.
+                    // Accounting. The first app, and the first routes that are a
+                    // product rather than infrastructure. The namespace says what
+                    // the screens are rather than which crate holds them.
+                    // The app's own front page, where the launcher and the store
+                    // send anybody who picks Books. Still `/sales`: a test in
+                    // `phonix_core::apps` ties an app's home to its permission
+                    // root, so this moves when `Pages.Sales` does.
                     <Route path=path!("/sales") view=SalesHomePage />
-                    <Route path=path!("/sales/accounts") view=AccountsPage />
+                    <Route path=path!("/accounting/accounts") view=AccountsPage />
                     // Before `:id`, so "new" is a screen rather than an
                     // account id that fails to parse.
-                    <Route path=path!("/sales/accounts/new") view=AccountNewPage />
+                    <Route path=path!("/accounting/accounts/new") view=AccountNewPage />
                     // Before the `:id` route it shares a prefix with. A
                     // static segment wins over a parameter either way, and
-                    // `/sales/accounts/new` above has been relying on that
+                    // `/accounting/accounts/new` above has been relying on that
                     // since the chart had a form.
-                    <Route path=path!("/sales/accounts/roles") view=AccountRolesPage />
-                    <Route path=path!("/sales/accounts/:id") view=ChartAccountPage />
-                    <Route path=path!("/sales/journals") view=JournalsPage />
+                    <Route path=path!("/accounting/accounts/roles") view=AccountRolesPage />
+                    <Route path=path!("/accounting/accounts/:id") view=ChartAccountPage />
+                    <Route path=path!("/accounting/journals") view=JournalsPage />
                     // Before `:id`, so "new" is a screen rather than a journal
                     // id that fails to parse.
-                    <Route path=path!("/sales/journals/new") view=JournalNewPage />
-                    <Route path=path!("/sales/journals/:id") view=JournalPage />
-                    <Route path=path!("/sales/periods") view=PeriodsPage />
+                    <Route path=path!("/accounting/journals/new") view=JournalNewPage />
+                    <Route path=path!("/accounting/journals/:id") view=JournalPage />
+                    <Route path=path!("/accounting/periods") view=PeriodsPage />
                     // The four statements. Under the app rather than under
                     // a reporting module of their own: they are what this app's
                     // own ledger says, and a reader opens them from here.
-                    <Route path=path!("/sales/reports/trial-balance") view=TrialBalancePage />
-                    <Route path=path!("/sales/reports/balance-sheet") view=BalanceSheetPage />
-                    <Route path=path!("/sales/reports/profit-and-loss") view=ProfitAndLossPage />
-                    <Route path=path!("/sales/reports/statement") view=CustomerStatementPage />
-                    <Route path=path!("/sales/payments") view=PaymentsPage />
-                    <Route path=path!("/sales/payments/new") view=PaymentNewPage />
-                    <Route path=path!("/sales/payments/:id") view=PaymentPage />
-                    <Route path=path!("/sales/invoices") view=InvoicesPage />
+                    <Route path=path!("/accounting/reports/trial-balance") view=TrialBalancePage />
+                    <Route path=path!("/accounting/reports/balance-sheet") view=BalanceSheetPage />
+                    <Route path=path!("/accounting/reports/profit-and-loss") view=ProfitAndLossPage />
+                    <Route path=path!("/accounting/reports/statement") view=CustomerStatementPage />
+
+                    // Selling: the chain in the order it happens. Two of these
+                    // documents are app-inventory's and two app-books', which the
+                    // address no longer says.
+                    <Route path=path!("/selling/orders") view=SalesOrdersPage />
+                    <Route path=path!("/selling/orders/new") view=SalesOrderNewPage />
+                    <Route path=path!("/selling/orders/:id") view=SalesOrderPage />
+                    <Route path=path!("/selling/deliveries") view=DeliveriesPage />
+                    <Route path=path!("/selling/deliveries/new") view=DeliveryNewPage />
+                    <Route path=path!("/selling/deliveries/:id") view=DeliveryPage />
+                    <Route path=path!("/selling/invoices") view=InvoicesPage />
                     // Before the parameter, so "new" is a screen rather than an
                     // invoice id that fails to parse.
-                    <Route path=path!("/sales/invoices/new") view=InvoiceNewPage />
+                    <Route path=path!("/selling/invoices/new") view=InvoiceNewPage />
                     // One address for both the editor and the document: posting
                     // does not move an invoice, it changes what may be done to
                     // it, and a link somebody sent last week should still open
                     // the thing they meant.
-                    <Route path=path!("/sales/invoices/:id") view=InvoicePage />
+                    <Route path=path!("/selling/invoices/:id") view=InvoicePage />
+                    <Route path=path!("/selling/payments") view=PaymentsPage />
+                    <Route path=path!("/selling/payments/new") view=PaymentNewPage />
+                    <Route path=path!("/selling/payments/:id") view=PaymentPage />
 
                     // Master data. Not under /admin, for the reason the
                     // permission tree is not: keeping a customer list up to
@@ -325,12 +338,6 @@ pub fn app() -> impl IntoView {
                         path=path!("/inventory/consolidations/:id")
                         view=ConsolidationPage
                     />
-                    <Route path=path!("/inventory/deliveries") view=DeliveriesPage />
-                    <Route path=path!("/inventory/deliveries/new") view=DeliveryNewPage />
-                    <Route path=path!("/inventory/deliveries/:id") view=DeliveryPage />
-                    <Route path=path!("/inventory/sales-orders") view=SalesOrdersPage />
-                    <Route path=path!("/inventory/sales-orders/new") view=SalesOrderNewPage />
-                    <Route path=path!("/inventory/sales-orders/:id") view=SalesOrderPage />
                     <Route path=path!("/inventory/orders") view=PurchaseOrdersPage />
                     <Route path=path!("/inventory/orders/new") view=PurchaseOrderNewPage />
                     <Route path=path!("/inventory/orders/:id") view=PurchaseOrderPage />

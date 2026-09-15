@@ -109,13 +109,13 @@ pub fn accounts_grid() -> GridConfig<Account> {
             ],
         ))
         .toolbar(
-            ToolbarAction::link(l!("accounts.new"), Icon::Plus, "/sales/accounts/new")
+            ToolbarAction::link(l!("accounts.new"), Icon::Plus, "/accounting/accounts/new")
                 .require(permissions::ACCOUNTS_CREATE)
                 .primary(),
         )
         .action(
             RowAction::link(l!("common.open"), Icon::ArrowRight, |row: &Account| {
-                format!("/sales/accounts/{}", row.id)
+                format!("/accounting/accounts/{}", row.id)
             })
             .require(permissions::ACCOUNTS),
         )

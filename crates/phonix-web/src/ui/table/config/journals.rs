@@ -133,7 +133,7 @@ pub fn journals_grid() -> GridConfig<JournalSummary> {
     // reading this list newest first, and which used to have no control at all.
     .date_filter(DateFilter::new("entry", l!("journals.entry_date")))
     .toolbar(
-        ToolbarAction::link(l!("journals.new"), Icon::Plus, "/sales/journals/new")
+        ToolbarAction::link(l!("journals.new"), Icon::Plus, "/accounting/journals/new")
             .require(permissions::JOURNALS_POST)
             .primary(),
     )
@@ -141,7 +141,7 @@ pub fn journals_grid() -> GridConfig<JournalSummary> {
         RowAction::link(
             l!("common.open"),
             Icon::ArrowRight,
-            |row: &JournalSummary| format!("/sales/journals/{}", row.id),
+            |row: &JournalSummary| format!("/accounting/journals/{}", row.id),
         )
         .require(permissions::JOURNALS),
     )

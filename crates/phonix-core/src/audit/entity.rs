@@ -161,7 +161,7 @@ pub mod kinds {
         name: "sales_invoice",
         singular_key: "entity.sales_invoice.singular",
         plural_key: "entity.sales_invoice.plural",
-        href: Some("/sales/invoices/{id}"),
+        href: Some("/selling/invoices/{id}"),
         singleton: false,
     };
 
@@ -175,7 +175,7 @@ pub mod kinds {
         name: "payment",
         singular_key: "entity.payment.singular",
         plural_key: "entity.payment.plural",
-        href: Some("/sales/payments/{id}"),
+        href: Some("/selling/payments/{id}"),
         singleton: false,
     };
 
@@ -190,7 +190,7 @@ pub mod kinds {
         name: "journal",
         singular_key: "entity.journal.singular",
         plural_key: "entity.journal.plural",
-        href: Some("/sales/journals/{id}"),
+        href: Some("/accounting/journals/{id}"),
         singleton: false,
     };
 
@@ -203,7 +203,7 @@ pub mod kinds {
         name: "period",
         singular_key: "entity.period.singular",
         plural_key: "entity.period.plural",
-        href: Some("/sales/periods"),
+        href: Some("/accounting/periods"),
         singleton: false,
     };
 
@@ -218,7 +218,7 @@ pub mod kinds {
         name: "account",
         singular_key: "entity.account.singular",
         plural_key: "entity.account.plural",
-        href: Some("/sales/accounts/{id}"),
+        href: Some("/accounting/accounts/{id}"),
         singleton: false,
     };
 
@@ -233,7 +233,7 @@ pub mod kinds {
         name: "account_role",
         singular_key: "entity.account_role.singular",
         plural_key: "entity.account_role.plural",
-        href: Some("/sales/accounts/roles"),
+        href: Some("/accounting/accounts/roles"),
         singleton: true,
     };
 
@@ -404,7 +404,7 @@ pub mod kinds {
         name: "sales_order",
         singular_key: "entity.sales_order.singular",
         plural_key: "entity.sales_order.plural",
-        href: Some("/inventory/sales-orders/{id}"),
+        href: Some("/selling/orders/{id}"),
         singleton: false,
     };
 
@@ -424,7 +424,7 @@ pub mod kinds {
         name: "delivery",
         singular_key: "entity.delivery.singular",
         plural_key: "entity.delivery.plural",
-        href: Some("/inventory/deliveries/{id}"),
+        href: Some("/selling/deliveries/{id}"),
         singleton: false,
     };
 

@@ -56,7 +56,7 @@ use crate::ui::lookup::SelectField;
 use crate::ui::table::DataGrid;
 use crate::ui::table::config::payments::payments_grid;
 
-const BACK: &str = "/sales/payments";
+const BACK: &str = "/selling/payments";
 
 /// Recording one.
 #[component]
@@ -291,7 +291,7 @@ fn editor_body(
 
                         if let Some(id) = id {
                             navigate(
-                                &format!("/sales/payments/{id}"),
+                                &format!("/selling/payments/{id}"),
                                 leptos_router::NavigateOptions {
                                     replace: true,
                                     ..Default::default()
@@ -332,7 +332,7 @@ fn editor_body(
                                         .titled(l!("payments.post")),
                                 );
                                 navigate(
-                                    &format!("/sales/payments/{id}"),
+                                    &format!("/selling/payments/{id}"),
                                     leptos_router::NavigateOptions {
                                         replace: true,
                                         ..Default::default()
@@ -929,7 +929,7 @@ fn payment_document(payment: Payment, reload: Callback<()>) -> impl IntoView {
                                                 .clone()
                                                 .unwrap_or_default();
                                             let href = format!(
-                                                "/sales/invoices/{}",
+                                                "/selling/invoices/{}",
                                                 line.invoice_id,
                                             );
 
@@ -1014,7 +1014,7 @@ fn journal_row(payment_id: Uuid) -> impl IntoView {
                                 <dd>
                                     <a
                                         class="font-mono text-xs text-brand hover:underline"
-                                        href=format!("/sales/journals/{journal_id}")
+                                        href=format!("/accounting/journals/{journal_id}")
                                     >
                                         {number}
                                     </a>

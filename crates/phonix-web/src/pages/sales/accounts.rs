@@ -91,7 +91,7 @@ pub fn account_new_page() -> impl IntoView {
             title=l!("accounts.new")
             subtitle=l!("accounts.new.subtitle")
             icon=Icon::ListTree
-            back=("/sales/accounts", l!("accounts.title"))
+            back=("/accounting/accounts", l!("accounts.title"))
         />
 
         <div class="max-w-3xl">

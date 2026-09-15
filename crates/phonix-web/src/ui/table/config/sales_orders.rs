@@ -209,17 +209,13 @@ pub fn sales_orders_grid() -> GridConfig<SaleSummary> {
         )
         .date_filter(DateFilter::new("ordered", l!("sales_orders.ordered")))
         .toolbar(
-            ToolbarAction::link(
-                l!("sales_orders.new"),
-                Icon::Plus,
-                "/inventory/sales-orders/new",
-            )
-            .require(permissions::SALES_ORDERS_CREATE)
-            .primary(),
+            ToolbarAction::link(l!("sales_orders.new"), Icon::Plus, "/selling/orders/new")
+                .require(permissions::SALES_ORDERS_CREATE)
+                .primary(),
         )
         .action(
             RowAction::link(l!("common.open"), Icon::ArrowRight, |row: &SaleSummary| {
-                format!("/inventory/sales-orders/{}", row.id)
+                format!("/selling/orders/{}", row.id)
             })
             .require(permissions::SALES_ORDERS),
         )

@@ -1,27 +1,29 @@
-//! Sales: what this workspace invoices.
+//! Books' screens: the ledger, and the two sell-side documents it owns.
+//!
+//! The module keeps the crate's name; the addresses no longer do.
 //!
 //! ```text
-//! /sales                   the app's home    counts and the ways in
-//! /sales/accounts          the chart          a grid and a tree
-//! /sales/accounts/new      add one            a form
-//! /sales/accounts/:id      one account        Details | History
-//! /sales/accounts/roles    account determination  a role per row
-//! /sales/journals          the ledger         a grid
-//! /sales/journals/new      post one           two money columns
-//! /sales/journals/:id      one journal        the document, read-only
-//! /sales/periods           the calendar       open a year, close a month
-//! /sales/reports/...       the four statements
-//! /sales/invoices          the list          a grid
-//! /sales/invoices/new      raise one         the editor
-//! /sales/invoices/:id      one invoice       the editor, or the document
-//! /sales/payments          money in          a grid
-//! /sales/payments/new      record one        the editor
-//! /sales/payments/:id      one payment       the editor, or the document
+//! /sales                      the app's home         counts and the ways in
+//! /accounting/accounts        the chart              a grid and a tree
+//! /accounting/accounts/new    add one                a form
+//! /accounting/accounts/:id    one account            Details | History
+//! /accounting/accounts/roles  account determination  a role per row
+//! /accounting/journals        the ledger             a grid
+//! /accounting/journals/new    post one               two money columns
+//! /accounting/journals/:id    one journal            the document, read-only
+//! /accounting/periods         the calendar           open a year, close a month
+//! /accounting/reports/...     the four statements
+//! /selling/invoices           the list               a grid
+//! /selling/invoices/new       raise one              the editor
+//! /selling/invoices/:id       one invoice            the editor, or the document
+//! /selling/payments           money in               a grid
+//! /selling/payments/new       record one             the editor
+//! /selling/payments/:id       one payment            the editor, or the document
 //! ```
 //!
 //! # One route, two screens
 //!
-//! `/sales/invoices/:id` is the editor while the invoice is a draft and the
+//! `/selling/invoices/:id` is the editor while the invoice is a draft and the
 //! *document* once it has been posted. One address rather than two, because
 //! posting does not move an invoice - it changes what may be done to it, and a
 //! link somebody sent last week should still open the thing they meant.

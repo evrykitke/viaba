@@ -44,6 +44,9 @@
 //! /inventory/units/:id            Details | History
 //! ```
 //!
+//! The sales order and the delivery are this module's too, and answer under
+//! `/selling` beside the invoice and the payment, which are Books'.
+//!
 //! The four screens under items are setup: a workspace touches categories,
 //! warehouses, locations and units when it starts and rarely afterwards. Items
 //! is the one somebody has open all day, which is why it is the only screen

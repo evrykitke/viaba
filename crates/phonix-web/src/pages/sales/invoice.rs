@@ -100,7 +100,7 @@ pub fn invoice_new_page() -> impl IntoView {
             title=l!("invoices.new")
             subtitle=l!("invoices.new.subtitle")
             icon=Icon::FileText
-            back=("/sales/invoices", l!("invoices.title"))
+            back=("/selling/invoices", l!("invoices.title"))
         />
 
         <Transition fallback=|| {
@@ -172,7 +172,7 @@ pub fn invoice_page() -> impl IntoView {
                                     title=heading
                                     subtitle=party
                                     icon=Icon::FileText
-                                    back=("/sales/invoices", l!("invoices.title"))
+                                    back=("/selling/invoices", l!("invoices.title"))
                                 >
                                     <StatusBadge status=status />
                                 </PageHeader>
@@ -199,7 +199,7 @@ pub fn invoice_page() -> impl IntoView {
                                 <PageHeader
                                     title=l!("entity.sales_invoice.singular")
                                     icon=Icon::FileText
-                                    back=("/sales/invoices", l!("invoices.title"))
+                                    back=("/selling/invoices", l!("invoices.title"))
                                 />
                                 <Notice
                                     message=Signal::derive(move || Some(err.to_string()))
@@ -373,7 +373,7 @@ fn editor_body(
                         // exists.
                         if let Some(id) = id {
                             navigate(
-                                &format!("/sales/invoices/{id}"),
+                                &format!("/selling/invoices/{id}"),
                                 leptos_router::NavigateOptions {
                                     replace: true,
                                     ..Default::default()
@@ -420,7 +420,7 @@ fn editor_body(
                                 // now, and this screen renders a different
                                 // thing for one.
                                 navigate(
-                                    &format!("/sales/invoices/{id}"),
+                                    &format!("/selling/invoices/{id}"),
                                     leptos_router::NavigateOptions {
                                         replace: true,
                                         ..Default::default()
@@ -459,7 +459,7 @@ fn editor_body(
                             Ok(()) => {
                                 alerts.post(Alert::success(l!("invoices.deleted")));
                                 navigate(
-                                    "/sales/invoices",
+                                    "/selling/invoices",
                                     leptos_router::NavigateOptions::default(),
                                 );
                             }
@@ -992,7 +992,7 @@ fn journal_row(invoice_id: Uuid) -> impl IntoView {
                                 <dd>
                                     <a
                                         class="font-mono text-xs text-brand hover:underline"
-                                        href=format!("/sales/journals/{journal_id}")
+                                        href=format!("/accounting/journals/{journal_id}")
                                     >
                                         {number}
                                     </a>
@@ -1251,7 +1251,7 @@ fn invoice_document(invoice: app_books::invoice::Invoice, reload: Callback<()>) 
                             let navigate = navigate.clone();
                             move |()| {
                                 navigate(
-                                    &format!("/sales/invoices/new?credits={id}"),
+                                    &format!("/selling/invoices/new?credits={id}"),
                                     leptos_router::NavigateOptions::default(),
                                 );
                             }

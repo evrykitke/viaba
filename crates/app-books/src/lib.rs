@@ -100,7 +100,7 @@ pub const SETUP: &[phonix_core::SetupItem] = &[
     phonix_core::SetupItem::blocking(
         "chart_of_accounts",
         "books.setup.chart",
-        "/sales/accounts",
+        "/accounting/accounts",
         "books.setup.chart_missing",
     ),
     // Blocking for the same reason the chart is: the ledger refuses any date no
@@ -110,7 +110,7 @@ pub const SETUP: &[phonix_core::SetupItem] = &[
     phonix_core::SetupItem::blocking(
         "accounting_periods",
         "books.setup.periods",
-        "/sales/periods",
+        "/accounting/periods",
         "books.setup.periods_missing",
     ),
     // Master's screen, reached by a link. Books holds no code of master's, and

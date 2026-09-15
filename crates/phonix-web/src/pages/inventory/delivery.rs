@@ -45,7 +45,7 @@ use crate::ui::alert::{Alert, Alerts, Confirm};
 use crate::ui::form::field::Choice;
 use crate::ui::lookup::SelectField;
 
-const BACK: &str = "/inventory/deliveries";
+const BACK: &str = "/selling/deliveries";
 
 /// Booking goods out.
 ///
@@ -268,7 +268,7 @@ fn editor_body(
 
                         if let Some(id) = id {
                             navigate(
-                                &format!("/inventory/deliveries/{id}"),
+                                &format!("/selling/deliveries/{id}"),
                                 leptos_router::NavigateOptions {
                                     replace: true,
                                     ..Default::default()
@@ -314,7 +314,7 @@ fn editor_body(
                                 // Reload the route: it is evidence now, and
                                 // this screen draws a different thing for one.
                                 navigate(
-                                    &format!("/inventory/deliveries/{id}"),
+                                    &format!("/selling/deliveries/{id}"),
                                     leptos_router::NavigateOptions {
                                         replace: true,
                                         ..Default::default()
@@ -813,7 +813,7 @@ fn delivery_document(delivery: Delivery) -> impl IntoView {
                                         <dd>
                                             <a
                                                 class="font-mono text-xs text-brand hover:underline"
-                                                href=format!("/inventory/sales-orders/{order_id}")
+                                                href=format!("/selling/orders/{order_id}")
                                             >
                                                 {number}
                                             </a>
@@ -908,7 +908,7 @@ fn delivery_document(delivery: Delivery) -> impl IntoView {
                     icon=Icon::FileText
                     on_click=Callback::new(move |()| {
                         navigate(
-                            &format!("/sales/invoices/new?delivery={id}"),
+                            &format!("/selling/invoices/new?delivery={id}"),
                             leptos_router::NavigateOptions::default(),
                         );
                     })

@@ -69,7 +69,7 @@ pub fn journal_page() -> impl IntoView {
                                 <PageHeader
                                     title=l!("entity.journal.singular")
                                     icon=Icon::ScrollText
-                                    back=("/sales/journals", l!("journals.title"))
+                                    back=("/accounting/journals", l!("journals.title"))
                                 />
                                 <Notice
                                     message=Signal::derive(move || Some(err.to_string()))
@@ -120,7 +120,7 @@ fn journal_document(journal: Posted, reload: Callback<()>) -> impl IntoView {
             title=number.clone()
             subtitle=journal.narration.clone()
             icon=Icon::ScrollText
-            back=("/sales/journals", l!("journals.title"))
+            back=("/accounting/journals", l!("journals.title"))
         >
             <div class="flex flex-wrap items-center gap-1.5">
                 {is_reversal.then(|| view! { <Badge label=l!("journals.reversal") tone=Tone::Warning /> })}
@@ -135,7 +135,7 @@ fn journal_document(journal: Posted, reload: Callback<()>) -> impl IntoView {
                         {l!("journals.reverses")}
                         " "
                         <a
-                            href=format!("/sales/journals/{original}")
+                            href=format!("/accounting/journals/{original}")
                             class="text-brand hover:underline"
                         >
                             {l!("journals.the_original")}
@@ -224,7 +224,7 @@ fn line_row(line: PostedLine) -> impl IntoView {
     let is_debit = line.side == Side::Debit;
     let amount = line.base_amount.to_display_string();
     let account = format!("{} · {}", line.account_number, line.account_name);
-    let account_href = format!("/sales/accounts/{}", line.account_id);
+    let account_href = format!("/accounting/accounts/{}", line.account_id);
     let memo = line.memo.clone().unwrap_or_default();
     let dimensions = line.dimensions.clone();
 

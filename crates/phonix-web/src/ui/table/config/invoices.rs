@@ -159,19 +159,19 @@ pub fn invoices_grid() -> GridConfig<InvoiceSummary> {
     ))
     .date_filter(DateFilter::new("issued", l!("invoices.issued")))
     .toolbar(
-        ToolbarAction::link(l!("invoices.new"), Icon::Plus, "/sales/invoices/new")
+        ToolbarAction::link(l!("invoices.new"), Icon::Plus, "/selling/invoices/new")
             .require(permissions::INVOICES_CREATE)
             .primary(),
     )
     .action(
         RowAction::link(l!("common.open"), Icon::Eye, |row: &InvoiceSummary| {
-            format!("/sales/invoices/{}", row.id)
+            format!("/selling/invoices/{}", row.id)
         })
         .require(permissions::INVOICES),
     )
     .action(
         RowAction::link(l!("common.edit"), Icon::Pencil, |row: &InvoiceSummary| {
-            format!("/sales/invoices/{}", row.id)
+            format!("/selling/invoices/{}", row.id)
         })
         // Only a draft can be edited. Offering it on a posted document would be
         // offering a button that only ever produces a refusal.

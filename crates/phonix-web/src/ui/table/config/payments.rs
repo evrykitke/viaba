@@ -148,7 +148,7 @@ pub fn payments_grid() -> GridConfig<PaymentSummary> {
         )
         .date_filter(DateFilter::new("received", l!("payments.received_on")))
         .toolbar(
-            ToolbarAction::link(l!("payments.new"), Icon::Plus, "/sales/payments/new")
+            ToolbarAction::link(l!("payments.new"), Icon::Plus, "/selling/payments/new")
                 .require(permissions::PAYMENTS_CREATE)
                 .primary(),
         )
@@ -156,7 +156,7 @@ pub fn payments_grid() -> GridConfig<PaymentSummary> {
             RowAction::link(
                 l!("common.open"),
                 Icon::ArrowRight,
-                |row: &PaymentSummary| format!("/sales/payments/{}", row.id),
+                |row: &PaymentSummary| format!("/selling/payments/{}", row.id),
             )
             .require(permissions::PAYMENTS),
         )

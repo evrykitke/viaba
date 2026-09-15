@@ -112,7 +112,7 @@ pub fn sales_home_page() -> impl IntoView {
         Shortcut::new(
             t(&Message::new("invoices.new")),
             t(&Message::new("books.home.new_detail")),
-            "/sales/invoices/new",
+            "/selling/invoices/new",
             Icon::Plus,
         )
         .require(permissions::INVOICES_CREATE)
@@ -120,7 +120,7 @@ pub fn sales_home_page() -> impl IntoView {
         Shortcut::new(
             t(&Message::new("nav.invoices")),
             t(&Message::new("books.home.list_detail")),
-            "/sales/invoices",
+            "/selling/invoices",
             Icon::FileText,
         )
         .require(permissions::INVOICES),
@@ -130,7 +130,7 @@ pub fn sales_home_page() -> impl IntoView {
         Shortcut::new(
             t(&Message::new("nav.reports")),
             t(&Message::new("books.home.reports_detail")),
-            "/sales/reports/trial-balance",
+            "/accounting/reports/trial-balance",
             Icon::ChartColumn,
         )
         .require(permissions::REPORTS),
@@ -152,7 +152,7 @@ pub fn sales_home_page() -> impl IntoView {
         Shortcut::new(
             t(&Message::new("nav.sales_orders")),
             t(&Message::new("books.home.orders_detail")),
-            "/inventory/sales-orders",
+            "/selling/orders",
             Icon::ScrollText,
         )
         .require(permissions::SALES_ORDERS),

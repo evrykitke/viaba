@@ -50,7 +50,7 @@ pub fn journal_new_page() -> impl IntoView {
             title=l!("journals.new")
             subtitle=l!("journals.new.subtitle")
             icon=Icon::ScrollText
-            back=("/sales/journals", l!("journals.title"))
+            back=("/accounting/journals", l!("journals.title"))
         />
 
         <Transition fallback=|| {
@@ -146,7 +146,7 @@ fn journal_editor(context: JournalContext) -> impl IntoView {
                         number = posted.number
                     )));
                     navigate(
-                        &format!("/sales/journals/{}", posted.id),
+                        &format!("/accounting/journals/{}", posted.id),
                         Default::default(),
                     );
                 }

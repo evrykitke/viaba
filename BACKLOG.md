@@ -25,20 +25,22 @@ commits it is three items.
 
 ## Next
 
-- [ ] `phonix-web` The routes that still name the crates
-      why: the menu now reads Selling and Accounting, but the addresses behind
-           it read `/sales/reports/balance-sheet` and
-           `/inventory/sales-orders` - the crate names the labels just stopped
-           using. Second half of the menu work, deliberately left out of that
-           commit because moving a route is a different kind of change from
-           renaming a label.
-      touch: crates/phonix-web/src/app.rs, the `pages/sales` and
-           `pages/inventory` modules, and every hardcoded href across
-           phonix-web - the four report `back=` links point at `/sales`.
-      done: the accounting screens answer under `/accounting`, the sales order
-            and delivery under `/selling`, and no `href` in the navigation tree
-            names a crate. Nothing is released, so no redirect is left behind
-            unless one is asked for.
+- [ ] `phonix-core` The permission root that still says Sales
+      why: the routes now read `/accounting` and `/selling`, but Books'
+           app home is still `/sales` - the one address the route move could
+           not touch, because `every_home_sits_under_its_permission` in
+           `crates/phonix-core/src/apps.rs` asserts an app's home equals its
+           permission root lowercased, and the root is `Pages.Sales`. Until
+           the root moves, the Accounting menu's Overview link and the four
+           reports' back links point at a namespace nothing else uses.
+      touch: crates/phonix-core/src/authorization/definitions.rs (27
+           constants and the tree in the module doc), apps.rs, and a new
+           migration under migrations/apps/core/
+      done: `Pages.Sales.*` is `Pages.Accounting.*`, Books' home is
+            `/accounting`, `/sales` answers nothing, and a migration rewrites
+            the prefix in `role_permissions.name` and `user_permissions.name`
+            so existing grants survive. The user chose this on 2026-09-15 in
+            preference to dropping the home-to-permission invariant.
 
 - [ ] `phonix-web` The Chinese catalog, thirty-six keys behind
       why: `locales/zh.json` is missing every key the price-list and
@@ -116,6 +118,13 @@ rule: what changes about somebody is an `assignments` row, never a column on
 ## Done
 
 <!-- The loop appends here with the commit sha. Newest first. -->
+
+- [x] `phonix-web` The routes that still name the crates
+      `/accounting` for the chart, journals, periods and the four statements;
+      `/selling` for the order, the delivery, the invoice and the payment,
+      which is the first namespace two app crates answer in. Books' own home
+      stays at `/sales`: a test ties an app's home to its permission root, so
+      that one address moves with `Pages.Sales`, queued as its own item.
 
 - [x] `phonix-web` The menus name the crates, not what somebody is doing
       The decision the entry asked for: a top-level Selling holding the

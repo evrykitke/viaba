@@ -129,7 +129,7 @@ fn type_branch(
 #[component]
 fn add_to_type(account_type: AccountType) -> impl IntoView {
     let viewer = Viewer::get();
-    let href = format!("/sales/accounts/new?type={}", account_type.as_str());
+    let href = format!("/accounting/accounts/new?type={}", account_type.as_str());
     let label = l!("accounts.add_to_type", kind = t(&account_type.label()));
 
     let may_create = move || {
@@ -160,7 +160,7 @@ fn add_to_type(account_type: AccountType) -> impl IntoView {
 /// One account.
 #[component]
 fn account_leaf(account: Account) -> impl IntoView {
-    let href = format!("/sales/accounts/{}", account.id);
+    let href = format!("/accounting/accounts/{}", account.id);
     let number = account.number.clone();
     let name = account.name.clone();
     let retired = !account.is_active;

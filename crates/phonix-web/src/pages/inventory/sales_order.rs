@@ -58,7 +58,7 @@ use crate::ui::alert::{Alert, Alerts, Confirm};
 use crate::ui::form::field::Choice;
 use crate::ui::lookup::SelectField;
 
-const BACK: &str = "/inventory/sales-orders";
+const BACK: &str = "/selling/orders";
 
 /// Raising one.
 #[component]
@@ -342,7 +342,7 @@ fn editor_body(
                         // list, not a form that no longer exists.
                         if let Some(id) = id {
                             navigate(
-                                &format!("/inventory/sales-orders/{id}"),
+                                &format!("/selling/orders/{id}"),
                                 leptos_router::NavigateOptions {
                                     replace: true,
                                     ..Default::default()
@@ -413,7 +413,7 @@ fn editor_body(
                                     // document now, and a sent one has a number
                                     // this screen has not seen.
                                     navigate(
-                                        &format!("/inventory/sales-orders/{id}"),
+                                        &format!("/selling/orders/{id}"),
                                         leptos_router::NavigateOptions {
                                             replace: true,
                                             ..Default::default()
@@ -1055,7 +1055,7 @@ fn sale_document(order: SalesOrder, reload: Callback<()>) -> impl IntoView {
             // The delivery screen opens against this order and prefills what is
             // still owed; the lines do not need carrying across.
             navigate(
-                &format!("/inventory/deliveries/new?order={id}"),
+                &format!("/selling/deliveries/new?order={id}"),
                 leptos_router::NavigateOptions::default(),
             );
         }

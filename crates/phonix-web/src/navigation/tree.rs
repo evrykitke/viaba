@@ -78,7 +78,7 @@ pub static MENU: &[NavNode] = &[
                 "sales-orders",
                 "nav.sales_orders",
                 Icon::ScrollText,
-                "/inventory/sales-orders",
+                "/selling/orders",
             )
             .require(names::SALES_ORDERS)
             .keywords(&[
@@ -95,7 +95,7 @@ pub static MENU: &[NavNode] = &[
                 "deliveries",
                 "nav.deliveries",
                 Icon::Truck,
-                "/inventory/deliveries",
+                "/selling/deliveries",
             )
             .require(names::DELIVERIES)
             .keywords(&[
@@ -113,27 +113,32 @@ pub static MENU: &[NavNode] = &[
                 "invoices",
                 "nav.invoices",
                 Icon::FileText,
-                "/sales/invoices",
+                "/selling/invoices",
             )
             .require(names::INVOICES)
             .keywords(&["bill", "billing", "receivable", "sales", "customer"]),
             // Beside the invoices rather than under the chart: the person who
             // keys a bank statement is the person who raised the invoices it
             // settles, and they are looking at the same customer either way.
-            NavNode::leaf("payments", "nav.payments", Icon::Receipt, "/sales/payments")
-                .require(names::PAYMENTS)
-                .keywords(&[
-                    "receipt",
-                    "cash",
-                    "remittance",
-                    "settle",
-                    "allocate",
-                    "paid",
-                    "bank",
-                    "cheque",
-                    "check",
-                    "on account",
-                ]),
+            NavNode::leaf(
+                "payments",
+                "nav.payments",
+                Icon::Receipt,
+                "/selling/payments",
+            )
+            .require(names::PAYMENTS)
+            .keywords(&[
+                "receipt",
+                "cash",
+                "remittance",
+                "settle",
+                "allocate",
+                "paid",
+                "bank",
+                "cheque",
+                "check",
+                "on account",
+            ]),
         ],
     ),
     // The ledger: the chart the selling chain posts to, the journals, the
@@ -158,7 +163,7 @@ pub static MENU: &[NavNode] = &[
                 "accounts",
                 "nav.accounts",
                 Icon::ListTree,
-                "/sales/accounts",
+                "/accounting/accounts",
             )
             .require(names::ACCOUNTS)
             .keywords(&["chart", "ledger", "gl", "nominal", "coa"]),
@@ -169,7 +174,7 @@ pub static MENU: &[NavNode] = &[
                 "account-roles",
                 "nav.account_roles",
                 Icon::SlidersHorizontal,
-                "/sales/accounts/roles",
+                "/accounting/accounts/roles",
             )
             .require(names::ACCOUNTS)
             .keywords(&[
@@ -183,13 +188,18 @@ pub static MENU: &[NavNode] = &[
                 "journals",
                 "nav.journals",
                 Icon::ScrollText,
-                "/sales/journals",
+                "/accounting/journals",
             )
             .require(names::JOURNALS)
             .keywords(&["ledger", "gl", "posting", "entry", "double entry"]),
-            NavNode::leaf("periods", "nav.periods", Icon::Calendar, "/sales/periods")
-                .require(names::PERIODS)
-                .keywords(&["close", "month end", "year end", "calendar", "lock"]),
+            NavNode::leaf(
+                "periods",
+                "nav.periods",
+                Icon::Calendar,
+                "/accounting/periods",
+            )
+            .require(names::PERIODS)
+            .keywords(&["close", "month end", "year end", "calendar", "lock"]),
             // A section of their own, last: the four statements are read at
             // month end rather than on the way through, and a reader looking
             // for one is looking for "reports" rather than for its name.
@@ -202,7 +212,7 @@ pub static MENU: &[NavNode] = &[
                         "trial-balance",
                         "reports.trial_balance",
                         Icon::Table,
-                        "/sales/reports/trial-balance",
+                        "/accounting/reports/trial-balance",
                     )
                     .require(names::REPORTS)
                     .keywords(&["tb", "balances", "ledger", "check"]),
@@ -210,7 +220,7 @@ pub static MENU: &[NavNode] = &[
                         "balance-sheet",
                         "reports.balance_sheet",
                         Icon::ClipboardList,
-                        "/sales/reports/balance-sheet",
+                        "/accounting/reports/balance-sheet",
                     )
                     .require(names::REPORTS)
                     .keywords(&["assets", "liabilities", "equity", "position"]),
@@ -218,7 +228,7 @@ pub static MENU: &[NavNode] = &[
                         "profit-and-loss",
                         "reports.profit_and_loss",
                         Icon::ChartColumn,
-                        "/sales/reports/profit-and-loss",
+                        "/accounting/reports/profit-and-loss",
                     )
                     .require(names::REPORTS)
                     .keywords(&[
@@ -231,7 +241,7 @@ pub static MENU: &[NavNode] = &[
                         "customer-statement",
                         "reports.customer_statement",
                         Icon::Receipt,
-                        "/sales/reports/statement",
+                        "/accounting/reports/statement",
                     )
                     .require(names::REPORTS)
                     .keywords(&[

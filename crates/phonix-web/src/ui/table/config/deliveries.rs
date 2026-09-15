@@ -138,7 +138,7 @@ pub fn deliveries_grid() -> GridConfig<DeliverySummary> {
         ))
         .date_filter(DateFilter::new("despatched", l!("deliveries.despatched")))
         .toolbar(
-            ToolbarAction::link(l!("common.add"), Icon::Plus, "/inventory/deliveries/new")
+            ToolbarAction::link(l!("common.add"), Icon::Plus, "/selling/deliveries/new")
                 .require(permissions::DELIVERIES_CREATE)
                 .primary(),
         )
@@ -146,7 +146,7 @@ pub fn deliveries_grid() -> GridConfig<DeliverySummary> {
             RowAction::link(
                 l!("common.open"),
                 Icon::ArrowRight,
-                |row: &DeliverySummary| format!("/inventory/deliveries/{}", row.id),
+                |row: &DeliverySummary| format!("/selling/deliveries/{}", row.id),
             )
             .require(permissions::DELIVERIES),
         )

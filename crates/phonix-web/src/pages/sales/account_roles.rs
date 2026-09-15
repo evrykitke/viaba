@@ -94,7 +94,7 @@ pub fn account_roles_page() -> impl IntoView {
             title=l!("account_roles.title")
             subtitle=l!("account_roles.subtitle")
             icon=Icon::ListTree
-            back=("/sales/accounts", l!("accounts.title"))
+            back=("/accounting/accounts", l!("accounts.title"))
         />
 
         <Panel>

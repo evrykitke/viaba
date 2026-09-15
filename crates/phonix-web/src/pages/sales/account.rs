@@ -47,7 +47,7 @@ pub fn account_page() -> impl IntoView {
                                 <PageHeader
                                     title=l!("entity.account.singular")
                                     icon=Icon::ListTree
-                                    back=("/sales/accounts", l!("accounts.title"))
+                                    back=("/accounting/accounts", l!("accounts.title"))
                                 />
                                 <Notice
                                     message=Signal::derive(move || Some(err.to_string()))
@@ -132,7 +132,7 @@ fn account_editor(account: Account) -> impl IntoView {
     .require(permissions::AUDIT_LOGS);
 
     view! {
-        <PageHeader title=title icon=Icon::ListTree back=("/sales/accounts", l!("accounts.title"))>
+        <PageHeader title=title icon=Icon::ListTree back=("/accounting/accounts", l!("accounts.title"))>
             <div class="flex flex-wrap items-center gap-1.5">
                 <ClassChip class=class />
                 {(!postable).then(|| view! { <Badge label=l!("accounts.postable.no") /> })}
