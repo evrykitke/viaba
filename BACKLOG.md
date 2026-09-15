@@ -25,19 +25,6 @@ commits it is three items.
 
 ## Next
 
-- [ ] `phonix-web` What has been credited, on the invoice itself
-      why: the reports and the settlement now net credit notes off, but the
-           invoice a credit note was raised against still shows its gross and
-           nothing else. The one place somebody looks to ask "what is left on
-           this?" is the one place that cannot say.
-      touch: crates/phonix-db/src/books/invoice.rs needs the reverse of
-           `credits_invoice_id` - the posted credit notes against one invoice -
-           and the document view in crates/phonix-web/src/pages/sales/invoice.rs
-      done: a posted invoice with a credit note against it shows what was
-            credited and what is left, and links to the notes. The arithmetic
-            is the same one `settleable` already does, so it is a query and a
-            panel rather than a new rule.
-
 ### People — the Frappe HR revamp
 
 Read `WORKFLOWS.md` before starting any of these, and obey the dated-assignment
@@ -95,6 +82,15 @@ rule: what changes about somebody is an `assignments` row, never a column on
 ## Done
 
 <!-- The loop appends here with the commit sha. Newest first. -->
+
+- [x] `phonix-web` What has been credited, on the invoice itself
+      Third of three, and the trio is closed. A posted invoice that has been
+      credited or paid carries three more rows under its total - credited,
+      settled, what is left - and links to the notes themselves. Fetched on
+      its own call rather than hung on the invoice, the way the journal link
+      already is: the document is what was raised, this is what happened to
+      it since. Nothing is drawn on a draft or on an invoice nobody has
+      touched.
 
 - [x] `app-books` What an invoice has been credited, and what is still owed
       Two of the three. The statement, the ageing, money on account, the front

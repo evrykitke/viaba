@@ -180,6 +180,42 @@ pub struct InvoiceTotals {
     pub base_gross: Option<Money>,
 }
 
+/// What has happened to a posted invoice since it was raised.
+///
+/// The same arithmetic `books::payment::settleable` does, for one invoice and
+/// in its own currency: what credit notes took back, what posted payments
+/// settled, and what is left. A draft has none of it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Settlement {
+    /// Taken back by posted credit notes against this invoice.
+    pub credited: Money,
+    /// Settled by posted payments allocated to it.
+    pub settled: Money,
+    /// `gross - credited - settled`. Never negative.
+    pub outstanding: Money,
+    /// The notes themselves, oldest first, so the panel can link to them.
+    pub credit_notes: Vec<CreditNoteAgainst>,
+}
+
+impl Settlement {
+    /// Whether anything at all has happened to it.
+    ///
+    /// A posted invoice nobody has paid or credited has a panel with nothing
+    /// in it, and an empty panel is worse than no panel.
+    pub fn is_untouched(&self) -> bool {
+        self.credited.is_zero() && self.settled.is_zero()
+    }
+}
+
+/// One posted credit note raised against an invoice.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CreditNoteAgainst {
+    pub id: Uuid,
+    pub number: String,
+    pub issued_on: NaiveDate,
+    /// Positive, as the document reads.
+    pub amount: Money,
+}
 /// One invoice, whole.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Invoice {

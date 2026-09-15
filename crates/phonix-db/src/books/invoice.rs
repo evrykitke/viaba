@@ -16,8 +16,8 @@
 //! and read back with `::text`, exactly as `core.exchange_rates` does.
 
 use app_books::invoice::{
-    CheckedInvoice, Invoice, InvoiceKind, InvoiceLine, InvoiceStatus, InvoiceSummary,
-    InvoiceTotals, LineTaxSnapshot, PartySnapshot,
+    CheckedInvoice, CreditNoteAgainst, Invoice, InvoiceKind, InvoiceLine, InvoiceStatus,
+    InvoiceSummary, InvoiceTotals, LineTaxSnapshot, PartySnapshot, Settlement,
 };
 use app_books::quantity::Quantity;
 use chrono::NaiveDate;
@@ -255,6 +255,95 @@ pub async fn find(pool: &sqlx::PgPool, id: Uuid) -> Result<Option<Invoice>, DbEr
     let lines = lines_of(pool, id, currency).await?;
 
     Ok(Some(decode_invoice(&row, currency, lines)?))
+}
+
+/// What has been taken back from one invoice and what has been paid on it.
+///
+/// The two figures come from one statement so they are read as at the same
+/// moment: a credited total and a settled total worked out separately could
+/// disagree with each other across a posting that lands between them.
+///
+/// Bounded without paging: the notes against one invoice are a handful, and a
+/// workspace that raises more than that against a single invoice has a
+/// different problem.
+pub async fn settlement(
+    pool: &sqlx::PgPool,
+    id: Uuid,
+    currency: Currency,
+) -> Result<Settlement, DbError> {
+    let totals = sqlx::query(
+        "SELECT (i.gross_amount
+                 - coalesce((
+                    SELECT sum(c.gross_amount)
+                      FROM books.invoices c
+                     WHERE c.credits_invoice_id = i.id
+                       AND c.status = 'posted'
+                ), 0)
+                 - coalesce((
+                    SELECT sum(al.amount)
+                      FROM books.payment_allocations al
+                      JOIN books.payments p ON p.id = al.payment_id
+                     WHERE al.invoice_id = i.id
+                       AND p.status = 'posted'
+                ), 0))::text AS outstanding,
+                coalesce((
+                    SELECT sum(c.gross_amount)
+                      FROM books.invoices c
+                     WHERE c.credits_invoice_id = i.id
+                       AND c.status = 'posted'
+                ), 0)::text AS credited,
+                coalesce((
+                    SELECT sum(al.amount)
+                      FROM books.payment_allocations al
+                      JOIN books.payments p ON p.id = al.payment_id
+                     WHERE al.invoice_id = i.id
+                       AND p.status = 'posted'
+                ), 0)::text AS settled
+           FROM books.invoices i
+          WHERE i.id = $1",
+    )
+    .bind(id)
+    .fetch_optional(pool)
+    .await
+    .map_err(DbError::Query)?;
+
+    let Some(totals) = totals else {
+        return Ok(Settlement {
+            credited: Money::zero(currency),
+            settled: Money::zero(currency),
+            outstanding: Money::zero(currency),
+            credit_notes: Vec::new(),
+        });
+    };
+
+    let notes = sqlx::query(
+        "SELECT id, coalesce(number, '') AS number, issued_on,
+                gross_amount::text AS amount
+           FROM books.invoices
+          WHERE credits_invoice_id = $1 AND status = 'posted'
+          ORDER BY issued_on, number",
+    )
+    .bind(id)
+    .fetch_all(pool)
+    .await
+    .map_err(DbError::Query)?;
+
+    Ok(Settlement {
+        credited: money_of(&totals, "credited", currency).map_err(DbError::Query)?,
+        settled: money_of(&totals, "settled", currency).map_err(DbError::Query)?,
+        outstanding: money_of(&totals, "outstanding", currency).map_err(DbError::Query)?,
+        credit_notes: notes
+            .iter()
+            .map(|row| {
+                Ok(CreditNoteAgainst {
+                    id: row.try_get("id").map_err(DbError::Query)?,
+                    number: row.try_get("number").map_err(DbError::Query)?,
+                    issued_on: row.try_get("issued_on").map_err(DbError::Query)?,
+                    amount: money_of(row, "amount", currency).map_err(DbError::Query)?,
+                })
+            })
+            .collect::<Result<Vec<_>, DbError>>()?,
+    })
 }
 
 /// The lines on one invoice, with their taxes, in document order.

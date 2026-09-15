@@ -13,7 +13,7 @@
 //! hands them over once, and everything after that is local.
 
 use app_books::account::{Account, AccountInput, AccountSummary, RoleMapping};
-use app_books::invoice::{Invoice, InvoiceInput, InvoiceSummary, PostOutcome};
+use app_books::invoice::{Invoice, InvoiceInput, InvoiceSummary, PostOutcome, Settlement};
 use app_books::journal::{JournalDraft, JournalSummary, Posted};
 use app_books::payment::{Payment, PaymentInput, PaymentSummary, Settleable};
 use app_books::period::Period;
@@ -492,6 +492,23 @@ pub async fn invoice_detail(invoice_id: Uuid) -> Result<Invoice, ServerFnError> 
     let (pool, caller) = pool_and_caller().await?;
 
     phonix_services::books::invoice::find(&pool, &caller, invoice_id)
+        .await
+        .map_err(service_error)
+}
+
+/// What has been credited and paid against one invoice.
+///
+/// Its own call rather than part of [`invoice_detail`]: the document is what
+/// was raised and does not change, and this is what has happened to it since.
+/// A panel that reloads after a credit note is posted should not refetch the
+/// lines to say so.
+#[server(name = InvoiceSettlement, prefix = "/api", endpoint = "books/invoices/settlement")]
+pub async fn invoice_settlement(invoice_id: Uuid) -> Result<Settlement, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::books::invoice::settlement(&pool, &caller, invoice_id)
         .await
         .map_err(service_error)
 }

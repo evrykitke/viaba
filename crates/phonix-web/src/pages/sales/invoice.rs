@@ -42,7 +42,7 @@ use crate::icons::Icon;
 use crate::l;
 use crate::server_fns::books_fns::{
     credit_against_invoice, delete_invoice, invoice_against_delivery, invoice_detail,
-    invoice_journal, post_invoice, save_invoice, tax_treatments, void_invoice,
+    invoice_journal, invoice_settlement, post_invoice, save_invoice, tax_treatments, void_invoice,
 };
 use crate::server_fns::master_fns::list_parties;
 use crate::ui::alert::{Alert, Alerts, Confirm};
@@ -1005,6 +1005,85 @@ fn journal_row(invoice_id: Uuid) -> impl IntoView {
     }
 }
 
+/// What has happened to this invoice since: credited, settled, and left.
+///
+/// Fetched rather than carried on the document, for the reason
+/// [`journal_row`] is: the invoice is what was raised, and this is what other
+/// documents have done to it since. The arithmetic is the one
+/// `books::payment::settleable` uses, so the figure here and the figure the
+/// payment screen offers are the same figure.
+///
+/// Nothing is drawn on a draft, or on a posted invoice nobody has touched: an
+/// empty panel invites the question of what went wrong, and nothing did.
+#[component]
+fn settlement_rows(invoice_id: Uuid, is_posted: bool) -> impl IntoView {
+    let settlement = Resource::new(
+        move || invoice_id,
+        move |invoice_id| async move {
+            if !is_posted {
+                return None;
+            }
+
+            invoice_settlement(invoice_id)
+                .await
+                .ok()
+                .filter(|settlement| !settlement.is_untouched())
+        },
+    );
+
+    view! {
+        <Transition fallback=|| ()>
+            {move || Suspend::new(async move {
+                settlement
+                    .await
+                    .map(|settlement| {
+                        let credited = settlement.credited.to_display_string();
+                        let settled = settlement.settled.to_display_string();
+                        let outstanding = settlement.outstanding.to_display_string();
+                        let notes = settlement.credit_notes.clone();
+
+                        view! {
+                            <div class="flex justify-between gap-4 border-t border-edge pt-1 text-xs text-content-subtle">
+                                <dt>{l!("invoices.credited")}</dt>
+                                <dd>{credited}</dd>
+                            </div>
+                            <div class="flex justify-between gap-4 text-xs text-content-subtle">
+                                <dt>{l!("invoices.settled")}</dt>
+                                <dd>{settled}</dd>
+                            </div>
+                            <div class="flex justify-between gap-4 font-medium">
+                                <dt class="text-content">{l!("payments.outstanding")}</dt>
+                                <dd class="text-content">{outstanding}</dd>
+                            </div>
+                            // The notes themselves, so the reader can go and
+                            // see what came back rather than only how much.
+                            {notes
+                                .into_iter()
+                                .map(|note| {
+                                    view! {
+                                        <div class="flex justify-between gap-4 text-xs">
+                                            <dt>
+                                                <a
+                                                    class="font-mono text-brand hover:underline"
+                                                    href=format!("/selling/invoices/{}", note.id)
+                                                >
+                                                    {note.number}
+                                                </a>
+                                            </dt>
+                                            <dd class="text-content-subtle">
+                                                {note.amount.to_display_string()}
+                                            </dd>
+                                        </div>
+                                    }
+                                })
+                                .collect_view()}
+                        }
+                    })
+            })}
+        </Transition>
+    }
+}
+
 // --- the document -------------------------------------------------------
 
 /// A posted or voided invoice: read-only, and everything on it is what was
@@ -1219,6 +1298,7 @@ fn invoice_document(invoice: app_books::invoice::Invoice, reload: Callback<()>) 
                                     </div>
                                 }
                             })}
+                        <SettlementRows invoice_id=id is_posted=is_posted />
                     </dl>
                 </Section>
             </div>

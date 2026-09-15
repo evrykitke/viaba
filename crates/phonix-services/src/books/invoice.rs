@@ -42,7 +42,7 @@
 
 use app_books::invoice::{
     CheckedInvoice, Invoice, InvoiceInput, InvoiceKind, InvoiceLineInput, InvoiceStatus,
-    InvoiceSummary, PartySnapshot, PostOutcome,
+    InvoiceSummary, PartySnapshot, PostOutcome, Settlement,
 };
 use app_books::pricing::{PricedInvoice, PricedLine};
 use chrono::NaiveDate;
@@ -90,6 +90,17 @@ pub async fn find(pool: &PgPool, caller: &Caller, id: Uuid) -> ServiceResult<Inv
     store::find(pool, id)
         .await?
         .ok_or_else(|| ServiceError::rejected("invoice", msg!("books.error.gone")))
+}
+
+/// What has been credited and paid against one invoice.
+///
+/// Reads the invoice first for its currency: the figures are in the currency
+/// it was raised in, and a settlement labelled in the workspace's own would
+/// be a number beside the wrong symbol.
+pub async fn settlement(pool: &PgPool, caller: &Caller, id: Uuid) -> ServiceResult<Settlement> {
+    let invoice = find(pool, caller, id).await?;
+
+    Ok(phonix_db::books::invoice::settlement(pool, id, invoice.currency).await?)
 }
 
 /// The editable part of one invoice, for the form to open on.
