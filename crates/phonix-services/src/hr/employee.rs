@@ -102,7 +102,6 @@ pub async fn detail(pool: &PgPool, caller: &Caller, id: Uuid) -> ServiceResult<E
 pub async fn edit(pool: &PgPool, caller: &Caller, id: Uuid) -> ServiceResult<EmployeeInput> {
     Ok(EmployeeInput::from_employee(
         &detail(pool, caller, id).await?,
-        today(),
     ))
 }
 

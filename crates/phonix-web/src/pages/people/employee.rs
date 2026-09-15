@@ -42,9 +42,10 @@ use crate::icons::Icon;
 use crate::l;
 use crate::server_fns::hr_fns::{
     blank_employee, create_employee_login, delete_employee, direct_reports, employed_people,
-    employee_assignment, employee_detail, list_departments, move_employee, record_leaver,
-    rehire_employee, save_employee, selectable_holiday_lists, selectable_job_positions,
-    selectable_shift_types, selectable_work_locations, unlink_employee_login,
+    employee_assignment, employee_detail, employee_movements, list_departments, move_employee,
+    record_leaver, rehire_employee, save_employee, selectable_holiday_lists,
+    selectable_job_positions, selectable_shift_types, selectable_work_locations,
+    unlink_employee_login,
 };
 use crate::ui::alert::{Alert, Alerts, Confirm};
 use crate::ui::form::field::Choice;
@@ -188,7 +189,7 @@ fn employee_record(employee: Employee, reload: Callback<()>) -> impl IntoView {
 
     // Held rather than moved: a tab renders every time it is shown, so what it
     // draws from has to survive being read more than once.
-    let draft = StoredValue::new(EmployeeInput::from_employee(&employee, today()));
+    let draft = StoredValue::new(EmployeeInput::from_employee(&employee));
     let engagements = StoredValue::new(employee.engagements.clone());
     let blocker = StoredValue::new(
         employee
@@ -254,6 +255,12 @@ fn employee_record(employee: Employee, reload: Callback<()>) -> impl IntoView {
     })
     .icon(Icon::KeyRound);
 
+    let movements_tab = Tab::new("movements", l!("movements.title"), move || {
+        view! { <PersonnelFile employee_id=id /> }.into_any()
+    })
+    .icon(Icon::ArrowRight)
+    .require(permissions::MOVEMENTS);
+
     let history_tab = Tab::new("history", l!("common.history"), move || {
         view! { <RecordHistory kind=kinds::EMPLOYEE id=Some(id.to_string()) /> }.into_any()
     })
@@ -263,8 +270,86 @@ fn employee_record(employee: Employee, reload: Callback<()>) -> impl IntoView {
     view! {
         <TabbedPanel
             id="employee"
-            tabs=vec![details_tab, employment_tab, login_tab, history_tab]
+            tabs=vec![
+                details_tab,
+                employment_tab,
+                movements_tab,
+                login_tab,
+                history_tab,
+            ]
         />
+    }
+}
+
+/// What has happened to somebody: every movement raised against them.
+///
+/// The audit trail beside it says which rows changed. This says what was
+/// decided, when it takes effect and why - which is what somebody opening a
+/// personnel file came to find out.
+#[component]
+fn personnel_file(employee_id: Uuid) -> impl IntoView {
+    let movements = Resource::new(
+        move || employee_id,
+        |employee_id| async move { employee_movements(employee_id).await.ok() },
+    );
+
+    view! {
+        <Transition fallback=|| {
+            view! { <p class="text-sm text-content-subtle">{l!("common.loading")}</p> }
+        }>
+            {move || Suspend::new(async move {
+                let movements = movements.await.unwrap_or_default();
+
+                if movements.is_empty() {
+                    return view! {
+                        <p class="py-6 text-center text-sm text-content-subtle">
+                            {l!("movements.none_for_person")}
+                        </p>
+                    }
+                        .into_any();
+                }
+
+                view! {
+                    <ul class="divide-y divide-edge text-sm">
+                        {movements
+                            .into_iter()
+                            .map(|movement| {
+                                let tone = match movement.status {
+                                    app_hr::movement::MovementStatus::Confirmed => Tone::Success,
+                                    app_hr::movement::MovementStatus::Draft => Tone::Warning,
+                                    app_hr::movement::MovementStatus::Cancelled => Tone::Neutral,
+                                };
+
+                                view! {
+                                    <li class="flex flex-wrap items-center gap-2 py-2">
+                                        <span class="tabular-nums text-content-muted">
+                                            {movement.effective_on.to_string()}
+                                        </span>
+                                        <a
+                                            class="text-brand hover:underline"
+                                            href=format!(
+                                                "/people/movements/{}",
+                                                movement.id,
+                                            )
+                                        >
+                                            {crate::i18n::t(&movement.kind.label())}
+                                        </a>
+                                        <Badge
+                                            label=crate::i18n::t(&movement.status.label())
+                                            tone=tone
+                                        />
+                                        <span class="ml-auto font-mono text-2xs text-content-subtle">
+                                            {movement.number.unwrap_or_default()}
+                                        </span>
+                                    </li>
+                                }
+                            })
+                            .collect_view()}
+                    </ul>
+                }
+                    .into_any()
+            })}
+        </Transition>
     }
 }
 

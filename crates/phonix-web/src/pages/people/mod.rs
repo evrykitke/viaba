@@ -16,6 +16,8 @@
 //! /people/places              where people work
 //! /people/places/:id          a form
 //! /people/attendance          one person's month, day by day
+//! /people/movements           promotions, transfers and exits
+//! /people/movements/:id       the draft, or the document it became
 //! /people/shifts              the shifts people are expected to work
 //! /people/holidays            the calendars of days off
 //! /people/holidays/:id        the calendar and its days
@@ -31,5 +33,6 @@ pub mod employee;
 pub mod holidays;
 pub mod home;
 pub mod lists;
+pub mod movements;
 pub mod reference;
 pub mod shifts;

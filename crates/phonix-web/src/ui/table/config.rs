@@ -51,6 +51,7 @@ pub mod items;
 pub mod job_positions;
 pub mod journals;
 pub mod landed_costs;
+pub mod movements;
 pub mod numbering;
 pub mod parties;
 pub mod payments;

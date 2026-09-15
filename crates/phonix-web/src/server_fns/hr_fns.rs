@@ -11,6 +11,7 @@ use app_hr::department::{Department, DepartmentInput, DepartmentSummary};
 use app_hr::employee::{AssignmentInput, Employee, EmployeeInput, EmployeeSummary, LeavingInput};
 use app_hr::holiday::{HolidayList, HolidayListInput, HolidayListSummary};
 use app_hr::job_position::{JobPosition, JobPositionInput, JobPositionSummary};
+use app_hr::movement::{Movement, MovementInput, MovementKind, MovementSummary};
 use app_hr::shift::{ShiftType, ShiftTypeInput, ShiftTypeSummary};
 use app_hr::work_location::{WorkLocation, WorkLocationInput, WorkLocationSummary};
 use leptos::prelude::*;
@@ -399,6 +400,104 @@ pub async fn delete_job_position(position_id: Uuid) -> Result<Submission<()>, Se
     let (pool, caller) = pool_and_caller().await?;
 
     phonix_services::hr::job_position::delete(&pool, &caller, position_id)
+        .await
+        .map_err(service_error)
+}
+
+// --- Movements -------------------------------------------------------------
+
+#[server(name = ListMovements, prefix = "/api", endpoint = "hr/movements")]
+pub async fn list_movements() -> Result<Vec<MovementSummary>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::hr::movement::list(&pool, &caller)
+        .await
+        .map_err(service_error)
+}
+
+/// Everything that has happened to one person. The personnel file.
+#[server(name = EmployeeMovements, prefix = "/api", endpoint = "hr/movements/for")]
+pub async fn employee_movements(employee_id: Uuid) -> Result<Vec<MovementSummary>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::hr::movement::for_employee(&pool, &caller, employee_id)
+        .await
+        .map_err(service_error)
+}
+
+#[server(name = MovementDetail, prefix = "/api", endpoint = "hr/movements/detail")]
+pub async fn movement_detail(movement_id: Uuid) -> Result<Movement, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::hr::movement::detail(&pool, &caller, movement_id)
+        .await
+        .map_err(service_error)
+}
+
+#[server(name = MovementEdit, prefix = "/api", endpoint = "hr/movements/edit")]
+pub async fn movement_edit(movement_id: Uuid) -> Result<MovementInput, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::hr::movement::edit(&pool, &caller, movement_id)
+        .await
+        .map_err(service_error)
+}
+
+/// A blank movement, pre-filled from what the person is doing now.
+#[server(name = BlankMovement, prefix = "/api", endpoint = "hr/movements/blank")]
+pub async fn blank_movement(
+    kind: MovementKind,
+    employee_id: Uuid,
+) -> Result<MovementInput, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::hr::movement::blank(&pool, &caller, kind, employee_id)
+        .await
+        .map_err(service_error)
+}
+
+#[server(name = SaveMovement, prefix = "/api", endpoint = "hr/movements/save")]
+pub async fn save_movement(
+    draft: MovementInput,
+) -> Result<Submission<MovementInput>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::hr::movement::save(&pool, &caller, draft)
+        .await
+        .map_err(service_error)
+}
+
+/// Make it true: writes the assignment rows and stamps the document.
+#[server(name = ConfirmMovement, prefix = "/api", endpoint = "hr/movements/confirm")]
+pub async fn confirm_movement(movement_id: Uuid) -> Result<Submission<Movement>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::hr::movement::confirm(&pool, &caller, movement_id)
+        .await
+        .map_err(service_error)
+}
+
+#[server(name = CancelMovement, prefix = "/api", endpoint = "hr/movements/cancel")]
+pub async fn cancel_movement(movement_id: Uuid) -> Result<Submission<()>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::hr::movement::cancel(&pool, &caller, movement_id)
         .await
         .map_err(service_error)
 }

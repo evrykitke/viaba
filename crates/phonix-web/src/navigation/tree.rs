@@ -635,6 +635,25 @@ pub static MENU: &[NavNode] = &[
                 "half day",
                 "who was here",
             ]),
+            // After the people and before the reference data: a promotion
+            // is something that happens to somebody, not a table somebody
+            // arranges once.
+            NavNode::leaf(
+                "movements",
+                "nav.movements",
+                Icon::ArrowRight,
+                "/people/movements",
+            )
+            .require(names::MOVEMENTS)
+            .keywords(&[
+                "promotion",
+                "transfer",
+                "exit",
+                "leaver",
+                "resignation",
+                "moved",
+                "onboarding",
+            ]),
             NavNode::leaf(
                 "shift-types",
                 "nav.shift_types",

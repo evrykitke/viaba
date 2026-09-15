@@ -54,22 +54,6 @@ Read `WORKFLOWS.md` before starting any of these, and obey the dated-assignment
 rule: what changes about somebody is an `assignments` row, never a column on
 `employees`.
 
-- [ ] `phonix-web` Movements, on a screen
-      why: the model and the service exist and nothing drives them, as with
-           the three before it. A promotion is still a hand-written
-           assignment row until somebody can raise the document.
-      touch: server fns beside the shift ones, a list and a document view
-           under crates/phonix-web/src/pages/people/, a nav node naming
-           `Pages.People.Movements`, and the personnel file - the employee
-           record should list what has happened to them
-      done: a workspace can draft a promotion, transfer or exit, review it,
-            confirm it, and see the assignment it wrote. A confirmed one is
-            read-only and a draft can be withdrawn.
-      note: `confirm` refuses a promotion that moves nobody, and refuses it
-           at confirm rather than at save - what somebody is on now can
-           change under a draft. The screen has to show that refusal, not
-           swallow it.
-
 - [ ] `app-hr` Recruitment against the vacancies that already exist
       why: job positions are rows precisely so that "what are we recruiting
            for" has a query, and nothing yet answers it. `filled` is already
@@ -86,6 +70,17 @@ rule: what changes about somebody is an `assignments` row, never a column on
 ## Done
 
 <!-- The loop appends here with the commit sha. Newest first. -->
+
+- [x] `phonix-web` Movements, on a screen
+      One address, two screens: the status decides whether a draft's form or
+      the confirmed document is drawn, so a link somebody sent last week
+      still opens what they meant. Confirming can refuse - a promotion that
+      moves nobody - and the refusal is shown rather than swallowed. The
+      employee record gains a Movements tab: the audit trail says which rows
+      changed, this says what was decided.
+      Also removed a `today` parameter from `EmployeeInput::from_employee`
+      that the shift field had made dead - it fed a struct update that no
+      longer had a field left to fill.
 
 - [x] `app-hr` The employee lifecycle documents
       One table and three kinds - promotion, transfer, exit - for the reason

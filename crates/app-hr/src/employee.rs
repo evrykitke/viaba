@@ -410,7 +410,7 @@ impl EmployeeInput {
         }
     }
 
-    pub fn from_employee(employee: &Employee, today: NaiveDate) -> Self {
+    pub fn from_employee(employee: &Employee) -> Self {
         let current = employee.current_engagement();
         let assignment = employee.current_assignment();
 
@@ -435,7 +435,6 @@ impl EmployeeInput {
             holiday_list_id: assignment.and_then(|a| a.holiday_list_id),
             shift_type_id: assignment.and_then(|a| a.shift_type_id),
             manager_id: assignment.and_then(|a| a.manager_id),
-            ..Self::blank(today)
         }
     }
 
