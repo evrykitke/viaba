@@ -31,13 +31,20 @@ Read `WORKFLOWS.md` before starting any of these, and obey the dated-assignment
 rule: what changes about somebody is an `assignments` row, never a column on
 `employees`.
 
-- [ ] `app-hr` The holiday calendar, which leave cannot be counted without
-      why: Frappe HR makes the regional holiday list the thing leave, attendance
-           and payroll all count against. It is the only piece of the people
-           revamp with no dependency of its own, so it goes first.
-      done: a workspace has named holiday lists with dated entries, an employee
-            resolves to one through their assignment, and a date can be asked
-            whether it is a working day.
+- [ ] `phonix-web` The holiday calendar, on a screen
+      why: the model, the store and the gated service exist, and nothing
+           drives them. There is no way for a workspace to write a calendar,
+           and no way to put somebody on one - so
+           `assignments.holiday_list_id` is a column nothing ever fills and
+           `working_day` answers NotCovered for everybody.
+      touch: server fns beside `hr_fns`, a list and form under
+           crates/phonix-web/src/pages/people/, the nav tree under People,
+           and the holiday-list field on the employee assignment form
+      done: a workspace can write a calendar with its days, generate the
+            weekly offs from `HolidayListInput::weekly_offs`, put an employee
+            on one through their assignment, and see what a given date is.
+            The permissions `Pages.People.HolidayLists` and `.Manage` already
+            exist and the nav node must name them.
 
 - [ ] `app-hr` Attendance, as what was recorded rather than what was expected
       why: check-in and check-out is the input every other HR number is derived
@@ -82,6 +89,16 @@ rule: what changes about somebody is an `assignments` row, never a column on
 ## Done
 
 <!-- The loop appends here with the commit sha. Newest first. -->
+
+- [x] `app-hr` The holiday calendar, which leave cannot be counted without
+      The model, not the screens - those are the item above. `holiday_lists`
+      and `holidays` with a span, `assignments.holiday_list_id` so which
+      calendar applies is dated like everything else about somebody, and
+      `current_staff` replaced to carry it. `WorkingDay` is three answers and
+      not a boolean: a date the calendar does not cover is not a working day,
+      which is what stops an empty calendar reading as a full working year.
+      The SQL is unverified against a live database - no tenant is applied
+      here, so the migration and the queries are checked by the compiler only.
 
 - [x] `phonix-web` What has been credited, on the invoice itself
       Third of three, and the trio is closed. A posted invoice that has been

@@ -42,11 +42,12 @@ Status marks:
 - [x] **Payment** — lands in a bank or cash account, allocated across invoices
       as a relation rather than a `paid` column. Overpayment sits on account.
       `app-books/src/payment.rs`
-- [~] **Credit note / sales return** — a credit note is an invoice with
+- [x] **Credit note / sales return** — a credit note is an invoice with
       `kind = credit_note`: its own numbering series, and a journal that is the
       invoice entry backwards with the amounts still positive, raised from the
-      invoice it credits. Not yet: no report or settlement nets one off, so an
-      invoice still shows its full amount as owed.
+      invoice it credits. The statement, the ageing, money on account, the
+      front page, both settlement guards and the invoice itself all net one
+      off.
 - [x] **Invoice billing a delivery** — an invoice line may carry a
       `delivery_line_id`, and posting raises the `Deliveries` port, which
       refuses more than was delivered. Inventory's `uninvoiced_deliveries` is
@@ -109,7 +110,8 @@ wants a status column on a person is the bug this schema was built to refuse.
       *documents*, exit interview. The dated chain underneath exists; the
       workflow on top of it does not.
 - [-] **Leave** — not built, deliberately. See ADR 0006 §9.
-- [ ] **Holiday calendar** — regional holiday lists. Leave depends on it.
+- [~] **Holiday calendar** — regional holiday lists. The model, the store and
+      the service are built; no screen drives them yet.
 - [ ] **Attendance** — check-in/check-out, geolocation.
 - [ ] **Shift management** — shift types, rosters, assignment.
 - [-] **Payroll and taxation** — salary structures, tax slabs, salary slips.

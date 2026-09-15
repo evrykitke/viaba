@@ -289,6 +289,15 @@ pub mod kinds {
         singleton: false,
     };
 
+    /// A calendar of the days nobody is expected to work.
+    pub const HOLIDAY_LIST: EntityKind = EntityKind {
+        name: "holiday_list",
+        singular_key: "entity.holiday_list.singular",
+        plural_key: "entity.holiday_list.plural",
+        href: Some("/people/holidays/{id}"),
+        singleton: false,
+    };
+
     /// An item: what the workspace stocks, buys and sells.
     ///
     /// Its `tracking` and its stock unit are the fields worth a trail. Both are
@@ -553,6 +562,7 @@ pub const ENTITY_KINDS: &[EntityKind] = &[
     kinds::EMPLOYEE,
     kinds::JOB_POSITION,
     kinds::WORK_LOCATION,
+    kinds::HOLIDAY_LIST,
     kinds::ITEM,
     kinds::ITEM_CATEGORY,
     kinds::WAREHOUSE,

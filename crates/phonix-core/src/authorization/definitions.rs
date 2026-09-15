@@ -54,6 +54,8 @@
 //!  |   +- Pages.Master.Taxes
 //!  |       +- .Edit
 //!  +- Pages.People
+//!  |   +- Pages.People.HolidayLists
+//!  |   |   +- .Manage
 //!  |   +- Pages.People.Departments
 //!  |       +- .Create  .Edit  .Delete
 //!  +- Pages.Administration
@@ -117,6 +119,9 @@ pub mod names {
 
     pub const WORK_LOCATIONS: &str = "Pages.People.WorkLocations";
     pub const WORK_LOCATIONS_MANAGE: &str = "Pages.People.WorkLocations.Manage";
+
+    pub const HOLIDAY_LISTS: &str = "Pages.People.HolidayLists";
+    pub const HOLIDAY_LISTS_MANAGE: &str = "Pages.People.HolidayLists.Manage";
 
     pub const DEPARTMENTS: &str = "Pages.People.Departments";
     pub const DEPARTMENTS_CREATE: &str = "Pages.People.Departments.Create";
@@ -1066,6 +1071,20 @@ pub const DEFINITIONS: &[PermissionDefinition] = &[
         display_name: "Manage places",
         description: Some("Define a place people work at."),
         parent: Some(names::WORK_LOCATIONS),
+        default_for_user: false,
+    },
+    PermissionDefinition {
+        name: names::HOLIDAY_LISTS,
+        display_name: "Holiday calendars",
+        description: Some("See the calendars that say which days are not worked."),
+        parent: Some(names::PEOPLE),
+        default_for_user: false,
+    },
+    PermissionDefinition {
+        name: names::HOLIDAY_LISTS_MANAGE,
+        display_name: "Manage holiday calendars",
+        description: Some("Define a calendar and the days off on it."),
+        parent: Some(names::HOLIDAY_LISTS),
         default_for_user: false,
     },
     PermissionDefinition {

@@ -17,6 +17,7 @@
 pub mod cost_centre;
 pub mod department;
 pub mod employee;
+pub mod holiday;
 pub mod job_position;
 pub mod work_location;
 

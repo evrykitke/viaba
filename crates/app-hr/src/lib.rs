@@ -7,7 +7,7 @@
 //! `docs/adr/0006-apps-ports-and-defaults.md` sections 6.4 and 9.
 //!
 //! Then the people: [`employee`], with [`job_position`] and [`work_location`]
-//! beside it.
+//! beside it, and [`holiday`] for the days none of them is expected to work.
 //!
 //! # An employee is not a user
 //!
@@ -53,6 +53,7 @@
 
 pub mod department;
 pub mod employee;
+pub mod holiday;
 pub mod job_position;
 pub mod work_location;
 
@@ -87,6 +88,10 @@ pub use department::{
 pub use employee::{
     Assignment, AssignmentInput, Employee, EmployeeError, EmployeeInput, EmployeeSummary,
     EmploymentType, EndReason, Engagement, LeavingInput,
+};
+pub use holiday::{
+    Holiday, HolidayError, HolidayInput, HolidayList, HolidayListInput, HolidayListSummary,
+    WorkingDay,
 };
 pub use job_position::{JobPosition, JobPositionError, JobPositionInput, JobPositionSummary};
 pub use work_location::{
