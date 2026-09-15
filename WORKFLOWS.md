@@ -57,9 +57,10 @@ Status marks:
       from a single price on the item.
 - [~] **Price list** — ERPNext's Price List + Item Price, Odoo's pricelists.
       `price_lists` and `item_prices` exist, with quantity breaks, validity
-      windows and the rule that picks between them. Not yet wired: a sales
-      order line still opens on `items.sale_price`, and nothing but a migration
-      can put a price in a list.
+      windows and the rule that picks between them, and one list per customer.
+      A sales order line opens on what that customer is quoted. Not yet: only a
+      migration can put a price in a list, and a line is priced when the item
+      is picked rather than when the quantity changes.
 - [ ] **Pricing rule / promotional scheme** — conditional discounts, margins,
       slabs. Depends on price lists existing first.
 - [?] **Discounts** — `discount` appears in `pricing.rs`, `invoice.rs` and

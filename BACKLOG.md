@@ -25,15 +25,13 @@ commits it is three items.
 
 ## Next
 
-- [ ] `app-inventory` A customer's price list, and the line that opens on it
-      why: second of three. The resolution exists and nothing calls it - a
-           sales order line still opens on `items.sale_price`, so a wholesale
-           customer and a walk-in are still quoted one number.
-      touch: crates/phonix-services/src/inventory/sales_order.rs
-      done: a party carries a default price list, a sales order resolves each
-            line through it at the order's date and quantity, and falls back to
-            `sale_price` only where no list prices the variant. ADR 0006's
-            "there is no price list" paragraph changes in the same commit.
+- [ ] `phonix-web` Re-pricing a line when its quantity crosses a break
+      why: the price is asked for when the item is picked and not again, so a
+           line typed as 1 and changed to 100 keeps the price for 1. A quantity
+           break nobody gets is a break that may as well not be there.
+      touch: crates/phonix-web/src/pages/inventory/sales_order.rs
+      done: changing a quantity re-asks, and it does not fight somebody typing
+            - a price they have edited by hand is never overwritten.
 
 - [ ] `phonix-web` Keeping the price lists
       why: last of three. The tables exist and nothing can put a price in one
@@ -107,6 +105,13 @@ rule: what changes about somebody is an `assignments` row, never a column on
 ## Done
 
 <!-- The loop appends here with the commit sha. Newest first. -->
+
+- [x] `app-inventory` A customer's price list, and the line that opens on it
+      Second of three. `party_price_lists` holds a bare party id, because a
+      price list is a selling fact and master should not learn what one is.
+      Found on the way: the ADR and the service both said a line opened on
+      `items.sale_price`, and neither the picker nor the handler ever did that
+      - every price was typed. Both corrected.
 
 - [x] `app-inventory` Price lists, and which price wins
       First of three the price-list item split into. Inventory, not Books - the

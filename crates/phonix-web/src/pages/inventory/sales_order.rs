@@ -50,8 +50,8 @@ use crate::l;
 use crate::pages::inventory::item_lookup::ItemLookup;
 use crate::server_fns::inventory_fns::{
     blank_sales_order, cancel_sales_order, close_sales_order, confirm_sales_order,
-    delete_sales_order, order_outstanding, sales_order_detail, save_sales_order, selectable_units,
-    selectable_warehouses, send_sales_order,
+    delete_sales_order, order_outstanding, quoted_price, sales_order_detail, save_sales_order,
+    selectable_units, selectable_warehouses, send_sales_order,
 };
 use crate::server_fns::master_fns::list_parties;
 use crate::ui::alert::{Alert, Alerts, Confirm};
@@ -806,6 +806,48 @@ fn line_row(
         Some(Choice::new(id.to_string(), label))
     });
 
+    // What the customer's price list says, asked when the item is chosen and
+    // written only into a price box nobody has typed in. A blank answer leaves
+    // it blank: no list, or a list that does not carry this item, is not a
+    // reason to put a zero on a quotation.
+    //
+    // Asked at the moment of picking and not again. Changing the quantity
+    // afterwards may cross a break this does not re-ask about - see the
+    // backlog. Re-pricing under somebody's cursor is its own decision.
+    let quote = move |index: usize| {
+        let Some((party_id, variant_id, quantity, on)) = draft.with_untracked(|d| {
+            let line = d.lines.get(index)?;
+            Some((
+                d.customer_id?,
+                line.variant_id?,
+                line.quantity.clone(),
+                d.order_date,
+            ))
+        }) else {
+            return;
+        };
+
+        if draft.with_untracked(|d| {
+            d.lines
+                .get(index)
+                .is_none_or(|line| !line.unit_price.trim().is_empty())
+        }) {
+            return;
+        }
+
+        leptos::task::spawn_local(async move {
+            if let Ok(Some(price)) = quoted_price(party_id, variant_id, quantity, on).await {
+                draft.update(|d| {
+                    if let Some(line) = d.lines.get_mut(index)
+                        && line.unit_price.trim().is_empty()
+                    {
+                        line.unit_price = price;
+                    }
+                });
+            }
+        });
+    };
+
     view! {
         <tr class="border-b border-edge/60">
             <td class="py-1 text-xs text-content-subtle">{index + 1}</td>
@@ -830,6 +872,7 @@ fn line_row(
                                     }
                                 }
                             });
+                        quote(index);
                     })
                     placeholder=Some(l!("common.not_set"))
                 />

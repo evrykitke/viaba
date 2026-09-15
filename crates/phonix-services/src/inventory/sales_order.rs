@@ -21,12 +21,13 @@
 //!
 //! # A line with no price is refused
 //!
-//! Unlike a purchase line, which falls back to the item's standing cost. There
-//! is no price list in this workspace - one standing `sale_price` per item -
-//! and that price is what a new line *opens* on in the browser. What a line
-//! must not do is fall back to it silently at save: a zero or a stale price on
-//! a purchase order costs the workspace a conversation with a supplier, and on
-//! a sales order it is revenue that was given away.
+//! Unlike a purchase line, which falls back to the item's standing cost. A line
+//! opens on what the customer's price list quotes for that quantity on that
+//! date, and on nothing where they are on no list or it does not carry the
+//! item. What a line must not do is fall back to `items.sale_price` silently at
+//! save: a zero or a stale price on a purchase order costs the workspace a
+//! conversation with a supplier, and on a sales order it is revenue that was
+//! given away.
 
 use app_inventory::quantity::Quantity;
 use app_inventory::sales_order::{

@@ -35,6 +35,7 @@ use app_inventory::transfer::{ArrivalInput, Transfer, TransferInput, TransferSum
 use app_inventory::unit::{Unit, UnitInput};
 use app_inventory::variant::{Attribute, Plan, Selection, VariantChoice, VariantSummary};
 use app_inventory::warehouse::{Warehouse, WarehouseInput, WarehouseSummary};
+use chrono::NaiveDate;
 use leptos::prelude::*;
 use leptos::server_fn::codec::Json;
 use phonix_core::form::Submission;
@@ -127,6 +128,32 @@ pub async fn page_stock_locations(
     phonix_services::inventory::location::page(&pool, &caller, request)
         .await
         .map_err(service_error)
+}
+
+/// What a customer would be quoted for this many of a variant, on this date.
+///
+/// Empty where they are on no price list, or their list does not price it. The
+/// form leaves the box alone in that case rather than writing a zero.
+#[server(name = QuotedPrice, prefix = "/api", endpoint = "inventory/price-lists/quoted")]
+pub async fn quoted_price(
+    party_id: Uuid,
+    variant_id: Uuid,
+    quantity: String,
+    on: NaiveDate,
+) -> Result<Option<String>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    let quantity = app_inventory::quantity::Quantity::parse(&quantity)
+        .unwrap_or(app_inventory::quantity::Quantity::ZERO);
+
+    phonix_services::inventory::price_list::quoted_to(
+        &pool, &caller, party_id, variant_id, quantity, on,
+    )
+    .await
+    .map(|price| price.map(|price| price.unit_price.to_storage_string()))
+    .map_err(service_error)
 }
 
 #[server(name = SelectableLocations, prefix = "/api", endpoint = "inventory/locations/selectable")]

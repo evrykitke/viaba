@@ -144,3 +144,61 @@ pub fn as_code_conflict(err: sqlx::Error, code: &str) -> DbError {
         _ => DbError::Query(err),
     }
 }
+
+/// The list a customer is quoted from, or `None` for one nobody assigned.
+///
+/// `None` is the ordinary case rather than a gap: a workspace with one set of
+/// prices assigns nobody, and every quotation falls back the same way.
+pub async fn for_party<'e, E>(executor: E, party_id: Uuid) -> Result<Option<PriceList>, DbError>
+where
+    E: PgExecutor<'e>,
+{
+    let row = sqlx::query(
+        "SELECT p.id, p.code, p.name, p.currency_code, p.is_active
+           FROM inventory.party_price_lists a
+           JOIN inventory.price_lists p ON p.id = a.price_list_id
+          WHERE a.party_id = $1 AND p.is_active",
+    )
+    .bind(party_id)
+    .fetch_optional(executor)
+    .await
+    .map_err(DbError::Query)?;
+
+    row.as_ref().map(read_list).transpose()
+}
+
+/// Quote this customer from this list from now on, or stop quoting them from
+/// one at all.
+pub async fn assign<'e, E>(
+    executor: E,
+    party_id: Uuid,
+    price_list_id: Option<Uuid>,
+) -> Result<(), DbError>
+where
+    E: PgExecutor<'e>,
+{
+    match price_list_id {
+        Some(price_list_id) => {
+            sqlx::query(
+                "INSERT INTO inventory.party_price_lists (party_id, price_list_id)
+                 VALUES ($1, $2)
+                 ON CONFLICT (party_id)
+                 DO UPDATE SET price_list_id = EXCLUDED.price_list_id, updated_at = now()",
+            )
+            .bind(party_id)
+            .bind(price_list_id)
+            .execute(executor)
+            .await
+            .map_err(DbError::Query)?;
+        }
+        None => {
+            sqlx::query("DELETE FROM inventory.party_price_lists WHERE party_id = $1")
+                .bind(party_id)
+                .execute(executor)
+                .await
+                .map_err(DbError::Query)?;
+        }
+    }
+
+    Ok(())
+}

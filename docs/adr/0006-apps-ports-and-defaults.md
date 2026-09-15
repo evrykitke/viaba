@@ -976,9 +976,18 @@ exists to carry.
 **A line with no price is refused.** The purchase order fills an empty price
 from the item's standing cost, which costs the workspace a conversation with a
 supplier when it is wrong. The same fallback on a sales order is revenue given
-away, so the line opens on the item's `sale_price` where the picker can show it
-and the save refuses a blank. There is no price list - one standing price per
-item - and that is the honest state of it rather than a design.
+away, so the save refuses a blank.
+
+This paragraph used to say the line opened on the item's `sale_price` and that
+there was no price list. Neither was true of the code: `VariantChoice` carries
+no price and the pick handler never wrote one, so every price on a quotation
+was typed. There are price lists now - `inventory/0015` and `0016` - with
+quantity breaks, validity windows and one list per customer. A line opens on
+what that customer's list quotes for the quantity on the day, and on nothing at
+all where they are on no list or it does not carry the item. The fallback to
+`items.sale_price` is still deliberately absent: a standing price nobody chose
+for this customer is the revenue-given-away case this paragraph has always been
+about.
 
 **It lives in Inventory.** Odoo puts quotations in Sales and delivery orders in
 Inventory; this puts both here, because the documents need items, units,
