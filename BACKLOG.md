@@ -35,13 +35,6 @@ commits it is three items.
             seeds it, and the twenty-odd `default_value() == ""` tests still
             describe the grids that did not ask for one.
 
-- [ ] `phonix-web` The chart of accounts grid, which grows with the workspace
-      why: last of the four. A chart of accounts is the one that grows without
-           anybody deciding to grow it.
-      touch: crates/phonix-web/src/ui/table/config/accounts.rs
-      done: as the employees grid: `Source::paged`, and a count sharing the
-            select's filter scope.
-
 - [ ] `phonix-db` `cargo fmt` reformats this workspace wholesale
       why: there is no `rustfmt.toml`, and the committed code is written wider
            than default rustfmt accepts, so `cargo fmt -p <crate>` rewrites
@@ -137,6 +130,12 @@ rule: what changes about somebody is an `assignments` row, never a column on
 ## Done
 
 <!-- The loop appends here with the commit sha. Newest first. -->
+
+- [x] `phonix-web` The chart of accounts grid, last of the four that grow
+      All four are now paged. Class and postable are derived from the account
+      type rather than stored, so the store sorts and filters them through
+      expressions generated from `AccountType::ALL` - the rule stays in the
+      enum rather than being copied into SQL.
 
 - [x] `phonix-web` The agreement tests for the users and locations grids
       Both now assert that every column offering a sort or a search is one the

@@ -43,6 +43,18 @@ pub async fn list_accounts() -> Result<Vec<Account>, ServerFnError> {
         .map_err(service_error)
 }
 
+/// One page of the chart, for the grid.
+#[server(name = PageAccounts, prefix = "/api", endpoint = "books/accounts/page", input = Json)]
+pub async fn page_accounts(request: PageRequest) -> Result<Page<Account>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::books::account::page(&pool, &caller, request)
+        .await
+        .map_err(service_error)
+}
+
 /// One account.
 #[server(name = AccountDetail, prefix = "/api", endpoint = "books/accounts/detail")]
 pub async fn account_detail(account_id: Uuid) -> Result<Account, ServerFnError> {

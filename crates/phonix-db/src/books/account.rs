@@ -4,12 +4,14 @@
 //! next; until they exist, nothing has been posted to any of these accounts and
 //! the chart is a vocabulary rather than a ledger.
 
-use app_books::account::{Account, AccountInput, AccountType, DefaultChart};
+use app_books::account::{Account, AccountClass, AccountInput, AccountType, DefaultChart};
 use phonix_core::identity::UserId;
-use sqlx::{PgExecutor, Row};
+use phonix_core::query::{Page, PageRequest, Sort};
+use sqlx::{AssertSqlSafe, PgExecutor, Row};
 use uuid::Uuid;
 
 use crate::error::DbError;
+use crate::listing::{self, Sortable};
 
 /// The unique index a duplicate number lands on.
 const NUMBER_INDEX: &str = "accounts_number_key";
@@ -158,6 +160,179 @@ where
     .map_err(DbError::Query)?;
 
     rows.into_iter().map(read_account).collect()
+}
+
+/// The type filter: one `AccountType`.
+pub const ACCOUNT_TYPE: &str = "account_type";
+
+/// The class filter: one `AccountClass`, answered as the types in it.
+pub const CLASS: &str = "class";
+
+/// The postable filter: `yes` or `no`.
+pub const POSTABLE: &str = "postable";
+
+/// The status filter: `active` or `inactive`.
+pub const STATUS: &str = "status";
+
+/// The types a person may post to by hand, as a SQL list.
+///
+/// Generated from `AccountType::ALL` rather than written out here: the rule is
+/// `allows_manual_posting`, and a second copy of it in SQL is a copy that stops
+/// agreeing the first time a type is added.
+fn manual_types() -> String {
+    let types: Vec<&str> = AccountType::ALL
+        .iter()
+        .filter(|account_type| account_type.allows_manual_posting())
+        .map(|account_type| account_type.as_str())
+        .collect();
+
+    format!("'{}'", types.join("', '"))
+}
+
+/// `is_postable`, as the database sees it: active, and not a control account.
+fn postable_sql() -> String {
+    format!("(a.is_active AND a.account_type IN ({}))", manual_types())
+}
+
+/// The class of each type, as an ordering. Same reasoning as [`manual_types`].
+fn class_order() -> String {
+    let arms: String = AccountType::ALL
+        .iter()
+        .map(|account_type| {
+            let class = AccountClass::ALL
+                .iter()
+                .position(|class| *class == account_type.class())
+                .unwrap_or(AccountClass::ALL.len());
+
+            format!(" WHEN '{}' THEN {class}", account_type.as_str())
+        })
+        .collect();
+
+    format!(
+        "CASE a.account_type{arms} ELSE {} END",
+        AccountClass::ALL.len()
+    )
+}
+
+/// The types in one class, for the class filter. Empty for a value that names
+/// no class, which matches no row - as the grid's closure did.
+fn types_in(class: &str) -> Vec<String> {
+    AccountType::ALL
+        .iter()
+        .filter(|account_type| account_type.class().as_str() == class)
+        .map(|account_type| account_type.as_str().to_owned())
+        .collect()
+}
+
+const SORTABLE: &[Sortable] = &[
+    ("number", "a.number"),
+    ("name", "a.name"),
+    ("type", "a.account_type"),
+    ("is_active", "a.is_active"),
+];
+
+/// The `ORDER BY` fragment, defaulting to number - the order an accountant
+/// reads a chart in, because the ranges are the classification.
+///
+/// `class` and `postable` are generated expressions rather than columns, so
+/// they cannot sit in [`SORTABLE`], which holds `&'static str`. The direction is
+/// one of two literals; see `listing::order_by`.
+fn order_for(sort: Option<&Sort>) -> String {
+    match sort.map(|sort| (sort.field.as_str(), sort.direction.sql())) {
+        Some(("class", direction)) => format!("{} {direction}", class_order()),
+        Some(("postable", direction)) => format!("{} {direction}", postable_sql()),
+        _ => listing::order_by(sort, SORTABLE, "a.number"),
+    }
+}
+
+const FROM: &str = "FROM books.accounts a";
+
+/// A filter nobody set is a NULL that discards its own line.
+///
+/// `a.account_type` is matched as stored, not as the word the screen draws for
+/// it: the label is translated in the browser and SQL cannot see it.
+const WHERE: &str = "WHERE ($1::text IS NULL OR a.account_type = $1)
+            AND ($2::text[] IS NULL OR a.account_type = ANY($2))
+            AND ($4::bool IS NULL OR a.is_active = $4)
+            AND ($5::text IS NULL
+                 OR a.number ILIKE $5
+                 OR a.name ILIKE $5
+                 OR a.account_type ILIKE $5)";
+
+/// One page of the chart.
+///
+/// The count and the select share [`FROM`] and [`WHERE`], so a filtered page
+/// cannot be counted against a different set of rows than it draws.
+pub async fn page(pool: &sqlx::PgPool, request: &PageRequest) -> Result<Page<Account>, DbError> {
+    let request = request.sanitised();
+    let needle = request
+        .needle()
+        .map(|needle| crate::search::contains(&needle));
+
+    let account_type = request.filter(ACCOUNT_TYPE);
+    let class = request.filter(CLASS).map(types_in);
+
+    let postable = match request.filter(POSTABLE) {
+        Some("yes") => Some(true),
+        Some("no") => Some(false),
+        _ => None,
+    };
+
+    let active = match request.filter(STATUS) {
+        Some("active") => Some(true),
+        Some("inactive") => Some(false),
+        _ => None,
+    };
+
+    // `$3` is the postable predicate, which is an expression rather than a
+    // column and so cannot be compared in the `WHERE` constant.
+    let postable_clause = format!("AND ($3::bool IS NULL OR {} = $3)", postable_sql());
+    let counting = AssertSqlSafe(format!(
+        "SELECT count(*) {FROM} {WHERE} {postable_clause}"
+    ));
+
+    let total: i64 = sqlx::query_scalar(counting)
+        .bind(account_type)
+        .bind(class.as_deref())
+        .bind(postable)
+        .bind(active)
+        .bind(needle.as_deref())
+        .fetch_one(pool)
+        .await
+        .map_err(DbError::Query)?;
+
+    let total = u64::try_from(total).unwrap_or(0);
+    let request = request.clamped_to(total);
+
+    let order = order_for(request.sort.as_ref());
+
+    let selecting = AssertSqlSafe(format!(
+        "SELECT a.id, a.number, a.name, a.account_type, a.description,
+                a.is_active, a.is_default
+           {FROM}
+           {WHERE} {postable_clause}
+          ORDER BY {order}, a.number
+          LIMIT $6 OFFSET $7"
+    ));
+
+    let rows = sqlx::query(selecting)
+        .bind(account_type)
+        .bind(class.as_deref())
+        .bind(postable)
+        .bind(active)
+        .bind(needle.as_deref())
+        .bind(request.limit() as i64)
+        .bind(request.offset() as i64)
+        .fetch_all(pool)
+        .await
+        .map_err(DbError::Query)?;
+
+    let accounts = rows
+        .into_iter()
+        .map(read_account)
+        .collect::<Result<Vec<_>, DbError>>()?;
+
+    Ok(Page::new(accounts, total, &request))
 }
 
 /// One account by id.

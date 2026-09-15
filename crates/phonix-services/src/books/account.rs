@@ -9,6 +9,7 @@ use app_books::account::{Account, AccountInput};
 use phonix_core::form::Submission;
 use phonix_core::msg;
 use phonix_core::permissions;
+use phonix_core::query::{Page, PageRequest};
 use phonix_db::books::account as store;
 use phonix_db::error::DbError;
 use phonix_db::sqlx::PgPool;
@@ -22,6 +23,16 @@ use crate::error::{ServiceError, ServiceResult};
 pub async fn list(pool: &PgPool, caller: &Caller) -> ServiceResult<Vec<Account>> {
     caller.require(permissions::ACCOUNTS)?;
     Ok(store::list(pool).await?)
+}
+
+/// One page of the chart, for the grid.
+pub async fn page(
+    pool: &PgPool,
+    caller: &Caller,
+    request: PageRequest,
+) -> ServiceResult<Page<Account>> {
+    caller.require(permissions::ACCOUNTS)?;
+    Ok(store::page(pool, &request).await?)
 }
 
 /// How many accounts there are, and how many are active.
