@@ -7,7 +7,7 @@
 //! nobody keyed anything.
 
 use app_hr::attendance::{
-    Attendance, AttendanceError, AttendanceInput, AttendanceSummary, DayOutcome,
+    Attendance, AttendanceError, AttendanceInput, AttendanceSummary, DayOutcome, TimesheetDay,
 };
 use chrono::NaiveDate;
 use phonix_core::form::Submission;
@@ -28,15 +28,6 @@ use crate::error::{ServiceError, ServiceResult};
 /// here rather than there: a screen asks for a month, an export asks for a
 /// year, and anything wider is a report nobody has designed yet.
 pub const MAX_SPAN_DAYS: i64 = 366;
-
-/// One day on a timesheet: what the calendar said, and what it came to.
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub struct TimesheetDay {
-    pub on_date: NaiveDate,
-    pub outcome: DayOutcome,
-    /// The record behind it, where there is one.
-    pub record: Option<Attendance>,
-}
 
 /// Everybody's records on one date.
 pub async fn on_date(

@@ -211,6 +211,19 @@ impl DayOutcome {
     }
 }
 
+/// One day on a timesheet: what it came to, and the record behind it.
+///
+/// Assembled by the service, which is the only place that has both halves.
+/// It lives here rather than there because it crosses to the browser, and
+/// `phonix-services` does not.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TimesheetDay {
+    pub on_date: NaiveDate,
+    pub outcome: DayOutcome,
+    /// The record behind it, where somebody keyed one.
+    pub record: Option<Attendance>,
+}
+
 /// A record being written on a screen.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AttendanceInput {

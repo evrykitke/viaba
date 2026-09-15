@@ -616,6 +616,25 @@ pub static MENU: &[NavNode] = &[
             )
             .require(names::WORK_LOCATIONS)
             .keywords(&["place", "site", "office", "home", "remote", "where"]),
+            // Before the calendars, which are the reference data it reads:
+            // somebody opens this area to key a week far more often than to
+            // arrange next year's bank holidays.
+            NavNode::leaf(
+                "attendance",
+                "nav.attendance",
+                Icon::ListChecks,
+                "/people/attendance",
+            )
+            .require(names::ATTENDANCE)
+            .keywords(&[
+                "timesheet",
+                "present",
+                "absent",
+                "clock in",
+                "check in",
+                "half day",
+                "who was here",
+            ]),
             // Beside the places rather than under a settings heading: it is
             // reference data an assignment points at, exactly as a place is.
             NavNode::leaf(

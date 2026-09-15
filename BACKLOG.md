@@ -31,19 +31,6 @@ Read `WORKFLOWS.md` before starting any of these, and obey the dated-assignment
 rule: what changes about somebody is an `assignments` row, never a column on
 `employees`.
 
-- [ ] `phonix-web` Attendance, on a screen
-      why: same half as the calendar was: the model, the store and the gated
-           service exist and nothing drives them. `timesheet` is the one
-           worth a screen - a month of one person with every day resolved,
-           including the days nobody keyed.
-      touch: server fns beside the calendar ones in `hr_fns`, a day screen
-           and a timesheet under crates/phonix-web/src/pages/people/, and a
-           nav node naming `Pages.People.Attendance`
-      done: a workspace can key a day for somebody, see a month resolved
-            against their calendar, and correct a record keyed in error.
-            `DayOutcome` has seven answers and the screen has to render all
-            of them - NotRecorded and Unknown are not blanks.
-
 - [ ] `app-hr` Shift types, and the roster that assigns them
       why: attendance without an expected shift can say somebody was present
            but not whether they were late, and Frappe HR separates the two for
@@ -75,6 +62,16 @@ rule: what changes about somebody is an `assignments` row, never a column on
 ## Done
 
 <!-- The loop appends here with the commit sha. Newest first. -->
+
+- [x] `phonix-web` Attendance, on a screen
+      One screen rather than two: a person, a month, and every day of it
+      resolved - keying a day, reading the month and correcting a record are
+      the same act from the reader's side. All seven `DayOutcome` answers are
+      drawn, `NotRecorded` and `Unknown` in warning tone rather than as
+      blanks, because a blank reads as "fine" and means "nobody knows".
+      `TimesheetDay` moved from phonix-services to app-hr on the way: a
+      server fn's return type has to compile for wasm, and phonix-services
+      does not.
 
 - [x] `app-hr` Attendance, as what was recorded rather than what was expected
       Unblocked by the user on 2026-09-15: **no geolocation**, so a record

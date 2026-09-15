@@ -15,6 +15,7 @@
 //! /people/roles/:id           a form
 //! /people/places              where people work
 //! /people/places/:id          a form
+//! /people/attendance          one person's month, day by day
 //! /people/holidays            the calendars of days off
 //! /people/holidays/:id        the calendar and its days
 //! ```
@@ -22,6 +23,7 @@
 //! There is no separate cost-centre screen: a cost centre is a department with
 //! a flag, so it is a filter on the grid rather than a second screen.
 
+pub mod attendance;
 pub mod department;
 pub mod departments;
 pub mod employee;

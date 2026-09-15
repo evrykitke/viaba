@@ -85,7 +85,7 @@ pub const SETUP: &[phonix_core::SetupItem] = &[phonix_core::SetupItem::advisory(
 
 pub use attendance::{
     Attendance, AttendanceError, AttendanceInput, AttendanceSource, AttendanceStatus,
-    AttendanceSummary, DayOutcome,
+    AttendanceSummary, DayOutcome, TimesheetDay,
 };
 pub use department::{
     DeleteOutcome, Department, DepartmentError, DepartmentInput, DepartmentSummary,

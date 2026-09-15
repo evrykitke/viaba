@@ -62,6 +62,7 @@ use crate::pages::master::party::PartyPage;
 use crate::pages::master::tax::TaxPage;
 use crate::pages::master::tax_group::{TaxGroupNewPage, TaxGroupPage};
 use crate::pages::master::taxes::{TaxNewPage, TaxesPage};
+use crate::pages::people::attendance::AttendancePage;
 use crate::pages::people::department::DepartmentPage;
 use crate::pages::people::departments::{DepartmentNewPage, DepartmentsPage};
 use crate::pages::people::employee::{EmployeeNewPage, EmployeePage};
@@ -309,6 +310,7 @@ pub fn app() -> impl IntoView {
                     <Route path=path!("/people/places") view=WorkLocationsPage />
                     <Route path=path!("/people/places/new") view=WorkLocationPage />
                     <Route path=path!("/people/places/:id") view=WorkLocationPage />
+                    <Route path=path!("/people/attendance") view=AttendancePage />
                     <Route path=path!("/people/holidays") view=HolidayListsPage />
                     <Route path=path!("/people/holidays/new") view=HolidayListPage />
                     <Route path=path!("/people/holidays/:id") view=HolidayListPage />

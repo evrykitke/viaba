@@ -5,6 +5,7 @@
 //! instead. An endpoint here would be the browser crossing an app boundary, and
 //! the boundary would then exist only on the server. See ADR 0006 section 2.
 
+use app_hr::attendance::{AttendanceInput, AttendanceSummary, TimesheetDay};
 use app_hr::department::DeleteOutcome;
 use app_hr::department::{Department, DepartmentInput, DepartmentSummary};
 use app_hr::employee::{AssignmentInput, Employee, EmployeeInput, EmployeeSummary, LeavingInput};
@@ -397,6 +398,86 @@ pub async fn delete_job_position(position_id: Uuid) -> Result<Submission<()>, Se
     let (pool, caller) = pool_and_caller().await?;
 
     phonix_services::hr::job_position::delete(&pool, &caller, position_id)
+        .await
+        .map_err(service_error)
+}
+
+// --- Attendance ------------------------------------------------------------
+
+/// Everybody recorded on one date.
+#[server(name = AttendanceOnDate, prefix = "/api", endpoint = "hr/attendance/day")]
+pub async fn attendance_on_date(
+    date: chrono::NaiveDate,
+) -> Result<Vec<AttendanceSummary>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::hr::attendance::on_date(&pool, &caller, date)
+        .await
+        .map_err(service_error)
+}
+
+/// One person's span, every day resolved against their calendar.
+#[server(name = EmployeeTimesheet, prefix = "/api", endpoint = "hr/attendance/timesheet")]
+pub async fn employee_timesheet(
+    employee_id: Uuid,
+    from: chrono::NaiveDate,
+    to: chrono::NaiveDate,
+) -> Result<Vec<TimesheetDay>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::hr::attendance::timesheet(&pool, &caller, employee_id, from, to)
+        .await
+        .map_err(service_error)
+}
+
+#[server(name = AttendanceEdit, prefix = "/api", endpoint = "hr/attendance/edit")]
+pub async fn attendance_edit(record_id: Uuid) -> Result<AttendanceInput, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::hr::attendance::edit(&pool, &caller, record_id)
+        .await
+        .map_err(service_error)
+}
+
+/// A blank record for one person on one day.
+#[server(name = BlankAttendance, prefix = "/api", endpoint = "hr/attendance/blank")]
+pub async fn blank_attendance(
+    employee_id: Uuid,
+    on: chrono::NaiveDate,
+) -> Result<AttendanceInput, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (_pool, caller) = pool_and_caller().await?;
+
+    phonix_services::hr::attendance::blank(&caller, employee_id, on).map_err(service_error)
+}
+
+#[server(name = SaveAttendance, prefix = "/api", endpoint = "hr/attendance/save")]
+pub async fn save_attendance(
+    draft: AttendanceInput,
+) -> Result<Submission<AttendanceInput>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::hr::attendance::save(&pool, &caller, draft)
+        .await
+        .map_err(service_error)
+}
+
+#[server(name = DeleteAttendance, prefix = "/api", endpoint = "hr/attendance/delete")]
+pub async fn delete_attendance(record_id: Uuid) -> Result<Submission<()>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::hr::attendance::delete(&pool, &caller, record_id)
         .await
         .map_err(service_error)
 }
