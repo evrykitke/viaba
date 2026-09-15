@@ -289,6 +289,15 @@ pub mod kinds {
         singleton: false,
     };
 
+    /// A shift: when it runs, and what counts as on time.
+    pub const SHIFT_TYPE: EntityKind = EntityKind {
+        name: "shift_type",
+        singular_key: "entity.shift_type.singular",
+        plural_key: "entity.shift_type.plural",
+        href: Some("/people/shifts/{id}"),
+        singleton: false,
+    };
+
     /// One person's day, as somebody recorded it.
     pub const ATTENDANCE: EntityKind = EntityKind {
         name: "attendance",
@@ -574,6 +583,7 @@ pub const ENTITY_KINDS: &[EntityKind] = &[
     kinds::WORK_LOCATION,
     kinds::HOLIDAY_LIST,
     kinds::ATTENDANCE,
+    kinds::SHIFT_TYPE,
     kinds::ITEM,
     kinds::ITEM_CATEGORY,
     kinds::WAREHOUSE,

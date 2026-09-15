@@ -20,6 +20,7 @@ pub mod department;
 pub mod employee;
 pub mod holiday;
 pub mod job_position;
+pub mod shift;
 pub mod work_location;
 
 pub use cost_centre::HrCostCentres;

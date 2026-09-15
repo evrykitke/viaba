@@ -56,6 +56,8 @@
 //!  +- Pages.People
 //!  |   +- Pages.People.Attendance
 //!  |   |   +- .Record
+//!  |   +- Pages.People.ShiftTypes
+//!  |   |   +- .Manage
 //!  |   +- Pages.People.HolidayLists
 //!  |   |   +- .Manage
 //!  |   +- Pages.People.Departments
@@ -127,6 +129,9 @@ pub mod names {
 
     pub const ATTENDANCE: &str = "Pages.People.Attendance";
     pub const ATTENDANCE_RECORD: &str = "Pages.People.Attendance.Record";
+
+    pub const SHIFT_TYPES: &str = "Pages.People.ShiftTypes";
+    pub const SHIFT_TYPES_MANAGE: &str = "Pages.People.ShiftTypes.Manage";
 
     pub const DEPARTMENTS: &str = "Pages.People.Departments";
     pub const DEPARTMENTS_CREATE: &str = "Pages.People.Departments.Create";
@@ -1092,6 +1097,20 @@ pub const DEFINITIONS: &[PermissionDefinition] = &[
         display_name: "Record attendance",
         description: Some("Key a day as present, half a day, or absent."),
         parent: Some(names::ATTENDANCE),
+        default_for_user: false,
+    },
+    PermissionDefinition {
+        name: names::SHIFT_TYPES,
+        display_name: "Shifts",
+        description: Some("See the shifts people are expected to work."),
+        parent: Some(names::PEOPLE),
+        default_for_user: false,
+    },
+    PermissionDefinition {
+        name: names::SHIFT_TYPES_MANAGE,
+        display_name: "Manage shifts",
+        description: Some("Define a shift and the lateness it forgives."),
+        parent: Some(names::SHIFT_TYPES),
         default_for_user: false,
     },
     PermissionDefinition {

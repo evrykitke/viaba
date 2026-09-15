@@ -31,12 +31,21 @@ Read `WORKFLOWS.md` before starting any of these, and obey the dated-assignment
 rule: what changes about somebody is an `assignments` row, never a column on
 `employees`.
 
-- [ ] `app-hr` Shift types, and the roster that assigns them
-      why: attendance without an expected shift can say somebody was present
-           but not whether they were late, and Frappe HR separates the two for
-           exactly that reason.
-      done: shift types carry start, end and a grace window; an employee's
-            shift is a dated assignment row like every other assignment.
+- [ ] `phonix-web` Shifts, on a screen, and lateness on the timesheet
+      why: the model and the service exist and nothing drives them - the
+           third time this pattern has appeared, and the last of them. The
+           payoff the shift was built for is still missing too: the
+           timesheet shows a check-in time but not whether it was late.
+      touch: server fns beside the attendance ones, a list and form under
+           crates/phonix-web/src/pages/people/, the shift picker on both
+           employee forms, and `TimesheetDay` to carry the arrival
+      done: a workspace can define a shift, put somebody on one through
+            their assignment, and see on the timesheet whether each day's
+            check-in was inside the grace window.
+      note: `ShiftType::arrival` takes a local clock time on purpose. Turning
+           `checked_in_at` into one needs the workspace time zone -
+           `phonix_core::locale::Timezone` exists; nothing here reads it yet,
+           and that is the decision this item has to make.
 
 - [ ] `app-hr` The employee lifecycle documents
       why: the dated chain underneath onboarding, promotion, transfer and exit
@@ -62,6 +71,17 @@ rule: what changes about somebody is an `assignments` row, never a column on
 ## Done
 
 <!-- The loop appends here with the commit sha. Newest first. -->
+
+- [x] `app-hr` Shift types, and the roster that assigns them
+      The model, as with the two before it. A shift carries its hours and
+      two grace windows - Frappe HR has both and they are not the same
+      number, since five minutes late is traffic and five minutes early is a
+      decision. Which shift somebody is on is a dated assignment row like
+      their department and their calendar. `arrival` and `departure` are
+      pure and take a local clock time, so the grace window means something
+      rather than sitting in a column nothing reads. A night shift ends
+      before it starts and that is allowed: refusing it would refuse the
+      case a grace window is most often used for.
 
 - [x] `phonix-web` Attendance, on a screen
       One screen rather than two: a person, a month, and every day of it

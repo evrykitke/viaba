@@ -8,7 +8,8 @@
 //!
 //! Then the people: [`employee`], with [`job_position`] and [`work_location`]
 //! beside it, [`holiday`] for the days none of them is expected to work, and
-//! [`attendance`] for what was actually recorded against those days.
+//! [`attendance`] for what was actually recorded against those days, which
+//! [`shift`] is the expectation half of.
 //!
 //! # An employee is not a user
 //!
@@ -57,6 +58,7 @@ pub mod department;
 pub mod employee;
 pub mod holiday;
 pub mod job_position;
+pub mod shift;
 pub mod work_location;
 
 /// The app's id, its schema name, and the key its number series are declared
@@ -100,6 +102,7 @@ pub use holiday::{
     WorkingDay,
 };
 pub use job_position::{JobPosition, JobPositionError, JobPositionInput, JobPositionSummary};
+pub use shift::{Arrival, Departure, ShiftError, ShiftType, ShiftTypeInput, ShiftTypeSummary};
 pub use work_location::{
     LocationKind, WorkLocation, WorkLocationError, WorkLocationInput, WorkLocationSummary,
 };

@@ -27,13 +27,14 @@ pub mod department;
 pub mod employee;
 pub mod holiday;
 pub mod job_position;
+pub mod shift;
 pub mod work_location;
 
 use crate::error::DbError;
 
 /// Turn a unique-index violation on a code into the error a form can show.
 ///
-/// One function for five tables. Each passes its own index name and entity,
+/// One function for six tables. Each passes its own index name and entity,
 /// because the message names the entity and the caller is the only thing that
 /// knows which index it was about to violate.
 pub(crate) fn code_conflict(
