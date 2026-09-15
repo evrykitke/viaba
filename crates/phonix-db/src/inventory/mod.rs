@@ -33,6 +33,7 @@ pub mod landed_cost;
 pub mod location;
 pub mod lot;
 pub mod movement;
+pub mod price_list;
 pub mod purchase;
 pub mod quant;
 pub mod receipt;

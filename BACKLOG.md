@@ -25,15 +25,22 @@ commits it is three items.
 
 ## Next
 
-- [ ] `app-books` Price lists, and the prices an item has in each
-      why: `pricing.rs` computes from a single price on the item. Both ERPNext
-           (Price List plus Item Price) and Odoo (pricelists) treat "what this
-           costs" as a function of customer, quantity and date — a wholesale
-           customer and a walk-in cannot share one number.
-      touch: crates/app-books/src/pricing.rs
-      done: an item resolves a price through a named price list, with a
-            validity window, and the sales order and invoice both resolve
-            through it rather than reading a bare item price.
+- [ ] `app-inventory` A customer's price list, and the line that opens on it
+      why: second of three. The resolution exists and nothing calls it - a
+           sales order line still opens on `items.sale_price`, so a wholesale
+           customer and a walk-in are still quoted one number.
+      touch: crates/phonix-services/src/inventory/sales_order.rs
+      done: a party carries a default price list, a sales order resolves each
+            line through it at the order's date and quantity, and falls back to
+            `sale_price` only where no list prices the variant. ADR 0006's
+            "there is no price list" paragraph changes in the same commit.
+
+- [ ] `phonix-web` Keeping the price lists
+      why: last of three. The tables exist and nothing can put a price in one
+           but a migration, so the feature is unreachable from the application.
+      touch: crates/phonix-web/src/ui/table/config/, pages/inventory/
+      done: price lists are listed, created and edited, and a variant's prices
+            in one list can be added with their break and their window.
 
 - [ ] `app-books` The credit note, which has a numbering series and nothing else
       why: `phonix-config/src/numbering.rs` already reserves a credit-note
@@ -100,6 +107,12 @@ rule: what changes about somebody is an `assignments` row, never a column on
 ## Done
 
 <!-- The loop appends here with the commit sha. Newest first. -->
+
+- [x] `app-inventory` Price lists, and which price wins
+      First of three the price-list item split into. Inventory, not Books - the
+      hint said `app-books/src/pricing.rs` and that module is line arithmetic
+      which never reads an item price. Tables, model and the resolution rule
+      with seven tests; nothing is wired to it yet.
 
 - [x] `phonix-web` Raising an invoice against a despatch
       Against a delivery rather than a customer - the mirror of

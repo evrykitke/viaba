@@ -55,9 +55,11 @@ Status marks:
 
 - [~] **Price determination** — `app-books/src/pricing.rs` exists and resolves
       from a single price on the item.
-- [ ] **Price list** — ERPNext's Price List + Item Price, Odoo's pricelists.
-      No named list, no per-customer or per-quantity price, no validity window.
-      A wholesale customer and a walk-in share one number today.
+- [~] **Price list** — ERPNext's Price List + Item Price, Odoo's pricelists.
+      `price_lists` and `item_prices` exist, with quantity breaks, validity
+      windows and the rule that picks between them. Not yet wired: a sales
+      order line still opens on `items.sale_price`, and nothing but a migration
+      can put a price in a list.
 - [ ] **Pricing rule / promotional scheme** — conditional discounts, margins,
       slabs. Depends on price lists existing first.
 - [?] **Discounts** — `discount` appears in `pricing.rs`, `invoice.rs` and
