@@ -25,6 +25,25 @@ commits it is three items.
 
 ## Next
 
+> **Where the loop stopped, 2026-09-15.** Paused by the user after
+> `0ea7fd6` so they could verify the People screens in a browser. Nothing
+> is half-done: the tree was clean at the stop and every item below is
+> untouched. Resume with `/loop /advance` and take the first item.
+>
+> **Nothing in this branch has run against a database.** Migrations
+> `hr/0003` (holidays), `hr/0004` (attendance), `hr/0005` (shifts) and
+> `core/0023` (the `Pages.Sales` → `Pages.Accounting` rename) are all
+> unapplied and compiler-checked only. The `generate_series` + `LATERAL`
+> queries in `hr::holiday::working_days` and `hr::shift::for_span` are the
+> least-exercised SQL in it. Expect the first browser run to be where that
+> gets found out.
+>
+> **Decisions the user made during the run**, all already applied:
+> Selling/Accounting menus with invoices under Selling only; the permission
+> root renamed with a migration rather than dropping the home-to-permission
+> invariant; no geolocation on attendance; `chrono-tz` as a server-only
+> dependency for lateness.
+
 ### People — the Frappe HR revamp
 
 Read `WORKFLOWS.md` before starting any of these, and obey the dated-assignment
