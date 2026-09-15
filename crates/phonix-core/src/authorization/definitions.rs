@@ -56,6 +56,8 @@
 //!  +- Pages.People
 //!  |   +- Pages.People.Attendance
 //!  |   |   +- .Record
+//!  |   +- Pages.People.Applicants
+//!  |   |   +- .Manage  .Hire
 //!  |   +- Pages.People.Movements
 //!  |   |   +- .Raise  .Confirm
 //!  |   +- Pages.People.ShiftTypes
@@ -138,6 +140,10 @@ pub mod names {
     pub const MOVEMENTS: &str = "Pages.People.Movements";
     pub const MOVEMENTS_RAISE: &str = "Pages.People.Movements.Raise";
     pub const MOVEMENTS_CONFIRM: &str = "Pages.People.Movements.Confirm";
+
+    pub const APPLICANTS: &str = "Pages.People.Applicants";
+    pub const APPLICANTS_MANAGE: &str = "Pages.People.Applicants.Manage";
+    pub const APPLICANTS_HIRE: &str = "Pages.People.Applicants.Hire";
 
     pub const DEPARTMENTS: &str = "Pages.People.Departments";
     pub const DEPARTMENTS_CREATE: &str = "Pages.People.Departments.Create";
@@ -1103,6 +1109,29 @@ pub const DEFINITIONS: &[PermissionDefinition] = &[
         display_name: "Record attendance",
         description: Some("Key a day as present, half a day, or absent."),
         parent: Some(names::ATTENDANCE),
+        default_for_user: false,
+    },
+    PermissionDefinition {
+        name: names::APPLICANTS,
+        display_name: "Applicants",
+        description: Some("See who has applied for the jobs this workspace has."),
+        parent: Some(names::PEOPLE),
+        default_for_user: false,
+    },
+    PermissionDefinition {
+        name: names::APPLICANTS_MANAGE,
+        display_name: "Manage applicants",
+        description: Some("Record an application and move it through the stages."),
+        parent: Some(names::APPLICANTS),
+        default_for_user: false,
+    },
+    // Hiring is its own power, and a large one: it opens an engagement,
+    // which is what somebody is paid against.
+    PermissionDefinition {
+        name: names::APPLICANTS_HIRE,
+        display_name: "Hire an applicant",
+        description: Some("Turn an application into an employment."),
+        parent: Some(names::APPLICANTS),
         default_for_user: false,
     },
     // Three powers, because raising and confirming are different acts.

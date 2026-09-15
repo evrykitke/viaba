@@ -11,7 +11,8 @@
 //! [`attendance`] for what was actually recorded against those days, which
 //! [`shift`] is the expectation half of. [`movement`] is the document behind
 //! a promotion, a transfer or an exit - the act, where the others are what it
-//! made true.
+//! made true. [`applicant`] is who wants the job nobody is doing, which
+//! [`job_position`] made queryable and nothing until now answered.
 //!
 //! # An employee is not a user
 //!
@@ -55,6 +56,7 @@
     )
 )]
 
+pub mod applicant;
 pub mod attendance;
 pub mod department;
 pub mod employee;
@@ -92,6 +94,7 @@ pub const SETUP: &[phonix_core::SetupItem] = &[phonix_core::SetupItem::advisory(
     "hr.setup.cost_centres_missing",
 )];
 
+pub use applicant::{Applicant, ApplicantError, ApplicantInput, ApplicantSummary, Stage};
 pub use attendance::{
     Attendance, AttendanceError, AttendanceInput, AttendanceSource, AttendanceStatus,
     AttendanceSummary, DayOutcome, TimesheetDay,

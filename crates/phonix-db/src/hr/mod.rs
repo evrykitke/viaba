@@ -22,6 +22,7 @@
 //! keeps somebody's current department as a column can never say what it was
 //! last March.
 
+pub mod applicant;
 pub mod attendance;
 pub mod department;
 pub mod employee;

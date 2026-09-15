@@ -14,6 +14,7 @@
 //! somewhere never sign in, and the schema is built for that rather than around
 //! it.
 
+pub mod applicant;
 pub mod attendance;
 pub mod cost_centre;
 pub mod department;

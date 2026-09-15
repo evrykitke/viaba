@@ -289,6 +289,15 @@ pub mod kinds {
         singleton: false,
     };
 
+    /// Somebody who has applied for a job.
+    pub const APPLICANT: EntityKind = EntityKind {
+        name: "applicant",
+        singular_key: "entity.applicant.singular",
+        plural_key: "entity.applicant.plural",
+        href: Some("/people/applicants/{id}"),
+        singleton: false,
+    };
+
     /// A promotion, a transfer or an exit.
     pub const MOVEMENT: EntityKind = EntityKind {
         name: "movement",
@@ -594,6 +603,7 @@ pub const ENTITY_KINDS: &[EntityKind] = &[
     kinds::ATTENDANCE,
     kinds::SHIFT_TYPE,
     kinds::MOVEMENT,
+    kinds::APPLICANT,
     kinds::ITEM,
     kinds::ITEM_CATEGORY,
     kinds::WAREHOUSE,

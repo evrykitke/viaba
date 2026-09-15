@@ -128,8 +128,10 @@ wants a status column on a person is the bug this schema was built to refuse.
 - [ ] **Expense claims and advances** — multi-level approval, posts to the
       ledger. Needs `app-books`.
 - [ ] **Performance management** — goals, key result areas, appraisal cycles.
-- [ ] **Recruitment** — job applicants against the existing job-position rows,
-      which already make a vacancy queryable.
+- [~] **Recruitment** — job applicants against the existing job-position rows,
+      with named stages, and a hire that opens a second engagement on an
+      existing record rather than duplicating the person. Model and service
+      built; no screen yet. No job postings, no offers as documents.
 - [ ] **Timesheets.**
 - [-] **Mobile application** — Frappe HR ships one. Out of scope.
 

@@ -54,13 +54,21 @@ Read `WORKFLOWS.md` before starting any of these, and obey the dated-assignment
 rule: what changes about somebody is an `assignments` row, never a column on
 `employees`.
 
-- [ ] `app-hr` Recruitment against the vacancies that already exist
-      why: job positions are rows precisely so that "what are we recruiting
-           for" has a query, and nothing yet answers it. `filled` is already
-           counted over open assignments.
-      done: an applicant applies against a job position, moves through named
-            stages, and a hire opens an engagement rather than duplicating the
-            person.
+- [ ] `phonix-web` Recruitment, on a screen
+      why: the last of the People models with no screen. An application
+           cannot be recorded, moved through the stages, or hired from.
+      touch: server fns beside the movement ones, a list and a form under
+           crates/phonix-web/src/pages/people/, a nav node naming
+           `Pages.People.Applicants`, and the vacancy - a job position with
+           `filled == 0` should say how many have applied
+      done: a workspace can record an application, move it through the
+            stages, and hire from it - which asks for a start date and
+            opens the engagement. The hire button is separate from the
+            stage picker, because `check` refuses `hired` as a typed value.
+      note: `hire` matches an existing employee on the work email and opens
+           a second engagement where it finds one. The screen should say
+           which happened - somebody hiring a returning employee needs to
+           know they did not create a second record.
 
 ## Blocked
 
@@ -70,6 +78,18 @@ rule: what changes about somebody is an `assignments` row, never a column on
 ## Done
 
 <!-- The loop appends here with the commit sha. Newest first. -->
+
+- [x] `app-hr` Recruitment against the vacancies that already exist
+      An applicant is its own row, not an employee with a flag: most never
+      become one. The piece worth reading is `hire`, which looks for an
+      existing employee on the work email and opens a **second engagement**
+      where it finds one - somebody who left in 2019 and applies again is
+      one person with two periods of employment, which is the
+      duplicate-identity case 0002 was written to refuse and the one a
+      recruitment module walks into first. Matching is on the address only;
+      guessing at names would merge two people called the same thing.
+      Hiring is refused as a typed stage - it opens an engagement, and a
+      form that reached it by picking a word would open none.
 
 - [x] `phonix-web` Movements, on a screen
       One address, two screens: the status decides whether a draft's form or
