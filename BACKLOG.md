@@ -25,45 +25,30 @@ commits it is three items.
 
 ## Next
 
-> **Start here next session.** The item below came out of an investigation on
-> 2026-09-15 and is the top priority. It needs a decision from the user before
-> the code moves - read its `decide:` line first and ask.
+- [ ] `phonix-web` The routes that still name the crates
+      why: the menu now reads Selling and Accounting, but the addresses behind
+           it read `/sales/reports/balance-sheet` and
+           `/inventory/sales-orders` - the crate names the labels just stopped
+           using. Second half of the menu work, deliberately left out of that
+           commit because moving a route is a different kind of change from
+           renaming a label.
+      touch: crates/phonix-web/src/app.rs, the `pages/sales` and
+           `pages/inventory` modules, and every hardcoded href across
+           phonix-web - the four report `back=` links point at `/sales`.
+      done: the accounting screens answer under `/accounting`, the sales order
+            and delivery under `/selling`, and no `href` in the navigation tree
+            names a crate. Nothing is released, so no redirect is left behind
+            unless one is asked for.
 
-- [ ] `phonix-web` The menus name the crates, not what somebody is doing
-      why: a user opening viaba sees a top-level **Sales** menu containing the
-           chart of accounts, general journals, fiscal periods and the balance
-           sheet - `/sales/reports/balance-sheet` is a real route - while the
-           actual selling documents sit two levels down under
-           **Inventory > Selling** at `/inventory/sales-orders` and
-           `/inventory/deliveries`. Neither menu means what it says.
-      cause: not an accident and not a mistake in the crate layout. ADR 0006
-           section 7 puts the sales order and delivery in `app-inventory` on
-           purpose - they need items, units, warehouses and stock availability,
-           all of which are that app's - and rule 4 says the partition is the
-           design. What went wrong is that the navigation and the URL
-           namespaces were derived from the crate partition rather than from
-           the user's task: `app-books` is mounted at `/sales` and labelled
-           "Sales" because its crate is the sales-side app, and `app-inventory`
-           at `/inventory` because its crate is inventory. The partition is
-           right; the presentation borrowed it and should not have.
-      decide: this is a product decision, not a refactor. The recommendation is
-           a top-level **Selling** holding the whole sell-side chain - sales
-           order, delivery, invoice, payment - and a top-level **Accounting**
-           holding the chart, journals, periods and the statements. That is
-           Odoo's Sales-plus-Invoicing split and ERPNext's Selling-plus-Accounts
-           split, and viaba already follows both elsewhere. Confirm the names
-           and whether invoices belong under Selling, Accounting, or both,
-           before any code moves.
-      touch: crates/phonix-web/src/navigation/tree.rs, app.rs, and the `l!`
-           keys behind `nav.sales` / `nav.selling`
-      done: no menu label names a crate, no accounting screen sits under a
-           selling heading, and every route reads as what the screen is. The
-           app crates and their schemas are untouched - this is presentation
-           only, and ADR 0006 section 7 keeps its reasoning as it stands.
-      note: likely two commits - the labels and grouping first, the URL
-           namespace second, because moving routes wants a redirect decision of
-           its own. Nothing is released, so breaking bookmarks may be free; ask.
-
+- [ ] `phonix-web` The Chinese catalog, thirty-six keys behind
+      why: `locales/zh.json` is missing every key the price-list and
+           credit-note work added, and `Language::ALL` offers Chinese on the
+           switcher - which `every_offered_language_is_a_finished_language` in
+           `crates/phonix-web/src/i18n.rs` is written to refuse. The test only
+           runs under `cargo test`, which the loop does not run, so the gap
+           grew unseen across several commits.
+      done: `locales/zh.json` carries every key `i18n/en.json` does, and that
+            test passes.
 
 - [ ] `app-books` What an invoice has been credited, and what is still owed
       why: last of three. A credit note posts to the ledger but no screen or
@@ -131,6 +116,14 @@ rule: what changes about somebody is an `assignments` row, never a column on
 ## Done
 
 <!-- The loop appends here with the commit sha. Newest first. -->
+
+- [x] `phonix-web` The menus name the crates, not what somebody is doing
+      The decision the entry asked for: a top-level Selling holding the
+      whole sell-side chain - order, delivery, invoice, payment - and a
+      top-level Accounting holding the chart, the journals, the periods and
+      the four statements. Invoices sit under Selling only. Selling is
+      ungated because it spans two apps. Labels and grouping only; the
+      routes still read `/sales` and `/inventory`, queued as its own item.
 
 - [x] `app-books` Raising a credit note against an invoice
       Second of three. `?credits=<id>` on the invoice form, and a button on a

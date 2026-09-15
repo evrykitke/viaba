@@ -32,7 +32,7 @@ pub fn trial_balance_page() -> impl IntoView {
             title=l!("reports.trial_balance")
             subtitle=l!("reports.trial_balance.subtitle")
             icon=Icon::Table
-            back=("/sales", l!("nav.sales"))
+            back=("/sales", l!("nav.accounting"))
         >
             <SpanPicker span=span />
         </PageHeader>

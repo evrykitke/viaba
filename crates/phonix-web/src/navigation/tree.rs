@@ -63,19 +63,52 @@ pub static MENU: &[NavNode] = &[
     )
     .require(names::DASHBOARD)
     .keywords(&["home", "overview", "start"]),
-    // Sales before master data: raising an invoice is the daily work, and
+    // Selling before master data: raising an order is the daily work, and
     // keeping the customer list tidy is what somebody does on the way to it.
+    //
+    // The chain in the order it happens: ordered, despatched, invoiced, paid.
+    // Ungated, because it spans two apps and a group naming either app's
+    // permission would hide the other half of the chain.
     NavNode::group(
-        "sales",
-        "nav.sales",
+        "selling",
+        "nav.selling",
         Icon::ShoppingCart,
         &[
-            // First in each app's group: the group heading opens and closes,
-            // it does not navigate, so without this an app's own front page
-            // is reachable from the launcher and from nowhere in the menu.
-            NavNode::leaf("sales-overview", "nav.overview", Icon::LayoutGrid, "/sales")
-                .require(names::SALES)
-                .keywords(&["books", "home", "start"]),
+            NavNode::leaf(
+                "sales-orders",
+                "nav.sales_orders",
+                Icon::ScrollText,
+                "/inventory/sales-orders",
+            )
+            .require(names::SALES_ORDERS)
+            .keywords(&[
+                "so",
+                "quotation",
+                "quote",
+                "selling",
+                "customer",
+                "order",
+                "proposal",
+                "backorder",
+            ]),
+            NavNode::leaf(
+                "deliveries",
+                "nav.deliveries",
+                Icon::Truck,
+                "/inventory/deliveries",
+            )
+            .require(names::DELIVERIES)
+            .keywords(&[
+                "goods out",
+                "despatch",
+                "dispatch",
+                "shipping",
+                "shipment",
+                "picking",
+                "consignment",
+                "carrier",
+                "outgoing",
+            ]),
             NavNode::leaf(
                 "invoices",
                 "nav.invoices",
@@ -101,6 +134,26 @@ pub static MENU: &[NavNode] = &[
                     "check",
                     "on account",
                 ]),
+        ],
+    ),
+    // The ledger: the chart the selling chain posts to, the journals, the
+    // periods that close them and the statements read off them.
+    NavNode::group(
+        "accounting",
+        "nav.accounting",
+        Icon::ScrollText,
+        &[
+            // First in the group: the group heading opens and closes, it does
+            // not navigate, so without this Books' own front page is reachable
+            // from the launcher and from nowhere in the menu.
+            NavNode::leaf(
+                "accounting-overview",
+                "nav.overview",
+                Icon::LayoutGrid,
+                "/sales",
+            )
+            .require(names::SALES)
+            .keywords(&["books", "accounting", "finance", "home", "start"]),
             NavNode::leaf(
                 "accounts",
                 "nav.accounts",
@@ -141,7 +194,7 @@ pub static MENU: &[NavNode] = &[
             // month end rather than on the way through, and a reader looking
             // for one is looking for "reports" rather than for its name.
             NavNode::group(
-                "sales-reports",
+                "accounting-reports",
                 "nav.reports",
                 Icon::ChartColumn,
                 &[
@@ -355,53 +408,6 @@ pub static MENU: &[NavNode] = &[
                         "carriage",
                         "landed",
                         "capitalise",
-                    ]),
-                ],
-            ),
-            // The selling chain, mirroring the buying one above it. It sits in
-            // this app rather than in Books because the documents on it are
-            // about items, warehouses and stock, all of which live here - and
-            // because a despatch is a warehouse act. The INVOICE is Books', and
-            // Books' front page links across to this.
-            NavNode::group(
-                "inventory-selling",
-                "nav.selling",
-                Icon::Truck,
-                &[
-                    NavNode::leaf(
-                        "sales-orders",
-                        "nav.sales_orders",
-                        Icon::ScrollText,
-                        "/inventory/sales-orders",
-                    )
-                    .require(names::SALES_ORDERS)
-                    .keywords(&[
-                        "so",
-                        "quotation",
-                        "quote",
-                        "selling",
-                        "customer",
-                        "order",
-                        "proposal",
-                        "backorder",
-                    ]),
-                    NavNode::leaf(
-                        "deliveries",
-                        "nav.deliveries",
-                        Icon::Truck,
-                        "/inventory/deliveries",
-                    )
-                    .require(names::DELIVERIES)
-                    .keywords(&[
-                        "goods out",
-                        "despatch",
-                        "dispatch",
-                        "shipping",
-                        "shipment",
-                        "picking",
-                        "consignment",
-                        "carrier",
-                        "outgoing",
                     ]),
                 ],
             ),

@@ -43,7 +43,7 @@ pub fn customer_statement_page() -> impl IntoView {
             title=l!("reports.customer_statement")
             subtitle=l!("reports.customer_statement.subtitle")
             icon=Icon::Receipt
-            back=("/sales", l!("nav.sales"))
+            back=("/sales", l!("nav.accounting"))
         >
             <div class="flex flex-wrap items-center gap-3">
                 <Transition fallback=|| ()>

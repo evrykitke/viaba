@@ -33,7 +33,7 @@ pub fn profit_and_loss_page() -> impl IntoView {
             title=l!("reports.profit_and_loss")
             subtitle=l!("reports.profit_and_loss.subtitle")
             icon=Icon::ChartColumn
-            back=("/sales", l!("nav.sales"))
+            back=("/sales", l!("nav.accounting"))
         >
             <SpanPicker span=span />
         </PageHeader>
