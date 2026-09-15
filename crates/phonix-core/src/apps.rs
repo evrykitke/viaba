@@ -147,9 +147,9 @@ pub struct AppDescriptor {
 impl AppDescriptor {
     /// Whether `permission` belongs to this app.
     ///
-    /// A prefix match on a *dotted boundary*, so `Pages.Sales` claims
-    /// `Pages.Sales.Invoices.Post` and would not claim a hypothetical
-    /// `Pages.SalesTax`.
+    /// A prefix match on a *dotted boundary*, so `Pages.Accounting` claims
+    /// `Pages.Accounting.Invoices.Post` and would not claim a hypothetical
+    /// `Pages.AccountingPeriods`.
     pub fn owns(&self, permission: &str) -> bool {
         permission == self.permission
             || permission
@@ -247,8 +247,8 @@ pub const CATALOG: &[AppDescriptor] = &[
         summary: "app.books.summary",
         icon: "file-text",
         version: "0.1.0",
-        permission: names::SALES,
-        home: Some("/sales"),
+        permission: names::ACCOUNTING,
+        home: Some("/accounting"),
         // An invoice names a customer and a tax group, and both are master's.
         // Always satisfied now that master is part of every workspace, and
         // stated anyway: it is true, and it is what an installer would need if
@@ -300,8 +300,8 @@ pub fn covers(enabled: &[String], permission: &str) -> bool {
 /// rather than something to handle: a permission outside every app's subtree
 /// could never be granted or revoked by installing anything.
 pub fn owner_of(permission: &str) -> Option<&'static AppDescriptor> {
-    // Longest permission root first, so `Pages.Sales` wins over `Pages` for
-    // `Pages.Sales.Invoices`. Core owns `Pages` itself and would otherwise
+    // Longest permission root first, so `Pages.Accounting` wins over `Pages` for
+    // `Pages.Accounting.Invoices`. Core owns `Pages` itself and would otherwise
     // claim everything.
     CATALOG
         .iter()
@@ -520,19 +520,19 @@ mod tests {
     fn an_app_owns_its_own_root_and_nothing_beside_it() {
         let books = find(BOOKS).expect("books is in the catalog");
 
-        assert!(books.owns(names::SALES));
+        assert!(books.owns(names::ACCOUNTING));
         assert!(books.owns(names::INVOICES_VOID));
         assert!(!books.owns(names::PARTIES));
         // The dotted boundary: a sibling whose name merely starts the same way.
-        assert!(!books.owns("Pages.SalesTax"));
+        assert!(!books.owns("Pages.AccountingPeriods"));
     }
 
     #[test]
     fn every_home_sits_under_its_permission() {
         // The route and the permission root are the same fact said twice, and
         // deriving one from the other put core at `/pages`. So they are stated
-        // separately and checked against each other: `Pages.Sales` implies
-        // something beginning `/sales`, and a screen that answered on a
+        // separately and checked against each other: `Pages.Accounting` implies
+        // something beginning `/accounting`, and a screen that answered on a
         // different path would be one the permission does not guard.
         for app in CATALOG {
             let Some(home) = app.home else {

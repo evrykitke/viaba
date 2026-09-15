@@ -37,7 +37,7 @@ pub fn balance_sheet_page() -> impl IntoView {
             title=l!("reports.balance_sheet")
             subtitle=l!("reports.balance_sheet.subtitle")
             icon=Icon::ClipboardList
-            back=("/sales", l!("nav.accounting"))
+            back=("/accounting", l!("nav.accounting"))
         >
             <AsAtPicker span=span />
         </PageHeader>

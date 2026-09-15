@@ -866,7 +866,7 @@ mod tests {
         // offering it.
         let rows = scoped_to(&[]);
 
-        assert!(!rows.iter().any(|name| name.starts_with("Pages.Sales")));
+        assert!(!rows.iter().any(|name| name.starts_with("Pages.Accounting")));
         // The always-on apps are there whatever the list says.
         assert!(rows.contains(&perms::PARTIES));
         assert!(rows.contains(&perms::USERS));
@@ -883,7 +883,7 @@ mod tests {
         // nobody can switch it off - so its permissions are always grantable.
         assert!(rows.contains(&perms::PARTIES));
         // Books is the one thing that is actually optional.
-        assert!(!rows.iter().any(|name| name.starts_with("Pages.Sales")));
+        assert!(!rows.iter().any(|name| name.starts_with("Pages.Accounting")));
     }
 
     #[test]

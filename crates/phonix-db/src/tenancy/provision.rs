@@ -352,7 +352,7 @@ async fn adopt_legacy_bookkeeping(
 /// never shipped rather than a grant that was never written.
 ///
 /// That is what happened to Sales and Master: the pages existed, the routes
-/// answered, and `Pages.Sales.Invoices` was held by nobody.
+/// answered, and `Pages.Accounting.Invoices` was held by nobody.
 ///
 /// Only the static roles are touched, and only `Admin` is replaced wholesale.
 /// A role an organization defined is theirs - see `sync_static_roles`.

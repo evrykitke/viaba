@@ -10,17 +10,17 @@
 //!  +- Pages.Dashboard
 //!  +- Pages.Files
 //!  |   +- .Upload  .Delete
-//!  +- Pages.Sales
-//!  |   +- Pages.Sales.Accounts
+//!  +- Pages.Accounting
+//!  |   +- Pages.Accounting.Accounts
 //!  |   |   +- .Create  .Edit
-//!  |   +- Pages.Sales.Journals
+//!  |   +- Pages.Accounting.Journals
 //!  |   |   +- .Post  .Reverse
-//!  |   +- Pages.Sales.Periods
+//!  |   +- Pages.Accounting.Periods
 //!  |   |   +- .Manage
-//!  |   +- Pages.Sales.Reports
-//!  |   +- Pages.Sales.Invoices
+//!  |   +- Pages.Accounting.Reports
+//!  |   +- Pages.Accounting.Invoices
 //!  |   |   +- .Create  .Edit  .Post  .Void
-//!  |   +- Pages.Sales.Payments
+//!  |   +- Pages.Accounting.Payments
 //!  |       +- .Create  .Edit  .Post  .Void
 //!  +- Pages.Inventory
 //!  |   +- Pages.Inventory.Items
@@ -78,32 +78,32 @@ pub mod names {
     pub const FILES_UPLOAD: &str = "Pages.Files.Upload";
     pub const FILES_DELETE: &str = "Pages.Files.Delete";
 
-    pub const SALES: &str = "Pages.Sales";
+    pub const ACCOUNTING: &str = "Pages.Accounting";
 
-    pub const ACCOUNTS: &str = "Pages.Sales.Accounts";
-    pub const ACCOUNTS_CREATE: &str = "Pages.Sales.Accounts.Create";
-    pub const ACCOUNTS_EDIT: &str = "Pages.Sales.Accounts.Edit";
+    pub const ACCOUNTS: &str = "Pages.Accounting.Accounts";
+    pub const ACCOUNTS_CREATE: &str = "Pages.Accounting.Accounts.Create";
+    pub const ACCOUNTS_EDIT: &str = "Pages.Accounting.Accounts.Edit";
 
-    pub const JOURNALS: &str = "Pages.Sales.Journals";
-    pub const JOURNALS_POST: &str = "Pages.Sales.Journals.Post";
-    pub const JOURNALS_REVERSE: &str = "Pages.Sales.Journals.Reverse";
+    pub const JOURNALS: &str = "Pages.Accounting.Journals";
+    pub const JOURNALS_POST: &str = "Pages.Accounting.Journals.Post";
+    pub const JOURNALS_REVERSE: &str = "Pages.Accounting.Journals.Reverse";
 
-    pub const PERIODS: &str = "Pages.Sales.Periods";
-    pub const PERIODS_MANAGE: &str = "Pages.Sales.Periods.Manage";
+    pub const PERIODS: &str = "Pages.Accounting.Periods";
+    pub const PERIODS_MANAGE: &str = "Pages.Accounting.Periods.Manage";
 
-    pub const REPORTS: &str = "Pages.Sales.Reports";
+    pub const REPORTS: &str = "Pages.Accounting.Reports";
 
-    pub const INVOICES: &str = "Pages.Sales.Invoices";
-    pub const INVOICES_CREATE: &str = "Pages.Sales.Invoices.Create";
-    pub const INVOICES_EDIT: &str = "Pages.Sales.Invoices.Edit";
-    pub const INVOICES_POST: &str = "Pages.Sales.Invoices.Post";
-    pub const INVOICES_VOID: &str = "Pages.Sales.Invoices.Void";
+    pub const INVOICES: &str = "Pages.Accounting.Invoices";
+    pub const INVOICES_CREATE: &str = "Pages.Accounting.Invoices.Create";
+    pub const INVOICES_EDIT: &str = "Pages.Accounting.Invoices.Edit";
+    pub const INVOICES_POST: &str = "Pages.Accounting.Invoices.Post";
+    pub const INVOICES_VOID: &str = "Pages.Accounting.Invoices.Void";
 
-    pub const PAYMENTS: &str = "Pages.Sales.Payments";
-    pub const PAYMENTS_CREATE: &str = "Pages.Sales.Payments.Create";
-    pub const PAYMENTS_EDIT: &str = "Pages.Sales.Payments.Edit";
-    pub const PAYMENTS_POST: &str = "Pages.Sales.Payments.Post";
-    pub const PAYMENTS_VOID: &str = "Pages.Sales.Payments.Void";
+    pub const PAYMENTS: &str = "Pages.Accounting.Payments";
+    pub const PAYMENTS_CREATE: &str = "Pages.Accounting.Payments.Create";
+    pub const PAYMENTS_EDIT: &str = "Pages.Accounting.Payments.Edit";
+    pub const PAYMENTS_POST: &str = "Pages.Accounting.Payments.Post";
+    pub const PAYMENTS_VOID: &str = "Pages.Accounting.Payments.Void";
 
     pub const PEOPLE: &str = "Pages.People";
 
@@ -294,7 +294,7 @@ pub const DEFINITIONS: &[PermissionDefinition] = &[
         parent: Some(names::FILES),
         default_for_user: false,
     },
-    // -- Sales ------------------------------------------------------------
+    // -- Accounting -------------------------------------------------------
     //
     // Four powers, because they are four different acts. Raising a draft is
     // ordinary sales work. **Posting** takes a number nobody can hand back and
@@ -303,9 +303,9 @@ pub const DEFINITIONS: &[PermissionDefinition] = &[
     // everybody the first two and nobody the third is expressing something
     // real, and a single "Invoices.Edit" could not.
     PermissionDefinition {
-        name: names::SALES,
-        display_name: "Sales",
-        description: Some("Reach the sales area."),
+        name: names::ACCOUNTING,
+        display_name: "Accounting",
+        description: Some("Reach the accounting area."),
         parent: Some(names::PAGES),
         default_for_user: false,
     },
@@ -314,7 +314,7 @@ pub const DEFINITIONS: &[PermissionDefinition] = &[
         name: names::ACCOUNTS,
         display_name: "Chart of accounts",
         description: Some("See the accounts this workspace posts to."),
-        parent: Some(names::SALES),
+        parent: Some(names::ACCOUNTING),
         default_for_user: false,
     },
     PermissionDefinition {
@@ -338,7 +338,7 @@ pub const DEFINITIONS: &[PermissionDefinition] = &[
         name: names::JOURNALS,
         display_name: "Journals",
         description: Some("See what has been posted to the ledger."),
-        parent: Some(names::SALES),
+        parent: Some(names::ACCOUNTING),
         default_for_user: false,
     },
     PermissionDefinition {
@@ -362,7 +362,7 @@ pub const DEFINITIONS: &[PermissionDefinition] = &[
         description: Some(
             "Read the trial balance, balance sheet, profit and loss, and customer statements.",
         ),
-        parent: Some(names::SALES),
+        parent: Some(names::ACCOUNTING),
         default_for_user: false,
     },
     // Closing a period is the strongest routine control in an accounting
@@ -371,7 +371,7 @@ pub const DEFINITIONS: &[PermissionDefinition] = &[
         name: names::PERIODS,
         display_name: "Accounting periods",
         description: Some("See the accounting calendar and which periods are closed."),
-        parent: Some(names::SALES),
+        parent: Some(names::ACCOUNTING),
         default_for_user: false,
     },
     PermissionDefinition {
@@ -385,7 +385,7 @@ pub const DEFINITIONS: &[PermissionDefinition] = &[
         name: names::PAYMENTS,
         display_name: "Payments received",
         description: Some("View what customers have paid, and what it settled."),
-        parent: Some(names::SALES),
+        parent: Some(names::ACCOUNTING),
         default_for_user: false,
     },
     PermissionDefinition {
@@ -428,7 +428,7 @@ pub const DEFINITIONS: &[PermissionDefinition] = &[
         name: names::INVOICES,
         display_name: "Invoices",
         description: Some("View the invoices this workspace has raised."),
-        parent: Some(names::SALES),
+        parent: Some(names::ACCOUNTING),
         default_for_user: false,
     },
     PermissionDefinition {

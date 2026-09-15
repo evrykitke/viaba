@@ -25,23 +25,6 @@ commits it is three items.
 
 ## Next
 
-- [ ] `phonix-core` The permission root that still says Sales
-      why: the routes now read `/accounting` and `/selling`, but Books'
-           app home is still `/sales` - the one address the route move could
-           not touch, because `every_home_sits_under_its_permission` in
-           `crates/phonix-core/src/apps.rs` asserts an app's home equals its
-           permission root lowercased, and the root is `Pages.Sales`. Until
-           the root moves, the Accounting menu's Overview link and the four
-           reports' back links point at a namespace nothing else uses.
-      touch: crates/phonix-core/src/authorization/definitions.rs (27
-           constants and the tree in the module doc), apps.rs, and a new
-           migration under migrations/apps/core/
-      done: `Pages.Sales.*` is `Pages.Accounting.*`, Books' home is
-            `/accounting`, `/sales` answers nothing, and a migration rewrites
-            the prefix in `role_permissions.name` and `user_permissions.name`
-            so existing grants survive. The user chose this on 2026-09-15 in
-            preference to dropping the home-to-permission invariant.
-
 - [ ] `phonix-web` The Chinese catalog, thirty-six keys behind
       why: `locales/zh.json` is missing every key the price-list and
            credit-note work added, and `Language::ALL` offers Chinese on the
@@ -118,6 +101,14 @@ rule: what changes about somebody is an `assignments` row, never a column on
 ## Done
 
 <!-- The loop appends here with the commit sha. Newest first. -->
+
+- [x] `phonix-core` The permission root that still says Sales
+      `Pages.Sales.*` is `Pages.Accounting.*`, Books' home is `/accounting`,
+      and migration 0023 rewrites the prefix in `role_permissions` and
+      `user_permissions` so stored grants survive - without it every grant
+      under the old root would be pruned on load rather than rejected, which
+      is a silent loss of access. `identity_events` keeps the old names: it
+      records what a permission was called when somebody changed it.
 
 - [x] `phonix-web` The routes that still name the crates
       `/accounting` for the chart, journals, periods and the four statements;

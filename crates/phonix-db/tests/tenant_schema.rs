@@ -381,7 +381,7 @@ async fn switching_an_app_on_and_off_moves_its_permissions_with_it() {
         !admin_grants(&pool)
             .await
             .iter()
-            .any(|name| name.starts_with("Pages.Sales")),
+            .any(|name| name.starts_with("Pages.Accounting")),
         "an app nobody installed must not be granted",
     );
 
@@ -416,7 +416,8 @@ async fn switching_an_app_on_and_off_moves_its_permissions_with_it() {
 
     let on = admin_grants(&pool).await;
     assert!(
-        on.iter().any(|name| name == "Pages.Sales.Invoices.Post"),
+        on.iter()
+            .any(|name| name == "Pages.Accounting.Invoices.Post"),
         "installing Books has to grant its permissions",
     );
 
@@ -435,13 +436,13 @@ async fn switching_an_app_on_and_off_moves_its_permissions_with_it() {
         "it was on",
     );
     role::sync_static_roles(&pool).await.expect("resync");
-    role::revoke_everywhere(&pool, "Pages.Sales")
+    role::revoke_everywhere(&pool, "Pages.Accounting")
         .await
         .expect("revoke");
 
     let off = admin_grants(&pool).await;
     assert!(
-        !off.iter().any(|name| name.starts_with("Pages.Sales")),
+        !off.iter().any(|name| name.starts_with("Pages.Accounting")),
         "switching Books off has to take its permissions with it",
     );
     assert!(
@@ -474,7 +475,7 @@ async fn a_migration_pass_gives_admin_the_permissions_this_build_added() {
     // long time the only caller was signup, so a workspace got the tree that
     // existed on the day it was created and never another entry. Sales and
     // Master shipped that way: the routes answered, the pages rendered, and
-    // `Pages.Sales.Invoices` was held by nobody, so the navigation entry was
+    // `Pages.Accounting.Invoices` was held by nobody, so the navigation entry was
     // simply not drawn. There is no error to go looking for in that - it reads
     // as a feature that was never built.
     let cfg = database_config();

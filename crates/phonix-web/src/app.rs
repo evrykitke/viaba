@@ -230,10 +230,8 @@ pub fn app() -> impl IntoView {
                     // product rather than infrastructure. The namespace says what
                     // the screens are rather than which crate holds them.
                     // The app's own front page, where the launcher and the store
-                    // send anybody who picks Books. Still `/sales`: a test in
-                    // `phonix_core::apps` ties an app's home to its permission
-                    // root, so this moves when `Pages.Sales` does.
-                    <Route path=path!("/sales") view=SalesHomePage />
+                    // send anybody who picks Books.
+                    <Route path=path!("/accounting") view=SalesHomePage />
                     <Route path=path!("/accounting/accounts") view=AccountsPage />
                     // Before `:id`, so "new" is a screen rather than an
                     // account id that fails to parse.

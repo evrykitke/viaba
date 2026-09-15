@@ -155,9 +155,9 @@ pub static MENU: &[NavNode] = &[
                 "accounting-overview",
                 "nav.overview",
                 Icon::LayoutGrid,
-                "/sales",
+                "/accounting",
             )
-            .require(names::SALES)
+            .require(names::ACCOUNTING)
             .keywords(&["books", "accounting", "finance", "home", "start"]),
             NavNode::leaf(
                 "accounts",
@@ -256,7 +256,7 @@ pub static MENU: &[NavNode] = &[
             .require(names::REPORTS),
         ],
     )
-    .require(names::SALES),
+    .require(names::ACCOUNTING),
     NavNode::group(
         "master",
         "nav.master",

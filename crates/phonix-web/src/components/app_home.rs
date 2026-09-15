@@ -3,7 +3,7 @@
 //! # Why an app needs one at all
 //!
 //! The launcher and the store both send somebody *to an app*, and until now
-//! there was nowhere to send them - `/sales` answered nothing, and the only
+//! there was nowhere to send them - `/accounting` answered nothing, and the only
 //! address that existed was one screen deep. That is fine while an app has one
 //! screen and stops being fine at two: "Sales" then means the invoice list,
 //! and the second thing anybody adds has to be discovered through the sidebar.
