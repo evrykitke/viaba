@@ -106,9 +106,10 @@ wants a status column on a person is the bug this schema was built to refuse.
       vacancy exists, work locations.
 - [x] **Assignments** — department, role, manager, place, all dated.
 - [x] **Engagements** — employment as a dated row with a reason on the outcome.
-- [ ] **Employee lifecycle** — onboarding, promotion and transfer as
-      *documents*, exit interview. The dated chain underneath exists; the
-      workflow on top of it does not.
+- [~] **Employee lifecycle** — promotion, transfer and exit are documents
+      that write the dated rows on confirm. Model and service built; no
+      screen yet. Onboarding is not one: hiring already has a document.
+      No exit interview.
 - [-] **Leave** — not built, deliberately. See ADR 0006 §9.
 - [x] **Holiday calendar** — regional holiday lists with a span, days off, and
       a weekly-off generator. Which calendar applies is a dated assignment,

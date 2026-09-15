@@ -9,7 +9,9 @@
 //! Then the people: [`employee`], with [`job_position`] and [`work_location`]
 //! beside it, [`holiday`] for the days none of them is expected to work, and
 //! [`attendance`] for what was actually recorded against those days, which
-//! [`shift`] is the expectation half of.
+//! [`shift`] is the expectation half of. [`movement`] is the document behind
+//! a promotion, a transfer or an exit - the act, where the others are what it
+//! made true.
 //!
 //! # An employee is not a user
 //!
@@ -58,6 +60,7 @@ pub mod department;
 pub mod employee;
 pub mod holiday;
 pub mod job_position;
+pub mod movement;
 pub mod shift;
 pub mod work_location;
 
@@ -71,6 +74,10 @@ pub const DEPARTMENT: &str = "department";
 pub const EMPLOYEE: &str = "employee";
 pub const JOB_POSITION: &str = "job_position";
 pub const WORK_LOCATION: &str = "work_location";
+
+/// A promotion, a transfer or an exit. The first thing this app numbers that
+/// is a document rather than a record with a code.
+pub const MOVEMENT: &str = "movement";
 
 /// What this app needs before it is useful, checked on its home page.
 ///
@@ -102,6 +109,9 @@ pub use holiday::{
     WorkingDay,
 };
 pub use job_position::{JobPosition, JobPositionError, JobPositionInput, JobPositionSummary};
+pub use movement::{
+    Movement, MovementError, MovementInput, MovementKind, MovementStatus, MovementSummary,
+};
 pub use shift::{Arrival, Departure, ShiftError, ShiftType, ShiftTypeInput, ShiftTypeSummary};
 pub use work_location::{
     LocationKind, WorkLocation, WorkLocationError, WorkLocationInput, WorkLocationSummary,

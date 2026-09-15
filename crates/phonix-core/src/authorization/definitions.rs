@@ -56,6 +56,8 @@
 //!  +- Pages.People
 //!  |   +- Pages.People.Attendance
 //!  |   |   +- .Record
+//!  |   +- Pages.People.Movements
+//!  |   |   +- .Raise  .Confirm
 //!  |   +- Pages.People.ShiftTypes
 //!  |   |   +- .Manage
 //!  |   +- Pages.People.HolidayLists
@@ -132,6 +134,10 @@ pub mod names {
 
     pub const SHIFT_TYPES: &str = "Pages.People.ShiftTypes";
     pub const SHIFT_TYPES_MANAGE: &str = "Pages.People.ShiftTypes.Manage";
+
+    pub const MOVEMENTS: &str = "Pages.People.Movements";
+    pub const MOVEMENTS_RAISE: &str = "Pages.People.Movements.Raise";
+    pub const MOVEMENTS_CONFIRM: &str = "Pages.People.Movements.Confirm";
 
     pub const DEPARTMENTS: &str = "Pages.People.Departments";
     pub const DEPARTMENTS_CREATE: &str = "Pages.People.Departments.Create";
@@ -1097,6 +1103,31 @@ pub const DEFINITIONS: &[PermissionDefinition] = &[
         display_name: "Record attendance",
         description: Some("Key a day as present, half a day, or absent."),
         parent: Some(names::ATTENDANCE),
+        default_for_user: false,
+    },
+    // Three powers, because raising and confirming are different acts.
+    // Anybody may propose that somebody be promoted; making it true is what
+    // changes a payroll figure, and an organization that separates the two is
+    // expressing something real.
+    PermissionDefinition {
+        name: names::MOVEMENTS,
+        display_name: "Movements",
+        description: Some("See promotions, transfers and exits."),
+        parent: Some(names::PEOPLE),
+        default_for_user: false,
+    },
+    PermissionDefinition {
+        name: names::MOVEMENTS_RAISE,
+        display_name: "Raise a movement",
+        description: Some("Draft a promotion, transfer or exit, and withdraw one."),
+        parent: Some(names::MOVEMENTS),
+        default_for_user: false,
+    },
+    PermissionDefinition {
+        name: names::MOVEMENTS_CONFIRM,
+        display_name: "Confirm a movement",
+        description: Some("Make a drafted movement true."),
+        parent: Some(names::MOVEMENTS),
         default_for_user: false,
     },
     PermissionDefinition {

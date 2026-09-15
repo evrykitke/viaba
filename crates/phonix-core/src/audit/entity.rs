@@ -289,6 +289,15 @@ pub mod kinds {
         singleton: false,
     };
 
+    /// A promotion, a transfer or an exit.
+    pub const MOVEMENT: EntityKind = EntityKind {
+        name: "movement",
+        singular_key: "entity.movement.singular",
+        plural_key: "entity.movement.plural",
+        href: Some("/people/movements/{id}"),
+        singleton: false,
+    };
+
     /// A shift: when it runs, and what counts as on time.
     pub const SHIFT_TYPE: EntityKind = EntityKind {
         name: "shift_type",
@@ -584,6 +593,7 @@ pub const ENTITY_KINDS: &[EntityKind] = &[
     kinds::HOLIDAY_LIST,
     kinds::ATTENDANCE,
     kinds::SHIFT_TYPE,
+    kinds::MOVEMENT,
     kinds::ITEM,
     kinds::ITEM_CATEGORY,
     kinds::WAREHOUSE,

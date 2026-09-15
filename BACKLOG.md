@@ -50,13 +50,21 @@ Read `WORKFLOWS.md` before starting any of these, and obey the dated-assignment
 rule: what changes about somebody is an `assignments` row, never a column on
 `employees`.
 
-- [ ] `app-hr` The employee lifecycle documents
-      why: the dated chain underneath onboarding, promotion, transfer and exit
-           already exists — engagements and assignments. What is missing is the
-           workflow on top: a promotion today is a hand-written assignment row.
-      done: a promotion or transfer is a document that writes the assignment
-            rows, and an exit writes the engagement end with its reason from
-            the existing list.
+- [ ] `phonix-web` Movements, on a screen
+      why: the model and the service exist and nothing drives them, as with
+           the three before it. A promotion is still a hand-written
+           assignment row until somebody can raise the document.
+      touch: server fns beside the shift ones, a list and a document view
+           under crates/phonix-web/src/pages/people/, a nav node naming
+           `Pages.People.Movements`, and the personnel file - the employee
+           record should list what has happened to them
+      done: a workspace can draft a promotion, transfer or exit, review it,
+            confirm it, and see the assignment it wrote. A confirmed one is
+            read-only and a draft can be withdrawn.
+      note: `confirm` refuses a promotion that moves nobody, and refuses it
+           at confirm rather than at save - what somebody is on now can
+           change under a draft. The screen has to show that refusal, not
+           swallow it.
 
 - [ ] `app-hr` Recruitment against the vacancies that already exist
       why: job positions are rows precisely so that "what are we recruiting
@@ -74,6 +82,16 @@ rule: what changes about somebody is an `assignments` row, never a column on
 ## Done
 
 <!-- The loop appends here with the commit sha. Newest first. -->
+
+- [x] `app-hr` The employee lifecycle documents
+      One table and three kinds - promotion, transfer, exit - for the reason
+      `invoices.kind` holds a credit note. Confirming writes the rows
+      through `employee::move_to` and `employee::record_leaver` rather than
+      writing them a second way, so the rules about how an assignment closes
+      stay in one place. Drafted freely, gated at confirm, numbered there
+      too. Onboarding is deliberately not a fourth kind: hiring already has
+      a document, and a movement recording somebody's arrival would have
+      nobody to point at.
 
 - [x] `phonix-web` Shifts, on a screen, and lateness on the timesheet
       The shift list and form, the picker on both employee forms, and the

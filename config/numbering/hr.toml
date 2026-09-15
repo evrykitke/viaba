@@ -46,3 +46,15 @@ label    = "hr.doc_type.work_location"
 mask     = "LOC-###"
 reset    = "never"
 start_at = 1
+
+[[series]]
+doc_type = "movement"
+label    = "hr.doc_type.movement"
+
+# `MOV-####` renders `MOV-0042`. No reset, like the rest of this file: a
+# movement is cited in a personnel file for as long as the file exists, and two
+# promotions sharing a number because the year rolled over is two promotions
+# nobody can tell apart.
+mask     = "MOV-####"
+reset    = "never"
+start_at = 1
