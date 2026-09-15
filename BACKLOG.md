@@ -25,6 +25,46 @@ commits it is three items.
 
 ## Next
 
+> **Start here next session.** The item below came out of an investigation on
+> 2026-09-15 and is the top priority. It needs a decision from the user before
+> the code moves - read its `decide:` line first and ask.
+
+- [ ] `phonix-web` The menus name the crates, not what somebody is doing
+      why: a user opening viaba sees a top-level **Sales** menu containing the
+           chart of accounts, general journals, fiscal periods and the balance
+           sheet - `/sales/reports/balance-sheet` is a real route - while the
+           actual selling documents sit two levels down under
+           **Inventory > Selling** at `/inventory/sales-orders` and
+           `/inventory/deliveries`. Neither menu means what it says.
+      cause: not an accident and not a mistake in the crate layout. ADR 0006
+           section 7 puts the sales order and delivery in `app-inventory` on
+           purpose - they need items, units, warehouses and stock availability,
+           all of which are that app's - and rule 4 says the partition is the
+           design. What went wrong is that the navigation and the URL
+           namespaces were derived from the crate partition rather than from
+           the user's task: `app-books` is mounted at `/sales` and labelled
+           "Sales" because its crate is the sales-side app, and `app-inventory`
+           at `/inventory` because its crate is inventory. The partition is
+           right; the presentation borrowed it and should not have.
+      decide: this is a product decision, not a refactor. The recommendation is
+           a top-level **Selling** holding the whole sell-side chain - sales
+           order, delivery, invoice, payment - and a top-level **Accounting**
+           holding the chart, journals, periods and the statements. That is
+           Odoo's Sales-plus-Invoicing split and ERPNext's Selling-plus-Accounts
+           split, and viaba already follows both elsewhere. Confirm the names
+           and whether invoices belong under Selling, Accounting, or both,
+           before any code moves.
+      touch: crates/phonix-web/src/navigation/tree.rs, app.rs, and the `l!`
+           keys behind `nav.sales` / `nav.selling`
+      done: no menu label names a crate, no accounting screen sits under a
+           selling heading, and every route reads as what the screen is. The
+           app crates and their schemas are untouched - this is presentation
+           only, and ADR 0006 section 7 keeps its reasoning as it stands.
+      note: likely two commits - the labels and grouping first, the URL
+           namespace second, because moving routes wants a redirect decision of
+           its own. Nothing is released, so breaking bookmarks may be free; ask.
+
+
 - [ ] `app-books` What an invoice has been credited, and what is still owed
       why: last of three. A credit note posts to the ledger but no screen or
            report knows it exists: the invoice does not show it, aging counts
