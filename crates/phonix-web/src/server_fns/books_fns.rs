@@ -539,6 +539,20 @@ pub async fn post_invoice(invoice_id: Uuid) -> Result<PostOutcome, ServerFnError
         .map_err(service_error)
 }
 
+/// A credit note prefilled from the invoice it credits.
+#[server(name = CreditAgainstInvoice, prefix = "/api", endpoint = "books/invoices/credit")]
+pub async fn credit_against_invoice(
+    invoice_id: Uuid,
+) -> Result<Submission<InvoiceInput>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::books::invoice::credit_against(&pool, &caller, invoice_id)
+        .await
+        .map_err(service_error)
+}
+
 /// An invoice prefilled with what a despatch has not been charged for.
 #[server(name = InvoiceAgainstDelivery, prefix = "/api", endpoint = "books/invoices/against-delivery")]
 pub async fn invoice_against_delivery(

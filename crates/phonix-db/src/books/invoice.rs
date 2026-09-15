@@ -392,7 +392,9 @@ pub async fn save_draft(pool: &sqlx::PgPool, write: DraftWrite<'_>) -> Result<Uu
                         gross_amount       = $20::numeric,
                         notes              = $21,
                         updated_at         = now(),
-                        updated_by         = $22
+                        updated_by         = $22,
+                        kind               = $23,
+                        credits_invoice_id = $24
                   WHERE id = $1 AND status = 'draft'
                 RETURNING id",
             );
@@ -415,10 +417,11 @@ pub async fn save_draft(pool: &sqlx::PgPool, write: DraftWrite<'_>) -> Result<Uu
                       issued_on, due_on, currency_code,
                       pricing, rounding_level, rounding,
                       net_amount, tax_amount, gross_amount, notes,
-                      created_by, updated_by)
+                      created_by, updated_by, kind, credits_invoice_id)
                  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11,
                          $12, $13, $14, $15, $16, $17,
-                         $18::numeric, $19::numeric, $20::numeric, $21, $22, $22)
+                         $18::numeric, $19::numeric, $20::numeric, $21, $22, $22,
+                         $23, $24)
                  RETURNING id",
             );
             bind_header(insert, Uuid::new_v4(), checked, party, priced, actor)
@@ -644,6 +647,8 @@ fn bind_header<'q, O>(
         .bind(priced.gross.to_storage_string())
         .bind(&checked.notes)
         .bind(actor)
+        .bind(checked.kind.as_str())
+        .bind(checked.credits_invoice_id)
 }
 
 /// The group code a line's taxes came from, for the row's own record.

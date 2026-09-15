@@ -41,8 +41,8 @@
 //! the time an invoice is posted, nothing on it needs looking up again.
 
 use app_books::invoice::{
-    CheckedInvoice, Invoice, InvoiceInput, InvoiceLineInput, InvoiceStatus, InvoiceSummary,
-    PartySnapshot, PostOutcome,
+    CheckedInvoice, Invoice, InvoiceInput, InvoiceKind, InvoiceLineInput, InvoiceStatus,
+    InvoiceSummary, PartySnapshot, PostOutcome,
 };
 use app_books::pricing::{PricedInvoice, PricedLine};
 use chrono::NaiveDate;
@@ -235,6 +235,60 @@ pub async fn save(
 /// and both are held to the commit, so two posts running at once queue through
 /// them in the same order and cannot deadlock against each other. Anything that
 /// posts a journal beside an invoice should take them in this order too.
+/// A credit note prefilled from the invoice it credits.
+///
+/// Every line, at the price that was charged. Crediting part of an invoice is
+/// deleting the lines that are not coming back, which is the same edit as any
+/// other draft rather than a second way of saying it.
+///
+/// The party, currency, pricing and rounding are the invoice's, not today's
+/// defaults: a credit note charged at a different tax treatment from the
+/// invoice it reverses does not reverse it.
+pub async fn credit_against(
+    pool: &PgPool,
+    caller: &Caller,
+    invoice_id: Uuid,
+) -> ServiceResult<Submission<InvoiceInput>> {
+    caller.require(permissions::INVOICES_CREATE)?;
+
+    let invoice = find(pool, caller, invoice_id).await?;
+
+    // Only a posted one. A draft is not a claim on anybody, so there is nothing
+    // to take back; a voided one was withdrawn, which is the other way of
+    // undoing an invoice and not this one.
+    if invoice.status != InvoiceStatus::Posted {
+        return Ok(Submission::rejected(
+            "invoice_id",
+            msg!("books.error.credit_needs_a_posted_invoice"),
+        ));
+    }
+
+    if invoice.kind.is_credit_note() {
+        return Ok(Submission::rejected(
+            "invoice_id",
+            msg!("books.error.credit_of_a_credit"),
+        ));
+    }
+
+    let mut draft = InvoiceInput::from_invoice(&invoice);
+
+    draft.id = None;
+    draft.kind = InvoiceKind::CreditNote;
+    draft.credits_invoice_id = Some(invoice_id);
+    draft.issued_on = chrono::Utc::now().date_naive();
+    draft.due_on = None;
+    draft.notes = invoice.number.clone();
+
+    // New lines, not the invoice's: an id here would rewrite the invoice's own
+    // rows when this draft is saved.
+    for line in &mut draft.lines {
+        line.id = None;
+        line.delivery_line_id = None;
+    }
+
+    Ok(Submission::Saved(draft))
+}
+
 /// An invoice prefilled with everything a despatch has not been charged for.
 ///
 /// The sell-side mirror of `inventory::bill::against_order`, and it goes

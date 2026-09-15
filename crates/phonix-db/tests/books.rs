@@ -191,6 +191,8 @@ async fn draft(pool: &PgPool, party_id: Uuid, group_id: Uuid) -> (CheckedInvoice
 
     let checked = CheckedInvoice {
         id: None,
+        kind: app_books::invoice::InvoiceKind::SalesInvoice,
+        credits_invoice_id: None,
         party_id,
         issued_on,
         due_on: Some(day(2026, 7, 1)),

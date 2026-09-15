@@ -44,8 +44,9 @@ Status marks:
       `app-books/src/payment.rs`
 - [~] **Credit note / sales return** — a credit note is an invoice with
       `kind = credit_note`: its own numbering series, and a journal that is the
-      invoice entry backwards with the amounts still positive. Not yet: nothing
-      creates one, and no report or settlement nets one off.
+      invoice entry backwards with the amounts still positive, raised from the
+      invoice it credits. Not yet: no report or settlement nets one off, so an
+      invoice still shows its full amount as owed.
 - [x] **Invoice billing a delivery** — an invoice line may carry a
       `delivery_line_id`, and posting raises the `Deliveries` port, which
       refuses more than was delivered. Inventory's `uninvoiced_deliveries` is

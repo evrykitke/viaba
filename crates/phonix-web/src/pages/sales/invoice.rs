@@ -41,8 +41,8 @@ use crate::components::page::{
 use crate::icons::Icon;
 use crate::l;
 use crate::server_fns::books_fns::{
-    delete_invoice, invoice_against_delivery, invoice_detail, invoice_journal, post_invoice,
-    save_invoice, tax_treatments, void_invoice,
+    credit_against_invoice, delete_invoice, invoice_against_delivery, invoice_detail,
+    invoice_journal, post_invoice, save_invoice, tax_treatments, void_invoice,
 };
 use crate::server_fns::master_fns::list_parties;
 use crate::ui::alert::{Alert, Alerts, Confirm};
@@ -58,26 +58,37 @@ pub fn invoice_new_page() -> impl IntoView {
     // than one the server substitutes.
     let today = chrono::Local::now().date_naive();
 
+    // Two ways in besides blank: against a despatch, and crediting an invoice.
+    // A query parameter rather than two screens, because what arrives is an
+    // `InvoiceInput` either way and the editor below does not care which.
     let query = leptos_router::hooks::use_query_map();
     let against = move || {
         query.with(|query| {
-            query
+            let delivery = query
                 .get("delivery")
-                .and_then(|raw| raw.parse::<Uuid>().ok())
+                .and_then(|raw| raw.parse::<Uuid>().ok());
+            let credits = query
+                .get("credits")
+                .and_then(|raw| raw.parse::<Uuid>().ok());
+
+            (delivery, credits)
         })
     };
 
-    let prefilled = Resource::new(against, move |delivery_id| async move {
-        match delivery_id {
-            None => Ok(None),
-            Some(id) => match invoice_against_delivery(id).await {
-                Ok(Submission::Saved(draft)) => Ok(Some(draft)),
-                Ok(Submission::Rejected(errors)) => Err(errors
-                    .first()
-                    .map(|error| crate::i18n::t(&error.message))
-                    .unwrap_or_else(|| l!("books.error.nothing_to_invoice"))),
-                Err(err) => Err(err.to_string()),
-            },
+    let prefilled = Resource::new(against, move |(delivery_id, credits)| async move {
+        let submitted = match (delivery_id, credits) {
+            (None, None) => return Ok(None),
+            (Some(id), _) => invoice_against_delivery(id).await,
+            (None, Some(id)) => credit_against_invoice(id).await,
+        };
+
+        match submitted {
+            Ok(Submission::Saved(draft)) => Ok(Some(draft)),
+            Ok(Submission::Rejected(errors)) => Err(errors
+                .first()
+                .map(|error| crate::i18n::t(&error.message))
+                .unwrap_or_else(|| l!("books.error.nothing_to_invoice"))),
+            Err(err) => Err(err.to_string()),
         }
     });
 
@@ -1011,6 +1022,8 @@ fn invoice_document(invoice: app_books::invoice::Invoice, reload: Callback<()>) 
 
     let id = invoice.id;
     let is_posted = invoice.status == InvoiceStatus::Posted;
+    let is_credit_note = invoice.kind.is_credit_note();
+    let navigate = leptos_router::hooks::use_navigate();
 
     let address = invoice.party.address.lines();
     let party_name = invoice.party.name.clone();
@@ -1221,6 +1234,28 @@ fn invoice_document(invoice: app_books::invoice::Invoice, reload: Callback<()>) 
                         label=l!("invoices.void")
                         icon=Icon::Ban
                         on_click=Callback::new(move |()| void())
+                    />
+                </div>
+            </Show>
+
+            // Crediting and voiding are the two ways to undo an invoice and
+            // they are not alternatives: voiding withdraws a document that
+            // should not have existed, crediting records that goods came back.
+            // A credit note is not offered on a credit note.
+            <Show when=move || is_posted && !is_credit_note fallback=|| ()>
+                <div class="flex justify-end">
+                    <GhostButton
+                        label=l!("invoices.credit")
+                        icon=Icon::Undo2
+                        on_click=Callback::new({
+                            let navigate = navigate.clone();
+                            move |()| {
+                                navigate(
+                                    &format!("/sales/invoices/new?credits={id}"),
+                                    leptos_router::NavigateOptions::default(),
+                                );
+                            }
+                        })
                     />
                 </div>
             </Show>

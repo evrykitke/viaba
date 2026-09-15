@@ -25,13 +25,6 @@ commits it is three items.
 
 ## Next
 
-- [ ] `app-books` Raising a credit note against an invoice
-      why: second of three. The document exists and posts the right way round,
-           and nothing creates one - `kind` is `sales_invoice` on every row.
-      touch: crates/phonix-services/src/books/invoice.rs
-      done: a posted invoice can be credited, in full or line by line, and the
-            credit note opens prefilled from it with its own number.
-
 - [ ] `app-books` What an invoice has been credited, and what is still owed
       why: last of three. A credit note posts to the ledger but no screen or
            report knows it exists: the invoice does not show it, aging counts
@@ -98,6 +91,13 @@ rule: what changes about somebody is an `assignments` row, never a column on
 ## Done
 
 <!-- The loop appends here with the commit sha. Newest first. -->
+
+- [x] `app-books` Raising a credit note against an invoice
+      Second of three. `?credits=<id>` on the invoice form, and a button on a
+      posted invoice. Crediting part of one is deleting the lines that are not
+      coming back - the same edit as any other draft rather than a second way
+      of saying it. Voiding and crediting are both offered and are not
+      alternatives.
 
 - [x] `app-books` The credit note, as a kind of invoice
       First of three. The item said a numbering series was already reserved;

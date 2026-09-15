@@ -372,6 +372,9 @@ impl InvoiceLineInput {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct InvoiceInput {
     pub id: Option<Uuid>,
+    pub kind: InvoiceKind,
+    /// The invoice being credited, where this is a credit note against one.
+    pub credits_invoice_id: Option<Uuid>,
     pub party_id: Option<Uuid>,
     pub issued_on: NaiveDate,
     pub due_on: Option<NaiveDate>,
@@ -393,6 +396,8 @@ impl InvoiceInput {
     pub fn blank(today: NaiveDate, currency: Currency) -> Self {
         Self {
             id: None,
+            kind: InvoiceKind::SalesInvoice,
+            credits_invoice_id: None,
             party_id: None,
             issued_on: today,
             due_on: None,
@@ -409,6 +414,8 @@ impl InvoiceInput {
     pub fn from_invoice(invoice: &Invoice) -> Self {
         Self {
             id: Some(invoice.id),
+            kind: invoice.kind,
+            credits_invoice_id: invoice.credits_invoice_id,
             party_id: Some(invoice.party.party_id),
             issued_on: invoice.issued_on,
             due_on: invoice.due_on,
@@ -497,6 +504,8 @@ impl InvoiceInput {
 
         Ok(CheckedInvoice {
             id: self.id,
+            kind: self.kind,
+            credits_invoice_id: self.credits_invoice_id,
             party_id,
             issued_on: self.issued_on,
             due_on: self.due_on,
@@ -519,6 +528,8 @@ impl InvoiceInput {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CheckedInvoice {
     pub id: Option<Uuid>,
+    pub kind: InvoiceKind,
+    pub credits_invoice_id: Option<Uuid>,
     pub party_id: Uuid,
     pub issued_on: NaiveDate,
     pub due_on: Option<NaiveDate>,
