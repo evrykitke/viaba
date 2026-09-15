@@ -530,8 +530,11 @@ pub async fn post_invoice(invoice_id: Uuid) -> Result<PostOutcome, ServerFnError
     use crate::state::{pool_and_caller, service_error};
 
     let (pool, caller) = pool_and_caller().await?;
+    // Inventory's side of the `Deliveries` port, so a line billing a delivery
+    // can be checked against what actually went out.
+    let deliveries = phonix_services::inventory::delivery::InventoryDeliveries::new(pool.clone());
 
-    phonix_services::books::invoice::post(&pool, &caller, invoice_id)
+    phonix_services::books::invoice::post(&pool, &caller, &deliveries, invoice_id)
         .await
         .map_err(service_error)
 }

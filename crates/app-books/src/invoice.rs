@@ -203,6 +203,10 @@ pub struct InvoiceLine {
     /// The resolved taxes, in the order they applied. This is the snapshot that
     /// makes a 2030 reprint show 2026's rate.
     pub taxes: Vec<LineTaxSnapshot>,
+    /// The `inventory.delivery_lines` row this line bills, where it bills one.
+    /// A bare id across an app boundary: resolved through the `Deliveries`
+    /// port, never joined.
+    pub delivery_line_id: Option<Uuid>,
 }
 
 /// One tax on one line, as the document records it.
@@ -296,6 +300,9 @@ pub struct InvoiceLineInput {
     /// `None` is a line outside the scope of tax, which is not the same as a
     /// zero-rated one - that is a group whose rate is zero.
     pub tax_group_id: Option<Uuid>,
+    /// The delivery line this bills, for a line raised against goods that have
+    /// gone. `None` is an ordinary typed line, which is most of them.
+    pub delivery_line_id: Option<Uuid>,
 }
 
 impl InvoiceLineInput {
@@ -306,6 +313,7 @@ impl InvoiceLineInput {
             quantity: "1".to_owned(),
             unit_price: String::new(),
             tax_group_id: None,
+            delivery_line_id: None,
         }
     }
 }
@@ -368,6 +376,7 @@ impl InvoiceInput {
                     quantity: line.quantity.to_display_string(),
                     unit_price: line.unit_price.to_storage_string(),
                     tax_group_id: line.tax_group_id,
+                    delivery_line_id: line.delivery_line_id,
                 })
                 .collect(),
         }
@@ -425,6 +434,7 @@ impl InvoiceInput {
                 quantity,
                 unit_price,
                 tax_group_id: line.tax_group_id,
+                delivery_line_id: line.delivery_line_id,
             });
         }
 
@@ -478,6 +488,9 @@ pub struct CheckedLine {
     pub quantity: Quantity,
     pub unit_price: Money,
     pub tax_group_id: Option<Uuid>,
+    /// Carried through validation untouched: what it points at lives in another
+    /// app, so nothing here can check it. The `Deliveries` port does, at post.
+    pub delivery_line_id: Option<Uuid>,
 }
 
 /// What can be wrong with an invoice somebody typed.
@@ -564,6 +577,7 @@ mod tests {
             quantity: quantity.to_owned(),
             unit_price: price.to_owned(),
             tax_group_id: None,
+            delivery_line_id: None,
         }
     }
 

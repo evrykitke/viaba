@@ -59,6 +59,7 @@ use phonix_db::error::DbError;
 use phonix_db::numbering::SequenceKey;
 use phonix_db::sqlx::PgPool;
 use phonix_master::address::AddressPurpose;
+use phonix_ports::deliveries::{Deliveries, InvoicedLine};
 use phonix_tax::compute::DocumentTax;
 use phonix_tax::group::TaxTreatment;
 use uuid::Uuid;
@@ -234,7 +235,12 @@ pub async fn save(
 /// and both are held to the commit, so two posts running at once queue through
 /// them in the same order and cannot deadlock against each other. Anything that
 /// posts a journal beside an invoice should take them in this order too.
-pub async fn post(pool: &PgPool, caller: &Caller, id: Uuid) -> ServiceResult<PostOutcome> {
+pub async fn post(
+    pool: &PgPool,
+    caller: &Caller,
+    deliveries: &dyn Deliveries,
+    id: Uuid,
+) -> ServiceResult<PostOutcome> {
     caller.require(permissions::INVOICES_POST)?;
     acting_user(caller)?;
 
@@ -299,6 +305,35 @@ pub async fn post(pool: &PgPool, caller: &Caller, id: Uuid) -> ServiceResult<Pos
             return Err(err);
         }
     };
+
+    // Told to Inventory last, and inside the post rather than after it: a
+    // refusal has to leave the invoice a draft, which means it has to happen
+    // while there is still a transaction to roll back.
+    //
+    // The window this leaves is the commit itself - a port call that succeeded
+    // and a commit that then failed would leave a delivery line marked for an
+    // invoice that does not exist. It is recoverable rather than silent: what a
+    // line has had invoiced against it is the sum of the posted invoice lines
+    // naming it, which is what `invoice_lines_delivery_line` indexes.
+    let billed: Vec<InvoicedLine> = invoice
+        .lines
+        .iter()
+        .filter_map(|line| {
+            line.delivery_line_id.map(|delivery_line_id| InvoicedLine {
+                delivery_line_id,
+                quantity: line.quantity.to_display_string(),
+            })
+        })
+        .collect();
+
+    if let Err(err) = deliveries.invoice(&billed).await {
+        tx.rollback().await.map_err(phonix_db::DbError::Query)?;
+
+        return Err(ServiceError::rejected(
+            "lines",
+            msg!("books.error.delivery_refused", detail = err.to_string()),
+        ));
+    }
 
     tx.commit().await.map_err(phonix_db::DbError::Query)?;
 

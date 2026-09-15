@@ -205,6 +205,7 @@ async fn draft(pool: &PgPool, party_id: Uuid, group_id: Uuid) -> (CheckedInvoice
             quantity,
             unit_price,
             tax_group_id: Some(group_id),
+            delivery_line_id: None,
         }],
     };
 

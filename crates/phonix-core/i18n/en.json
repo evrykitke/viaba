@@ -553,6 +553,7 @@
   "books.error.bad_price": "Enter a price as a number, with at most four decimal places.",
   "books.error.bad_quantity": "Enter a quantity as a number, with at most four decimal places.",
   "books.error.cannot_price": "These lines cannot be added up",
+  "books.error.delivery_refused": "The invoice was not posted, because a line billing a delivery was refused: {detail}",
   "books.error.description_required": "A line needs a description.",
   "books.error.description_too_long": "A description is at most 500 characters.",
   "books.error.due_before_issued": "An invoice cannot fall due before it is issued.",

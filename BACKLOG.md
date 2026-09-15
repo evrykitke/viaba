@@ -25,13 +25,14 @@ commits it is three items.
 
 ## Next
 
-- [ ] `app-books` The invoice line that names a delivery line
-      why: last of the three. The invoice is still free text, so "delivered and
-           not billed" is an investigation rather than a query.
-      touch: crates/app-books/src/invoice.rs
-      done: an invoice line carries a bare `delivery_line_id` with no foreign
-            key, posting the invoice raises the port, and invoicing more of a
-            delivery line than was delivered is refused.
+- [ ] `phonix-web` Choosing the delivery an invoice line bills
+      why: an invoice line can name a delivery line and nothing on the screen
+           lets somebody pick one, so the link is reachable from the input type
+           and not from the application. The data and the refusal are in.
+      touch: crates/phonix-web/src/pages/sales/invoice.rs
+      done: raising an invoice against a customer offers what they have had
+            delivered and not yet been invoiced for, and choosing a line fills
+            the description, quantity and price.
 
 - [ ] `app-books` Price lists, and the prices an item has in each
       why: `pricing.rs` computes from a single price on the item. Both ERPNext
@@ -108,6 +109,12 @@ rule: what changes about somebody is an `assignments` row, never a column on
 ## Done
 
 <!-- The loop appends here with the commit sha. Newest first. -->
+
+- [x] `app-books` The invoice line that names a delivery line
+      Last of three. `invoice_lines.delivery_line_id` is a bare id with no
+      foreign key, posting raises the `Deliveries` port before it commits, and
+      a refusal rolls the invoice back to a draft. WORKFLOWS.md's entry is
+      ticked. No picker on the screen yet - queued above.
 
 - [x] `phonix-ports` The `Deliveries` port
       Second of three. The first port that runs Books -> Inventory rather than

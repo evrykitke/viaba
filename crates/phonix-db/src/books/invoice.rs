@@ -270,7 +270,7 @@ async fn lines_of(
                 net_amount::text   AS net_amount,
                 tax_amount::text   AS tax_amount,
                 gross_amount::text AS gross_amount,
-                tax_group_id, tax_group_code
+                tax_group_id, tax_group_code, delivery_line_id
            FROM books.invoice_lines
           WHERE invoice_id = $1
           ORDER BY line_no",
@@ -330,6 +330,7 @@ async fn lines_of(
             tax_group_id: row.try_get("tax_group_id").map_err(DbError::Query)?,
             tax_group_code: row.try_get("tax_group_code").map_err(DbError::Query)?,
             taxes,
+            delivery_line_id: row.try_get("delivery_line_id").map_err(DbError::Query)?,
         });
     }
 
@@ -445,9 +446,10 @@ pub async fn save_draft(pool: &sqlx::PgPool, write: DraftWrite<'_>) -> Result<Uu
         let line_id: Uuid = sqlx::query_scalar(
             "INSERT INTO books.invoice_lines
                  (invoice_id, line_no, description, quantity, unit_price,
-                  net_amount, tax_amount, gross_amount, tax_group_id, tax_group_code)
+                  net_amount, tax_amount, gross_amount, tax_group_id, tax_group_code,
+                  delivery_line_id)
              VALUES ($1, $2, $3, $4::numeric, $5::numeric,
-                     $6::numeric, $7::numeric, $8::numeric, $9, $10)
+                     $6::numeric, $7::numeric, $8::numeric, $9, $10, $11)
              RETURNING id",
         )
         .bind(invoice_id)
@@ -465,6 +467,7 @@ pub async fn save_draft(pool: &sqlx::PgPool, write: DraftWrite<'_>) -> Result<Uu
                 .first()
                 .map_or(String::new(), |_| group_code_of(checked, index)),
         )
+        .bind(line.delivery_line_id)
         .fetch_one(&mut *tx)
         .await
         .map_err(DbError::Query)?;

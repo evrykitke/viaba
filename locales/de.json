@@ -553,6 +553,7 @@
   "books.error.bad_price": "Geben Sie einen Preis als Zahl mit höchstens vier Nachkommastellen ein.",
   "books.error.bad_quantity": "Geben Sie eine Menge als Zahl mit höchstens vier Nachkommastellen ein.",
   "books.error.cannot_price": "Diese Positionen können nicht summiert werden",
+  "books.error.delivery_refused": "Die Rechnung wurde nicht gebucht, weil eine Position abgelehnt wurde, die eine Lieferung berechnet: {detail}",
   "books.error.description_required": "Eine Position braucht eine Beschreibung.",
   "books.error.description_too_long": "Eine Beschreibung hat höchstens 500 Zeichen.",
   "books.error.due_before_issued": "Eine Rechnung kann nicht fällig werden, bevor sie ausgestellt ist.",
