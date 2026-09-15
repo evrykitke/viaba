@@ -547,6 +547,7 @@
   "books.class.expense": "Aufwendungen",
   "books.class.liability": "Verbindlichkeiten",
   "books.class.revenue": "Erträge",
+  "books.doc_type.credit_note": "Gutschrift",
   "books.doc_type.journal": "Buchung",
   "books.doc_type.payment": "Zahlungsbeleg",
   "books.doc_type.sales_invoice": "Ausgangsrechnung",

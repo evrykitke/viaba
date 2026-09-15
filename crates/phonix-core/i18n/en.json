@@ -547,6 +547,7 @@
   "books.class.expense": "Expenses",
   "books.class.liability": "Liabilities",
   "books.class.revenue": "Revenue",
+  "books.doc_type.credit_note": "Credit note",
   "books.doc_type.journal": "Journal",
   "books.doc_type.payment": "Payment receipt",
   "books.doc_type.sales_invoice": "Sales invoice",

@@ -25,13 +25,21 @@ commits it is three items.
 
 ## Next
 
-- [ ] `app-books` The credit note, which has a numbering series and nothing else
-      why: `phonix-config/src/numbering.rs` already reserves a credit-note
-           series, so the gap is visible from the configuration alone. A sales
-           return currently has no document that reverses the revenue.
-      touch: crates/phonix-config/src/numbering.rs, crates/app-books/src/invoice.rs
-      done: a credit note posts against an invoice, reverses the revenue and
-            tax lines, and the invoice shows what has been credited.
+- [ ] `app-books` Raising a credit note against an invoice
+      why: second of three. The document exists and posts the right way round,
+           and nothing creates one - `kind` is `sales_invoice` on every row.
+      touch: crates/phonix-services/src/books/invoice.rs
+      done: a posted invoice can be credited, in full or line by line, and the
+            credit note opens prefilled from it with its own number.
+
+- [ ] `app-books` What an invoice has been credited, and what is still owed
+      why: last of three. A credit note posts to the ledger but no screen or
+           report knows it exists: the invoice does not show it, aging counts
+           the full amount, and settlement does not net it off.
+      touch: crates/phonix-db/src/books/report.rs, payment.rs
+      done: an invoice shows what has been credited against it, the sales
+            ledger and aging net credit notes off, and a payment settles
+            against the balance rather than the invoiced figure.
 
 ### People — the Frappe HR revamp
 
@@ -90,6 +98,13 @@ rule: what changes about somebody is an `assignments` row, never a column on
 ## Done
 
 <!-- The loop appends here with the commit sha. Newest first. -->
+
+- [x] `app-books` The credit note, as a kind of invoice
+      First of three. The item said a numbering series was already reserved;
+      it was not - `credit_note` appeared only in a doc example and a test
+      fixture, and `config/numbering/books.toml` declared three series. Now it
+      declares four. A credit note is an invoice with `kind = credit_note`
+      rather than a table of its own, which is what ERPNext and Odoo both do.
 
 - [x] `phonix-web` Choosing which list a customer is on
       The last gap in the price-list chain: lists, prices, customers and the

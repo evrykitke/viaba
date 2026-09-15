@@ -25,6 +25,18 @@ reset    = "fiscal_year"
 start_at = 1
 
 [[series]]
+doc_type = "credit_note"
+label    = "books.doc_type.credit_note"
+
+# `CN-{YYYY}-#####` renders `CN-2026-00007`, and resets with the financial year
+# for the reason the invoice series does. A series of its own rather than the
+# invoice's: a credit note and the invoice it credits appearing as INV-00041 and
+# INV-00042 is two documents nobody can tell apart in a list.
+mask     = "CN-{YYYY}-#####"
+reset    = "fiscal_year"
+start_at = 1
+
+[[series]]
 doc_type = "payment"
 label    = "books.doc_type.payment"
 

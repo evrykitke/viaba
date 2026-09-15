@@ -325,7 +325,9 @@ pub async fn post(
     let generator = crate::numbering::NumberGenerator::open(pool).await?;
     let mut tx = pool.begin().await.map_err(phonix_db::DbError::Query)?;
 
-    let key = SequenceKey::new(app_books::APP_ID, app_books::SALES_INVOICE);
+    // Its own series per kind, so a credit note and the invoice it credits are
+    // never two numbers nobody can tell apart in a list.
+    let key = SequenceKey::new(app_books::APP_ID, invoice.kind.series());
     let allocated = match generator.next(&mut tx, key, invoice.issued_on).await {
         Ok(allocated) => allocated,
         // The series is missing or switched off. Rolled back rather than left

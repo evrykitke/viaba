@@ -547,6 +547,7 @@
   "books.class.expense": "Charges",
   "books.class.liability": "Passif",
   "books.class.revenue": "Produits",
+  "books.doc_type.credit_note": "Avoir",
   "books.doc_type.journal": "Écriture",
   "books.doc_type.payment": "Reçu de règlement",
   "books.doc_type.sales_invoice": "Facture de vente",

@@ -42,9 +42,10 @@ Status marks:
 - [x] **Payment** — lands in a bank or cash account, allocated across invoices
       as a relation rather than a `paid` column. Overpayment sits on account.
       `app-books/src/payment.rs`
-- [ ] **Credit note / sales return** — a numbering series is reserved in
-      `phonix-config/src/numbering.rs` and no document posts against it. A
-      return currently has nothing that reverses the revenue.
+- [~] **Credit note / sales return** — a credit note is an invoice with
+      `kind = credit_note`: its own numbering series, and a journal that is the
+      invoice entry backwards with the amounts still positive. Not yet: nothing
+      creates one, and no report or settlement nets one off.
 - [x] **Invoice billing a delivery** — an invoice line may carry a
       `delivery_line_id`, and posting raises the `Deliveries` port, which
       refuses more than was delivered. Inventory's `uninvoiced_deliveries` is

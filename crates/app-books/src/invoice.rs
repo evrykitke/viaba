@@ -42,8 +42,54 @@ pub const MAX_DESCRIPTION_LEN: usize = 500;
 /// is stated is better than a timeout that is not.
 pub const MAX_LINES: usize = 500;
 
-/// Where an invoice is in its life.
+/// Which way the document goes: a claim, or taking one back.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum InvoiceKind {
+    /// A claim on a customer. Debits what they owe.
+    #[default]
+    SalesInvoice,
+    /// Taking one back. The same three postings with the sides flipped, and the
+    /// amounts still positive - see `migrations/apps/books/0010`.
+    CreditNote,
+}
+
+impl InvoiceKind {
+    pub const ALL: &'static [Self] = &[Self::SalesInvoice, Self::CreditNote];
+
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::SalesInvoice => "sales_invoice",
+            Self::CreditNote => "credit_note",
+        }
+    }
+
+    pub fn parse(raw: &str) -> Option<Self> {
+        Self::ALL.iter().copied().find(|kind| kind.as_str() == raw)
+    }
+
+    /// The numbering series this kind draws from.
+    pub const fn series(self) -> &'static str {
+        match self {
+            Self::SalesInvoice => crate::SALES_INVOICE,
+            Self::CreditNote => crate::CREDIT_NOTE,
+        }
+    }
+
+    pub const fn is_credit_note(self) -> bool {
+        matches!(self, Self::CreditNote)
+    }
+
+    pub fn label(self) -> Message {
+        match self {
+            Self::SalesInvoice => msg!("books.doc_type.sales_invoice"),
+            Self::CreditNote => msg!("books.doc_type.credit_note"),
+        }
+    }
+}
+
+/// Where an invoice is in its life.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum InvoiceStatus {
     /// Editable, deletable, and carrying no number.
@@ -138,8 +184,12 @@ pub struct InvoiceTotals {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Invoice {
     pub id: Uuid,
-    /// `None` while it is a draft. Taken from the sequence at post.
+    /// `None` while it is a draft. Taken from the sequence at post - which
+    /// sequence depends on [`Self::kind`].
     pub number: Option<String>,
+    pub kind: InvoiceKind,
+    /// The invoice this credits, where it is a credit note against one.
+    pub credits_invoice_id: Option<Uuid>,
     pub status: InvoiceStatus,
     pub party: PartySnapshot,
     pub issued_on: NaiveDate,

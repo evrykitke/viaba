@@ -16,8 +16,8 @@
 //! and read back with `::text`, exactly as `core.exchange_rates` does.
 
 use app_books::invoice::{
-    CheckedInvoice, Invoice, InvoiceLine, InvoiceStatus, InvoiceSummary, InvoiceTotals,
-    LineTaxSnapshot, PartySnapshot,
+    CheckedInvoice, Invoice, InvoiceKind, InvoiceLine, InvoiceStatus, InvoiceSummary,
+    InvoiceTotals, LineTaxSnapshot, PartySnapshot,
 };
 use app_books::quantity::Quantity;
 use chrono::NaiveDate;
@@ -228,7 +228,7 @@ pub async fn page(
 /// is the kind of code that quietly loses the second tax on a line.
 pub async fn find(pool: &sqlx::PgPool, id: Uuid) -> Result<Option<Invoice>, DbError> {
     let Some(row) = sqlx::query(
-        "SELECT id, number, status, party_id, party_code, party_name, party_tax_id,
+        "SELECT id, number, kind, credits_invoice_id, status, party_id, party_code, party_name, party_tax_id,
                 party_line1, party_line2, party_city, party_region,
                 party_postal_code, party_country_code,
                 issued_on, due_on, currency_code, base_currency_code,
@@ -744,6 +744,9 @@ fn decode_invoice(
         DbError::CorruptRow(format!("unrecognised {column} '{value}' on an invoice"))
     };
 
+    let stored_kind: String = row.try_get("kind").map_err(DbError::Query)?;
+    let kind = InvoiceKind::parse(&stored_kind).ok_or_else(|| refuse("kind", &stored_kind))?;
+
     let stored_status: String = row.try_get("status").map_err(DbError::Query)?;
     let status =
         InvoiceStatus::parse(&stored_status).ok_or_else(|| refuse("status", &stored_status))?;
@@ -802,6 +805,8 @@ fn decode_invoice(
     Ok(Invoice {
         id: row.try_get("id").map_err(DbError::Query)?,
         number: row.try_get("number").map_err(DbError::Query)?,
+        kind,
+        credits_invoice_id: row.try_get("credits_invoice_id").map_err(DbError::Query)?,
         status,
         party: PartySnapshot {
             party_id: row.try_get("party_id").map_err(DbError::Query)?,

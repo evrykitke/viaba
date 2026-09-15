@@ -60,10 +60,19 @@ pub fn sales_invoice(invoice: &Invoice) -> Option<JournalRequest> {
 
     let memo = || Some(invoice.party.name.clone());
 
+    // A credit note is this entry backwards. The amounts are the same positive
+    // figures the document shows; only the sides move, which is what `kind` is
+    // for - see `migrations/apps/books/0010`.
+    let (owed, earned) = if invoice.kind.is_credit_note() {
+        (Side::Credit, Side::Debit)
+    } else {
+        (Side::Debit, Side::Credit)
+    };
+
     let mut postings = vec![Posting {
         role: AccountRole::AccountsReceivable,
         account_id: None,
-        side: Side::Debit,
+        side: owed,
         amount: totals.gross.to_storage_string(),
         memo: memo(),
         cost_centre_id: None,
@@ -73,7 +82,7 @@ pub fn sales_invoice(invoice: &Invoice) -> Option<JournalRequest> {
         postings.push(Posting {
             role: AccountRole::Revenue,
             account_id: None,
-            side: Side::Credit,
+            side: earned,
             amount: totals.net.to_storage_string(),
             memo: memo(),
             cost_centre_id: None,
@@ -84,7 +93,7 @@ pub fn sales_invoice(invoice: &Invoice) -> Option<JournalRequest> {
         postings.push(Posting {
             role: AccountRole::TaxPayable,
             account_id: None,
-            side: Side::Credit,
+            side: earned,
             amount: totals.tax.to_storage_string(),
             memo: memo(),
             cost_centre_id: None,
@@ -119,6 +128,7 @@ fn narration(invoice: &Invoice) -> String {
 
 #[cfg(test)]
 mod tests {
+    use crate::invoice::InvoiceKind;
     use chrono::NaiveDate;
     use phonix_core::locale::Currency;
     use phonix_core::money::Money;
@@ -140,6 +150,8 @@ mod tests {
         Invoice {
             id: Uuid::from_u128(42),
             number: Some("INV-2026-00042".to_owned()),
+            kind: InvoiceKind::SalesInvoice,
+            credits_invoice_id: None,
             status: InvoiceStatus::Posted,
             party: PartySnapshot {
                 party_id: Uuid::from_u128(7),
@@ -247,5 +259,70 @@ mod tests {
         draft.status = InvoiceStatus::Draft;
 
         assert!(sales_invoice(&draft).is_none());
+    }
+
+    #[test]
+    fn a_credit_note_is_the_invoice_entry_backwards() {
+        // Same three roles, same positive amounts, every side the other way.
+        // What the customer owes goes down, what was earned goes down, and the
+        // tax that was never the workspace's goes back.
+        let mut note = invoice("1000.0000", "200.0000", "1200.0000");
+        note.kind = InvoiceKind::CreditNote;
+
+        let entry = sales_invoice(&note).expect("a journal");
+
+        let side_of = |role: AccountRole| {
+            entry
+                .postings
+                .iter()
+                .find(|posting| posting.role == role)
+                .map(|posting| posting.side)
+        };
+
+        assert_eq!(side_of(AccountRole::AccountsReceivable), Some(Side::Credit));
+        assert_eq!(side_of(AccountRole::Revenue), Some(Side::Debit));
+        assert_eq!(side_of(AccountRole::TaxPayable), Some(Side::Debit));
+
+        // Positive, not negative: the document says three widgets, not minus
+        // three, and the sides carry the direction.
+        for posting in &entry.postings {
+            assert!(!posting.amount.starts_with('-'), "{}", posting.amount);
+        }
+    }
+
+    #[test]
+    fn a_credit_note_still_balances() {
+        let mut note = invoice("1000.0000", "200.0000", "1200.0000");
+        note.kind = InvoiceKind::CreditNote;
+
+        let entry = sales_invoice(&note).expect("a journal");
+
+        let sum = |side: Side| {
+            entry
+                .postings
+                .iter()
+                .filter(|posting| posting.side == side)
+                .filter_map(|posting| posting.amount.parse::<f64>().ok())
+                .sum::<f64>()
+        };
+
+        assert_eq!(sum(Side::Debit), sum(Side::Credit));
+    }
+
+    #[test]
+    fn the_two_kinds_draw_from_different_series() {
+        assert_ne!(
+            InvoiceKind::SalesInvoice.series(),
+            InvoiceKind::CreditNote.series()
+        );
+    }
+
+    #[test]
+    fn every_kind_round_trips() {
+        for kind in InvoiceKind::ALL {
+            assert_eq!(InvoiceKind::parse(kind.as_str()), Some(*kind));
+        }
+
+        assert_eq!(InvoiceKind::parse("not_a_kind"), None);
     }
 }

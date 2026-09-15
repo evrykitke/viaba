@@ -69,8 +69,12 @@ pub mod report;
 /// number series are declared under in `config/numbering/books.toml`.
 pub const APP_ID: &str = "books";
 
-/// The document type this app numbers. One, so far.
+/// A claim on a customer.
 pub const SALES_INVOICE: &str = "sales_invoice";
+
+/// Taking one back. Its own series, so a credit note and an invoice never share
+/// a number.
+pub const CREDIT_NOTE: &str = "credit_note";
 
 /// Money coming in. Numbered at post, from the same allocator.
 pub const PAYMENT: &str = "payment";
