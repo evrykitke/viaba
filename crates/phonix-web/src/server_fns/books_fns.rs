@@ -539,6 +539,21 @@ pub async fn post_invoice(invoice_id: Uuid) -> Result<PostOutcome, ServerFnError
         .map_err(service_error)
 }
 
+/// An invoice prefilled with what a despatch has not been charged for.
+#[server(name = InvoiceAgainstDelivery, prefix = "/api", endpoint = "books/invoices/against-delivery")]
+pub async fn invoice_against_delivery(
+    delivery_id: Uuid,
+) -> Result<Submission<InvoiceInput>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+    let deliveries = phonix_services::inventory::delivery::InventoryDeliveries::new(pool.clone());
+
+    phonix_services::books::invoice::against_delivery(&pool, &caller, &deliveries, delivery_id)
+        .await
+        .map_err(service_error)
+}
+
 /// The journal a posted invoice raised: its id, and its number.
 #[server(name = InvoiceJournal, prefix = "/api", endpoint = "books/invoices/journal")]
 pub async fn invoice_journal(invoice_id: Uuid) -> Result<Option<(Uuid, String)>, ServerFnError> {

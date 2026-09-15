@@ -41,8 +41,8 @@
 //! the time an invoice is posted, nothing on it needs looking up again.
 
 use app_books::invoice::{
-    CheckedInvoice, Invoice, InvoiceInput, InvoiceStatus, InvoiceSummary, PartySnapshot,
-    PostOutcome,
+    CheckedInvoice, Invoice, InvoiceInput, InvoiceLineInput, InvoiceStatus, InvoiceSummary,
+    PartySnapshot, PostOutcome,
 };
 use app_books::pricing::{PricedInvoice, PricedLine};
 use chrono::NaiveDate;
@@ -59,7 +59,7 @@ use phonix_db::error::DbError;
 use phonix_db::numbering::SequenceKey;
 use phonix_db::sqlx::PgPool;
 use phonix_master::address::AddressPurpose;
-use phonix_ports::deliveries::{Deliveries, InvoicedLine};
+use phonix_ports::deliveries::{Deliveries, DeliveriesError, InvoicedLine};
 use phonix_tax::compute::DocumentTax;
 use phonix_tax::group::TaxTreatment;
 use uuid::Uuid;
@@ -235,6 +235,68 @@ pub async fn save(
 /// and both are held to the commit, so two posts running at once queue through
 /// them in the same order and cannot deadlock against each other. Anything that
 /// posts a journal beside an invoice should take them in this order too.
+/// An invoice prefilled with everything a despatch has not been charged for.
+///
+/// The sell-side mirror of `inventory::bill::against_order`, and it goes
+/// through the port for the reason the whole link does: what it is reading
+/// belongs to Inventory, and Books may not join to it.
+///
+/// A line with no price comes back blank rather than guessed. A delivery with
+/// no order behind it has no agreed price, and the item's standing one is not
+/// what was agreed with this customer - filling it in would be revenue given
+/// away by a default, which is the trade `sales_order` already refused.
+pub async fn against_delivery(
+    pool: &PgPool,
+    caller: &Caller,
+    deliveries: &dyn Deliveries,
+    delivery_id: Uuid,
+) -> ServiceResult<Submission<InvoiceInput>> {
+    caller.require(permissions::INVOICES_CREATE)?;
+
+    let Some(despatch) = deliveries
+        .despatch(delivery_id)
+        .await
+        .map_err(|err| ServiceError::rejected("delivery_id", refused(&err)))?
+    else {
+        return Ok(Submission::rejected(
+            "delivery_id",
+            msg!("books.error.nothing_to_invoice"),
+        ));
+    };
+
+    if despatch.lines.is_empty() {
+        return Ok(Submission::rejected(
+            "delivery_id",
+            msg!("books.error.nothing_to_invoice"),
+        ));
+    }
+
+    let currency = crate::workspace::profile::current(pool).await?.currency;
+    let mut draft = InvoiceInput::blank(chrono::Utc::now().date_naive(), currency);
+
+    draft.party_id = Some(despatch.customer_id);
+    draft.notes = Some(despatch.number);
+    draft.lines = despatch
+        .lines
+        .into_iter()
+        .map(|line| InvoiceLineInput {
+            id: None,
+            description: line.description,
+            quantity: line.quantity,
+            unit_price: line.unit_price,
+            tax_group_id: None,
+            delivery_line_id: Some(line.delivery_line_id),
+        })
+        .collect();
+
+    Ok(Submission::Saved(draft))
+}
+
+/// What to say when the port refused.
+fn refused(err: &DeliveriesError) -> Message {
+    msg!("books.error.delivery_refused", detail = err.to_string())
+}
+
 pub async fn post(
     pool: &PgPool,
     caller: &Caller,

@@ -756,6 +756,7 @@ fn lot_picker(
 #[component]
 fn delivery_document(delivery: Delivery) -> impl IntoView {
     let id = delivery.id;
+    let navigate = leptos_router::hooks::use_navigate();
 
     let customer_name = delivery.customer.name.clone();
     let customer_code = delivery.customer.code.clone();
@@ -895,6 +896,23 @@ fn delivery_document(delivery: Delivery) -> impl IntoView {
                         <span class="text-content">{value}</span>
                     </div>
                 </Section>
+            </div>
+
+            // The invoice screen opens against this despatch and prefills what
+            // has not been charged for; the lines do not need carrying across.
+            // Offered whatever is left on it - the screen says when that is
+            // nothing, which is a better answer than a button that is not there.
+            <div class="mt-4 flex justify-end border-t border-edge pt-4">
+                <GhostButton
+                    label=l!("deliveries.invoice")
+                    icon=Icon::FileText
+                    on_click=Callback::new(move |()| {
+                        navigate(
+                            &format!("/sales/invoices/new?delivery={id}"),
+                            leptos_router::NavigateOptions::default(),
+                        );
+                    })
+                />
             </div>
 
             <Section title=l!("common.history")>

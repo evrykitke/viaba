@@ -605,3 +605,50 @@ pub async fn mark_invoiced(
 
     Ok(InvoicedOutcome::Recorded)
 }
+
+/// What one despatch still has to be invoiced for.
+///
+/// The price is per **stock** unit, because that is the unit the quantity is
+/// in and an invoice line carries no unit of its own. It is worked out from the
+/// order line's own two quantities rather than from the units table: the factor
+/// that row was written with is what was agreed, and a conversion somebody
+/// edits next year must not restate it. `NULL` where no order priced the line,
+/// which the caller renders as a blank for somebody to fill.
+pub async fn invoiceable_lines<'e, E>(
+    executor: E,
+    delivery_id: Uuid,
+) -> Result<Vec<(Uuid, String, String, Option<String>)>, DbError>
+where
+    E: PgExecutor<'e>,
+{
+    let rows = sqlx::query(
+        "SELECT l.id, l.description,
+                (l.quantity - l.invoiced)::text AS outstanding,
+                CASE
+                    WHEN o.id IS NULL OR o.quantity_stock = 0 THEN NULL
+                    ELSE (o.unit_price * o.quantity / o.quantity_stock)::text
+                END AS unit_price
+           FROM inventory.delivery_lines l
+           JOIN inventory.deliveries d ON d.id = l.delivery_id
+           LEFT JOIN inventory.sales_order_lines o ON o.id = l.order_line_id
+          WHERE l.delivery_id = $1
+            AND d.state = 'done'
+            AND l.invoiced < l.quantity
+          ORDER BY l.line_no",
+    )
+    .bind(delivery_id)
+    .fetch_all(executor)
+    .await
+    .map_err(DbError::Query)?;
+
+    rows.iter()
+        .map(|row| {
+            Ok((
+                row.try_get("id").map_err(DbError::Query)?,
+                row.try_get("description").map_err(DbError::Query)?,
+                row.try_get("outstanding").map_err(DbError::Query)?,
+                row.try_get("unit_price").map_err(DbError::Query)?,
+            ))
+        })
+        .collect()
+}

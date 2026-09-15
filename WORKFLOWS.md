@@ -48,8 +48,8 @@ Status marks:
 - [x] **Invoice billing a delivery** — an invoice line may carry a
       `delivery_line_id`, and posting raises the `Deliveries` port, which
       refuses more than was delivered. Inventory's `uninvoiced_deliveries` is
-      the aged accrual. No picker yet: a line is linked through the input, not
-      chosen on the screen.
+      the aged accrual. Raised from the despatch: the delivery offers it and
+      the invoice opens prefilled with what is left to charge for.
 
 ## Selling: pricing
 

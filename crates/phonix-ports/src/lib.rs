@@ -45,7 +45,9 @@ pub mod error;
 pub mod ledger;
 
 pub use cost_centre::{CostCentre, CostCentres};
-pub use deliveries::{Deliveries, DeliveriesError, InvoicedLine, NoDeliveries};
+pub use deliveries::{
+    Deliveries, DeliveriesError, Despatch, DespatchedLine, InvoicedLine, NoDeliveries,
+};
 pub use error::PortError;
 pub use ledger::{
     AccountRole, Fit, JournalRequest, Ledger, LedgerAccount, LedgerError, NoLedger, PostedRef,

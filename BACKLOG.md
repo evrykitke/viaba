@@ -25,15 +25,6 @@ commits it is three items.
 
 ## Next
 
-- [ ] `phonix-web` Choosing the delivery an invoice line bills
-      why: an invoice line can name a delivery line and nothing on the screen
-           lets somebody pick one, so the link is reachable from the input type
-           and not from the application. The data and the refusal are in.
-      touch: crates/phonix-web/src/pages/sales/invoice.rs
-      done: raising an invoice against a customer offers what they have had
-            delivered and not yet been invoiced for, and choosing a line fills
-            the description, quantity and price.
-
 - [ ] `app-books` Price lists, and the prices an item has in each
       why: `pricing.rs` computes from a single price on the item. Both ERPNext
            (Price List plus Item Price) and Odoo (pricelists) treat "what this
@@ -109,6 +100,13 @@ rule: what changes about somebody is an `assignments` row, never a column on
 ## Done
 
 <!-- The loop appends here with the commit sha. Newest first. -->
+
+- [x] `phonix-web` Raising an invoice against a despatch
+      Against a delivery rather than a customer - the mirror of
+      `bill::against_order`, and what somebody does with a despatch note in
+      hand. `Deliveries` grew a read for it, because Books may not look at
+      delivery lines itself. A line with no order behind it comes back with no
+      price rather than a guessed one.
 
 - [x] `app-books` The invoice line that names a delivery line
       Last of three. `invoice_lines.delivery_line_id` is a bare id with no

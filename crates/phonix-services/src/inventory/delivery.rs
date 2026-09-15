@@ -52,7 +52,9 @@ use phonix_db::inventory::sales_order as order_store;
 use phonix_db::inventory::warehouse as warehouse_store;
 use phonix_db::numbering::SequenceKey;
 use phonix_db::sqlx::PgPool;
-use phonix_ports::deliveries::{Deliveries, DeliveriesError, InvoicedLine, PORT};
+use phonix_ports::deliveries::{
+    Deliveries, DeliveriesError, Despatch, DespatchedLine, InvoicedLine, PORT,
+};
 use phonix_ports::error::PortError;
 use phonix_ports::ledger::Ledger;
 use uuid::Uuid;
@@ -592,5 +594,39 @@ impl Deliveries for InventoryDeliveries {
                 asked: asked.to_display_string(),
             }),
         }
+    }
+
+    async fn despatch(&self, delivery_id: Uuid) -> Result<Option<Despatch>, DeliveriesError> {
+        let currency = base_currency(&self.pool)
+            .await
+            .map_err(|err| DeliveriesError::Unavailable(err.to_string()))?;
+
+        let found = store::find(&self.pool, delivery_id, currency)
+            .await
+            .map_err(|err| DeliveriesError::from(PortError::unavailable(PORT, err)))?;
+
+        let Some(delivery) = found.filter(|delivery| delivery.state == DeliveryState::Done) else {
+            return Ok(None);
+        };
+
+        let lines = store::invoiceable_lines(&self.pool, delivery_id)
+            .await
+            .map_err(|err| DeliveriesError::from(PortError::unavailable(PORT, err)))?;
+
+        Ok(Some(Despatch {
+            customer_id: delivery.customer.party_id,
+            number: delivery.number,
+            lines: lines
+                .into_iter()
+                .map(
+                    |(delivery_line_id, description, quantity, unit_price)| DespatchedLine {
+                        delivery_line_id,
+                        description,
+                        quantity,
+                        unit_price: unit_price.unwrap_or_default(),
+                    },
+                )
+                .collect(),
+        }))
     }
 }

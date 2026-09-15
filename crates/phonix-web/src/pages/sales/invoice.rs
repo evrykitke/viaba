@@ -41,8 +41,8 @@ use crate::components::page::{
 use crate::icons::Icon;
 use crate::l;
 use crate::server_fns::books_fns::{
-    delete_invoice, invoice_detail, invoice_journal, post_invoice, save_invoice, tax_treatments,
-    void_invoice,
+    delete_invoice, invoice_against_delivery, invoice_detail, invoice_journal, post_invoice,
+    save_invoice, tax_treatments, void_invoice,
 };
 use crate::server_fns::master_fns::list_parties;
 use crate::ui::alert::{Alert, Alerts, Confirm};
@@ -58,6 +58,29 @@ pub fn invoice_new_page() -> impl IntoView {
     // than one the server substitutes.
     let today = chrono::Local::now().date_naive();
 
+    let query = leptos_router::hooks::use_query_map();
+    let against = move || {
+        query.with(|query| {
+            query
+                .get("delivery")
+                .and_then(|raw| raw.parse::<Uuid>().ok())
+        })
+    };
+
+    let prefilled = Resource::new(against, move |delivery_id| async move {
+        match delivery_id {
+            None => Ok(None),
+            Some(id) => match invoice_against_delivery(id).await {
+                Ok(Submission::Saved(draft)) => Ok(Some(draft)),
+                Ok(Submission::Rejected(errors)) => Err(errors
+                    .first()
+                    .map(|error| crate::i18n::t(&error.message))
+                    .unwrap_or_else(|| l!("books.error.nothing_to_invoice"))),
+                Err(err) => Err(err.to_string()),
+            },
+        }
+    });
+
     view! {
         // "Phonix" is the product's name, not a word.
         <Title text=format!("{} | Phonix", l!("invoices.new")) />
@@ -69,7 +92,32 @@ pub fn invoice_new_page() -> impl IntoView {
             back=("/sales/invoices", l!("invoices.title"))
         />
 
-        <InvoiceEditor draft=InvoiceInput::blank(today, Currency::default()) />
+        <Transition fallback=|| {
+            view! { <p class="text-sm text-content-subtle">{l!("common.loading")}</p> }
+        }>
+            {move || Suspend::new(async move {
+                match prefilled.await {
+                    // No `?delivery=`, which is how the screen is usually
+                    // reached: an ordinary blank invoice.
+                    Ok(None) => {
+                        view! {
+                            <InvoiceEditor draft=InvoiceInput::blank(today, Currency::default()) />
+                        }
+                            .into_any()
+                    }
+                    Ok(Some(draft)) => view! { <InvoiceEditor draft=draft /> }.into_any(),
+                    Err(message) => {
+                        view! {
+                            <Notice
+                                message=Signal::derive(move || Some(message.clone()))
+                                tone=Tone::Danger
+                            />
+                        }
+                            .into_any()
+                    }
+                }
+            })}
+        </Transition>
     }
 }
 

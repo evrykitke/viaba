@@ -43,6 +43,33 @@ pub struct InvoicedLine {
     pub quantity: String,
 }
 
+/// One delivery line that has been despatched and not yet fully invoiced.
+///
+/// What crosses the boundary is what an invoice line needs and nothing else: no
+/// variant, no lot, no cost. A caller that could read the delivery would be
+/// reading Inventory rather than asking it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct DespatchedLine {
+    pub delivery_line_id: Uuid,
+    pub description: String,
+    /// What is left to invoice, in the item's stock unit. Decimal digits.
+    pub quantity: String,
+    /// Per stock unit, in the order's currency, or empty where nothing priced
+    /// it - a delivery with no order behind it has no agreed price, and
+    /// guessing one is revenue given away.
+    pub unit_price: String,
+}
+
+/// A despatch, as the thing an invoice is raised against.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Despatch {
+    /// The `master.parties` id. Books holds party ids already, so this crosses
+    /// as itself rather than as a snapshot.
+    pub customer_id: Uuid,
+    pub number: String,
+    pub lines: Vec<DespatchedLine>,
+}
+
 /// Why nothing was recorded.
 ///
 /// Each variant is a different thing for Books to say to somebody, which is why
@@ -101,6 +128,13 @@ pub trait Deliveries: Send + Sync {
     /// same lines invoices them twice, and the second call is refused if that
     /// would exceed what was delivered. The caller posts an invoice once.
     async fn invoice(&self, lines: &[InvoicedLine]) -> Result<(), DeliveriesError>;
+
+    /// What one despatch still has to be invoiced for, for a screen raising it.
+    ///
+    /// Advisory, like `Ledger::is_mapped`: [`Self::invoice`] checks again, and
+    /// between the two somebody else's invoice may have taken the quantity.
+    /// `None` for a delivery that is not there or not despatched.
+    async fn despatch(&self, delivery_id: Uuid) -> Result<Option<Despatch>, DeliveriesError>;
 }
 
 /// A port with nobody behind it: Inventory is not compiled in, or the workspace
@@ -117,6 +151,12 @@ impl Deliveries for NoDeliveries {
         }
 
         Err(DeliveriesError::NoDeliveries)
+    }
+
+    async fn despatch(&self, _delivery_id: Uuid) -> Result<Option<Despatch>, DeliveriesError> {
+        // Nothing to raise an invoice against, rather than a failure: a
+        // workspace with no stock has no despatches and the screen says so.
+        Ok(None)
     }
 }
 
