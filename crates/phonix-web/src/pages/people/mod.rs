@@ -15,6 +15,8 @@
 //! /people/roles/:id           a form
 //! /people/places              where people work
 //! /people/places/:id          a form
+//! /people/holidays            the calendars of days off
+//! /people/holidays/:id        the calendar and its days
 //! ```
 //!
 //! There is no separate cost-centre screen: a cost centre is a department with
@@ -23,6 +25,7 @@
 pub mod department;
 pub mod departments;
 pub mod employee;
+pub mod holidays;
 pub mod home;
 pub mod lists;
 pub mod reference;

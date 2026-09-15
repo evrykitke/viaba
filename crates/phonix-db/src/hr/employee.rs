@@ -342,16 +342,18 @@ where
     let rows = sqlx::query(
         "SELECT a.id, a.engagement_id, a.effective_from, a.effective_to,
                 a.department_id, a.job_position_id, a.work_location_id,
-                a.manager_id, a.reason,
+                a.manager_id, a.holiday_list_id, a.reason,
                 d.name AS department_name,
                 j.title AS job_title,
                 w.name AS work_location_name,
+                h.name AS holiday_list_name,
                 COALESCE(NULLIF(btrim(m.preferred_name), ''), m.given_name)
                     || ' ' || m.family_name AS manager_name
            FROM hr.assignments a
            LEFT JOIN hr.departments d ON d.id = a.department_id
            LEFT JOIN hr.job_positions j ON j.id = a.job_position_id
            LEFT JOIN hr.work_locations w ON w.id = a.work_location_id
+           LEFT JOIN hr.holiday_lists h ON h.id = a.holiday_list_id
            LEFT JOIN hr.employees m ON m.id = a.manager_id
           WHERE a.engagement_id = $1
           ORDER BY a.effective_from DESC, a.created_at DESC",
@@ -376,6 +378,8 @@ where
                 work_location_name: row.try_get("work_location_name")?,
                 manager_id: row.try_get("manager_id")?,
                 manager_name: row.try_get("manager_name")?,
+                holiday_list_id: row.try_get("holiday_list_id")?,
+                holiday_list_name: row.try_get("holiday_list_name")?,
                 reason: row.try_get("reason")?,
             })
         })
@@ -610,8 +614,9 @@ pub async fn open_assignment(
     sqlx::query_scalar(
         "INSERT INTO hr.assignments
              (engagement_id, effective_from, department_id, job_position_id,
-              work_location_id, manager_id, reason, created_by, updated_by)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $8)
+              work_location_id, manager_id, holiday_list_id, reason,
+              created_by, updated_by)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $9)
          RETURNING id",
     )
     .bind(engagement_id)
@@ -620,6 +625,7 @@ pub async fn open_assignment(
     .bind(draft.job_position_id)
     .bind(draft.work_location_id)
     .bind(draft.manager_id)
+    .bind(draft.holiday_list_id)
     .bind(draft.reason.as_deref())
     .bind(actor)
     .fetch_one(conn)

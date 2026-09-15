@@ -44,6 +44,7 @@ pub mod currencies;
 pub mod deliveries;
 pub mod departments;
 pub mod employees;
+pub mod holiday_lists;
 pub mod invoices;
 pub mod item_categories;
 pub mod items;

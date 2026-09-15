@@ -8,6 +8,7 @@
 use app_hr::department::DeleteOutcome;
 use app_hr::department::{Department, DepartmentInput, DepartmentSummary};
 use app_hr::employee::{AssignmentInput, Employee, EmployeeInput, EmployeeSummary, LeavingInput};
+use app_hr::holiday::{HolidayList, HolidayListInput, HolidayListSummary};
 use app_hr::job_position::{JobPosition, JobPositionInput, JobPositionSummary};
 use app_hr::work_location::{WorkLocation, WorkLocationInput, WorkLocationSummary};
 use leptos::prelude::*;
@@ -396,6 +397,87 @@ pub async fn delete_job_position(position_id: Uuid) -> Result<Submission<()>, Se
     let (pool, caller) = pool_and_caller().await?;
 
     phonix_services::hr::job_position::delete(&pool, &caller, position_id)
+        .await
+        .map_err(service_error)
+}
+
+// --- Holiday calendars -----------------------------------------------------
+
+#[server(name = ListHolidayLists, prefix = "/api", endpoint = "hr/holidays")]
+pub async fn list_holiday_lists() -> Result<Vec<HolidayListSummary>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::hr::holiday::list(&pool, &caller)
+        .await
+        .map_err(service_error)
+}
+
+/// The ones the employee form may offer, as id, code and name.
+#[server(name = SelectableHolidayLists, prefix = "/api", endpoint = "hr/holidays/selectable")]
+pub async fn selectable_holiday_lists() -> Result<Vec<(Uuid, String, String)>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::hr::holiday::selectable(&pool, &caller)
+        .await
+        .map_err(service_error)
+}
+
+/// One calendar, read-only, for the screen that shows what a date is.
+#[server(name = HolidayListDetail, prefix = "/api", endpoint = "hr/holidays/detail")]
+pub async fn holiday_list_detail(list_id: Uuid) -> Result<HolidayList, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::hr::holiday::detail(&pool, &caller, list_id)
+        .await
+        .map_err(service_error)
+}
+
+#[server(name = HolidayListEdit, prefix = "/api", endpoint = "hr/holidays/edit")]
+pub async fn holiday_list_edit(list_id: Uuid) -> Result<HolidayListInput, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::hr::holiday::edit(&pool, &caller, list_id)
+        .await
+        .map_err(service_error)
+}
+
+#[server(name = BlankHolidayList, prefix = "/api", endpoint = "hr/holidays/blank")]
+pub async fn blank_holiday_list() -> Result<HolidayListInput, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (_pool, caller) = pool_and_caller().await?;
+
+    phonix_services::hr::holiday::blank(&caller).map_err(service_error)
+}
+
+#[server(name = SaveHolidayList, prefix = "/api", endpoint = "hr/holidays/save")]
+pub async fn save_holiday_list(
+    draft: HolidayListInput,
+) -> Result<Submission<HolidayListInput>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::hr::holiday::save(&pool, &caller, draft)
+        .await
+        .map_err(service_error)
+}
+
+#[server(name = DeleteHolidayList, prefix = "/api", endpoint = "hr/holidays/delete")]
+pub async fn delete_holiday_list(list_id: Uuid) -> Result<Submission<()>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::hr::holiday::delete(&pool, &caller, list_id)
         .await
         .map_err(service_error)
 }

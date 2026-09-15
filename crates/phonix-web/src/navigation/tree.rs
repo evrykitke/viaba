@@ -616,6 +616,25 @@ pub static MENU: &[NavNode] = &[
             )
             .require(names::WORK_LOCATIONS)
             .keywords(&["place", "site", "office", "home", "remote", "where"]),
+            // Beside the places rather than under a settings heading: it is
+            // reference data an assignment points at, exactly as a place is.
+            NavNode::leaf(
+                "holiday-lists",
+                "nav.holiday_lists",
+                Icon::Calendar,
+                "/people/holidays",
+            )
+            .require(names::HOLIDAY_LISTS)
+            .keywords(&[
+                "holiday",
+                "bank holiday",
+                "public holiday",
+                "calendar",
+                "weekend",
+                "day off",
+                "working day",
+                "non-working",
+            ]),
             NavNode::leaf(
                 "departments",
                 "nav.departments",

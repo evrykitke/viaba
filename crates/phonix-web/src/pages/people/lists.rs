@@ -1,4 +1,4 @@
-//! The people area's three list screens.
+//! The people area's four list screens.
 //!
 //! Thin by design - each is a `PageHeader` over a grid whose whole shape lives
 //! in `ui::table::config`. The documents behind them are their own files,
@@ -12,6 +12,7 @@ use crate::icons::Icon;
 use crate::l;
 use crate::ui::table::DataGrid;
 use crate::ui::table::config::employees::employees_grid;
+use crate::ui::table::config::holiday_lists::holiday_lists_grid;
 use crate::ui::table::config::job_positions::job_positions_grid;
 use crate::ui::table::config::work_locations::work_locations_grid;
 
@@ -59,5 +60,21 @@ pub fn work_locations_page() -> impl IntoView {
         />
 
         <DataGrid config=work_locations_grid() />
+    }
+}
+
+/// The days nobody is expected to work, per region and year.
+#[component]
+pub fn holiday_lists_page() -> impl IntoView {
+    view! {
+        <Title text=format!("{} | Phonix", l!("holidays.title")) />
+
+        <PageHeader
+            title=l!("holidays.title")
+            subtitle=l!("holidays.subtitle")
+            icon=Icon::Calendar
+        />
+
+        <DataGrid config=holiday_lists_grid() />
     }
 }

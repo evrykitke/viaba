@@ -341,6 +341,9 @@ pub struct Assignment {
     /// accounts is an org chart with holes in it.
     pub manager_id: Option<Uuid>,
     pub manager_name: Option<String>,
+    /// Which calendar of days off applied while this assignment ran.
+    pub holiday_list_id: Option<Uuid>,
+    pub holiday_list_name: Option<String>,
     pub reason: Option<String>,
 }
 
@@ -375,6 +378,7 @@ pub struct EmployeeInput {
     pub department_id: Option<Uuid>,
     pub job_position_id: Option<Uuid>,
     pub work_location_id: Option<Uuid>,
+    pub holiday_list_id: Option<Uuid>,
     pub manager_id: Option<Uuid>,
 }
 
@@ -396,6 +400,7 @@ impl EmployeeInput {
             department_id: None,
             job_position_id: None,
             work_location_id: None,
+            holiday_list_id: None,
             manager_id: None,
         }
     }
@@ -422,6 +427,7 @@ impl EmployeeInput {
             department_id: assignment.and_then(|a| a.department_id),
             job_position_id: assignment.and_then(|a| a.job_position_id),
             work_location_id: assignment.and_then(|a| a.work_location_id),
+            holiday_list_id: assignment.and_then(|a| a.holiday_list_id),
             manager_id: assignment.and_then(|a| a.manager_id),
             ..Self::blank(today)
         }
@@ -506,6 +512,7 @@ impl EmployeeInput {
             department_id: self.department_id,
             job_position_id: self.job_position_id,
             work_location_id: self.work_location_id,
+            holiday_list_id: self.holiday_list_id,
             manager_id: self.manager_id,
         })
     }
@@ -529,6 +536,7 @@ pub struct CheckedEmployee {
     pub department_id: Option<Uuid>,
     pub job_position_id: Option<Uuid>,
     pub work_location_id: Option<Uuid>,
+    pub holiday_list_id: Option<Uuid>,
     pub manager_id: Option<Uuid>,
 }
 
@@ -545,6 +553,7 @@ pub struct AssignmentInput {
     pub job_position_id: Option<Uuid>,
     pub work_location_id: Option<Uuid>,
     pub manager_id: Option<Uuid>,
+    pub holiday_list_id: Option<Uuid>,
     pub reason: String,
 }
 
@@ -558,6 +567,7 @@ impl AssignmentInput {
             job_position_id: current.and_then(|a| a.job_position_id),
             work_location_id: current.and_then(|a| a.work_location_id),
             manager_id: current.and_then(|a| a.manager_id),
+            holiday_list_id: current.and_then(|a| a.holiday_list_id),
             reason: String::new(),
         }
     }
@@ -573,6 +583,7 @@ impl AssignmentInput {
             job_position_id: self.job_position_id,
             work_location_id: self.work_location_id,
             manager_id: self.manager_id,
+            holiday_list_id: self.holiday_list_id,
             reason: crate::non_empty(&self.reason),
         })
     }
@@ -585,6 +596,7 @@ pub struct CheckedAssignment {
     pub job_position_id: Option<Uuid>,
     pub work_location_id: Option<Uuid>,
     pub manager_id: Option<Uuid>,
+    pub holiday_list_id: Option<Uuid>,
     pub reason: Option<String>,
 }
 
@@ -994,6 +1006,8 @@ mod tests {
             work_location_name: None,
             manager_id: Some(Uuid::from_u128(6)),
             manager_name: None,
+            holiday_list_id: Some(Uuid::from_u128(7)),
+            holiday_list_name: None,
             reason: None,
         };
 
@@ -1004,6 +1018,9 @@ mod tests {
         assert_eq!(next.department_id, current.department_id);
         assert_eq!(next.job_position_id, current.job_position_id);
         assert_eq!(next.manager_id, current.manager_id);
+        // The calendar carries too: somebody promoted in place does not
+        // silently come off the one they were on.
+        assert_eq!(next.holiday_list_id, current.holiday_list_id);
         assert_eq!(next.effective_from, on(2026, 9, 9));
         assert!(next.reason.is_empty());
     }
