@@ -25,14 +25,18 @@ commits it is three items.
 
 ## Next
 
-- [ ] `app-books` What an invoice has been credited, and what is still owed
-      why: last of three. A credit note posts to the ledger but no screen or
-           report knows it exists: the invoice does not show it, aging counts
-           the full amount, and settlement does not net it off.
-      touch: crates/phonix-db/src/books/report.rs, payment.rs
-      done: an invoice shows what has been credited against it, the sales
-            ledger and aging net credit notes off, and a payment settles
-            against the balance rather than the invoiced figure.
+- [ ] `phonix-web` What has been credited, on the invoice itself
+      why: the reports and the settlement now net credit notes off, but the
+           invoice a credit note was raised against still shows its gross and
+           nothing else. The one place somebody looks to ask "what is left on
+           this?" is the one place that cannot say.
+      touch: crates/phonix-db/src/books/invoice.rs needs the reverse of
+           `credits_invoice_id` - the posted credit notes against one invoice -
+           and the document view in crates/phonix-web/src/pages/sales/invoice.rs
+      done: a posted invoice with a credit note against it shows what was
+            credited and what is left, and links to the notes. The arithmetic
+            is the same one `settleable` already does, so it is a query and a
+            panel rather than a new rule.
 
 ### People — the Frappe HR revamp
 
@@ -91,6 +95,15 @@ rule: what changes about somebody is an `assignments` row, never a column on
 ## Done
 
 <!-- The loop appends here with the commit sha. Newest first. -->
+
+- [x] `app-books` What an invoice has been credited, and what is still owed
+      Two of the three. The statement, the ageing, money on account, the front
+      page and both settlement guards now treat a credit note as money off:
+      `EntryKind` has a third variant, what is left on an invoice is its gross
+      less allocations less credits everywhere that figure is worked out, and
+      a credit note is no longer offered as something to pay - which it was.
+      The third, showing it on the invoice, is its own item above: it is a new
+      query and a panel rather than more of this arithmetic.
 
 - [x] `phonix-core` The catalogue parity tests, somewhere they can be run
       Three, not two - the placeholder check uses the same helper and came

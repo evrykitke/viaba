@@ -355,6 +355,12 @@ where
         "SELECT i.id, i.number, i.issued_on, i.due_on,
                 i.gross_amount::text AS invoiced,
                 coalesce((
+                    SELECT sum(c.gross_amount)
+                      FROM books.invoices c
+                     WHERE c.credits_invoice_id = i.id
+                       AND c.status = 'posted'
+                ), 0)::text AS credited,
+                coalesce((
                     SELECT sum(al.amount)
                       FROM books.payment_allocations al
                       JOIN books.payments p ON p.id = al.payment_id
@@ -365,8 +371,14 @@ where
            FROM books.invoices i
           WHERE i.party_id = $1
             AND i.status = 'posted'
+            AND i.kind = 'sales_invoice'
             AND i.currency_code = $2
-            AND i.gross_amount > coalesce((
+            AND i.gross_amount - coalesce((
+                    SELECT sum(c.gross_amount)
+                      FROM books.invoices c
+                     WHERE c.credits_invoice_id = i.id
+                       AND c.status = 'posted'
+                ), 0) > coalesce((
                     SELECT sum(al.amount)
                       FROM books.payment_allocations al
                       JOIN books.payments p ON p.id = al.payment_id
@@ -388,13 +400,18 @@ where
     rows.into_iter()
         .map(|row| {
             let invoiced: String = row.try_get("invoiced")?;
+            let credited: String = row.try_get("credited")?;
             let settled: String = row.try_get("settled")?;
 
             let invoiced = read_money(&invoiced, currency, "invoices.gross_amount")?;
+            let credited = read_money(&credited, currency, "invoices.gross_amount")?;
             let settled = read_money(&settled, currency, "payment_allocations.amount")?;
-            let outstanding = invoiced.checked_sub(settled).map_err(|err| {
-                sqlx::Error::Decode(format!("outstanding does not subtract: {err}").into())
-            })?;
+            let outstanding = invoiced
+                .checked_sub(credited)
+                .and_then(|left| left.checked_sub(settled))
+                .map_err(|err| {
+                    sqlx::Error::Decode(format!("outstanding does not subtract: {err}").into())
+                })?;
 
             Ok(Settleable {
                 invoice_id: row.try_get("id")?,
@@ -405,6 +422,7 @@ where
                 due_on: row.try_get("due_on")?,
                 currency,
                 invoiced,
+                credited,
                 settled,
                 outstanding,
             })
@@ -433,15 +451,24 @@ where
     let rows = sqlx::query(
         "SELECT i.id,
                 i.currency_code,
-                (i.gross_amount - coalesce((
+                (i.gross_amount
+                 - coalesce((
                     SELECT sum(al.amount)
                       FROM books.payment_allocations al
                       JOIN books.payments p ON p.id = al.payment_id
                      WHERE al.invoice_id = i.id
                        AND p.status = 'posted'
+                ), 0)
+                 - coalesce((
+                    SELECT sum(c.gross_amount)
+                      FROM books.invoices c
+                     WHERE c.credits_invoice_id = i.id
+                       AND c.status = 'posted'
                 ), 0))::text AS outstanding
            FROM books.invoices i
-          WHERE i.id = ANY($1) AND i.status = 'posted'",
+          WHERE i.id = ANY($1)
+            AND i.status = 'posted'
+            AND i.kind = 'sales_invoice'",
     )
     .bind(invoice_ids)
     .fetch_all(executor)

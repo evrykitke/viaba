@@ -240,8 +240,9 @@ impl PaymentSummary {
 /// One invoice a payment could be set against, with what is left on it.
 ///
 /// What the allocation half of the screen is built from. The outstanding figure
-/// is the invoice's gross less everything already posted against it, worked out
-/// by the query rather than stored.
+/// is the invoice's gross less everything already posted against it - payments
+/// allocated to it and credit notes raised against it - worked out by the query
+/// rather than stored.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Settleable {
     pub invoice_id: Uuid,
@@ -250,9 +251,11 @@ pub struct Settleable {
     pub due_on: Option<NaiveDate>,
     pub currency: Currency,
     pub invoiced: Money,
+    /// Taken back by posted credit notes against this invoice.
+    pub credited: Money,
     /// Already settled by other posted payments.
     pub settled: Money,
-    /// `invoiced - settled`. Never negative.
+    /// `invoiced - credited - settled`. Never negative.
     pub outstanding: Money,
 }
 

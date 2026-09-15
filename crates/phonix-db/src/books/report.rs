@@ -102,22 +102,31 @@ where
 {
     let rows = sqlx::query(
         "SELECT i.id,
-                'invoice' AS kind,
+                i.kind,
                 coalesce(i.number, '') AS number,
                 i.issued_on AS dated_on,
                 i.due_on,
                 i.currency_code,
                 i.gross_amount::text AS document,
-                coalesce(i.base_gross_amount, i.gross_amount)::text AS amount,
-                greatest(
-                    i.gross_amount - coalesce((
+                (CASE WHEN i.kind = 'credit_note'
+                      THEN -coalesce(i.base_gross_amount, i.gross_amount)
+                      ELSE coalesce(i.base_gross_amount, i.gross_amount)
+                 END)::text AS amount,
+                CASE WHEN i.kind = 'credit_note' THEN 0 ELSE greatest(
+                    i.gross_amount
+                    - coalesce((
                         SELECT sum(al.amount)
                           FROM books.payment_allocations al
                           JOIN books.payments p ON p.id = al.payment_id
                          WHERE al.invoice_id = i.id AND p.status = 'posted'
+                    ), 0)
+                    - coalesce((
+                        SELECT sum(c.gross_amount)
+                          FROM books.invoices c
+                         WHERE c.credits_invoice_id = i.id AND c.status = 'posted'
                     ), 0),
                     0
-                )::text AS outstanding
+                ) END::text AS outstanding
            FROM books.invoices i
           WHERE i.party_id = $1 AND i.status = 'posted' AND i.issued_on <= $2
 
@@ -148,9 +157,11 @@ where
         .collect()
 }
 
-/// What this customer has paid that is set against nothing, as at `to`.
+/// What this customer has paid or been credited that is set against nothing,
+/// as at `to`.
 ///
-/// A credit belonging to no invoice. It is on the statement as its own line
+/// A credit belonging to no invoice: an unallocated payment, or a credit note
+/// raised against no invoice at all. It is on the statement as its own line
 /// rather than spread across the ageing buckets, because spreading it would be
 /// guessing which invoice the customer meant.
 pub async fn on_account<'e, E>(
@@ -163,14 +174,25 @@ where
     E: PgExecutor<'e>,
 {
     let digits: String = sqlx::query_scalar(
-        "SELECT coalesce(sum(
-                    coalesce(p.base_amount, p.amount)
-                    - coalesce((SELECT sum(al.amount)
-                                  FROM books.payment_allocations al
-                                 WHERE al.payment_id = p.id), 0)
-                ), 0)::text
-           FROM books.payments p
-          WHERE p.party_id = $1 AND p.status = 'posted' AND p.received_on <= $2",
+        "SELECT (
+           coalesce((SELECT sum(
+                        coalesce(p.base_amount, p.amount)
+                        - coalesce((SELECT sum(al.amount)
+                                      FROM books.payment_allocations al
+                                     WHERE al.payment_id = p.id), 0)
+                    )
+                      FROM books.payments p
+                     WHERE p.party_id = $1
+                       AND p.status = 'posted'
+                       AND p.received_on <= $2), 0)
+           + coalesce((SELECT sum(coalesce(c.base_gross_amount, c.gross_amount))
+                         FROM books.invoices c
+                        WHERE c.party_id = $1
+                          AND c.status = 'posted'
+                          AND c.kind = 'credit_note'
+                          AND c.credits_invoice_id IS NULL
+                          AND c.issued_on <= $2), 0)
+         )::text",
     )
     .bind(party_id)
     .bind(to)
@@ -189,7 +211,13 @@ where
     let digits: String = sqlx::query_scalar(
         "SELECT (
                   coalesce((SELECT sum(coalesce(i.base_gross_amount, i.gross_amount))
-                              FROM books.invoices i WHERE i.status = 'posted'), 0)
+                              FROM books.invoices i
+                             WHERE i.status = 'posted'
+                               AND i.kind = 'sales_invoice'), 0)
+                  - coalesce((SELECT sum(coalesce(c.base_gross_amount, c.gross_amount))
+                                FROM books.invoices c
+                               WHERE c.status = 'posted'
+                                 AND c.kind = 'credit_note'), 0)
                   - coalesce((SELECT sum(coalesce(p.base_amount, p.amount))
                                 FROM books.payments p WHERE p.status = 'posted'), 0)
                 )::text",
@@ -244,7 +272,8 @@ fn read_statement_line(
 
     let kind: String = row.try_get("kind").map_err(DbError::Query)?;
     let kind = match kind.as_str() {
-        "invoice" => EntryKind::Invoice,
+        "sales_invoice" => EntryKind::Invoice,
+        "credit_note" => EntryKind::CreditNote,
         "payment" => EntryKind::Payment,
         other => {
             return Err(DbError::CorruptRow(format!(

@@ -420,14 +420,15 @@ impl BalanceSheet {
 
 /// Which kind of document a statement line is.
 ///
-/// Two, and they move the balance in opposite directions. Kept as a value
-/// rather than as the sign of the amount, because a screen prints them
-/// differently and "is this negative" is a question about arithmetic rather
-/// than about what happened.
+/// Three, and only the invoice adds to the balance. Kept as a value rather
+/// than as the sign of the amount, because a screen prints them differently
+/// and "is this negative" is a question about arithmetic rather than about
+/// what happened.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum EntryKind {
     Invoice,
+    CreditNote,
     Payment,
 }
 
@@ -435,6 +436,7 @@ impl EntryKind {
     pub const fn as_str(self) -> &'static str {
         match self {
             Self::Invoice => "invoice",
+            Self::CreditNote => "credit_note",
             Self::Payment => "payment",
         }
     }
@@ -442,6 +444,7 @@ impl EntryKind {
     pub fn label(self) -> Message {
         match self {
             Self::Invoice => msg!("reports.entry.invoice"),
+            Self::CreditNote => msg!("reports.entry.credit_note"),
             Self::Payment => msg!("reports.entry.payment"),
         }
     }
@@ -460,10 +463,11 @@ pub struct StatementLine {
     /// What the document says, in the currency it was raised in.
     pub document: Money,
     /// What it did to the balance, in the workspace's own currency: positive
-    /// for an invoice, negative for a payment.
+    /// for an invoice, negative for a payment or a credit note.
     pub amount: Money,
-    /// For an invoice, what is still owed on it after everything allocated
-    /// against it. Zero for a payment, which owes nothing.
+    /// For an invoice, what is still owed on it after every payment allocated
+    /// to it and every credit note raised against it. Zero for a payment and
+    /// for a credit note, neither of which is owed.
     pub outstanding: Money,
     /// The balance after this line.
     pub running: Money,
@@ -483,8 +487,8 @@ impl StatementLine {
 /// How overdue the balance is, at the statement's own date.
 ///
 /// Five buckets by how long past due each invoice is, over what is still owed
-/// on it rather than what it was raised for - an invoice settled last week does
-/// not belong in the ninety-day column.
+/// on it rather than what it was raised for - an invoice settled last week, or
+/// credited back in full, does not belong in the ninety-day column.
 ///
 /// Every outstanding invoice is on it, including the ones that fall before the
 /// span and make up the opening balance. An ageing of only the current month
@@ -502,7 +506,8 @@ pub struct Ageing {
     pub to_60: Money,
     pub to_90: Money,
     pub over_90: Money,
-    /// Paid and unallocated. A credit, carried positive and subtracted.
+    /// Paid or credited and set against nothing. Carried positive and
+    /// subtracted.
     pub on_account: Money,
 }
 
@@ -550,20 +555,21 @@ impl Ageing {
 
 /// What one customer was invoiced, what they have paid, and what is left.
 ///
-/// # The balance is billed less received
+/// # The balance is billed less credited less received
 ///
-/// Both halves are documents this workspace posted: an invoice puts money on
-/// the balance and a payment takes it off, and the running balance down the
-/// page is the two interleaved in date order. What is *outstanding* per invoice
-/// is what has been allocated against it, which is a relation rather than a
-/// column - see `app_books::payment`.
+/// All three are documents this workspace posted: an invoice puts money on the
+/// balance, a credit note and a payment take it off, and the running balance
+/// down the page is the three interleaved in date order. What is *outstanding*
+/// per invoice is what has been allocated against it and what has been credited
+/// back, neither of which is a column - see `app_books::payment`.
 ///
 /// # Money on account is not netted into the ageing
 ///
 /// A customer who pays a round sum against nothing in particular has a credit
 /// that belongs to no invoice, and spreading it across the buckets would be
-/// guessing which one they meant. It sits on its own line, and the closing
-/// balance is the buckets less it.
+/// guessing which one they meant. A credit note raised against no invoice is
+/// the same thing said the other way round. Both sit on that line, and the
+/// closing balance is the buckets less it.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CustomerStatement {
     pub party_id: Uuid,
@@ -577,6 +583,8 @@ pub struct CustomerStatement {
     pub lines: Vec<StatementLine>,
     /// Invoiced inside the span.
     pub billed: Money,
+    /// Credited back inside the span, carried positive.
+    pub credited: Money,
     /// Received inside the span, carried positive.
     pub received: Money,
     pub closing: Money,
@@ -630,11 +638,15 @@ impl CustomerStatement {
         };
 
         let billed = of_kind(EntryKind::Invoice)?;
-        // Carried positive: the lines hold it negative because that is what it
-        // does to the balance, and a figure printed under "received" should
-        // read as an amount rather than as a deduction.
+        // Carried positive: the lines hold these negative because that is what
+        // they do to the balance, and a figure printed under "received" or
+        // "credited" should read as an amount rather than as a deduction.
+        let credited = of_kind(EntryKind::CreditNote)?.negate();
         let received = of_kind(EntryKind::Payment)?.negate();
-        let closing = opening.checked_add(billed)?.checked_sub(received)?;
+        let closing = opening
+            .checked_add(billed)?
+            .checked_sub(credited)?
+            .checked_sub(received)?;
 
         Ok(Self {
             party_id,
@@ -645,6 +657,7 @@ impl CustomerStatement {
             currency,
             opening,
             billed,
+            credited,
             received,
             closing,
             ageing,
@@ -790,6 +803,23 @@ mod tests {
         }
     }
 
+    /// A credit note moves the balance the way a payment does and owes
+    /// nothing itself. Its `document` stays positive - that is what the paper
+    /// says - and its `amount` is what it did to the balance.
+    fn credit_note(number: &str, issued: NaiveDate, amount: &str) -> StatementLine {
+        StatementLine {
+            id: Uuid::from_u128(u128::from(number.len() as u32) + 200),
+            kind: EntryKind::CreditNote,
+            number: number.to_owned(),
+            dated_on: issued,
+            due_on: None,
+            document: money(amount),
+            amount: money(amount).negate(),
+            outstanding: Money::zero(CURRENCY),
+            running: Money::zero(CURRENCY),
+        }
+    }
+
     /// A payment moves the balance the other way and owes nothing, so it is
     /// never on the ladder.
     fn payment(number: &str, received: NaiveDate, amount: &str) -> StatementLine {
@@ -903,6 +933,49 @@ mod tests {
             statement.lines.last().map(|line| line.running),
             Some(money("150"))
         );
+    }
+
+    /// A credit note takes money off the balance the way a payment does, and
+    /// is counted apart from it: one is the customer paying, the other is this
+    /// workspace deciding they never owed it.
+    #[test]
+    fn a_credit_note_comes_off_the_balance_without_being_a_payment() {
+        let statement = statement(
+            vec![
+                invoice("INV-1", day(3, 1), day(3, 31), "250"),
+                credit_note("CRN-1", day(3, 20), "100"),
+            ],
+            day(3, 1),
+            day(3, 31),
+        );
+
+        assert_eq!(statement.billed, money("250"));
+        assert_eq!(statement.credited, money("100"));
+        assert_eq!(statement.received, Money::zero(CURRENCY));
+        assert_eq!(statement.closing, money("150"));
+    }
+
+    /// The ladder ages what is left on an invoice, and a credit note is part
+    /// of what is no longer left. The note itself is never on a rung: it is
+    /// not owed by anybody.
+    #[test]
+    fn a_credited_invoice_ages_only_what_is_still_owed() {
+        let statement = statement(
+            vec![
+                // Two hundred raised, eighty credited back: the query hands
+                // the invoice over with a hundred and twenty left on it.
+                StatementLine {
+                    outstanding: money("120"),
+                    ..invoice("INV-1", day(1, 1), day(1, 10), "200")
+                },
+                credit_note("CRN-1", day(1, 15), "80"),
+            ],
+            day(1, 1),
+            day(4, 30),
+        );
+
+        assert_eq!(statement.ageing.over_90, money("120"));
+        assert_eq!(statement.closing, money("120"));
     }
 
     /// An invoice that has been settled is not owed, so it is not on the

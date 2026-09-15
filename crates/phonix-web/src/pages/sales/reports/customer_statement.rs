@@ -201,6 +201,13 @@ fn statement(statement: CustomerStatement) -> impl IntoView {
                                 </tr>
                                 <tr>
                                     <td class="py-1.5 text-sm text-content-muted" colspan="4">
+                                        {l!("reports.statement.credited")}
+                                    </td>
+                                    <td class=MONEY_CELL></td>
+                                    <td class=MONEY_TOTAL>{amount(statement.credited)}</td>
+                                </tr>
+                                <tr>
+                                    <td class="py-1.5 text-sm text-content-muted" colspan="4">
                                         {l!("reports.statement.received")}
                                     </td>
                                     <td class=MONEY_CELL></td>
