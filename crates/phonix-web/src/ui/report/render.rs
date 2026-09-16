@@ -21,9 +21,10 @@ use std::sync::OnceLock;
 use leptos::prelude::*;
 use phonix_core::report::{Align, BandKind, Colour, Metrics, Typeface};
 
+use leptos_router::components::A;
+
 use super::definition::Content;
-use super::{Band, Field, Heading, ReportDefinition};
-use crate::ui::table::Cell;
+use super::{Band, Field, Heading, ReportDefinition, Value};
 
 /// Draw a report.
 ///
@@ -193,7 +194,7 @@ fn field_view<T>(field: &Field<T>, data: &T, metrics: &Metrics) -> AnyView
 where
     T: Send + Sync + 'static,
 {
-    let value = field.read(data).to_text();
+    let value = field.value(data);
     let label = field.label.clone().map(|label| {
         view! {
             <span
@@ -209,7 +210,7 @@ where
         view! {
             <div class="flex items-baseline justify-between gap-6">
                 {label}
-                <span style=figures_style()>{value}</span>
+                <span style=figures_style()>{drawn(value)}</span>
             </div>
         }
         .into_any()
@@ -217,15 +218,36 @@ where
         view! {
             <div class="space-x-2">
                 {label}
-                <span>{value}</span>
+                <span>{drawn(value)}</span>
             </div>
         }
         .into_any()
     }
 }
 
+/// A value, as a link where it names a record and as words where it does not.
+///
+/// The link is the screen's: it prints as the words it is made of, because a
+/// printed page has nowhere to click.
+fn drawn(value: Value) -> AnyView {
+    let text = value.cell.to_text();
+
+    match value.href {
+        Some(href) => view! {
+            <A
+                href=href
+                attr:class="underline decoration-dotted underline-offset-2 hover:decoration-solid print:no-underline"
+            >
+                {text}
+            </A>
+        }
+        .into_any(),
+        None => text.into_any(),
+    }
+}
+
 /// The detail band: its headings, then a row per line.
-fn lines(headings: &[Heading], rows: &[Vec<Cell>], metrics: &Metrics) -> AnyView {
+fn lines(headings: &[Heading], rows: &[Vec<Value>], metrics: &Metrics) -> AnyView {
     let headed = headings.iter().any(|heading| heading.label.is_some());
 
     view! {
@@ -270,13 +292,13 @@ fn lines(headings: &[Heading], rows: &[Vec<Cell>], metrics: &Metrics) -> AnyView
                     let cells = cells
                         .iter()
                         .zip(headings)
-                        .map(|(cell, heading)| {
+                        .map(|(value, heading)| {
                             view! {
                                 <div
                                     class=cell_class(heading.align, metrics)
                                     style=cell_style(metrics, heading.figures)
                                 >
-                                    {cell.to_text()}
+                                    {drawn(value.clone())}
                                 </div>
                             }
                         })

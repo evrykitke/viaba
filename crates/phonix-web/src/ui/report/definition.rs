@@ -11,8 +11,22 @@ use crate::ui::table::Cell;
 /// How one value is read out of a row.
 type Read<T> = Arc<dyn Fn(&T) -> Cell + Send + Sync>;
 
-/// How a detail band reads a row of cells per line.
-type ReadLines<T> = Arc<dyn Fn(&T) -> Vec<Vec<Cell>> + Send + Sync>;
+/// Where a value goes, when it goes anywhere.
+type Href<T> = Arc<dyn Fn(&T) -> Option<String> + Send + Sync>;
+
+/// How a detail band reads a row of values per line.
+type ReadLines<T> = Arc<dyn Fn(&T) -> Vec<Vec<Value>> + Send + Sync>;
+
+/// One drawn value: what it says, and the record it opens.
+///
+/// The address is the screen's alone. Printing and every export write the
+/// words: a printed page has nowhere to click, and a spreadsheet cell holding
+/// an href is a cell nobody asked for.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Value {
+    pub cell: Cell,
+    pub href: Option<String>,
+}
 
 /// One value in a band: a field of the row, or a constant beside it.
 ///
@@ -26,6 +40,10 @@ pub struct Field<T: 'static> {
     /// a title, a total whose row already says what it is.
     pub(crate) label: Option<String>,
     pub(crate) read: Read<T>,
+    /// Where the value goes. `None` for most fields, and `Some` returning
+    /// `None` for a row whose kind has no screen - a link to a page that is
+    /// not there is worse than no link.
+    pub(crate) href: Option<Href<T>>,
     pub(crate) align: Align,
     /// Whether the value is a figure, and so is set in numerals that line up
     /// under each other.
@@ -38,6 +56,7 @@ impl<T: 'static> Clone for Field<T> {
             key: self.key,
             label: self.label.clone(),
             read: Arc::clone(&self.read),
+            href: self.href.as_ref().map(Arc::clone),
             align: self.align,
             figures: self.figures,
         }
@@ -62,6 +81,7 @@ impl<T: 'static> Field<T> {
             key,
             label: Some(label.into()),
             read: Arc::new(read),
+            href: None,
             align: Align::Start,
             figures: false,
         }
@@ -73,6 +93,7 @@ impl<T: 'static> Field<T> {
             key,
             label: None,
             read: Arc::new(read),
+            href: None,
             align: Align::Start,
             figures: false,
         }
@@ -103,6 +124,22 @@ impl<T: 'static> Field<T> {
         }
     }
 
+    /// A value that opens the record it names.
+    ///
+    /// ```ignore
+    /// Field::link("number", l!("reports.column.document"), number, |line: &StatementLine| {
+    ///     line.screen()
+    /// })
+    /// ```
+    ///
+    /// `href` returning `None` draws the value as ordinary text, which is what
+    /// a document kind with no screen of its own gets.
+    #[must_use]
+    pub fn link(mut self, href: impl Fn(&T) -> Option<String> + Send + Sync + 'static) -> Self {
+        self.href = Some(Arc::new(href));
+        self
+    }
+
     /// Which edge of its box the value sits against.
     #[must_use]
     pub const fn align(mut self, align: Align) -> Self {
@@ -113,6 +150,14 @@ impl<T: 'static> Field<T> {
     /// Read this field out of a row.
     pub fn read(&self, row: &T) -> Cell {
         (self.read)(row)
+    }
+
+    /// Read it with the address it opens, where it has one.
+    pub fn value(&self, row: &T) -> Value {
+        Value {
+            cell: self.read(row),
+            href: self.href.as_ref().and_then(|href| href(row)),
+        }
     }
 }
 
@@ -207,7 +252,7 @@ impl<T: 'static> Band<T> {
                 read: Arc::new(move |data| {
                     read(data)
                         .iter()
-                        .map(|line| fields.iter().map(|field| field.read(line)).collect())
+                        .map(|line| fields.iter().map(|field| field.value(line)).collect())
                         .collect()
                 }),
             },
@@ -421,8 +466,12 @@ mod tests {
 
         assert_eq!(headings.len(), 1);
         assert_eq!(
-            read(&statement),
-            vec![vec![Cell::text("Sofa")], vec![Cell::text("Lamp")]]
+            read(&statement)
+                .into_iter()
+                .flatten()
+                .map(|value| value.cell)
+                .collect::<Vec<_>>(),
+            vec![Cell::text("Sofa"), Cell::text("Lamp")]
         );
     }
 

@@ -1,7 +1,7 @@
 //! One customer's account: what they were invoiced, what they have paid, and
 //! how long the rest has been owed.
 
-use app_books::report::{CustomerStatement, StatementLine};
+use app_books::report::{CustomerStatement, EntryKind, StatementLine};
 use phonix_core::report::{Align, BandKind, ReportKind, ReportTheme};
 
 use crate::i18n::t;
@@ -52,7 +52,8 @@ pub fn customer_statement() -> ReportDefinition<CustomerStatement> {
                 "number",
                 l!("reports.column.document"),
                 |line: &StatementLine| Cell::text(document(line)),
-            ),
+            )
+            .link(screen),
             Field::new("kind", l!("field.type"), |line: &StatementLine| {
                 Cell::text(t(&line.kind.label()))
             }),
@@ -120,6 +121,18 @@ pub fn customer_statement() -> ReportDefinition<CustomerStatement> {
                 |statement| statement.closing.to_display_string(),
             )),
     )
+}
+
+/// Where a line's document is read. `None` for a kind with no screen of its
+/// own, which draws the number as ordinary text rather than as a dead link.
+fn screen(line: &StatementLine) -> Option<String> {
+    match line.kind {
+        // A credit note is an invoice row, and opens at the invoice's address.
+        EntryKind::Invoice | EntryKind::CreditNote => {
+            Some(format!("/selling/invoices/{}", line.id))
+        }
+        EntryKind::Payment => Some(format!("/selling/payments/{}", line.id)),
+    }
 }
 
 /// The document number, with what the document itself says where that is not

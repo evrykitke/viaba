@@ -160,25 +160,6 @@ commits it is three items.
 >   comparing the three, but the look is a document setting and two places to
 >   change one thing is how they come to disagree. Ask if it is wanted.
 
-- [ ] `phonix-web` A field that links to the document it names
-      why: asked for on 2026-09-16. A statement lists invoice and payment
-           numbers and none of them goes anywhere, so the question a document
-           report raises most often - what *is* this line - is the one it
-           cannot answer. A field that carries a destination is the general
-           form of that, and the receipt and the three statements all want it.
-      touch: crates/phonix-web/src/ui/report/
-      done: `Field::link` takes the address beside the value, the renderer
-            draws it as a link inside the sheet, and everything else treats it
-            as text: printing and every export write the words, because a
-            printed page has nowhere to click and a CSV cell holding an href
-            is a cell nobody asked for. The statement's document numbers open
-            the record they name where that kind has a screen, and draw as
-            plain text where it does not - a link to a page that 404s is worse
-            than no link.
-      verify: a statement. Click a document number: it should open that
-              invoice or payment. A kind with no screen should still read as
-              an ordinary number rather than a dead link.
-
 - [ ] `phonix-web` The logo, where the definition says it goes
       why: `OrganizationProfile::logo_file_id` is already documented as "the
            uploaded logo that goes on documents", and no document draws it. A
@@ -642,6 +623,19 @@ commits it is three items.
      The user launches the application, looks, and then either moves the item
      to `## Done` or writes a new item in `## Next` saying what was wrong. The
      loop never moves anything out of this section by itself. -->
+
+- [x] `phonix-web` A field that links to the document it names
+      commit: "A number that opens what it names"
+      `Field::link` takes a closure to the address beside the one to the
+      value, and a drawn value is now the pair - what it says and where it
+      goes. The address is the screen's alone: an export writes the words, and
+      a printed link prints as the words it is made of. `None` from the
+      closure draws plain text, which is the answer for a kind with no screen
+      rather than a link to a page that is not there; all three kinds on a
+      statement have one today, and a credit note opens at the invoice
+      address because a credit note is an invoice row.
+      verify: a statement. Click a document number: it should open that
+              invoice or payment.
 
 - [x] `phonix-web` Figures that line up, in a font chosen for them
       commit: "Numerals that stay in their column"
