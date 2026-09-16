@@ -10,9 +10,31 @@ use serde::{Deserialize, Serialize};
 use super::{Logo, Orientation, PageSetup, PaperSize, ReportTheme};
 use crate::identity::validation::FieldError;
 use crate::msg;
+use crate::organization::Letterhead;
 
 /// Longest header or footer a tenant may keep, in characters.
 pub const MAX_DOCUMENT_TEXT_LEN: usize = 500;
+
+/// Everything a report needs before it can draw a document: who the
+/// workspace is, and what each kind of document it issues looks like.
+///
+/// One value because it is one question, asked once for a session. The screen
+/// and the PDF writer resolve it the same way, which is what stops a printed
+/// document and the one on screen disagreeing about a footer.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct DocumentChrome {
+    pub letterhead: Letterhead,
+    pub settings: Vec<DocumentSettings>,
+}
+
+impl DocumentChrome {
+    /// What this workspace keeps for one document type, if it keeps anything.
+    pub fn of(&self, document_type: &str) -> Option<&DocumentSettings> {
+        self.settings
+            .iter()
+            .find(|settings| settings.document_type == document_type)
+    }
+}
 
 /// The answers this workspace gives for one document type.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

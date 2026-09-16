@@ -14,6 +14,8 @@ use crate::ui::table::Cell;
 /// One payment, as the document that says it was received.
 pub fn receipt() -> ReportDefinition<Payment> {
     ReportDefinition::new("receipt", l!("payments.receipt"), ReportKind::Document)
+        // The workspace's own `payment` document, so its settings apply.
+        .document_type("payment")
         .theme(ReportTheme::Professional)
         .logo(Logo::new(LogoPlacement::ReportHeader(Align::Start)))
         // One payment and the invoices it was set against, which is a page.

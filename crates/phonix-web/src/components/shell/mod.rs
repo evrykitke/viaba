@@ -72,10 +72,10 @@ use std::collections::HashMap;
 use leptos::prelude::*;
 use leptos_router::hooks::use_location;
 use phonix_core::identity::AuthUser;
-use phonix_core::organization::Letterhead as CoreLetterhead;
+use phonix_core::report::{DocumentChrome, DocumentSettings};
 
 use crate::navigation::{MENU, Trail};
-use crate::server_fns::admin_fns::letterhead;
+use crate::server_fns::admin_fns::document_chrome;
 use crate::server_fns::app_fns::enabled_apps;
 use crate::server_fns::auth_fns::current_user;
 use crate::server_fns::file_fns as content;
@@ -98,12 +98,13 @@ pub struct Shell {
     /// editor draws a *different tree* depending on this, and one that arrived
     /// a moment late would grow rows under the pointer. One indexed query.
     apps: Resource<Vec<String>>,
-    /// The name and mark a report heads its pages with.
+    /// How this workspace's documents are drawn: its name and mark, and what
+    /// it keeps for each kind of document.
     ///
-    /// Not blocking, unlike the two above: no chrome waits on it, and the one
-    /// screen that reads it is a report. Fetched once for the session rather
+    /// Not blocking, unlike the two above: no chrome waits on it, and the only
+    /// screens that read it are reports. Fetched once for the session rather
     /// than once per report, which is what the shell holding it is for.
-    letterhead: Resource<Option<CoreLetterhead>>,
+    documents: Resource<Option<DocumentChrome>>,
     /// Bumped by [`Self::refresh`] to re-fetch the two above.
     ///
     /// They were `OnceResource`s, which is right for a fact that cannot change
@@ -138,9 +139,9 @@ impl Shell {
                 move || generation.get(),
                 |_| async move { enabled_apps().await.unwrap_or_default() },
             ),
-            letterhead: Resource::new(
+            documents: Resource::new(
                 move || generation.get(),
-                |_| async move { letterhead().await.ok() },
+                |_| async move { document_chrome().await.ok() },
             ),
             generation,
             overrides: RwSignal::new(HashMap::new()),
@@ -179,6 +180,7 @@ impl Shell {
         crate::ui::viewer::Viewer::provide(shell.viewer());
         crate::apps::InstalledApps::provide(shell.installed_apps());
         crate::ui::report::Letterhead::provide(shell.letterhead());
+        crate::ui::report::DocumentStyles::provide(shell.document_styles());
 
         shell
     }
@@ -225,13 +227,28 @@ impl Shell {
     /// the address of an image, rather than a file id and a route to build
     /// from it.
     pub fn letterhead(self) -> Signal<Option<Letterhead>> {
-        let letterhead = self.letterhead;
+        let documents = self.documents;
 
         Signal::derive(move || {
-            letterhead.get().flatten().map(|held| Letterhead {
-                name: held.name,
-                logo_src: held.logo_file_id.map(content::preview_url),
+            documents.get().flatten().map(|chrome| Letterhead {
+                name: chrome.letterhead.name,
+                logo_src: chrome.letterhead.logo_file_id.map(content::preview_url),
             })
+        })
+    }
+
+    /// What this workspace keeps about each kind of document, as the kit reads
+    /// it. Empty until it arrives, which draws every report to its own
+    /// definition until then.
+    pub fn document_styles(self) -> Signal<Vec<DocumentSettings>> {
+        let documents = self.documents;
+
+        Signal::derive(move || {
+            documents
+                .get()
+                .flatten()
+                .map(|chrome| chrome.settings)
+                .unwrap_or_default()
         })
     }
 

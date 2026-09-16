@@ -160,32 +160,23 @@ commits it is three items.
 >   comparing the three, but the look is a document setting and two places to
 >   change one thing is how they come to disagree. Ask if it is wanted.
 
-- [ ] `phonix-web` A report drawn to its document settings
-      why: the settings are kept and nothing reads them, which is the worst of
-           the three states - an administrator changes the footer text and the
-           invoice is unmoved. This is the item that makes the tab mean
-           something.
-      touch: crates/phonix-web/src/ui/report/, crates/phonix-core/src/report/
-      done: a document report resolves its settings once, before drawing, and
-            uses them for the look, the page size and orientation, whether the
-            logo is drawn and where, and the header and footer text. The
-            definition's own choice is the default and the setting overrides
-            it, which is the rule for the theme as much as for the placement.
-            Settings are resolved on the server and travel with the report, so
-            the screen, the PDF and the spreadsheet cannot disagree about what
-            a document looks like. A list report has no settings row and keeps
-            the look its definition names - the tenant's document settings are
-            per document type, and a product list is not a document.
-      verify: change the look, the footer text and the logo placement on the
-              invoice in administration, then open a receipt and the customer
-              statement. Both should redraw with the new settings, and each of
-              the three looks should be recognisably itself - Compact fitting
-              visibly more rows on a page than Modern. Turn the logo off and
-              check the letterhead closes up rather than leaving a hole.
-      stop: second checkpoint. Four items of documents work land here - the
-            receipt, the row action, the settings and the screen that keeps
-            them - and the migration in the middle of it is the only one this
-            queue adds.
+- [ ] `phonix-core` A statement is a document nobody numbers
+      why: found at the second checkpoint. Document settings are keyed by
+           document type, and a type is only legal if the app declares a
+           number series for it - which is right for an invoice and wrong for
+           a statement, because nobody numbers a statement. So the customer
+           statement, which is as much a document as a receipt and is posted
+           to customers, cannot have a paper, a look or a footer of its own.
+           The checkpoint's own verify line expects it to follow the settings,
+           which is the honest evidence that the rule is too tight.
+      touch: crates/phonix-config/src/documents.rs, config/documents/books.toml
+      done: a document type can be declared without a number series, and the
+            cross-check refuses the reverse case instead - a *numbered* type
+            the app does not issue. `statement` is declared, the customer
+            statement names it, and a workspace can give its statements their
+            own paper and footer. Whether an unnumbered type belongs in
+            `config/numbering/` as a non-series entry or in the documents file
+            alone is the decision this item makes.
 
 - [ ] `phonix-web` The product list, as the first list report
       why: the document kind is proved and the list kind is not - many rows, a
@@ -518,6 +509,38 @@ commits it is three items.
      The user launches the application, looks, and then either moves the item
      to `## Done` or writes a new item in `## Next` saying what was wrong. The
      loop never moves anything out of this section by itself. -->
+
+- [x] `phonix-web` A report drawn to its document settings
+      commit: "The setting that finally moves something"
+      A document report resolves the workspace's answer for its own type and
+      draws to it: the look, the paper and which way up, whether the mark is
+      drawn and where, and the words at the head and the foot. The
+      definition's choice is the default and the setting overrides it - for
+      the mark too, so a settings row with no mark draws none rather than
+      falling back to the definition's.
+
+      Two structural things. The report body is now a closure, because the
+      settings arrive after the first paint and a report drawn once would keep
+      the look its definition named however the workspace had answered. And
+      the shell's letterhead fetch became **one** question - `DocumentChrome`,
+      the name and mark plus every document's settings - resolved once for a
+      session, because the two halves are always wanted together and a second
+      resource beside the first is how a shell grows six.
+
+      A list report has no document type and is untouched, which is the rule:
+      a product list is not something a tenant has an opinion about the paper
+      of.
+      verify: change the look, the footer text and the logo placement on the
+              invoice in administration, then open a receipt and the customer
+              statement. Both should redraw with the new settings, and each of
+              the three looks should be recognisably itself - Compact fitting
+              visibly more rows on a page than Modern. Turn the logo off and
+              check the letterhead closes up rather than leaving a hole.
+
+              **Read the note above about the statement first**: it is not a
+              declared document type, so it keeps its definition's look and
+              will not follow the invoice's settings. The receipt is the one
+              that moves - change `payment`, not `sales_invoice`.
 
 - [x] `phonix-web` The document settings tab, in administration
       commit: "The choices around a layout nobody can move"

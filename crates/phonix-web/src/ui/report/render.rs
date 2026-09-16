@@ -19,12 +19,12 @@
 use std::sync::OnceLock;
 
 use leptos::prelude::*;
-use phonix_core::report::{Align, BandKind, Colour, Logo, Metrics, Typeface};
+use phonix_core::report::{Align, BandKind, Colour, DocumentSettings, Logo, Metrics, Typeface};
 
 use leptos_router::components::A;
 
 use super::definition::Content;
-use super::{Band, Field, Heading, Letterhead, ReportDefinition, Value};
+use super::{Band, DocumentStyles, Field, Heading, Letterhead, ReportDefinition, Value};
 
 /// Draw a report.
 ///
@@ -36,8 +36,35 @@ pub fn report<T>(definition: ReportDefinition<T>, data: T) -> impl IntoView
 where
     T: Send + Sync + 'static,
 {
-    let metrics = definition.theme.metrics();
-    let page = definition.page;
+    // Stored so the body can be a closure: the settings arrive after the first
+    // paint, and a report that drew once would keep the look its definition
+    // named however the workspace had answered.
+    let data = StoredValue::new(data);
+    let definition = StoredValue::new(definition);
+
+    move || {
+        definition.with_value(|definition| data.with_value(|data| report_view(definition, data)))
+    }
+}
+
+/// One report, drawn in the settings that apply to it now.
+fn report_view<T>(definition: &ReportDefinition<T>, data: &T) -> AnyView
+where
+    T: Send + Sync + 'static,
+{
+    // The definition's own choice is the default and the workspace's setting
+    // overrides it - for the mark as much as for the look, so a document
+    // settings row with no mark draws none.
+    let style = definition.document_type.and_then(DocumentStyles::of);
+    let theme = style.as_ref().map_or(definition.theme, |kept| kept.theme);
+    let page = style
+        .as_ref()
+        .map_or(definition.page, DocumentSettings::page);
+    let logo = style.as_ref().map_or(definition.logo, |kept| kept.logo);
+    let header_text = style.as_ref().and_then(|kept| kept.header_text.clone());
+    let footer_text = style.and_then(|kept| kept.footer_text);
+
+    let metrics = theme.metrics();
 
     let sheet = format!(
         "width:{}mm;padding:{}mm {}mm {}mm {}mm;font-size:{}pt",
@@ -49,7 +76,6 @@ where
         metrics.type_scale.body_pt,
     );
 
-    let logo = definition.logo;
     let mark_here = |kind: BandKind| {
         logo.filter(|logo| logo.placement.band() == kind)
             .map(|logo| mark(logo, &metrics))
@@ -73,13 +99,14 @@ where
                 >
                     {definition.title.clone()}
                 </h1>
-                {band_content(band, &data, &metrics)}
+                {band_content(band, data, &metrics)}
+                {words(header_text.clone(), &metrics)}
             </header>
         }
     });
 
     let page_header = definition.band_of(BandKind::PageHeader).map(|band| {
-        let band = running_band(band, &data, &metrics, BandKind::PageHeader);
+        let band = running_band(band, data, &metrics, BandKind::PageHeader);
 
         view! {
             {mark_here(BandKind::PageHeader)}
@@ -88,13 +115,13 @@ where
     });
     let page_footer = definition
         .band_of(BandKind::PageFooter)
-        .map(|band| running_band(band, &data, &metrics, BandKind::PageFooter));
+        .map(|band| running_band(band, data, &metrics, BandKind::PageFooter));
     let group_header = definition
         .band_of(BandKind::GroupHeader)
-        .map(|band| running_band(band, &data, &metrics, BandKind::GroupHeader));
+        .map(|band| running_band(band, data, &metrics, BandKind::GroupHeader));
     let group_footer = definition
         .band_of(BandKind::GroupFooter)
-        .map(|band| running_band(band, &data, &metrics, BandKind::GroupFooter));
+        .map(|band| running_band(band, data, &metrics, BandKind::GroupFooter));
 
     let footer = definition.band_of(BandKind::ReportFooter).map(|band| {
         view! {
@@ -111,14 +138,15 @@ where
                     metrics.type_scale.total_pt,
                 )
             >
-                {band_content(band, &data, &metrics)}
+                {band_content(band, data, &metrics)}
+                {words(footer_text.clone(), &metrics)}
             </footer>
         }
     });
 
     let detail = definition
         .band_of(BandKind::Detail)
-        .map(|band| band_content(band, &data, &metrics));
+        .map(|band| band_content(band, data, &metrics));
 
     view! {
         // The one element printing keeps. See `viewer`.
@@ -136,6 +164,31 @@ where
             {page_footer}
         </article>
     }
+    .into_any()
+}
+
+/// The tenant's own words at the head or the foot of a document.
+///
+/// Drawn as written: these are not an i18n key and are never looked up.
+fn words(text: Option<String>, metrics: &Metrics) -> AnyView {
+    let size = metrics.type_scale.caption_pt;
+    let padding = metrics.padding;
+
+    text.map(|text| {
+        view! {
+            <p
+                class="whitespace-pre-line text-content-muted"
+                style=format!(
+                    "padding:0 {}mm {}mm;font-size:{size}pt",
+                    padding.horizontal,
+                    padding.vertical,
+                )
+            >
+                {text}
+            </p>
+        }
+    })
+    .into_any()
 }
 
 /// A band with no rule of its own: the page bands and, until grouping lands,

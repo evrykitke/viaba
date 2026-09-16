@@ -8,7 +8,7 @@
 
 use phonix_core::form::Submission;
 use phonix_core::permissions;
-use phonix_core::report::DocumentSettings;
+use phonix_core::report::{DocumentChrome, DocumentSettings};
 use phonix_db::document_settings as store;
 use phonix_db::sqlx::PgPool;
 
@@ -41,6 +41,19 @@ pub async fn load(
 /// see. A type nobody has kept a setting for comes back as the defaults.
 pub async fn current(pool: &PgPool, document_type: &str) -> ServiceResult<DocumentSettings> {
     Ok(store::load(pool, document_type).await?)
+}
+
+/// Who the workspace is and what its documents look like, for drawing.
+///
+/// Ungated beyond taking a caller, for the reason [`current`] is: this decides
+/// what a document looks like rather than what anybody may see, and a
+/// letterhead that appeared only for administrators would be a different
+/// document depending on who printed it.
+pub async fn chrome(pool: &PgPool, _caller: &Caller) -> ServiceResult<DocumentChrome> {
+    Ok(DocumentChrome {
+        letterhead: super::profile::letterhead(pool, _caller).await?,
+        settings: store::list(pool).await?,
+    })
 }
 
 /// Store what an administrator chose.

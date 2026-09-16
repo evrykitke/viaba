@@ -300,6 +300,10 @@ pub struct ReportDefinition<T: 'static> {
     pub(crate) id: &'static str,
     pub(crate) title: String,
     pub(crate) kind: ReportKind,
+    /// Which of the workspace's documents this draws, if it draws one of them.
+    /// `None` for a list: a product list is not something a tenant keeps
+    /// document settings about.
+    pub(crate) document_type: Option<&'static str>,
     pub(crate) theme: ReportTheme,
     pub(crate) page: PageSetup,
     /// `None` draws no logo. A document setting can put one back.
@@ -317,6 +321,7 @@ impl<T: 'static> Clone for ReportDefinition<T> {
             id: self.id,
             title: self.title.clone(),
             kind: self.kind,
+            document_type: self.document_type,
             theme: self.theme,
             page: self.page,
             logo: self.logo,
@@ -338,6 +343,7 @@ impl<T: 'static> ReportDefinition<T> {
             id,
             title: title.into(),
             kind,
+            document_type: None,
             theme: ReportTheme::default(),
             page: PageSetup::default(),
             logo: None,
@@ -359,6 +365,18 @@ impl<T: 'static> ReportDefinition<T> {
         );
 
         self.bands.push(band);
+        self
+    }
+
+    /// The workspace document this draws, by the name `config/numbering/`
+    /// gives it.
+    ///
+    /// Saying so is what lets the tenant's document settings override the look,
+    /// the paper and the mark this definition chose - see
+    /// [`DocumentStyles`](super::DocumentStyles).
+    #[must_use]
+    pub const fn document_type(mut self, document_type: &'static str) -> Self {
+        self.document_type = Some(document_type);
         self
     }
 

@@ -22,9 +22,9 @@ use phonix_core::authorization::{
 use phonix_core::form::Submission;
 use phonix_core::identity::{InvitationIssued, UserEdit, UserId, UserInvite, UserListing};
 use phonix_core::mail::{MailSettings, MailSettingsInput};
-use phonix_core::organization::{Letterhead, OrganizationProfile};
+use phonix_core::organization::OrganizationProfile;
 use phonix_core::query::{Page, PageRequest};
-use phonix_core::report::DocumentSettings;
+use phonix_core::report::{DocumentChrome, DocumentSettings};
 use uuid::Uuid;
 
 /// Everyone in this workspace, with their roles.
@@ -283,19 +283,23 @@ pub async fn save_document_settings(
         .map_err(service_error)
 }
 
-/// The name and the mark a document is headed with.
+/// How this workspace's documents are drawn: its name and mark, and what it
+/// keeps for each kind of document.
 ///
-/// Separate from [`organization_profile`] because it answers a different
-/// question for a different reader: that one is the settings screen's and is
-/// gated on `Settings`, and this one is what a report puts at the top of a
-/// page for whoever is allowed to read the report.
-#[server(name = LoadLetterhead, prefix = "/api", endpoint = "workspace/letterhead")]
-pub async fn letterhead() -> Result<Letterhead, ServerFnError> {
+/// Separate from [`organization_profile`] and [`document_settings`] because it
+/// answers a different question for a different reader: those two are the
+/// settings screens' and are gated on `Settings`, and this is what a report
+/// needs before it can draw a page, for whoever is allowed to read the report.
+///
+/// One call rather than two, because it is asked once for a session and the
+/// two halves are always wanted together.
+#[server(name = LoadDocumentChrome, prefix = "/api", endpoint = "workspace/document-chrome")]
+pub async fn document_chrome() -> Result<DocumentChrome, ServerFnError> {
     use crate::state::{pool_and_caller, service_error};
 
     let (pool, caller) = pool_and_caller().await?;
 
-    phonix_services::workspace::profile::letterhead(&pool, &caller)
+    phonix_services::workspace::documents::chrome(&pool, &caller)
         .await
         .map_err(service_error)
 }
