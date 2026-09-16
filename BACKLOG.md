@@ -167,39 +167,48 @@ commits it is three items.
 > charts. PDF and the spreadsheet stay where they were: they are more writers
 > on a path that by then exists.
 
-- [ ] `phonix-server` The exporter, and CSV as the first thing it writes
-      why: the fourth loop beside the verifier, the relay and the sweeper, and
-           it works the way the verifier already does because that shape is
-           settled here - claim a row, do the work, write the outcome and its
-           event in one transaction. CSV is what proves the path rather than
-           what anybody wanted first: `to_csv` already exists and is pure, so
-           this item is the plumbing with the least possible rendering in the
-           way of seeing whether it runs.
-      touch: crates/phonix-server/src/jobs.rs, crates/phonix-services/,
-             crates/phonix-web/src/ui/table/export.rs
-      done: an exporter loop claims a requested export, calls the writer,
-            stores the bytes through `FileStorage` as an ordinary file row, and
-            marks the request ready with that file's id - or failed, with the
-            reason. The writer is a plain function from a definition, its rows
-            and its settings to bytes, in `phonix-services`, taking no pool and
-            no worker context - because the request path calls the same one for
-            a bounded report. A writer that could only be reached from the
-            queue is the design having gone wrong.
-            Raising a request dispatches it immediately, the way
-            `files::dispatch` does, and the loop is the safety net for a
-            process that died mid-job rather than the normal path. It walks the
-            tenants like its three neighbours, does a bounded amount per pass,
-            and is cancellable so a shutdown drains. The worker re-checks the
-            requester's permission on the report before it renders anything: a
-            grant withdrawn between the request and the run must stop it.
-            A retry must not leave two files - the naming is deterministic from
-            the request id, for the reason `files::verify` gives. CSV itself:
-            through the existing `to_csv`, a grouped report repeating its group
-            key on every detail row rather than emitting header rows, totals as
-            a row nobody can mistake for data, and a chart band left out rather
-            than flattened into numbers pretending to be rows. The grid's own
-            browser-side CSV download is untouched - that is a different
-            feature and it stays where it is.
+> **The exporter was one item and is three**, split 2026-09-16 while taking it.
+> A writer, a stored file and a worker loop are three commits by the backlog's
+> own rule, and the reason they read as one is that the original item was
+> written before anybody knew where a definition could be seen from. The answer
+> found while splitting: `phonix-server` depends on `phonix-web`, so the worker
+> **can** reach the definitions - what crosses to `phonix-services`, which
+> cannot, is a rendered report with the types erased. That is what makes one
+> writer serve both paths, which is ADR 0008 section 9's whole requirement.
+
+- [ ] `phonix-services` An export becomes a stored file
+      why: the writer produces bytes and there is nowhere to put them. A
+           finished export is an ordinary stored file - that is what makes it
+           survive the tab closing, and what lets the viewer hand it over
+           through the download path it already has.
+      touch: crates/phonix-core/src/files/bucket.rs, crates/phonix-db/src/files.rs,
+             crates/phonix-services/src/files/, crates/phonix-services/src/report/
+      done: an `exports` bucket, a `files::store_generated` that writes bytes
+            straight to the stored key and records the row in one go - no
+            quarantine hop, because nobody uploaded this and there is nothing
+            to inspect - and `exports::finish`, which marks the request ready
+            with that file's id or failed with the reason. The key is
+            deterministic from the request id, for the reason `files::verify`
+            gives about a retry leaving two files.
+
+- [ ] `phonix-server` The exporter, the fourth loop
+      why: the row is raised, the bytes can be written and stored, and nothing
+           runs. This is the loop, and the part of it that is genuinely new:
+           the worker needs the *rendered* report, which means asking
+           `phonix-web` for it by id - the crate the server already depends on
+           and the only place a definition can be seen from.
+      touch: crates/phonix-server/src/jobs.rs, crates/phonix-web/src/ui/report/
+      done: a `render` in `phonix-web`, server-side, from a report id and its
+            parameters to a `Rendered` - one arm per report that exports, each
+            naming the permission it needs, which is also what the reports
+            index will read. The loop claims a requested export, renders,
+            writes, stores and marks it, beside the verifier, the relay and
+            the sweeper: it walks the tenants, does a bounded amount per pass,
+            and is cancellable so a shutdown drains. Raising a request
+            dispatches it immediately and the loop is the safety net for a
+            process that died mid-job. **The worker re-checks the requester's
+            permission before it renders anything**, and a request whose
+            requester is gone fails rather than rendering as nobody.
 
 - [ ] `phonix-web` The viewer waits for its export
       why: the request is raised and stored and nobody can get at it. This is
@@ -743,6 +752,29 @@ commits it is three items.
 ## Done
 
 <!-- The loop appends here with the commit sha. Newest first. -->
+
+- [x] `phonix-core` A report, rendered, and written out as CSV
+      commit: "The shape that crosses a crate boundary"
+      `Rendered` - the report's id and title, its look and page, and its bands
+      as headings plus rows of text - and `writers::to_csv`, a plain function
+      from one to a `String` with no pool and no caller anywhere near it. That
+      is what lets the request path and the exporter call the same writer,
+      which is the whole of ADR 0008 §9: the definition stays in `phonix-web`
+      where its row type lives, and what crosses to `phonix-services` has its
+      types erased.
+
+      Two things the tests pin. Every row is padded to the report's own width,
+      because a spreadsheet reading a short total row puts the figures under
+      the wrong headings. And a cell is quoted when it starts with `=`, `+`,
+      `-` or `@` as well as when it holds a comma, a quote or a newline - a
+      cell reading `=1+1` is a document that computes something when somebody
+      opens it, which is the injection every CSV export has to answer for.
+
+      Cells are text for now. Enough for CSV and for a PDF, not enough for
+      XLSX, and the answer when that lands is to move the grid's `Cell` into
+      core rather than grow a second one - said in the module doc where the
+      next person will be standing. There is no chart band to skip yet; the
+      item that adds one adds the skip.
 
 - [x] `phonix-core` The export request, as a row
       commit: "The row an export lives in"
