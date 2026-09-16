@@ -15,6 +15,7 @@
 //! startup.
 
 pub mod defaults;
+pub mod documents;
 pub mod model;
 pub mod numbering;
 pub mod validate;

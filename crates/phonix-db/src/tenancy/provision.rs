@@ -251,6 +251,7 @@ async fn migrate_app(
             })?;
 
         install_number_sequences(&pool, database, app.app_id).await?;
+        install_document_settings(&pool, database, app.app_id).await?;
         install_app_defaults(&pool, database, app.app_id).await?;
         sync_permission_tree(&pool, database, app.app_id).await?;
 
@@ -412,6 +413,42 @@ async fn install_number_sequences(
         declared = series.len(),
         created,
         "number sequences installed"
+    );
+    Ok(())
+}
+
+/// Create the document settings this app's configuration file declares.
+///
+/// The other half of `install_number_sequences`, and the same arrangement: on
+/// every migration pass, `ON CONFLICT DO NOTHING`, and a missing file is not
+/// an error. A malformed one is - `documents_for` checks every word against
+/// the enums and every document type against the series the app declares, so a
+/// setting for a document nobody can issue stops a deployment rather than
+/// sitting in a table nothing reads.
+async fn install_document_settings(
+    pool: &sqlx::PgPool,
+    database: &str,
+    app_id: &str,
+) -> Result<(), DbError> {
+    let documents = phonix_config::documents::documents_for(app_id).map_err(|err| {
+        DbError::CorruptCatalogRow {
+            slug: app_id.to_owned(),
+            reason: format!("document settings configuration is unusable: {err}"),
+        }
+    })?;
+
+    if documents.is_empty() {
+        return Ok(());
+    }
+
+    let created = crate::document_settings::install_from_config(pool, &documents).await?;
+
+    tracing::info!(
+        database,
+        app = app_id,
+        declared = documents.len(),
+        created,
+        "document settings installed"
     );
     Ok(())
 }

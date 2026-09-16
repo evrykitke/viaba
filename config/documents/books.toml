@@ -1,0 +1,37 @@
+# What the documents the `books` app issues look like, out of the box.
+#
+# These are DEFAULTS. Installing the app inserts them into
+# `core.document_settings` with `ON CONFLICT DO NOTHING`; from that moment the
+# tenant owns them, and a redeploy never puts back a look they changed.
+#
+# `doc_type` must be one this app declares a number series for in
+# `config/numbering/books.toml`, or the file is refused at start-up: a setting
+# for a document nobody can issue is a setting nothing will ever read.
+#
+# There is no header or footer text here. Those are the tenant's own words and
+# start empty - see the module doc on `phonix_config::documents`.
+
+[[document]]
+doc_type    = "sales_invoice"
+theme       = "professional"
+paper       = "a4"
+orientation = "portrait"
+logo        = "report_header"
+logo_align  = "start"
+
+[[document]]
+doc_type    = "credit_note"
+theme       = "professional"
+paper       = "a4"
+orientation = "portrait"
+logo        = "report_header"
+logo_align  = "start"
+
+# The receipt a customer is handed for money paid.
+[[document]]
+doc_type    = "payment"
+theme       = "professional"
+paper       = "a4"
+orientation = "portrait"
+logo        = "report_header"
+logo_align  = "start"

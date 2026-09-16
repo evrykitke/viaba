@@ -1,0 +1,34 @@
+# What the documents the `inventory` app issues look like, out of the box.
+#
+# DEFAULTS, installed with `ON CONFLICT DO NOTHING` - see
+# `config/documents/books.toml` for what that means and what is deliberately
+# not here.
+#
+# Only the three documents that leave the building. A requisition, a
+# consolidation and an adjustment are read on a screen by the people who raised
+# them, and neither of the two settings a print needs has an answer worth
+# storing until somebody prints one.
+
+[[document]]
+doc_type    = "purchase_order"
+theme       = "professional"
+paper       = "a4"
+orientation = "portrait"
+logo        = "report_header"
+logo_align  = "start"
+
+[[document]]
+doc_type    = "delivery"
+theme       = "professional"
+paper       = "a4"
+orientation = "portrait"
+logo        = "report_header"
+logo_align  = "start"
+
+[[document]]
+doc_type    = "sales_order"
+theme       = "professional"
+paper       = "a4"
+orientation = "portrait"
+logo        = "report_header"
+logo_align  = "start"

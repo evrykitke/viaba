@@ -97,6 +97,64 @@ pub async fn list<'e, E: PgExecutor<'e>>(executor: E) -> Result<Vec<DocumentSett
     Ok(rows.into_iter().map(|row| row.0).collect())
 }
 
+/// Put an app's declared defaults in, without touching what a tenant changed.
+///
+/// `ON CONFLICT DO NOTHING`, and it runs on every migration pass rather than
+/// only the first: an upgrade that adds a document type has to reach the
+/// workspaces that already have the app. Returns how many rows were new.
+pub async fn install_from_config<'e, E: PgExecutor<'e>>(
+    executor: E,
+    documents: &[DocumentSettings],
+) -> Result<u64, DbError> {
+    if documents.is_empty() {
+        return Ok(0);
+    }
+
+    let types: Vec<&str> = documents
+        .iter()
+        .map(|settings| settings.document_type.as_str())
+        .collect();
+    let themes: Vec<&str> = documents
+        .iter()
+        .map(|settings| settings.theme.as_str())
+        .collect();
+    let papers: Vec<&str> = documents
+        .iter()
+        .map(|settings| settings.paper.as_str())
+        .collect();
+    let orientations: Vec<&str> = documents
+        .iter()
+        .map(|settings| settings.orientation.as_str())
+        .collect();
+    let bands: Vec<Option<&str>> = documents
+        .iter()
+        .map(|settings| settings.logo.map(|logo| logo.placement.band_str()))
+        .collect();
+    let aligns: Vec<Option<&str>> = documents
+        .iter()
+        .map(|settings| settings.logo.map(|logo| logo.placement.align().as_str()))
+        .collect();
+    let heights: Vec<Option<f32>> = documents
+        .iter()
+        .map(|settings| settings.logo.map(|logo| logo.height_mm))
+        .collect();
+
+    let result = sqlx::query(
+        "INSERT INTO document_settings (document_type, theme, paper, orientation, logo_band,               logo_align, logo_height_mm)          SELECT * FROM UNNEST($1::text[], $2::text[], $3::text[], $4::text[], $5::text[],               $6::text[], $7::real[])          ON CONFLICT (document_type) DO NOTHING",
+    )
+    .bind(&types)
+    .bind(&themes)
+    .bind(&papers)
+    .bind(&orientations)
+    .bind(&bands)
+    .bind(&aligns)
+    .bind(&heights)
+    .execute(executor)
+    .await?;
+
+    Ok(result.rows_affected())
+}
+
 /// Write what an administrator chose, replacing whatever was there.
 pub async fn save<'e, E: PgExecutor<'e>>(
     executor: E,

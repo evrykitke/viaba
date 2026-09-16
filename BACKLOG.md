@@ -160,24 +160,6 @@ commits it is three items.
 >   comparing the three, but the look is a document setting and two places to
 >   change one thing is how they come to disagree. Ask if it is wanted.
 
-- [ ] `phonix-config` The document settings each app declares
-      why: the tenant owns the answer but somebody has to ask the question -
-           which documents this workspace issues and what they should look like
-           out of the box. `config/numbering/<app>.toml` already makes exactly
-           this split and is the file to copy, down to validating at start-up
-           so a typo stops a deployment rather than an invoice.
-      touch: crates/phonix-config/src/documents.rs, config/documents/books.toml,
-             config/documents/inventory.toml, crates/phonix-config/src/lib.rs
-      done: `config/documents/<app_id>.toml` declares a default per document
-            type, read and validated at start-up next to the numbering files,
-            and installing an app inserts them with `ON CONFLICT DO NOTHING` so
-            a redeploy never puts back a setting a tenant changed. A document
-            type declared here but carrying no numbering series is a validation
-            error: the set of documents this workspace issues is already named
-            in `config/numbering/`, and two files disagreeing about it is how a
-            setting ends up attached to a document that does not exist. An app
-            with no file is not an error.
-
 - [ ] `phonix-web` The document settings tab, in administration
       why: the settings exist and nobody can change them. Administration
            already has this exact screen for numbering - a tab, a document type
@@ -661,6 +643,23 @@ commits it is three items.
 ## Done
 
 <!-- The loop appends here with the commit sha. Newest first. -->
+
+- [x] `phonix-config` The document settings each app declares
+      commit: "The question the app asks about a document"
+      `config/documents/<app_id>.toml` beside `config/numbering/`, read on the
+      same install pass and inserted `ON CONFLICT DO NOTHING`. A document type
+      declared here that the app issues no series for is refused at start-up,
+      which is the cross-check the item asked for and the reason the loader
+      reads both files. **No header or footer text in the file**: those are the
+      tenant's own words, and a default here would be this codebase writing
+      English sentences onto every document a workspace issues. Books declares
+      its invoice, credit note and receipt; Inventory declares the three
+      documents that leave the building and not the three that do not.
+
+      Checked against `viaba_tenant_med_app_staging` in a rolled-back
+      transaction: the `UNNEST` insert put three rows in, one of them with no
+      mark at all, and a second pass with different values inserted nothing and
+      changed nothing - which is the whole point of the conflict clause.
 
 - [x] `phonix-services` The document settings have no trail
       commit: "Who changed the invoice footer"
