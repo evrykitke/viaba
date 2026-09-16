@@ -8,6 +8,7 @@
 pub mod balance_sheet;
 pub mod customer_statement;
 pub mod product_list;
+pub mod profit_and_loss;
 pub mod receipt;
 pub mod sample;
 pub mod trial_balance;

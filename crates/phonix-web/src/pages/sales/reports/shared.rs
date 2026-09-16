@@ -1,9 +1,10 @@
-//! What all four statements need: a span, the control that changes it, and a
-//! money column.
+//! What all four statements need: a span, and the controls that change it.
+//!
+//! It held the money column and the table classes too, until the statements
+//! moved onto the report engine and stopped drawing tables of their own.
 
 use chrono::{Days, NaiveDate};
 use leptos::prelude::*;
-use phonix_core::money::Money;
 use phonix_core::query::DateRange;
 
 use crate::l;
@@ -131,29 +132,3 @@ pub fn as_at_picker(span: RwSignal<Option<(NaiveDate, NaiveDate)>>) -> impl Into
         </Show>
     }
 }
-
-/// The strip under a report's title: what it is in, and over what.
-#[component]
-pub fn report_note(#[prop(into)] currency: String) -> impl IntoView {
-    view! {
-        <p class="text-xs text-content-subtle">{l!("reports.currency_note", currency = currency)}</p>
-    }
-}
-
-/// An amount, right-aligned and in the figures a ledger is read in.
-///
-/// Negative stays negative and is not painted red: a credit balance in the
-/// debit column is a fact about the account, not a warning.
-pub fn amount(money: Money) -> String {
-    money.to_display_string()
-}
-
-/// The classes every money cell carries, so two reports cannot line their
-/// columns up differently.
-pub const MONEY_CELL: &str = "py-1.5 pl-3 text-right tabular-nums text-content-muted";
-
-/// The same, for a figure somebody is meant to read first.
-pub const MONEY_TOTAL: &str = "py-1.5 pl-3 text-right tabular-nums font-medium text-content";
-
-/// A heading cell over a money column.
-pub const MONEY_HEAD: &str = "py-2 pl-3 text-right font-medium";

@@ -219,21 +219,22 @@ commits it is three items.
 > like any other, and the loop takes the next one. The section is what they
 > read when they come back.
 
-- [ ] `phonix-web` The profit and loss, as a definition
-      why: last of the four. With it there is one way of drawing a report in
-           this codebase and no second path left to drift from it.
-      touch: crates/phonix-web/src/ui/report/config/profit_and_loss.rs,
-             crates/phonix-web/src/pages/sales/reports/profit_and_loss.rs
-      done: `/accounting/reports/profit-and-loss` draws from a definition and
-            its figures match for the same span. `pages/sales/reports/` now
-            holds pickers and definitions only - no screen in it draws a report
-            with markup of its own, and `shared.rs` keeps only what the toolbar
-            controls still use.
-      verify: all four statements, each in the viewer, each exported once as
-              PDF. This is the last item, so it is also the whole engine's
-              verification.
-      stop: the queue ends here.
-
+- [ ] `phonix-web` A total between two groups
+      why: a profit and loss reads gross profit straight after cost of sales
+           and operating profit straight after the expenses, and the engine can
+           only put a figure at the foot of a group or the foot of the report.
+           The three results are all on the statement and all correct; they are
+           read together at the bottom rather than where an accountant looks
+           for them.
+      touch: crates/phonix-web/src/ui/report/definition.rs,
+             crates/phonix-web/src/ui/report/render.rs
+      done: a definition can put a labelled figure after a named group, read
+            from the report's own data rather than from the group's rows -
+            because these three are differences between sections and not sums
+            of one. The profit and loss draws its three where they belong, and
+            the report footer keeps only what is genuinely the report's.
+      verify: the profit and loss beside the one in the history: gross profit
+              under cost of sales, operating profit under the expenses.
 
 - [ ] `phonix-server` The dispatch that jobs.rs names and nothing answers to
       why: the module doc says "an upload is dispatched the moment its bytes
@@ -782,6 +783,22 @@ commits it is three items.
 ## Done
 
 <!-- The loop appends here with the commit sha. Newest first. -->
+
+- [x] `phonix-web` The profit and loss, as a definition
+      commit: "The last statement, and no second path"
+      why: last of the four. With it there is one way of drawing a report in
+           this codebase and no second path left to drift from it.
+      touch: crates/phonix-web/src/ui/report/config/profit_and_loss.rs,
+             crates/phonix-web/src/pages/sales/reports/profit_and_loss.rs
+      done: `/accounting/reports/profit-and-loss` draws from a definition and
+            its figures match for the same span. `pages/sales/reports/` now
+            holds pickers and definitions only - no screen in it draws a report
+            with markup of its own, and `shared.rs` keeps only what the toolbar
+            controls still use.
+      verify: all four statements, each in the viewer, each exported once as
+              PDF. This is the last item, so it is also the whole engine's
+              verification.
+      stop: the queue ends here.
 
 - [x] `phonix-web` The balance sheet, as a definition
       commit: "Three sections and two totals that agree"

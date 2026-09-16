@@ -65,6 +65,12 @@ pub const SERVER_REPORTS: &[ServerReport] = &[
         href: "/accounting/reports/balance-sheet",
     },
     ServerReport {
+        id: "profit-and-loss",
+        permission: permissions::REPORTS,
+        title: "reports.profit_and_loss",
+        href: "/accounting/reports/profit-and-loss",
+    },
+    ServerReport {
         id: "trial-balance",
         permission: permissions::REPORTS,
         title: "reports.trial_balance",
@@ -105,13 +111,16 @@ pub fn address(report_id: &str, parameters: &serde_json::Value) -> Option<String
             "/accounting/reports/balance-sheet?as_at={}",
             text("as_at")?
         )),
-        "trial-balance" => {
+        "trial-balance" | "profit-and-loss" => {
             let from = text("from")?;
             let to = text("to")?;
+            let screen = if report_id == "trial-balance" {
+                "trial-balance"
+            } else {
+                "profit-and-loss"
+            };
 
-            Some(format!(
-                "/accounting/reports/trial-balance?from={from}&to={to}"
-            ))
+            Some(format!("/accounting/reports/{screen}?from={from}&to={to}"))
         }
         "customer-statement" => {
             let party = text("party_id")?;
@@ -151,6 +160,7 @@ mod render {
     use crate::ui::report::config::balance_sheet::balance_sheet;
     use crate::ui::report::config::customer_statement::customer_statement;
     use crate::ui::report::config::product_list::{ROWS_PER_RUN, product_list};
+    use crate::ui::report::config::profit_and_loss::profit_and_loss;
     use crate::ui::report::config::receipt::receipt;
     use crate::ui::report::config::trial_balance::trial_balance;
 
@@ -186,6 +196,14 @@ mod render {
                     phonix_services::books::report::balance_sheet(pool, caller, as_at).await?;
 
                 Ok(dressed(pool, &balance_sheet(), &report).await)
+            }
+            "profit-and-loss" => {
+                let from = date(parameters, "from")?;
+                let to = date(parameters, "to")?;
+                let report =
+                    phonix_services::books::report::profit_and_loss(pool, caller, from, to).await?;
+
+                Ok(dressed(pool, &profit_and_loss(), &report).await)
             }
             "trial-balance" => {
                 let from = date(parameters, "from")?;
