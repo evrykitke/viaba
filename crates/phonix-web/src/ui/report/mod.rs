@@ -23,11 +23,13 @@
 //!     -> pub fn customer_statement() -> ReportDefinition<CustomerStatement>
 //! ```
 
+pub mod config;
+
 mod definition;
 mod render;
 mod viewer;
 
-pub use definition::{Band, Extent, Field, ReportDefinition};
+pub use definition::{Band, Extent, Field, Heading, ReportDefinition};
 pub use phonix_core::report::ExportFormat;
 pub use render::Report;
 pub use viewer::ReportViewer;

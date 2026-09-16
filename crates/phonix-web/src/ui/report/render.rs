@@ -10,28 +10,31 @@
 //! worked out during the render and again during hydration is a mismatch, and
 //! a mismatch costs every handler on the page.
 //!
-//! Bands outside the detail read the first row - a document's single record,
-//! or nothing at all when a list came back empty. Group bands are drawn once,
-//! around the rows; drawing one per group is what grouping adds.
+//! A report is drawn from one value. Its bands read that value directly; the
+//! detail band reads the sequence inside it, which is what lets a letterhead
+//! show a customer and a total while the rows below are that customer's lines.
+//! Group bands are drawn once, around the rows; drawing one per group is what
+//! grouping adds.
 
 use leptos::prelude::*;
 use phonix_core::report::{Align, BandKind, Colour, Metrics};
 
-use super::{Band, Field, ReportDefinition};
+use super::definition::Content;
+use super::{Band, Field, Heading, ReportDefinition};
+use crate::ui::table::Cell;
 
 /// Draw a report.
 ///
 /// ```ignore
-/// <Report definition=customer_statement() rows=vec![statement] />
+/// <Report definition=customer_statement() data=statement />
 /// ```
 #[component]
-pub fn report<T>(definition: ReportDefinition<T>, rows: Vec<T>) -> impl IntoView
+pub fn report<T>(definition: ReportDefinition<T>, data: T) -> impl IntoView
 where
     T: Send + Sync + 'static,
 {
     let metrics = definition.theme.metrics();
     let page = definition.page;
-    let lead = rows.first();
 
     let sheet = format!(
         "width:{}mm;padding:{}mm {}mm {}mm {}mm;font-size:{}pt",
@@ -46,7 +49,7 @@ where
     let letterhead = definition.band_of(BandKind::ReportHeader).map(|band| {
         view! {
             <header
-                class=format!("{} {}", "flex flex-col gap-2", rule_ink(metrics.colour))
+                class=format!("block {}", rule_ink(metrics.colour))
                 style=format!(
                     "min-height:{}mm;border-bottom:{}mm solid",
                     metrics.bands.report_header,
@@ -59,29 +62,29 @@ where
                 >
                     {definition.title.clone()}
                 </h1>
-                {band_fields(band, lead, &metrics)}
+                {band_content(band, &data, &metrics)}
             </header>
         }
     });
 
     let page_header = definition
         .band_of(BandKind::PageHeader)
-        .map(|band| running_band(band, lead, &metrics, BandKind::PageHeader));
+        .map(|band| running_band(band, &data, &metrics, BandKind::PageHeader));
     let page_footer = definition
         .band_of(BandKind::PageFooter)
-        .map(|band| running_band(band, lead, &metrics, BandKind::PageFooter));
+        .map(|band| running_band(band, &data, &metrics, BandKind::PageFooter));
     let group_header = definition
         .band_of(BandKind::GroupHeader)
-        .map(|band| running_band(band, lead, &metrics, BandKind::GroupHeader));
+        .map(|band| running_band(band, &data, &metrics, BandKind::GroupHeader));
     let group_footer = definition
         .band_of(BandKind::GroupFooter)
-        .map(|band| running_band(band, lead, &metrics, BandKind::GroupFooter));
+        .map(|band| running_band(band, &data, &metrics, BandKind::GroupFooter));
 
     let footer = definition.band_of(BandKind::ReportFooter).map(|band| {
         view! {
             <footer
                 class=format!(
-                    "flex flex-col gap-1 {} {}",
+                    "block {} {}",
                     rule_ink(metrics.colour),
                     weight_ink(metrics.colour),
                 )
@@ -92,30 +95,21 @@ where
                     metrics.type_scale.total_pt,
                 )
             >
-                {band_fields(band, lead, &metrics)}
+                {band_content(band, &data, &metrics)}
             </footer>
         }
     });
 
-    let detail = definition.band_of(BandKind::Detail).cloned();
+    let detail = definition
+        .band_of(BandKind::Detail)
+        .map(|band| band_content(band, &data, &metrics));
 
     view! {
         <article class="mx-auto bg-surface text-content shadow-card" style=sheet>
             {letterhead}
             {page_header}
             {group_header}
-            {detail
-                .map(|band| {
-                    view! {
-                        <section>
-                            {headings(&band, &metrics)}
-                            {rows
-                                .iter()
-                                .map(|row| detail_row(&band, row, &metrics))
-                                .collect_view()}
-                        </section>
-                    }
-                })}
+            {detail}
             {group_footer}
             {footer}
             {page_footer}
@@ -125,7 +119,7 @@ where
 
 /// A band with no rule of its own: the page bands and, until grouping lands,
 /// the group bands.
-fn running_band<T>(band: &Band<T>, row: Option<&T>, metrics: &Metrics, kind: BandKind) -> AnyView
+fn running_band<T>(band: &Band<T>, data: &T, metrics: &Metrics, kind: BandKind) -> AnyView
 where
     T: Send + Sync + 'static,
 {
@@ -138,28 +132,35 @@ where
     view! {
         <div
             class=if kind.repeats_per_page() { "text-content-subtle" } else { "font-medium" }
-            style=format!(
-                "min-height:{}mm;font-size:{}pt",
-                metrics.bands.of(kind),
-                size,
-            )
+            style=format!("min-height:{}mm;font-size:{}pt", metrics.bands.of(kind), size)
         >
-            {band_fields(band, row, metrics)}
+            {band_content(band, data, metrics)}
         </div>
     }
     .into_any()
 }
 
+/// What is inside a band: values read once, or a row per line.
+fn band_content<T>(band: &Band<T>, data: &T, metrics: &Metrics) -> AnyView
+where
+    T: Send + Sync + 'static,
+{
+    match &band.content {
+        Content::Once(fields) => once(fields, data, metrics),
+        Content::Lines { headings, read } => lines(headings, &read(data), metrics),
+    }
+}
+
 /// A band's fields, gathered against the three edges they align to.
-fn band_fields<T>(band: &Band<T>, row: Option<&T>, metrics: &Metrics) -> AnyView
+fn once<T>(fields: &[Field<T>], data: &T, metrics: &Metrics) -> AnyView
 where
     T: Send + Sync + 'static,
 {
     let group = |align: Align| {
-        band.fields
+        fields
             .iter()
             .filter(|field| field.align == align)
-            .map(|field| field_view(field, row, metrics))
+            .map(|field| field_view(field, data, metrics))
             .collect_view()
     };
 
@@ -177,11 +178,11 @@ where
 }
 
 /// One value, with its label where it has one.
-fn field_view<T>(field: &Field<T>, row: Option<&T>, metrics: &Metrics) -> AnyView
+fn field_view<T>(field: &Field<T>, data: &T, metrics: &Metrics) -> AnyView
 where
     T: Send + Sync + 'static,
 {
-    let value = row.map_or_else(String::new, |row| field.read(row).to_text());
+    let value = field.read(data).to_text();
 
     view! {
         <div>
@@ -191,7 +192,7 @@ where
                 .map(|label| {
                     view! {
                         <span
-                            class="mr-1 text-content-subtle"
+                            class="mr-2 text-content-subtle"
                             style=format!("font-size:{}pt", metrics.type_scale.caption_pt)
                         >
                             {label}
@@ -204,62 +205,79 @@ where
     .into_any()
 }
 
-/// The detail band's labels, drawn once above its rows.
-fn headings<T>(band: &Band<T>, metrics: &Metrics) -> AnyView
-where
-    T: Send + Sync + 'static,
-{
-    if band.fields.iter().all(|field| field.label.is_none()) {
-        return ().into_any();
-    }
+/// The detail band: its headings, then a row per line.
+fn lines(headings: &[Heading], rows: &[Vec<Cell>], metrics: &Metrics) -> AnyView {
+    let headed = headings.iter().any(|heading| heading.label.is_some());
 
     view! {
-        <div
-            class=format!("flex font-medium {} {}", rule_ink(metrics.colour), heading_ink(metrics.colour))
-            style=format!(
-                "border-bottom:{}mm solid;font-size:{}pt",
-                metrics.rules.under_headings,
-                metrics.type_scale.heading_pt,
-            )
-        >
-            {band
-                .fields
-                .iter()
-                .map(|field| {
-                    let label = field.label.clone().unwrap_or_default();
+        <section>
+            {headed
+                .then(|| {
+                    view! {
+                        <div
+                            class=format!(
+                                "flex font-medium {} {}",
+                                rule_ink(metrics.colour),
+                                heading_ink(metrics.colour),
+                            )
+                            style=format!(
+                                "border-bottom:{}mm solid;font-size:{}pt",
+                                metrics.rules.under_headings,
+                                metrics.type_scale.heading_pt,
+                            )
+                        >
+                            {headings
+                                .iter()
+                                .map(|heading| {
+                                    let label = heading.label.clone().unwrap_or_default();
 
-                    view! { <div class=cell_class(field.align, metrics) style=cell_style(metrics)>{label}</div> }
+                                    view! {
+                                        <div
+                                            class=cell_class(heading.align, metrics)
+                                            style=cell_style(metrics)
+                                        >
+                                            {label}
+                                        </div>
+                                    }
+                                })
+                                .collect_view()}
+                        </div>
+                    }
+                })}
+
+            {rows
+                .iter()
+                .map(|cells| {
+                    let cells = cells
+                        .iter()
+                        .zip(headings)
+                        .map(|(cell, heading)| {
+                            view! {
+                                <div
+                                    class=cell_class(heading.align, metrics)
+                                    style=cell_style(metrics)
+                                >
+                                    {cell.to_text()}
+                                </div>
+                            }
+                        })
+                        .collect_view();
+
+                    view! {
+                        <div
+                            class="flex border-edge"
+                            style=format!(
+                                "min-height:{}mm;border-bottom:{}mm solid",
+                                metrics.bands.detail,
+                                metrics.rules.between_rows,
+                            )
+                        >
+                            {cells}
+                        </div>
+                    }
                 })
                 .collect_view()}
-        </div>
-    }
-    .into_any()
-}
-
-/// One row of the report's data.
-fn detail_row<T>(band: &Band<T>, row: &T, metrics: &Metrics) -> AnyView
-where
-    T: Send + Sync + 'static,
-{
-    view! {
-        <div
-            class="flex border-edge"
-            style=format!(
-                "min-height:{}mm;border-bottom:{}mm solid",
-                metrics.bands.detail,
-                metrics.rules.between_rows,
-            )
-        >
-            {band
-                .fields
-                .iter()
-                .map(|field| {
-                    let value = field.read(row).to_text();
-
-                    view! { <div class=cell_class(field.align, metrics) style=cell_style(metrics)>{value}</div> }
-                })
-                .collect_view()}
-        </div>
+        </section>
     }
     .into_any()
 }

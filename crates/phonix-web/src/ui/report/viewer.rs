@@ -36,8 +36,8 @@ pub fn report_viewer<T>(
     #[prop(optional)]
     back: Option<(&'static str, String)>,
     /// The report's own parameters, as controls on the toolbar.
-    #[prop(optional)]
-    controls: Option<Children>,
+    #[prop(optional, into)]
+    controls: Option<ViewFn>,
     /// What to do when a format is chosen. Choosing one raises an export; the
     /// bytes do not come back from the click.
     #[prop(optional)]
@@ -122,7 +122,7 @@ where
                     <h1 class="truncate text-base font-semibold tracking-tight text-content">
                         {title}
                     </h1>
-                    {controls.map(|controls| controls())}
+                    {controls.map(|controls| controls.run())}
                 </div>
 
                 <div class="flex items-center gap-2">

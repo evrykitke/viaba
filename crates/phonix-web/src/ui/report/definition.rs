@@ -11,6 +11,9 @@ use crate::ui::table::Cell;
 /// How one value is read out of a row.
 type Read<T> = Arc<dyn Fn(&T) -> Cell + Send + Sync>;
 
+/// How a detail band reads a row of cells per line.
+type ReadLines<T> = Arc<dyn Fn(&T) -> Vec<Vec<Cell>> + Send + Sync>;
+
 /// One value in a band: a field of the row, or a constant beside it.
 ///
 /// The closure is what makes a definition Rust rather than a data file - a
@@ -90,33 +93,114 @@ impl<T: 'static> Field<T> {
     }
 }
 
+/// One column of a detail band: what it is called, and which edge it sits
+/// against.
+#[derive(Debug, Clone)]
+pub struct Heading {
+    /// The stable identifier, which is what an export names the column by.
+    pub key: &'static str,
+    pub label: Option<String>,
+    pub align: Align,
+}
+
+/// What a band draws.
+pub(crate) enum Content<T: 'static> {
+    /// Values read once out of the report's data: a letterhead, a total.
+    Once(Vec<Field<T>>),
+    /// One row per line of a sequence the data holds. The cells are read
+    /// through `Field<L>` closures over the line type and erased here, so the
+    /// headings and the cells under them cannot fall out of step.
+    Lines {
+        headings: Vec<Heading>,
+        read: ReadLines<T>,
+    },
+}
+
+impl<T: 'static> Clone for Content<T> {
+    fn clone(&self) -> Self {
+        match self {
+            Self::Once(fields) => Self::Once(fields.clone()),
+            Self::Lines { headings, read } => Self::Lines {
+                headings: headings.clone(),
+                read: Arc::clone(read),
+            },
+        }
+    }
+}
+
 /// One band of a report, and what is drawn in it.
 pub struct Band<T: 'static> {
     pub(crate) kind: BandKind,
-    pub(crate) fields: Vec<Field<T>>,
+    pub(crate) content: Content<T>,
 }
 
 impl<T: 'static> Clone for Band<T> {
     fn clone(&self) -> Self {
         Self {
             kind: self.kind,
-            fields: self.fields.clone(),
+            content: self.content.clone(),
         }
     }
 }
 
 impl<T: 'static> Band<T> {
+    /// A band drawn once, from the report's own data.
     pub const fn new(kind: BandKind) -> Self {
         Self {
             kind,
-            fields: Vec::new(),
+            content: Content::Once(Vec::new()),
+        }
+    }
+
+    /// The detail band, over a sequence the report's data holds.
+    ///
+    /// ```ignore
+    /// Band::lines(
+    ///     |statement: &CustomerStatement| statement.lines.clone(),
+    ///     vec![Field::new("number", l!("reports.column.document"), |line: &StatementLine| {
+    ///         Cell::text(line.number.clone())
+    ///     })],
+    /// )
+    /// ```
+    pub fn lines<L: 'static>(
+        read: impl Fn(&T) -> Vec<L> + Send + Sync + 'static,
+        fields: Vec<Field<L>>,
+    ) -> Self {
+        let headings = fields
+            .iter()
+            .map(|field| Heading {
+                key: field.key,
+                label: field.label.clone(),
+                align: field.align,
+            })
+            .collect();
+
+        Self {
+            kind: BandKind::Detail,
+            content: Content::Lines {
+                headings,
+                read: Arc::new(move |data| {
+                    read(data)
+                        .iter()
+                        .map(|line| fields.iter().map(|field| field.read(line)).collect())
+                        .collect()
+                }),
+            },
         }
     }
 
     /// Add a field. Order here is order across the band.
     #[must_use]
     pub fn field(mut self, field: Field<T>) -> Self {
-        self.fields.push(field);
+        match &mut self.content {
+            Content::Once(fields) => fields.push(field),
+            Content::Lines { .. } => debug_assert!(
+                false,
+                "`{}` was added to a detail band, whose columns are its lines' fields",
+                field.key,
+            ),
+        }
+
         self
     }
 }
@@ -208,10 +292,12 @@ impl<T: 'static> ReportDefinition<T> {
         self
     }
 
-    /// The look this report asks for. A document setting overrides it.
+    /// The look this report asks for, and the margins that come with it. A
+    /// document setting overrides both, and so does a later [`page`](Self::page).
     #[must_use]
     pub const fn theme(mut self, theme: ReportTheme) -> Self {
         self.theme = theme;
+        self.page.margins = theme.metrics().margins;
         self
     }
 
@@ -275,26 +361,44 @@ impl<T: 'static> ReportDefinition<T> {
 mod tests {
     use super::*;
 
-    struct Row {
+    #[derive(Clone)]
+    struct Line {
         name: &'static str,
     }
 
-    fn definition() -> ReportDefinition<Row> {
+    struct Statement {
+        lines: Vec<Line>,
+    }
+
+    fn definition() -> ReportDefinition<Statement> {
         ReportDefinition::new("test", "Test", ReportKind::List)
             .band(Band::new(BandKind::ReportHeader).field(Field::text("title", "Test")))
-            .band(
-                Band::new(BandKind::Detail)
-                    .field(Field::new("name", "Name", |row: &Row| Cell::text(row.name))),
-            )
+            .band(Band::lines(
+                |statement: &Statement| statement.lines.clone(),
+                vec![Field::new("name", "Name", |line: &Line| {
+                    Cell::text(line.name)
+                })],
+            ))
     }
 
     #[test]
-    fn a_field_reads_the_row_it_names() {
+    fn a_detail_band_reads_one_row_per_line() {
         let report = definition();
-        let detail = report.band_of(BandKind::Detail).expect("a detail band");
-        let field = detail.fields.first().expect("one field");
+        let statement = Statement {
+            lines: vec![Line { name: "Sofa" }, Line { name: "Lamp" }],
+        };
 
-        assert_eq!(field.read(&Row { name: "Sofa" }), Cell::text("Sofa"));
+        let Some(Content::Lines { headings, read }) =
+            report.band_of(BandKind::Detail).map(|band| &band.content)
+        else {
+            panic!("a detail band over lines");
+        };
+
+        assert_eq!(headings.len(), 1);
+        assert_eq!(
+            read(&statement),
+            vec![vec![Cell::text("Sofa")], vec![Cell::text("Lamp")]]
+        );
     }
 
     #[test]

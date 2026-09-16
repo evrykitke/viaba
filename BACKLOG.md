@@ -160,30 +160,6 @@ commits it is three items.
 >   comparing the three, but the look is a document setting and two places to
 >   change one thing is how they come to disagree. Ask if it is wanted.
 
-- [ ] `phonix-web` The customer statement, as a definition
-      why: the first real document through the engine, and the one that proves
-           it - a letterhead, an address block, opening and closing balances,
-           an ageing summary and a total. If the band model cannot draw what
-           `customer_statement.rs` already draws by hand, the model is wrong,
-           and finding that out here is cheaper than after three more reports
-           are built on it.
-      touch: crates/phonix-web/src/ui/report/config/customer_statement.rs,
-             crates/phonix-web/src/pages/sales/reports/customer_statement.rs
-      done: `/accounting/reports/statement` opens in the viewer and draws from
-            a definition over `app_books::report::CustomerStatement`; the
-            customer and span pickers are toolbar controls and still work;
-            every figure matches what the hand-coded screen showed for the same
-            customer and span. The hand-written markup is deleted rather than
-            left beside it.
-      verify: `/accounting/reports/statement` on 3010. Pick a customer and a
-              span, and check the figures against what the same screen showed
-              before the change - the totals, the ageing and the closing
-              balance. The report should fill the content area with the
-              navigation still beside it.
-      stop: first checkpoint. Nothing here has been launched before, so this is
-            where the unapplied migrations and the two untested SQL queries in
-            `hr::holiday` and `hr::shift` get found out as well.
-
 - [ ] `phonix-web` The logo, where the definition says it goes
       why: `OrganizationProfile::logo_file_id` is already documented as "the
            uploaded logo that goes on documents", and no document draws it. A
@@ -652,6 +628,31 @@ commits it is three items.
               first one is the item below. The viewer is judged at that
               checkpoint. This line is here so an empty frame is not mistaken
               for something the build finished.
+
+- [x] `phonix-web` The customer statement, as a definition
+      commit: "What the first real document said about the model"
+      The first document through the engine, and it found the model wrong -
+      which is what this item was for. A report is now drawn from **one
+      value**, not a vector: the bands read that value, and the detail band
+      reads a sequence inside it through `Band::lines`, which takes the line
+      type's own `Field<L>` closures and erases them so the headings and the
+      cells under them cannot fall out of step. A letterhead showing a
+      customer above rows that are that customer's lines is impossible any
+      other way.
+
+      The statement is `Professional` on a wider page - a look now carries its
+      margins onto the page, so "wider margins" is a fact rather than a
+      sentence. The ageing ladder is the footer's left column and the four
+      totals are its right. Two deliberate losses: the foreign-currency
+      sub-line under a document number is now a parenthetical beside it,
+      because a band draws one line per row; and an empty statement shows an
+      empty line area rather than the words "Nothing to show", which is what a
+      printed document does.
+      verify: `/accounting/reports/statement` on 3010. Pick a customer and a
+              span, and check the figures against what the same screen showed
+              before the change - the totals, the ageing and the closing
+              balance. The report should fill the content area with the
+              navigation still beside it.
 
 ## Blocked
 
