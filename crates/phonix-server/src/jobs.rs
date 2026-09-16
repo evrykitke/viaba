@@ -13,7 +13,8 @@
 //! # Why the verifier polls at all
 //!
 //! It mostly does not. An upload is dispatched the moment its bytes are down -
-//! see `files::dispatch` - so the usual path is immediate and the poll finds
+//! `files::upload::claim_for_verification`, called from the route that
+//! receives them - so the usual path is immediate and the poll finds
 //! nothing. The loop exists for the case the fast path cannot cover: a process
 //! that died between writing the row and running the job. Without it those rows
 //! sit at `received` for ever, and the symptom is one user whose file never

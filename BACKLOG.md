@@ -219,15 +219,6 @@ commits it is three items.
 > like any other, and the loop takes the next one. The section is what they
 > read when they come back.
 
-- [ ] `phonix-server` The dispatch that jobs.rs names and nothing answers to
-      why: the module doc says "an upload is dispatched the moment its bytes
-           are down - see `files::dispatch`", and there is no `files::dispatch`.
-           The function is `files::upload::claim_for_verification`. ADR 0008 §9
-           puts the exporter on that same shape, so the next person reading for
-           it goes looking for a name that was never there.
-      touch: crates/phonix-server/src/jobs.rs
-      done: the comment names the function that exists.
-
 - [ ] `docs` What ADR 0008 now owes the band model
       why: the record says a definition is typed Rust and says nothing about
            what it is typed *over*. The statement turned that into a decision:
@@ -766,6 +757,16 @@ commits it is three items.
 ## Done
 
 <!-- The loop appends here with the commit sha. Newest first. -->
+
+- [x] `phonix-server` The dispatch that jobs.rs names and nothing answers to
+      commit: "A name somebody could have gone looking for"
+      why: the module doc says "an upload is dispatched the moment its bytes
+           are down - see `files::dispatch`", and there is no `files::dispatch`.
+           The function is `files::upload::claim_for_verification`. ADR 0008 §9
+           puts the exporter on that same shape, so the next person reading for
+           it goes looking for a name that was never there.
+      touch: crates/phonix-server/src/jobs.rs
+      done: the comment names the function that exists.
 
 - [x] `phonix-web` A total between two groups
       commit: "A figure that is not a subtotal"
