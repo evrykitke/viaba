@@ -179,6 +179,27 @@
 }
 
 /* --------------------------------------------------------------------------
+   2b. CHART SERIES
+
+   Six hues in a fixed order, and deliberately NOT the accent ramp: a chart's
+   colours say which series a mark belongs to, and a reader who changed the
+   accent would find the same series a different colour. They are the same in
+   both themes, and both were checked rather than eyeballed - lightness band,
+   chroma floor, colour-vision separation, normal-vision separation and
+   contrast against the surface. The order is the order they are handed out
+   in; a seventh series is drawn in the sheet's own ink rather than in the
+   first one's colour again.
+   -------------------------------------------------------------------------- */
+:root {
+    --chart-1: oklch(0.62 0.17 292);
+    --chart-2: oklch(0.66 0.15 70);
+    --chart-3: oklch(0.58 0.15 215);
+    --chart-4: oklch(0.63 0.15 155);
+    --chart-5: oklch(0.6 0.19 340);
+    --chart-6: oklch(0.52 0.17 30);
+}
+
+/* --------------------------------------------------------------------------
    3. SEMANTIC ROLES - light (default)
    -------------------------------------------------------------------------- */
 :root {

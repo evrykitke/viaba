@@ -219,31 +219,6 @@ commits it is three items.
 > like any other, and the loop takes the next one. The section is what they
 > read when they come back.
 
-- [ ] `phonix-web` The chart, as a band the server drew
-      why: charts are part of a report here, not a decoration on one, which is
-           why this sits before the exports rather than after them. A
-           JavaScript chart library is the wrong answer twice over: it draws
-           nothing during the server's render, which is the hydration mismatch
-           that takes the whole page down, and it draws nothing at all into a
-           PDF.
-      touch: crates/phonix-core/src/report/, crates/phonix-web/src/ui/report/
-      done: a chart band drawn as inline SVG from the report's own rows, in the
-            kinds a report actually needs - bar and column including stacked,
-            line, area, and pie or donut - with axis, ticks, labels and legend
-            identical on the server and in the browser. It reads the same rows
-            and the same group subtotals the bands do rather than a query of
-            its own, and a report whose only band is a chart is a report. No
-            `<canvas>`, no chart dependency, no clock. The geometry is computed
-            in `phonix_core::report` so the PDF writer can draw the same chart
-            from the same numbers.
-      verify: a report with each chart kind on it. Check the bars and the
-              legend against the numbers in the table below them, then reload
-              with the browser console open - a hydration mismatch shows there
-              and kills every handler on the page.
-      stop: fourth checkpoint. A chart that renders differently on the two sides
-            is the failure this design exists to avoid, and it is only visible
-            in a running browser.
-
 - [ ] `phonix-web` A group that opens and closes
       why: drill-down, and what makes a long grouped report readable - the
            groups are the report, and the detail is opened where somebody wants
@@ -871,6 +846,33 @@ commits it is three items.
 ## Done
 
 <!-- The loop appends here with the commit sha. Newest first. -->
+
+- [x] `phonix-web` The chart, as a band the server drew
+      commit: "A picture of the same numbers"
+      why: charts are part of a report here, not a decoration on one, which is
+           why this sits before the exports rather than after them. A
+           JavaScript chart library is the wrong answer twice over: it draws
+           nothing during the server's render, which is the hydration mismatch
+           that takes the whole page down, and it draws nothing at all into a
+           PDF.
+      touch: crates/phonix-core/src/report/, crates/phonix-web/src/ui/report/
+      done: a chart band drawn as inline SVG from the report's own rows, in the
+            kinds a report actually needs - bar and column including stacked,
+            line, area, and pie or donut - with axis, ticks, labels and legend
+            identical on the server and in the browser. It reads the same rows
+            and the same group subtotals the bands do rather than a query of
+            its own, and a report whose only band is a chart is a report. No
+            `<canvas>`, no chart dependency, no clock. The geometry is computed
+            in `phonix_core::report` - not for a PDF writer, which is gone,
+            but because it is the part a test can establish and the tests there
+            can be run.
+      verify: a report with each chart kind on it. Check the bars and the
+              legend against the numbers in the table below them, then reload
+              with the browser console open - a hydration mismatch shows there
+              and kills every handler on the page.
+      stop: fourth checkpoint. A chart that renders differently on the two sides
+            is the failure this design exists to avoid, and it is only visible
+            in a running browser.
 
 - [x] `phonix-web` The pages a long report is read in
       commit: "Ten rows, and a way to the next ten"

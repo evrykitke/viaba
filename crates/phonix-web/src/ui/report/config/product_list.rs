@@ -16,7 +16,7 @@ use app_inventory::item::ItemSummary;
 use phonix_core::money::Money;
 use phonix_core::permissions;
 use phonix_core::query::Page;
-use phonix_core::report::{BandKind, ExportFormat, ReportKind, ReportTheme};
+use phonix_core::report::{BandKind, ChartKind, ExportFormat, Point, ReportKind, ReportTheme};
 
 use crate::l;
 use crate::ui::report::{Band, Field, Grouping, ReportDefinition};
@@ -28,6 +28,33 @@ use crate::ui::table::Cell;
 /// The viewer's page navigation is what will move between them - see the
 /// paginator.
 pub const ROWS_PER_RUN: u32 = 100;
+
+/// What each category comes to, as the chart's points.
+///
+/// The same rows the table below it draws and the same grouping, so the
+/// picture cannot say something the figures do not. Money becomes a number
+/// here and nowhere else: a chart is a drawing, and a bar two pixels taller
+/// than another is not an amount anybody is going to add up.
+fn by_category(rows: &[ItemSummary]) -> Vec<Point> {
+    let mut totals: Vec<(String, f64)> = Vec::new();
+
+    for item in rows {
+        let cost = item.cost.to_display_string().parse::<f64>().unwrap_or(0.0);
+
+        match totals
+            .iter_mut()
+            .find(|(category, _)| *category == item.category_name)
+        {
+            Some((_, running)) => *running += cost,
+            None => totals.push((item.category_name.clone(), cost)),
+        }
+    }
+
+    totals
+        .into_iter()
+        .map(|(category, total)| Point::new(category, vec![total]))
+        .collect()
+}
 
 /// The product list.
 pub fn product_list() -> ReportDefinition<Page<ItemSummary>> {
@@ -74,6 +101,14 @@ pub fn product_list() -> ReportDefinition<Page<ItemSummary>> {
         // groups by in their head.
         Grouping::by(|item: &ItemSummary| item.category_name.clone())
             .totalling("cost", |item: &ItemSummary| item.cost),
+    ))
+    // Under the rows rather than over them: the chart is what the list adds
+    // up to, and a reader meets it after the thing it summarises.
+    .band(Band::chart(
+        BandKind::GroupFooter,
+        ChartKind::Column,
+        vec![l!("items.cost")],
+        |page: &Page<ItemSummary>| by_category(&page.rows),
     ))
     .band(
         Band::new(BandKind::ReportFooter)

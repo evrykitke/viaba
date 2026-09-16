@@ -21,11 +21,13 @@
 use std::sync::OnceLock;
 
 use leptos::prelude::*;
-use phonix_core::report::{Align, BandKind, Colour, DocumentSettings, Logo, Metrics, Typeface};
+use phonix_core::report::{
+    Align, BandKind, ChartKind, Colour, DocumentSettings, Logo, Mark, Metrics, Plot, Typeface, plot,
+};
 
 use leptos_router::components::A;
 
-use super::definition::Content;
+use super::definition::{ChartBand, Content};
 use super::{
     Band, DocumentStyles, Field, Heading, Letterhead, Paging, ReportDefinition, RowGroup, Value,
 };
@@ -175,6 +177,340 @@ where
     .into_any()
 }
 
+/// How wide a chart's own coordinates are. The sheet scales it, so this is an
+/// aspect and not a size.
+const CHART_WIDTH: f32 = 160.0;
+
+/// How many colours a chart has before a series has to do without one.
+///
+/// Six, assigned in a fixed order and never cycled: a seventh series drawn in
+/// the first one's colour is two things the reader believes are one.
+const SERIES_COLOURS: usize = 6;
+
+/// A chart band, as the SVG the screen draws and the browser prints.
+fn drawn_chart<T>(chart: &ChartBand<T>, data: &T, metrics: &Metrics) -> AnyView
+where
+    T: Send + Sync + 'static,
+{
+    let points = (chart.read)(data);
+    let height = CHART_WIDTH * (chart.height_mm / 90.0);
+    let drawn = plot(chart.kind, &points, CHART_WIDTH, height);
+
+    // The chart's own units are not points, so the type inside it is sized
+    // against the box: a label set in points inside a drawing that is then
+    // scaled would not be the size it says.
+    let ink = metrics.type_scale.caption_pt / 2.4;
+    let series = chart.series.clone();
+
+    view! {
+        <figure
+            class="w-full"
+            style=format!(
+                "padding:{}mm {}mm",
+                metrics.padding.vertical,
+                metrics.padding.horizontal,
+            )
+        >
+            <svg
+                viewBox=format!("0 0 {CHART_WIDTH} {height}")
+                width="100%"
+                style=format!("height:{}mm", chart.height_mm)
+                role="img"
+            >
+                {grid(&drawn, ink)}
+                {marks(&drawn)}
+                {axis_labels(&drawn, ink)}
+            </svg>
+
+            {(series.len() > 1).then(|| legend(&series, metrics))}
+        </figure>
+    }
+    .into_any()
+}
+
+/// The ticks, and the lines across from them.
+///
+/// Recessive on purpose: a grid is for reading a bar against, not for looking
+/// at. `currentColor` at a low opacity, so it is the sheet's own ink in both
+/// themes and on paper.
+fn grid(drawn: &Plot, ink: f32) -> AnyView {
+    if !drawn.kind.axes() {
+        return ().into_any();
+    }
+
+    let frame = drawn.plot;
+    let across = drawn.kind.horizontal();
+
+    drawn
+        .ticks
+        .iter()
+        .map(|tick| {
+            let (x1, y1, x2, y2) = if across {
+                (tick.at, frame.y, tick.at, frame.bottom())
+            } else {
+                (frame.x, tick.at, frame.right(), tick.at)
+            };
+
+            let (label_x, label_y, anchor) = if across {
+                (tick.at, frame.bottom() + ink * 1.4, "middle")
+            } else {
+                (frame.x - ink * 0.6, tick.at + ink * 0.35, "end")
+            };
+
+            view! {
+                <line
+                    x1=x1
+                    y1=y1
+                    x2=x2
+                    y2=y2
+                    stroke="currentColor"
+                    stroke-width="0.25"
+                    opacity="0.18"
+                />
+                <text
+                    x=label_x
+                    y=label_y
+                    text-anchor=anchor
+                    font-size=ink
+                    fill="currentColor"
+                    opacity="0.6"
+                >
+                    {figure(tick.value)}
+                </text>
+            }
+        })
+        .collect_view()
+        .into_any()
+}
+
+/// The marks themselves.
+fn marks(drawn: &Plot) -> AnyView {
+    let frame = drawn.plot;
+    let centre = (frame.x + frame.right()) / 2.0;
+    let middle = (frame.y + frame.bottom()) / 2.0;
+    let radius = frame.width.min(frame.height) / 2.0;
+    let donut = drawn.kind == ChartKind::Donut;
+
+    drawn
+        .marks
+        .iter()
+        .map(|mark| match mark {
+            Mark::Rect {
+                x,
+                y,
+                width,
+                height,
+                series,
+                ..
+            } => {
+                // A rounded end and a hairline of the surface between one bar
+                // and the next, so touching marks stay two marks.
+                let width = (width - 0.4).max(0.2);
+
+                view! {
+                    <rect x=*x y=*y width=width height=*height rx="0.6" fill=colour(*series) />
+                }
+                .into_any()
+            }
+            Mark::Path {
+                points,
+                series,
+                filled,
+            } => {
+                let line = points
+                    .iter()
+                    .enumerate()
+                    .map(|(index, (x, y))| {
+                        format!("{} {x:.2} {y:.2}", if index == 0 { "M" } else { "L" })
+                    })
+                    .collect::<Vec<_>>()
+                    .join(" ");
+
+                let under = points.last().zip(points.first()).map(|(last, first)| {
+                    format!(
+                        "{line} L {:.2} {:.2} L {:.2} {:.2} Z",
+                        last.0,
+                        frame.bottom(),
+                        first.0,
+                        frame.bottom(),
+                    )
+                });
+
+                let filled = *filled;
+
+                view! {
+                    {under
+                        .filter(|_| filled)
+                        .map(|under| {
+                            view! { <path d=under fill=colour(*series) opacity="0.18" /> }
+                        })}
+                    <path
+                        d=line
+                        fill="none"
+                        stroke=colour(*series)
+                        stroke-width="0.7"
+                        stroke-linejoin="round"
+                        stroke-linecap="round"
+                    />
+                }
+                .into_any()
+            }
+            Mark::Slice {
+                from, to, series, ..
+            } => {
+                let hole = if donut { radius * 0.55 } else { 0.0 };
+
+                view! {
+                    <path
+                        d=segment(centre, middle, radius, hole, *from, *to)
+                        fill=colour(*series)
+                        stroke="var(--color-surface)"
+                        stroke-width="0.4"
+                    />
+                }
+                .into_any()
+            }
+        })
+        .collect_view()
+        .into_any()
+}
+
+/// What each point is called, beside the marks.
+///
+/// Every label where they fit and every second or third where they do not: a
+/// chart of thirty categories wants fifteen labels rather than a grey smear.
+fn axis_labels(drawn: &Plot, ink: f32) -> AnyView {
+    if !drawn.kind.axes() || drawn.labels.is_empty() {
+        return ().into_any();
+    }
+
+    let frame = drawn.plot;
+    let across = drawn.kind.horizontal();
+    let room = if across { frame.height } else { frame.width };
+    let slot = room / drawn.labels.len() as f32;
+    let every = ((ink * 3.5) / slot).ceil().max(1.0) as usize;
+
+    drawn
+        .labels
+        .iter()
+        .enumerate()
+        .filter(|(index, _)| index % every == 0)
+        .map(|(index, label)| {
+            let along = slot * (index as f32 + 0.5);
+
+            let (x, y, anchor) = if across {
+                (frame.x - ink * 0.6, frame.y + along + ink * 0.35, "end")
+            } else {
+                (frame.x + along, frame.bottom() + ink * 1.4, "middle")
+            };
+
+            view! {
+                <text
+                    x=x
+                    y=y
+                    text-anchor=anchor
+                    font-size=ink
+                    fill="currentColor"
+                    opacity="0.7"
+                >
+                    {label.clone()}
+                </text>
+            }
+        })
+        .collect_view()
+        .into_any()
+}
+
+/// What each series is called, beside the colour it is drawn in.
+///
+/// Drawn wherever there is more than one series, because colour on its own is
+/// not an identity anybody can read. One series needs none: the band it is in
+/// already says what it is.
+fn legend(series: &[String], metrics: &Metrics) -> AnyView {
+    let size = metrics.type_scale.caption_pt;
+
+    view! {
+        <ul
+            class="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-content-subtle"
+            style=format!("font-size:{size}pt")
+        >
+            {series
+                .iter()
+                .enumerate()
+                .map(|(index, name)| {
+                    view! {
+                        <li class="flex items-center gap-1">
+                            <span
+                                class="inline-block size-2 shrink-0 rounded-[2px]"
+                                style=format!("background:{}", colour(index))
+                            ></span>
+                            {name.clone()}
+                        </li>
+                    }
+                })
+                .collect_view()}
+        </ul>
+    }
+    .into_any()
+}
+
+/// The colour a series is drawn in.
+///
+/// A fixed order out of the chart palette, never cycled: a seventh series is
+/// drawn in the ink the axis is, which reads as "another" rather than as one
+/// of the six.
+fn colour(series: usize) -> String {
+    if series < SERIES_COLOURS {
+        format!("var(--chart-{})", series + 1)
+    } else {
+        "currentColor".to_owned()
+    }
+}
+
+/// One slice of a pie, or of a donut when there is a hole in it.
+fn segment(cx: f32, cy: f32, radius: f32, hole: f32, from: f32, to: f32) -> String {
+    let point = |angle: f32, radius: f32| {
+        // Clockwise from twelve, which is where a reader starts.
+        let radians = (angle - 90.0).to_radians();
+
+        (cx + radius * radians.cos(), cy + radius * radians.sin())
+    };
+
+    let long = i32::from(to - from > 180.0);
+    let (sx, sy) = point(from, radius);
+    let (ex, ey) = point(to, radius);
+
+    if hole <= 0.0 {
+        return format!(
+            "M {cx:.2} {cy:.2} L {sx:.2} {sy:.2} \
+             A {radius:.2} {radius:.2} 0 {long} 1 {ex:.2} {ey:.2} Z",
+        );
+    }
+
+    let (ix, iy) = point(to, hole);
+    let (jx, jy) = point(from, hole);
+
+    format!(
+        "M {sx:.2} {sy:.2} A {radius:.2} {radius:.2} 0 {long} 1 {ex:.2} {ey:.2} \
+         L {ix:.2} {iy:.2} A {hole:.2} {hole:.2} 0 {long} 0 {jx:.2} {jy:.2} Z",
+    )
+}
+
+/// A tick's value, short enough to stand beside an axis.
+fn figure(value: f64) -> String {
+    let magnitude = value.abs();
+
+    if magnitude >= 1_000_000.0 {
+        format!("{:.1}m", value / 1_000_000.0)
+    } else if magnitude >= 1_000.0 {
+        format!("{:.1}k", value / 1_000.0)
+    } else if magnitude >= 10.0 || value == value.trunc() {
+        format!("{value:.0}")
+    } else {
+        format!("{value:.1}")
+    }
+}
+
 /// The tenant's own words at the head or the foot of a document.
 ///
 /// Drawn as written: these are not an i18n key and are never looked up.
@@ -229,6 +565,7 @@ where
     match &band.content {
         Content::Once(fields) => once(fields, data, metrics),
         Content::Lines { headings, read } => lines(headings, &read(data), metrics),
+        Content::Chart(chart) => drawn_chart(chart, data, metrics),
     }
 }
 

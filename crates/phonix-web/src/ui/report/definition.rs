@@ -4,7 +4,8 @@ use std::sync::Arc;
 
 use phonix_core::money::Money;
 use phonix_core::report::{
-    Align, BandKind, ExportFormat, Logo, PageSetup, Rendered, RenderedBand, ReportKind, ReportTheme,
+    Align, BandKind, ChartKind, ExportFormat, Logo, PageSetup, Point, Rendered, RenderedBand,
+    ReportKind, ReportTheme,
 };
 
 use crate::l;
@@ -21,6 +22,9 @@ type ReadLines<T> = Arc<dyn Fn(&T) -> Vec<RowGroup> + Send + Sync>;
 
 /// How one line's share of a total is read.
 type Amount<L> = Arc<dyn Fn(&L) -> Money + Send + Sync>;
+
+/// How a chart band reads its points.
+type ReadPoints<T> = Arc<dyn Fn(&T) -> Vec<Point> + Send + Sync>;
 
 /// A value with its label in front of it, for a band drawn once.
 ///
@@ -206,10 +210,10 @@ fn captioned(caption: &str, totals: Vec<Value>) -> Vec<Value> {
     let mut totals = totals;
 
     if let Some(free) = totals
-        .iter()
-        .position(|value| matches!(value.cell, Cell::Empty))
+        .iter_mut()
+        .find(|value| matches!(value.cell, Cell::Empty))
     {
-        totals[free] = Value {
+        *free = Value {
             cell: Cell::text(caption),
             href: None,
         };
@@ -375,6 +379,39 @@ pub struct Heading {
     pub figures: bool,
 }
 
+/// How tall a chart is drawn when the definition does not say.
+///
+/// A third of a page: enough that a column is a shape rather than a tick, and
+/// little enough that the rows it summarises are still on the sheet with it.
+const DEFAULT_CHART_MM: f32 = 60.0;
+
+/// A chart, as the report declares it.
+///
+/// The points are read off the report's own data - the same value the bands
+/// read - so a chart cannot show something the table under it does not. It is
+/// drawn as inline SVG on the server and printed as that SVG, which is what
+/// makes the picture in the file the picture on the screen.
+pub struct ChartBand<T: 'static> {
+    pub(crate) kind: ChartKind,
+    /// What the legend calls each series. One name and there is no legend: the
+    /// band's own heading says what it is.
+    pub(crate) series: Vec<String>,
+    pub(crate) read: ReadPoints<T>,
+    /// How tall the chart is drawn, in millimetres.
+    pub(crate) height_mm: f32,
+}
+
+impl<T: 'static> Clone for ChartBand<T> {
+    fn clone(&self) -> Self {
+        Self {
+            kind: self.kind,
+            series: self.series.clone(),
+            read: Arc::clone(&self.read),
+            height_mm: self.height_mm,
+        }
+    }
+}
+
 /// What a band draws.
 pub(crate) enum Content<T: 'static> {
     /// Values read once out of the report's data: a letterhead, a total.
@@ -386,6 +423,8 @@ pub(crate) enum Content<T: 'static> {
         headings: Vec<Heading>,
         read: ReadLines<T>,
     },
+    /// A picture of the same numbers.
+    Chart(ChartBand<T>),
 }
 
 impl<T: 'static> Clone for Content<T> {
@@ -396,6 +435,7 @@ impl<T: 'static> Clone for Content<T> {
                 headings: headings.clone(),
                 read: Arc::clone(read),
             },
+            Self::Chart(chart) => Self::Chart(chart.clone()),
         }
     }
 }
@@ -498,6 +538,47 @@ impl<T: 'static> Band<T> {
         }
     }
 
+    /// A chart band, over points read from the report's own data.
+    ///
+    /// ```ignore
+    /// Band::chart(
+    ///     BandKind::ReportFooter,
+    ///     ChartKind::Column,
+    ///     vec![l!("items.cost")],
+    ///     |page: &Page<ItemSummary>| by_category(page),
+    /// )
+    /// ```
+    ///
+    /// The band kind is the chart's place in the report rather than a kind of
+    /// its own: a chart over the rows goes in the report footer, one above
+    /// them in the header. A report whose only band is a chart is a report.
+    pub fn chart(
+        kind: BandKind,
+        chart: ChartKind,
+        series: Vec<String>,
+        read: impl Fn(&T) -> Vec<Point> + Send + Sync + 'static,
+    ) -> Self {
+        Self {
+            kind,
+            content: Content::Chart(ChartBand {
+                kind: chart,
+                series,
+                read: Arc::new(read),
+                height_mm: DEFAULT_CHART_MM,
+            }),
+        }
+    }
+
+    /// How tall the chart is drawn. Only read by a chart band.
+    #[must_use]
+    pub fn height_mm(mut self, height_mm: f32) -> Self {
+        if let Content::Chart(chart) = &mut self.content {
+            chart.height_mm = height_mm;
+        }
+
+        self
+    }
+
     /// Add a field. Order here is order across the band.
     #[must_use]
     pub fn field(mut self, field: Field<T>) -> Self {
@@ -506,6 +587,11 @@ impl<T: 'static> Band<T> {
             Content::Lines { .. } => debug_assert!(
                 false,
                 "`{}` was added to a detail band, whose columns are its lines' fields",
+                field.key,
+            ),
+            Content::Chart(_) => debug_assert!(
+                false,
+                "`{}` was added to a chart band, which draws its points and nothing else",
                 field.key,
             ),
         }
@@ -711,6 +797,11 @@ impl<T: 'static> ReportDefinition<T> {
                     )
                     .aligned(fields.iter().map(|field| field.align).collect()),
                 ],
+                // Deliberately nothing. A chart written out as numbers would
+                // be a column of figures in a spreadsheet that nobody asked
+                // for, under a heading that says it is a picture - and the
+                // rows it was drawn from are already in the file.
+                Content::Chart(_) => Vec::new(),
                 Content::Lines { headings, read } => {
                     let aligns: Vec<Align> = headings.iter().map(|heading| heading.align).collect();
                     let labels = headings
