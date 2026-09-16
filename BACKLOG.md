@@ -160,22 +160,6 @@ commits it is three items.
 >   comparing the three, but the look is a document setting and two places to
 >   change one thing is how they come to disagree. Ask if it is wanted.
 
-- [ ] `phonix-web` The product list, as the first list report
-      why: the document kind is proved and the list kind is not - many rows, a
-           page header that repeats, a column set and a count at the foot.
-           Items are what every reference product demonstrates this with, and
-           the one list this workspace already has a paged read for.
-      touch: crates/phonix-web/src/ui/report/config/product_list.rs,
-             crates/phonix-web/src/server_fns/inventory_fns.rs
-      done: a product list report reads through the existing paged item list
-            rather than a read of its own, repeats its page header, and counts
-            its rows at the foot. It does not hold an unbounded result set in
-            memory - unpaged reads are a hazard this backlog already has four
-            commits about.
-      verify: the product list report. Scroll past the first page and check the
-              page header repeats and the count at the foot is the real number
-              of items.
-
 - [ ] `phonix-web` Where a report is found, and who may run it
       why: two reports exist and the only way to either is knowing its address.
            `Pages.Accounting.Reports` already gates the four statements as one
@@ -491,6 +475,31 @@ commits it is three items.
      The user launches the application, looks, and then either moves the item
      to `## Done` or writes a new item in `## Next` saying what was wrong. The
      loop never moves anything out of this section by itself. -->
+
+- [x] `phonix-web` The product list, as the first list report
+      commit: "A list, which is not a document"
+      The list kind, proved: many rows under headings, a running page header
+      so a torn-off sheet says what it is, and the count at the foot. Drawn in
+      **Compact**, which is the look a list is for. It is not a document type,
+      so no workspace setting reaches it - the paper a product list is printed
+      on is not something a tenant has an opinion about, and that is the rule
+      rather than an omission.
+
+      It draws **a page of the read, not the read**: one bounded request
+      through the `list_items` that already exists, a hundred rows, and the
+      foot says how many there are altogether. Reading a list whole to print
+      it is the hazard this backlog has four commits about.
+
+      Reachable from the items list's toolbar, because a report nobody can
+      find is the item after this one and this one should not wait for it.
+      verify: the items list, the Report button. The columns should read as a
+              list rather than a document, and the foot should say how many
+              items there are altogether.
+
+              **The page header does not repeat yet.** One sheet is drawn per
+              run; repeating a header at a page boundary is arithmetic the
+              paginator does, three items down, and doing it here would be
+              that item written twice.
 
 - [x] `phonix-core` A statement is a document nobody numbers
       commit: "A document that carries no number"

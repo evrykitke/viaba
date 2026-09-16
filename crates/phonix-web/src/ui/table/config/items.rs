@@ -129,6 +129,13 @@ pub fn items_grid() -> GridConfig<ItemSummary> {
                 .require(permissions::ITEMS_CREATE)
                 .primary(),
         )
+        // The same list on paper. Reading it is reading the list, so it is
+        // gated on nothing more than seeing the screen it sits on.
+        .toolbar(ToolbarAction::link(
+            l!("report.open"),
+            Icon::FileText,
+            "/inventory/items/report",
+        ))
         .action(
             RowAction::link(l!("common.open"), Icon::ArrowRight, |row: &ItemSummary| {
                 format!("/inventory/items/{}", row.id)

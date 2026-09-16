@@ -61,6 +61,7 @@ pub mod home;
 pub mod item;
 pub mod item_categories;
 pub mod item_lookup;
+pub mod item_report;
 pub mod items;
 pub mod landed_cost;
 pub mod pictures;

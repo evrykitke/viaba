@@ -78,6 +78,7 @@ use crate::pages::people::reference::{JobPositionPage, WorkLocationPage};
 use crate::pages::people::shifts::ShiftTypePage;
 // Aliased: `pages::account` is the viewer's own profile, and both are called
 // AccountPage in their own module.
+use crate::pages::inventory::item_report::ItemReportPage;
 use crate::pages::sales::account::AccountPage as ChartAccountPage;
 use crate::pages::sales::account_roles::AccountRolesPage;
 use crate::pages::sales::accounts::{AccountNewPage, AccountsPage};
@@ -344,6 +345,7 @@ pub fn app() -> impl IntoView {
                     <Route path=path!("/inventory") view=InventoryHomePage />
                     <Route path=path!("/inventory/items") view=ItemsPage />
                     <Route path=path!("/inventory/items/new") view=ItemNewPage />
+                    <Route path=path!("/inventory/items/report") view=ItemReportPage />
                     <Route path=path!("/inventory/items/:id") view=ItemPage />
                     <Route path=path!("/inventory/categories") view=ItemCategoriesPage />
                     <Route path=path!("/inventory/categories/new") view=ItemCategoryNewPage />

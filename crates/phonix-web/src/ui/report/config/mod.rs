@@ -6,5 +6,6 @@
 //! screen, from a server function that already exists.
 
 pub mod customer_statement;
+pub mod product_list;
 pub mod receipt;
 pub mod sample;
