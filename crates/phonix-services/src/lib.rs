@@ -76,6 +76,7 @@ pub mod mail;
 pub mod master;
 pub mod numbering;
 pub mod oauth;
+pub mod report;
 pub mod workspace;
 
 pub use caller::Caller;

@@ -9,11 +9,13 @@
 mod band;
 mod export;
 mod page;
+mod request;
 mod settings;
 mod theme;
 
 pub use band::{Align, BandKind, ReportKind};
 pub use export::ExportFormat;
 pub use page::{Logo, LogoPlacement, Margins, Orientation, PageSetup, PaperSize};
+pub use request::{ExportRequest, ExportState, NewExport};
 pub use settings::{DocumentChrome, DocumentSettings, MAX_DOCUMENT_TEXT_LEN};
 pub use theme::{BandHeights, Colour, Metrics, Padding, ReportTheme, Rules, TypeScale, Typeface};

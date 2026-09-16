@@ -1,0 +1,124 @@
+//! The `report_exports` rows: what somebody asked to be written out.
+//!
+//! This module raises a request and reads one back. Claiming one, writing the
+//! outcome and storing the bytes belong to the worker, and live with it.
+//!
+//! # Codes in, domain types out
+//!
+//! The format and the state are TEXT in Postgres and typed values in Rust,
+//! resolved in [`FromRow`]. A row holding a word this build does not know is
+//! refused here rather than defaulting to something several layers up.
+
+use phonix_core::identity::UserId;
+use phonix_core::report::{ExportFormat, ExportRequest, ExportState, NewExport};
+use sqlx::{FromRow, PgExecutor, Row};
+use uuid::Uuid;
+
+use crate::error::DbError;
+
+const SELECT: &str = "SELECT id, report_id, parameters, format, state, requested_by, \
+     requested_at, file_id, failure FROM report_exports";
+
+struct RequestRow(ExportRequest);
+
+impl<'r> FromRow<'r, sqlx::postgres::PgRow> for RequestRow {
+    fn from_row(row: &'r sqlx::postgres::PgRow) -> Result<Self, sqlx::Error> {
+        let format: String = row.try_get("format")?;
+        let state: String = row.try_get("state")?;
+
+        Ok(Self(ExportRequest {
+            id: row.try_get("id")?,
+            report_id: row.try_get("report_id")?,
+            parameters: row.try_get("parameters")?,
+            format: parse_format(&format).ok_or_else(|| unknown("format"))?,
+            state: ExportState::parse(&state).ok_or_else(|| unknown("state"))?,
+            requested_by: row.try_get("requested_by")?,
+            requested_at: row.try_get("requested_at")?,
+            file_id: row.try_get("file_id")?,
+            failure: row.try_get("failure")?,
+        }))
+    }
+}
+
+/// The format a stored value names.
+///
+/// `ExportFormat` has no `parse` of its own: the only thing that ever reads
+/// one back is this row, and a second spelling of the same four-way match is
+/// a second chance to disagree with the column's CHECK.
+fn parse_format(raw: &str) -> Option<ExportFormat> {
+    ExportFormat::ALL
+        .iter()
+        .copied()
+        .find(|format| format.as_str() == raw)
+}
+
+fn unknown(column: &'static str) -> sqlx::Error {
+    sqlx::Error::ColumnDecode {
+        index: column.to_owned(),
+        source: format!("`{column}` holds a value this build does not know").into(),
+    }
+}
+
+/// Raise a request, and hand back the row it became.
+pub async fn raise<'e, E: PgExecutor<'e>>(
+    executor: E,
+    asked: &NewExport,
+    requested_by: UserId,
+) -> Result<ExportRequest, DbError> {
+    let statement = sqlx::AssertSqlSafe(format!(
+        "WITH raised AS (
+             INSERT INTO report_exports (report_id, parameters, format, requested_by)
+             VALUES ($1, $2, $3, $4)
+             RETURNING *
+         )
+         {SELECT_FROM_RAISED}",
+        SELECT_FROM_RAISED = SELECT.replace("FROM report_exports", "FROM raised"),
+    ));
+
+    let row: RequestRow = sqlx::query_as(statement)
+        .bind(&asked.report_id)
+        .bind(&asked.parameters)
+        .bind(asked.format.as_str())
+        .bind(requested_by)
+        .fetch_one(executor)
+        .await?;
+
+    Ok(row.0)
+}
+
+/// One request, as the screen waiting on it reads it.
+pub async fn load<'e, E: PgExecutor<'e>>(
+    executor: E,
+    id: Uuid,
+) -> Result<Option<ExportRequest>, DbError> {
+    let statement = sqlx::AssertSqlSafe(format!("{SELECT} WHERE id = $1"));
+
+    let row: Option<RequestRow> = sqlx::query_as(statement)
+        .bind(id)
+        .fetch_optional(executor)
+        .await?;
+
+    Ok(row.map(|row| row.0))
+}
+
+/// What one person has asked for lately, newest first.
+///
+/// Bounded by `limit` on purpose: this is a list that grows with use, and
+/// nothing wants all of it.
+pub async fn recent_for<'e, E: PgExecutor<'e>>(
+    executor: E,
+    requested_by: UserId,
+    limit: i64,
+) -> Result<Vec<ExportRequest>, DbError> {
+    let statement = sqlx::AssertSqlSafe(format!(
+        "{SELECT} WHERE requested_by = $1 ORDER BY requested_at DESC LIMIT $2"
+    ));
+
+    let rows: Vec<RequestRow> = sqlx::query_as(statement)
+        .bind(requested_by)
+        .bind(limit)
+        .fetch_all(executor)
+        .await?;
+
+    Ok(rows.into_iter().map(|row| row.0).collect())
+}

@@ -167,29 +167,6 @@ commits it is three items.
 > charts. PDF and the spreadsheet stay where they were: they are more writers
 > on a path that by then exists.
 
-- [ ] `phonix-core` The export request, as a row
-      why: an export is a job, not an answer to a request. A statement over a
-           year of a busy ledger is minutes of rendering, and a server function
-           that returned the bytes would hold a connection open for all of it
-           and lose the work if the reader closed the tab. A row survives both.
-           This is the request and its states, not the worker - that is the
-           item below. Only an unbounded export raises one: a receipt renders
-           in the request and never becomes a row, so nothing here is on the
-           path of a document somebody is waiting on.
-      touch: migrations/apps/core/0025_report_exports.sql,
-             crates/phonix-core/src/report/, crates/phonix-db/, crates/phonix-services/
-      done: `core.report_exports` holds which report, the parameters it was run
-            with, the format asked for, who asked, when, the state, and - once
-            there is one - the id of the stored file. The states are the four
-            that can be told apart: requested, running, ready, failed, with the
-            reason kept on a failure so a screen can say more than "it did not
-            work". A service raises one and reads one back; `Caller::require`
-            gates raising it against the report's own permission. **Who asked
-            is part of the row** because a worker has no caller of its own, and
-            an export that rendered as nobody would be a way to read a report
-            through a queue that the screen refuses. The migration is validated
-            against a staging database in a rolled-back transaction.
-
 - [ ] `phonix-server` The exporter, and CSV as the first thing it writes
       why: the fourth loop beside the verifier, the relay and the sweeper, and
            it works the way the verifier already does because that shape is
@@ -766,6 +743,36 @@ commits it is three items.
 ## Done
 
 <!-- The loop appends here with the commit sha. Newest first. -->
+
+- [x] `phonix-core` The export request, as a row
+      commit: "The row an export lives in"
+      `core.report_exports`: which report, the parameters it was run with as
+      JSONB, the format, who asked, when, one of four states, and the file or
+      the reason there is not one. Two constraints carry the states' meaning
+      rather than a comment - `ready` must have a file and `failed` must have
+      a reason - so a worker cannot write a half-finished outcome and call it
+      done. `requested_by` is `ON DELETE SET NULL` and the row says what that
+      means: a worker renders as whoever asked, so an account gone between the
+      request and the run leaves nobody to check and stops the render rather
+      than anonymising it.
+
+      The service raises one against **the report's own permission, passed in**
+      rather than read off the request - a permission taken from a browser's
+      request would be a caller naming the gate it is to be let through. And
+      only the person who asked can read a request back: how far somebody
+      else's document has got, and which file it landed in, is theirs.
+
+      `phonix_services::report` is a new module in that crate, which ADR 0008
+      §9 asks for by name: the writers live there and the request half is
+      what they are called from.
+
+      Validated against `viaba_tenant_med_app_staging` in a rolled-back
+      transaction - the table and both indexes created, a row written through
+      the same shape the service uses, and four refusals checked at a
+      savepoint: an unknown format, an unknown state, a `ready` with no file
+      and a `failed` with no reason. **It is applied now**: the watcher
+      rebuilt mid-item and the boot sweep ran it, so the tenant is on
+      `core:0025` and this migration is frozen.
 
 - [x] `phonix-db` A declared default never reaches a workspace that is current
       commit: "The insert that failed every boot, quietly"
