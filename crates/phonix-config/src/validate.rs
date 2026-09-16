@@ -60,6 +60,7 @@ pub fn check(cfg: &AppConfig, mode: RunMode) -> Result<(), ConfigError> {
     check_security(&cfg.security)?;
     check_smtp(&cfg.smtp)?;
     check_storage(&cfg.storage)?;
+    check_reporting(&cfg.reporting)?;
     check_profiler(&cfg.profiler)?;
     check_desk(&cfg.desk)?;
     check_site(&cfg.site)?;
@@ -295,6 +296,29 @@ fn check_smtp(smtp: &SmtpConfig) -> Result<(), ConfigError> {
 /// Catching that here rather than in production is the whole point of a
 /// fail-fast check: the two numbers live in different files, one of them is
 /// code and one is configuration, and nothing else would ever compare them.
+/// A browser that is named has to be there.
+///
+/// Naming one that is not is a deployment that looks able to write a PDF and
+/// discovers otherwise at the first export, hours later, on a row somebody is
+/// waiting on. Naming none is a deployment that says so.
+fn check_reporting(reporting: &ReportingConfig) -> Result<(), ConfigError> {
+    if reporting.prints() && !std::path::Path::new(reporting.browser.trim()).exists() {
+        return Err(ConfigError::Invalid(format!(
+            "reporting.browser names `{}`, which is not there. Leave it empty for a              deployment that does not print.",
+            reporting.browser,
+        )));
+    }
+
+    if reporting.print_timeout_secs == 0 {
+        return Err(ConfigError::Invalid(
+            "reporting.print_timeout_secs is zero; a print would be killed before it began"
+                .to_owned(),
+        ));
+    }
+
+    Ok(())
+}
+
 fn check_storage(storage: &StorageConfig) -> Result<(), ConfigError> {
     if storage.root.trim().is_empty() {
         return Err(ConfigError::invalid(

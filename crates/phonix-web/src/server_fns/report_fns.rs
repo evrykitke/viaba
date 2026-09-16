@@ -104,14 +104,30 @@ pub async fn write_now(
 
     caller.require(report.permission).map_err(service_error)?;
 
-    let rendered = crate::reports::render(&pool, &caller, &report_id, &parameters)
-        .await
-        .map_err(service_error)?;
-
     let bytes = match format {
-        ExportFormat::Csv => phonix_services::report::writers::to_csv(&rendered).into_bytes(),
+        // A page, so the browser that draws the screen draws the file.
         ExportFormat::Pdf => {
-            phonix_services::report::pdf::to_pdf(&rendered).map_err(ServerFnError::new)?
+            let state = crate::state::app_state()?;
+            let tenant = crate::state::tenant_from_request()
+                .await
+                .map_err(ServerFnError::new)?;
+            let address = crate::reports::address(&report_id, &parameters)
+                .ok_or_else(|| ServerFnError::new("That report has no address to print."))?;
+
+            let user = caller
+                .user_id()
+                .ok_or_else(|| ServerFnError::new("Only an account can print a report."))?;
+
+            crate::server::printing::to_pdf(&state, &tenant.slug, user, &address)
+                .await
+                .map_err(ServerFnError::new)?
+        }
+        ExportFormat::Csv => {
+            let rendered = crate::reports::render(&pool, &caller, &report_id, &parameters)
+                .await
+                .map_err(service_error)?;
+
+            phonix_services::report::writers::to_csv(&rendered).into_bytes()
         }
         // Failing by name: an empty file looks like an answer.
         other => {

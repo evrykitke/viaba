@@ -219,22 +219,6 @@ commits it is three items.
 > like any other, and the loop takes the next one. The section is what they
 > read when they come back.
 
-- [ ] `phonix-server` The browser that prints
-      why: the exporter has to turn a report into a PDF and the engine that
-           draws it correctly is already on the machine.
-      touch: crates/phonix-server/src/jobs.rs, crates/phonix-config/,
-             config/base.toml
-      done: an export of a PDF opens the report's own address in a headless
-            browser and takes what it prints. The binary is named in config
-            and validated at boot the way every other path is - a build with
-            no browser fails fast rather than at the first export. One process
-            per export, killed at a timeout, and a failure lands on the row
-            with a reason like every other. The paper is the definition's,
-            because `@page` already says so.
-      verify: export the statement as PDF and put it beside the screen. The
-              letterhead, the mark, the look, the rules and the totals should
-              be the same document, not a resemblance.
-
 - [ ] `phonix-services` The writer that is not needed any more
       why: two PDF writers is the drift this decision was made to end, and the
            one that loses is the one that cannot see a stylesheet.
@@ -918,6 +902,27 @@ commits it is three items.
 ## Done
 
 <!-- The loop appends here with the commit sha. Newest first. -->
+
+- [x] `phonix-server` The browser that prints
+      commit: "The engine that draws the screen draws the file"
+      also: a report's address had to become something a request could build,
+            and the statement's span had to become something its address could
+            say. A page that opened on its own default span would have printed
+            the wrong months.
+      why: the exporter has to turn a report into a PDF and the engine that
+           draws it correctly is already on the machine.
+      touch: crates/phonix-server/src/jobs.rs, crates/phonix-config/,
+             config/base.toml
+      done: an export of a PDF opens the report's own address in a headless
+            browser and takes what it prints. The binary is named in config
+            and validated at boot the way every other path is - a build with
+            no browser fails fast rather than at the first export. One process
+            per export, killed at a timeout, and a failure lands on the row
+            with a reason like every other. The paper is the definition's,
+            because `@page` already says so.
+      verify: export the statement as PDF and put it beside the screen. The
+              letterhead, the mark, the look, the rules and the totals should
+              be the same document, not a resemblance.
 
 - [x] `phonix-web` The token an export prints with
       commit: "A door that opens once, onto one page"

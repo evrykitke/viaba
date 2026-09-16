@@ -732,3 +732,15 @@ public_url = ""
 enabled = true
 requests = 120
 window_secs = 60
+
+# ---------------------------------------------------------------------------
+# Reporting - what turns a report into a file.
+#
+# A PDF is the report's own page, printed by a browser (ADR 0008 section 9.1),
+# so the one thing named here is where that browser is. Leave it empty on a
+# machine that has none: every screen still works and a PDF export refuses by
+# name, which is better than a build that will not start.
+# ---------------------------------------------------------------------------
+[reporting]
+browser = ""
+print_timeout_secs = 60

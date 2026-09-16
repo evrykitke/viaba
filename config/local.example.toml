@@ -39,3 +39,9 @@
 
 # [site]
 # listen = "127.0.0.1:3210"
+
+# A PDF export is the report's own page printed by a browser, so the machine
+# needs one and this is where it is. Leave it out and every screen still works
+# while a PDF export refuses by name.
+# [reporting]
+# browser = "C:/Program Files/Google/Chrome/Application/chrome.exe"

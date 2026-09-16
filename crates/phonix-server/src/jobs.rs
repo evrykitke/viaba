@@ -350,14 +350,28 @@ async fn render_and_store(
         .require(report.permission)
         .map_err(|_| "the account that asked for this may no longer run it".to_owned())?;
 
-    let rendered = reports::render(pool, &caller, &request.report_id, &request.parameters)
-        .await
-        .map_err(|err| err.to_string())?;
-
     let bytes = match request.format {
-        ExportFormat::Csv => writers::to_csv(&rendered).into_bytes(),
+        // A page, so a browser draws it: the engine that renders the screen
+        // renders the file, and the two cannot drift.
         ExportFormat::Pdf => {
-            phonix_services::report::pdf::to_pdf(&rendered).map_err(|err| err.to_string())?
+            let address =
+                reports::address(&request.report_id, &request.parameters).ok_or_else(|| {
+                    format!(
+                        "`{}` has no address these parameters can be read at",
+                        request.report_id,
+                    )
+                })?;
+
+            phonix_web::server::printing::to_pdf(state, tenant, requested_by, &address).await?
+        }
+        // Not a page. A writer turns the rendered report into bytes, and the
+        // request path calls the same one.
+        ExportFormat::Csv => {
+            let rendered = reports::render(pool, &caller, &request.report_id, &request.parameters)
+                .await
+                .map_err(|err| err.to_string())?;
+
+            writers::to_csv(&rendered).into_bytes()
         }
         // The writer has not landed yet. Failing by name is what tells
         // somebody that, rather than an empty file that looks like an answer.

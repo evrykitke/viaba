@@ -43,7 +43,30 @@ pub fn customer_statement_report_page() -> impl IntoView {
     let params = leptos_router::hooks::use_params_map();
     let party_id = move || params.with(|params| params.get("party").unwrap_or_default());
 
+    // The address wins where it says anything. A span in the query is what
+    // lets a report be linked to, and it is how the browser that prints one is
+    // told which span to print - otherwise a printed statement would be of
+    // whatever the screen opens on.
+    let query = leptos_router::hooks::use_query_map();
+    let asked = move || {
+        query.with(|query| {
+            let read = |name: &str| {
+                query
+                    .get(name)
+                    .and_then(|raw| chrono::NaiveDate::parse_from_str(&raw, "%Y-%m-%d").ok())
+            };
+
+            read("from").zip(read("to"))
+        })
+    };
+
     let span = super::shared::opening_span();
+
+    Effect::new(move |_| {
+        if let Some(asked) = asked() {
+            span.set(Some(asked));
+        }
+    });
 
     let statement = Resource::new(
         move || (party_id(), span.get()),

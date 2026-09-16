@@ -27,6 +27,47 @@ pub struct AppConfig {
     /// Desk load it and ignore it.
     #[serde(default)]
     pub site: SiteConfig,
+    /// How a report becomes a file. Absent means no browser, and a PDF export
+    /// then fails saying so - see [`ReportingConfig`].
+    #[serde(default)]
+    pub reporting: ReportingConfig,
+}
+
+/// What turns a report into a PDF.
+///
+/// The file is the report's own page printed by a browser - ADR 0008 §9.1 -
+/// so the one thing this names is where that browser is. Empty is a legitimate
+/// deployment: a machine with no browser serves every screen and refuses a PDF
+/// export by name, which is better than a build that will not start.
+#[derive(Debug, Clone, Deserialize)]
+pub struct ReportingConfig {
+    /// The browser binary. Chrome or any Chromium that takes
+    /// `--headless --print-to-pdf`.
+    #[serde(default)]
+    pub browser: String,
+    /// How long one print may take before the process is killed.
+    #[serde(default = "default_print_timeout")]
+    pub print_timeout_secs: u64,
+}
+
+impl Default for ReportingConfig {
+    fn default() -> Self {
+        Self {
+            browser: String::new(),
+            print_timeout_secs: default_print_timeout(),
+        }
+    }
+}
+
+impl ReportingConfig {
+    /// Whether this deployment can print at all.
+    pub fn prints(&self) -> bool {
+        !self.browser.trim().is_empty()
+    }
+}
+
+const fn default_print_timeout() -> u64 {
+    60
 }
 
 #[derive(Debug, Clone, Deserialize)]

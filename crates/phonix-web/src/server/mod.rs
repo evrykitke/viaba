@@ -8,6 +8,7 @@
 //! | ---------- | ----------------------------------------------------- |
 //! | [`client`] | Reading the address and user-agent a request carries  |
 //! | [`cookie`] | Building and parsing the session cookie               |
+//! | [`printing`]| Running the browser that prints a report as a PDF    |
 //!
 //! It lives in `phonix-web` rather than `phonix-server` because both need it:
 //! the Leptos server functions set headers through `ResponseOptions`, the axum
@@ -16,3 +17,4 @@
 
 pub mod client;
 pub mod cookie;
+pub mod printing;

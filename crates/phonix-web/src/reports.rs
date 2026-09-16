@@ -69,6 +69,40 @@ pub const SERVER_REPORTS: &[ServerReport] = &[
     },
 ];
 
+/// Where a report with these parameters is read.
+///
+/// What the browser printing it opens. It is built from the request's own
+/// parameters rather than from anything on a screen, so the file is of what
+/// was asked for - a statement over the span in the row, not over whatever
+/// span a page would have opened on.
+///
+/// `None` for a report whose address cannot be built from what the request
+/// carries, which stops the export rather than printing the wrong page.
+pub fn address(report_id: &str, parameters: &serde_json::Value) -> Option<String> {
+    let text = |name: &str| {
+        parameters
+            .get(name)
+            .and_then(serde_json::Value::as_str)
+            .filter(|value| !value.is_empty())
+            .map(str::to_owned)
+    };
+
+    match report_id {
+        "product-list" => Some("/inventory/items/report".to_owned()),
+        "customer-statement" => {
+            let party = text("party_id")?;
+            let from = text("from")?;
+            let to = text("to")?;
+
+            Some(format!(
+                "/accounting/reports/statement/{party}?from={from}&to={to}"
+            ))
+        }
+        "receipt" => Some(format!("/selling/payments/{}/receipt", text("payment_id")?)),
+        _ => None,
+    }
+}
+
 /// The report with this id, if the server can run it.
 pub fn server_report(id: &str) -> Option<&'static ServerReport> {
     SERVER_REPORTS.iter().find(|report| report.id == id)
