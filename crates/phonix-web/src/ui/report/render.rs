@@ -76,12 +76,24 @@ where
         metrics.type_scale.body_pt,
     );
 
-    let mark_here = |kind: BandKind| {
-        logo.filter(|logo| logo.placement.band() == kind)
-            .map(|logo| mark(logo, &metrics))
-    };
+    // Where the mark goes decides what sits beside it: against an edge the
+    // letterhead reads across the page, and centred it reads down it.
+    let letterhead_mark = logo.filter(|logo| logo.placement.band() == BandKind::ReportHeader);
 
     let letterhead = definition.band_of(BandKind::ReportHeader).map(|band| {
+        let body = view! {
+            <div class="min-w-0 flex-1">
+                <h1
+                    class=heading_ink(metrics.colour)
+                    style=format!("font-size:{}pt", metrics.type_scale.title_pt)
+                >
+                    {definition.title.clone()}
+                </h1>
+                {band_content(band, data, &metrics)}
+                {words(header_text.clone(), &metrics)}
+            </div>
+        };
+
         view! {
             <header
                 class=format!("block {}", rule_ink(metrics.colour))
@@ -91,16 +103,7 @@ where
                     metrics.rules.under_letterhead,
                 )
             >
-                {mark_here(BandKind::ReportHeader)}
-
-                <h1
-                    class=heading_ink(metrics.colour)
-                    style=format!("font-size:{}pt", metrics.type_scale.title_pt)
-                >
-                    {definition.title.clone()}
-                </h1>
-                {band_content(band, data, &metrics)}
-                {words(header_text.clone(), &metrics)}
+                {letterhead_layout(letterhead_mark, body.into_any(), &metrics)}
             </header>
         }
     });
@@ -109,7 +112,9 @@ where
         let band = running_band(band, data, &metrics, BandKind::PageHeader);
 
         view! {
-            {mark_here(BandKind::PageHeader)}
+            {logo
+                .filter(|logo| logo.placement.band() == BandKind::PageHeader)
+                .map(|logo| mark_row(logo, &metrics))}
             {band}
         }
     });
@@ -304,7 +309,7 @@ fn mark(logo: Logo, metrics: &Metrics) -> AnyView {
     let name_pt = metrics.type_scale.title_pt;
 
     view! {
-        <div class=format!("flex {}", justify_class(logo.placement.align()))>
+        <div class="shrink-0">
             {move || match letterhead.get() {
                 Some(letterhead) => {
                     match letterhead.logo_src {
@@ -336,6 +341,52 @@ fn mark(logo: Logo, metrics: &Metrics) -> AnyView {
         </div>
     }
     .into_any()
+}
+
+/// The mark on a line of its own, against one edge.
+///
+/// What a page header gets, and what a letterhead gets when the mark is
+/// centred: a wide wordmark in the middle of a line has no room beside it.
+fn mark_row(logo: Logo, metrics: &Metrics) -> AnyView {
+    view! {
+        <div class=format!("flex {}", justify_class(logo.placement.align()))>
+            {mark(logo, metrics)}
+        </div>
+    }
+    .into_any()
+}
+
+/// The letterhead, arranged around wherever its mark is.
+///
+/// Against an edge the header's own lines sit alongside the mark, which is
+/// what a letterhead with a name and an address beside a logo looks like.
+/// Centred, the mark takes a line and everything else goes under it. With no
+/// mark at all the header is what it always was.
+fn letterhead_layout(logo: Option<Logo>, body: AnyView, metrics: &Metrics) -> AnyView {
+    match logo.map(|logo| logo.placement.align()) {
+        Some(Align::Start) => view! {
+            <div class="flex items-start gap-4">
+                {logo.map(|logo| mark(logo, metrics))}
+                {body}
+            </div>
+        }
+        .into_any(),
+        Some(Align::End) => view! {
+            <div class="flex items-start gap-4">
+                {body}
+                {logo.map(|logo| mark(logo, metrics))}
+            </div>
+        }
+        .into_any(),
+        Some(Align::Center) => view! {
+            <div>
+                {logo.map(|logo| mark_row(logo, metrics))}
+                {body}
+            </div>
+        }
+        .into_any(),
+        None => body,
+    }
 }
 
 /// A value, as a link where it names a record and as words where it does not.

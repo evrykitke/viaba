@@ -160,26 +160,6 @@ commits it is three items.
 >   comparing the three, but the look is a document setting and two places to
 >   change one thing is how they come to disagree. Ask if it is wanted.
 
-- [ ] `phonix-web` Where the logo goes decides what sits beside it
-      why: asked for at the second checkpoint. Three placements, and each one
-           means a different letterhead rather than the same letterhead with
-           the mark shoved along: **left** puts the header's own lines
-           alongside the mark, **centre** puts the mark on its own line with
-           the header below it, and **right** is the mirror of left. Today all
-           three draw the mark on a line of its own and the fields underneath,
-           so choosing between them changes almost nothing on the page.
-      touch: crates/phonix-web/src/ui/report/render.rs
-      done: the report header lays itself out from the placement its settings
-            name. Left: the mark and the header's fields on one line, mark
-            first. Right: the same line, mark last. Centre: the mark centred on
-            its own line and the fields below it, which is the arrangement a
-            letterhead with a wide wordmark wants. A report with no mark draws
-            the fields exactly as it does now, and the page-header placement is
-            unchanged - that one is a running header, not a letterhead.
-      verify: Administration, the Documents tab. Put the logo left, centre and
-              right in turn on the `payment` document and watch the sample
-              redraw each way, then open a receipt and check it matches.
-
 - [ ] `phonix-core` A statement is a document nobody numbers
       why: found at the second checkpoint. Document settings are keyed by
            document type, and a type is only legal if the app declares a
@@ -529,6 +509,19 @@ commits it is three items.
      The user launches the application, looks, and then either moves the item
      to `## Done` or writes a new item in `## Next` saying what was wrong. The
      loop never moves anything out of this section by itself. -->
+
+- [x] `phonix-web` Where the logo goes decides what sits beside it
+      commit: "Three placements, three letterheads"
+      The report header now arranges itself around its mark rather than
+      stacking everything under it. **Left**: mark first, the header's own
+      lines alongside. **Right**: the same line, mark last. **Centre**: the
+      mark on a line of its own with everything under it, because a wide
+      wordmark in the middle of a line has no room beside it. No mark draws
+      exactly what it drew before, and the page-header placement is untouched
+      - that one is a running header rather than a letterhead.
+      verify: Administration, the Documents tab. Put the logo left, centre and
+              right in turn on the `payment` document and watch the sample
+              redraw each way, then open a receipt and check it matches.
 
 - [x] `phonix-web` A report drawn to its document settings
       commit: "The setting that finally moves something"
