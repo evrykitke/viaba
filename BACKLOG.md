@@ -219,15 +219,6 @@ commits it is three items.
 > like any other, and the loop takes the next one. The section is what they
 > read when they come back.
 
-- [ ] `phonix-services` The writer that is not needed any more
-      why: two PDF writers is the drift this decision was made to end, and the
-           one that loses is the one that cannot see a stylesheet.
-      touch: crates/phonix-services/src/report/pdf.rs, Cargo.toml
-      done: `report/pdf.rs` and the `pdf-writer` dependency are gone, the CSV
-            writer is untouched, and `phonix_core::report::paginate` stays -
-            the viewer's page navigation is its caller now. Nothing names a
-            band writer for a format a browser prints.
-
 - [ ] `phonix-web` The pages a long report is read in
       why: a list report is one endless sheet on screen today, and the viewer's
            toolbar has said since it was built that page navigation belongs
@@ -902,6 +893,16 @@ commits it is three items.
 ## Done
 
 <!-- The loop appends here with the commit sha. Newest first. -->
+
+- [x] `phonix-services` The writer that is not needed any more
+      commit: "One less renderer"
+      why: two PDF writers is the drift this decision was made to end, and the
+           one that loses is the one that cannot see a stylesheet.
+      touch: crates/phonix-services/src/report/pdf.rs, Cargo.toml
+      done: `report/pdf.rs` and the `pdf-writer` dependency are gone, the CSV
+            writer is untouched, and `phonix_core::report::paginate` stays -
+            the viewer's page navigation is its caller now. Nothing names a
+            band writer for a format a browser prints.
 
 - [x] `phonix-server` The browser that prints
       commit: "The engine that draws the screen draws the file"

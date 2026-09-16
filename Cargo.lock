@@ -2896,18 +2896,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "pdf-writer"
-version = "0.15.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f5e456864a7a304047bff84977dc6fb162bd956475d40ba50b2dcecaada7f753"
-dependencies = [
- "bitflags",
- "itoa",
- "memchr",
- "ryu",
-]
-
-[[package]]
 name = "pem-rfc7468"
 version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3153,7 +3141,6 @@ dependencies = [
  "form_urlencoded",
  "hmac 0.12.1",
  "lettre",
- "pdf-writer",
  "phonix-config",
  "phonix-core",
  "phonix-db",
