@@ -521,7 +521,8 @@ commits it is three items.
      loop never moves anything out of this section by itself. -->
 
 - [x] `phonix-web` The viewer's toolbar stays where it is
-      commit: "A toolbar for more than the first screenful"
+      commit: "A toolbar for more than the first screenful", then "Square
+              corners on a bar the sheet slides under"
       `sticky top-0` against the shell's scrolling region, which is the only
       thing that scrolls here - `fixed` would have taken the bar out of the
       layout and laid it over the top bar it is supposed to sit inside. The
@@ -529,8 +530,8 @@ commits it is three items.
       is what lets sticky work at all; a scrolling ancestor would have pinned
       the bar to a box that is itself moving.
       verify: open a long report - the product list - and scroll. The toolbar
-              should stay at the top of the content area with the sheet moving
-              under it, and the navigation and top bar should not move at all.
+              should stay at the top of the content area with square corners
+              and the sheet moving under it, and the navigation and top bar should not move at all.
               Then press Print and check the toolbar is still absent from the
               preview.
 
