@@ -44,6 +44,7 @@ use crate::components::page::{FormActions, GhostButton, Notice, PageHeader, Prim
 use crate::icons::{Icon, IconSize};
 use crate::l;
 use crate::pages::admin::currencies::CurrenciesTab;
+use crate::pages::admin::documents::DocumentsTab;
 use crate::pages::admin::mail_settings::MailSettingsTab;
 use crate::pages::admin::numbering::NumberingTab;
 use crate::pages::admin::organization::OrganizationTab;
@@ -537,6 +538,12 @@ fn settings_form(initial: WorkspaceSecuritySettings) -> impl IntoView {
                             || view! { <NumberingTab /> }.into_any(),
                         )
                         .icon(Icon::FileText),
+                    Tab::new(
+                            "documents",
+                            l!("settings.tab.documents"),
+                            || view! { <DocumentsTab /> }.into_any(),
+                        )
+                        .icon(Icon::Image),
                 ]
             />
         </div>

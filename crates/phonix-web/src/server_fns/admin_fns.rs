@@ -24,6 +24,7 @@ use phonix_core::identity::{InvitationIssued, UserEdit, UserId, UserInvite, User
 use phonix_core::mail::{MailSettings, MailSettingsInput};
 use phonix_core::organization::{Letterhead, OrganizationProfile};
 use phonix_core::query::{Page, PageRequest};
+use phonix_core::report::DocumentSettings;
 use uuid::Uuid;
 
 /// Everyone in this workspace, with their roles.
@@ -252,6 +253,32 @@ pub async fn save_mail_settings(
     let state = app_state()?;
 
     phonix_services::mail::settings::save(&pool, &caller, &state.vault, input)
+        .await
+        .map_err(service_error)
+}
+
+/// What each document this workspace issues looks like.
+#[server(name = ListDocumentSettings, prefix = "/api", endpoint = "admin/documents")]
+pub async fn document_settings() -> Result<Vec<DocumentSettings>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::workspace::documents::list(&pool, &caller)
+        .await
+        .map_err(service_error)
+}
+
+/// Store what an administrator chose for one document type.
+#[server(name = SaveDocumentSettings, prefix = "/api", endpoint = "admin/documents/save")]
+pub async fn save_document_settings(
+    settings: DocumentSettings,
+) -> Result<Submission<()>, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::workspace::documents::save(&pool, &caller, &settings)
         .await
         .map_err(service_error)
 }

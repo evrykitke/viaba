@@ -41,6 +41,27 @@ impl ReportTheme {
         Self::ALL.iter().copied().find(|it| it.as_str() == raw)
     }
 
+    /// What a settings screen calls it.
+    pub fn label(self) -> crate::Message {
+        match self {
+            Self::Modern => crate::msg!("report.theme.modern"),
+            Self::Compact => crate::msg!("report.theme.compact"),
+            Self::Professional => crate::msg!("report.theme.professional"),
+        }
+    }
+
+    /// What it is *for*, in a sentence.
+    ///
+    /// Three words on three buttons would make somebody run a report to find
+    /// out what Compact means.
+    pub fn help(self) -> crate::Message {
+        match self {
+            Self::Modern => crate::msg!("report.theme.modern.help"),
+            Self::Compact => crate::msg!("report.theme.compact.help"),
+            Self::Professional => crate::msg!("report.theme.professional.help"),
+        }
+    }
+
     /// What the look measures out to.
     pub const fn metrics(self) -> Metrics {
         match self {

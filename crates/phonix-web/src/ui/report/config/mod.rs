@@ -7,3 +7,4 @@
 
 pub mod customer_statement;
 pub mod receipt;
+pub mod sample;

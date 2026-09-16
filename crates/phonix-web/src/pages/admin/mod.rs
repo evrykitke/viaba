@@ -10,6 +10,7 @@ pub mod apps;
 pub mod audit_event;
 pub mod audit_logs;
 pub mod currencies;
+pub mod documents;
 pub mod entity_change;
 pub mod mail_settings;
 pub mod numbering;

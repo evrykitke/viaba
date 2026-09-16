@@ -6,6 +6,7 @@
 //! is not - a report that only drew its letterhead for administrators would be
 //! a different document depending on who printed it.
 
+use phonix_core::form::Submission;
 use phonix_core::permissions;
 use phonix_core::report::DocumentSettings;
 use phonix_db::document_settings as store;
@@ -13,7 +14,7 @@ use phonix_db::sqlx::PgPool;
 
 use crate::audit::{self, Target, kinds};
 use crate::caller::{Caller, acting_user};
-use crate::error::{ServiceError, ServiceResult};
+use crate::error::ServiceResult;
 
 /// What this workspace keeps for every document type it has settings for.
 pub async fn list(pool: &PgPool, caller: &Caller) -> ServiceResult<Vec<DocumentSettings>> {
@@ -43,17 +44,21 @@ pub async fn current(pool: &PgPool, document_type: &str) -> ServiceResult<Docume
 }
 
 /// Store what an administrator chose.
+///
+/// A [`Submission`] rather than a bare result: a header somebody pasted three
+/// paragraphs into is a rejected *field*, and it has to arrive at the box it is
+/// about rather than at the top of the form as a sentence.
 pub async fn save(
     pool: &PgPool,
     caller: &Caller,
     settings: &DocumentSettings,
-) -> ServiceResult<()> {
+) -> ServiceResult<Submission<()>> {
     caller.require(permissions::SETTINGS)?;
     let changed_by = acting_user(caller)?;
 
     let errors = settings.validate();
     if !errors.is_empty() {
-        return Err(ServiceError::Rejected(errors));
+        return Ok(Submission::Rejected(errors));
     }
 
     let previous = store::load(pool, &settings.document_type).await?;
@@ -71,5 +76,5 @@ pub async fn save(
     )
     .await;
 
-    Ok(())
+    Ok(Submission::Saved(()))
 }

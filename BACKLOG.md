@@ -160,30 +160,6 @@ commits it is three items.
 >   comparing the three, but the look is a document setting and two places to
 >   change one thing is how they come to disagree. Ask if it is wanted.
 
-- [ ] `phonix-web` The document settings tab, in administration
-      why: the settings exist and nobody can change them. Administration
-           already has this exact screen for numbering - a tab, a document type
-           to pick, a form and a preview - and a second tab that worked
-           differently would be a second idiom for one job.
-      touch: crates/phonix-web/src/pages/admin/documents.rs,
-             crates/phonix-web/src/pages/admin/settings.rs
-      done: a Documents tab beside Numbering, listing the document types this
-            workspace issues, with the look, the paper, the logo switch and
-            placement, and the header and footer text. The look is a choice of
-            three, shown as what each is for rather than as three words -
-            somebody picking one should not have to run a report to find out
-            what Compact means. It previews against a sample rather
-            than against a real document, for the reason the numbering tab
-            gives about a preview that promises something the save may not
-            keep. The tab is gated on the permission the other settings tabs
-            use. No field on it moves a band, adds a column or binds anything -
-            if one seems to be needed, that is a finding for the report, not a
-            field.
-      verify: Administration, the Documents tab. Change the look, the paper,
-              the logo placement and the footer text on the invoice, save, and
-              reopen - the values should still be there. Nothing is expected to redraw
-              yet; the item below is what reads them.
-
 - [ ] `phonix-web` A report drawn to its document settings
       why: the settings are kept and nothing reads them, which is the worst of
            the three states - an administrator changes the footer text and the
@@ -542,6 +518,25 @@ commits it is three items.
      The user launches the application, looks, and then either moves the item
      to `## Done` or writes a new item in `## Next` saying what was wrong. The
      loop never moves anything out of this section by itself. -->
+
+- [x] `phonix-web` The document settings tab, in administration
+      commit: "The choices around a layout nobody can move"
+      A Documents tab beside Numbering, built the same way: the grid is the
+      tab, a row opens a panel below it, and a save bumps the version that
+      rebuilds the grid. The look is three buttons carrying the sentence that
+      says what each is *for* - `ReportTheme::label` and `help` now live in
+      core beside the metrics, so the words reach a settings screen and a
+      report index alike.
+
+      The preview is a made-up document drawn by the real renderer, and it is
+      built from the **same value the save sends**, so the sample cannot show
+      something the save would not store. Blank text boxes are `None` rather
+      than empty strings: an empty box is no footer, not a footer of nothing.
+      No field on it moves a band.
+      verify: Administration, the Documents tab. Change the look, the paper,
+              the logo placement and the footer text on the invoice, save, and
+              reopen - the values should still be there. Nothing is expected to
+              redraw yet; the item below is what reads them.
 
 - [x] `phonix-web` The receipt, and the grid row that opens it
       commit: "The document behind a row"

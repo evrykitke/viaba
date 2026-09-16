@@ -34,6 +34,16 @@ impl PaperSize {
         Self::ALL.iter().copied().find(|size| size.as_str() == raw)
     }
 
+    /// What a settings screen calls it.
+    pub fn label(self) -> crate::Message {
+        match self {
+            Self::A4 => crate::msg!("report.paper.a4"),
+            Self::A5 => crate::msg!("report.paper.a5"),
+            Self::Letter => crate::msg!("report.paper.letter"),
+            Self::Legal => crate::msg!("report.paper.legal"),
+        }
+    }
+
     /// Width and height in portrait, in millimetres.
     pub const fn dimensions_mm(self) -> (f32, f32) {
         match self {
@@ -69,6 +79,14 @@ impl Orientation {
     /// The orientation a stored value names, or nothing.
     pub fn parse(raw: &str) -> Option<Self> {
         Self::ALL.iter().copied().find(|it| it.as_str() == raw)
+    }
+
+    /// What a settings screen calls it.
+    pub fn label(self) -> crate::Message {
+        match self {
+            Self::Portrait => crate::msg!("report.orientation.portrait"),
+            Self::Landscape => crate::msg!("report.orientation.landscape"),
+        }
     }
 }
 

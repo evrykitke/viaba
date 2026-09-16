@@ -44,6 +44,7 @@ pub mod consolidations;
 pub mod currencies;
 pub mod deliveries;
 pub mod departments;
+pub mod document_settings;
 pub mod employees;
 pub mod holiday_lists;
 pub mod invoices;
