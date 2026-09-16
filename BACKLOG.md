@@ -202,22 +202,74 @@ commits it is three items.
 > across the column beside it. The first two are drawing; the third is
 > measurement, and it is why this sits in front of the mark and the words.
 
-- [ ] `phonix-services` The mark, and the words around it, in the PDF
-      why: the file is the copy that gets sent, and it is the one without the
-           workspace's logo on it. The screen draws the mark and the tenant's
-           header and footer text; the writer cannot see either, because
-           `Rendered` carries neither.
-      touch: crates/phonix-core/src/report/rendered.rs,
-             crates/phonix-services/src/report/pdf.rs,
-             crates/phonix-web/src/reports.rs
-      done: `Rendered` carries the logo, its placement and the document's own
-            header and footer words, and the PDF writer draws all three where
-            the screen draws them. The image is read through
-            `phonix_services::files::access` and never fetched over HTTP. A
-            mark that cannot be decoded is drawn as the workspace's name, the
-            way the screen falls back, rather than failing the export.
-      verify: a receipt with a logo set, exported. The mark, the header text
-              and the footer text should be where they are on the screen.
+> **The PDF is printed by a browser**, decided 2026-09-16 after the first
+> exported statement was put beside the screen. The hand-written band writer
+> gets a report close and then drifts: it has no font metrics, no colour
+> tokens, no wrapping, no image decoder, and every future change to the look
+> would have to be made twice. Chrome is the engine that draws the screen, so
+> printing the report's own page is exact by construction and stays exact.
+> Three queued items die of it - the mark in the PDF, the chart in the PDF, and
+> the font embedding the base-14 refusal implied - and `report/pdf.rs` is
+> retired rather than finished. **The paginator stays**: it is what the
+> viewer's own page navigation reads, and CSS decides where a printed page
+> ends.
+>
+> **This run does not halt at a checkpoint.** The user is away and has said so:
+> an item carrying `stop:` is committed, moved to `## Awaiting verification`
+> like any other, and the loop takes the next one. The section is what they
+> read when they come back.
+
+- [ ] `docs` ADR 0008, and the writer it no longer describes
+      why: section 9 says a report is drawn once and written by a format writer
+           per format, and that is no longer what happens for a PDF. A decision
+           this size is changed in the record before it is changed in the code,
+           or the record stops being one.
+      touch: docs/adr/0008-reporting.md
+      done: section 9 says the PDF is the report's own page printed by a
+            browser, what that costs - a binary on the box that runs the
+            exporter, a process per export - and what it buys: one renderer,
+            one stylesheet, and a chart, a logo and a script the base-14 faces
+            never had. The band model stays what the screen and the CSV share,
+            and the paginator stays what the viewer's page navigation reads.
+            The status header names what is built.
+
+- [ ] `phonix-services` The token an export prints with
+      why: a browser fetching a tenant's report page is not signed in, and the
+           export must be of what the person who asked for it may see. A
+           session cookie cannot be borrowed and a permanent key would be a
+           credential lying in a config file.
+      touch: crates/phonix-services/src/auth/, crates/phonix-web/src/server/
+      done: the exporter mints a token for the one request it is running -
+            naming the tenant, the account, the report and its parameters, and
+            good for minutes rather than hours - and the middleware accepts it
+            as that account for that address alone. Used once, and never
+            issued to anybody but the worker. A request with a stale, reused or
+            mismatched token is refused the way an unauthenticated one is.
+
+- [ ] `phonix-server` The browser that prints
+      why: the exporter has to turn a report into a PDF and the engine that
+           draws it correctly is already on the machine.
+      touch: crates/phonix-server/src/jobs.rs, crates/phonix-config/,
+             config/base.toml
+      done: an export of a PDF opens the report's own address in a headless
+            browser and takes what it prints. The binary is named in config
+            and validated at boot the way every other path is - a build with
+            no browser fails fast rather than at the first export. One process
+            per export, killed at a timeout, and a failure lands on the row
+            with a reason like every other. The paper is the definition's,
+            because `@page` already says so.
+      verify: export the statement as PDF and put it beside the screen. The
+              letterhead, the mark, the look, the rules and the totals should
+              be the same document, not a resemblance.
+
+- [ ] `phonix-services` The writer that is not needed any more
+      why: two PDF writers is the drift this decision was made to end, and the
+           one that loses is the one that cannot see a stylesheet.
+      touch: crates/phonix-services/src/report/pdf.rs, Cargo.toml
+      done: `report/pdf.rs` and the `pdf-writer` dependency are gone, the CSV
+            writer is untouched, and `phonix_core::report::paginate` stays -
+            the viewer's page navigation is its caller now. Nothing names a
+            band writer for a format a browser prints.
 
 - [ ] `phonix-web` The pages a long report is read in
       why: a list report is one endless sheet on screen today, and the viewer's
@@ -279,22 +331,6 @@ commits it is three items.
             holes in it.
       verify: collapse a group, reload, and confirm it opens in the state the
               definition names rather than the one you left it in.
-
-- [ ] `phonix-services` The chart, in the PDF
-      why: a chart that exists only on the screen makes the PDF the lesser copy
-           of the report, which is the opposite of the point - the PDF is the
-           one that gets sent. Separate from the chart band itself because
-           drawing to SVG and drawing to a page description are two commits.
-      touch: crates/phonix-services/, crates/phonix-core/src/report/
-      done: the PDF writer draws bars, lines, areas, pie segments, axis ticks
-            and labels from the same geometry the SVG uses, so the two are one
-            picture rather than two drawings of one idea. A chart band is never
-            silently skipped: if the writer cannot draw a kind, the export
-            fails naming it rather than producing a report with a hole where
-            the chart was.
-      verify: export a report with each chart kind and put the PDF beside the
-              screen. They should be the same picture, not two drawings of one
-              idea.
 
 - [ ] `phonix-services` The spreadsheet a job wrote
       why: CSV loses the totals, the grouping and the type of every number -
