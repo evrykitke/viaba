@@ -6,7 +6,7 @@ use axum::extract::FromRef;
 use leptos::prelude::*;
 use phonix_cache::Cache;
 use phonix_config::AppConfig;
-use phonix_core::{Error as CoreError, TenantSummary};
+use phonix_core::{Error as CoreError, TenantSlug, TenantSummary};
 use phonix_db::{Catalog, TenantRegistry};
 use phonix_messaging::Publisher;
 use phonix_services::{Caller, Hasher, SecretVault, Security};
@@ -39,7 +39,31 @@ pub struct AppState {
     /// configuration; see `phonix_storage::naming` for what the choice costs.
     pub naming: Arc<dyn phonix_storage::NamingStrategy>,
     pub leptos_options: LeptosOptions,
+    /// How a server function tells the exporter that a request is waiting.
+    ///
+    /// A channel rather than a call, because the direction of the crates
+    /// forbids the call: the worker is in `phonix-server`, which depends on
+    /// this crate. `None` where nothing is listening - the tests, and any
+    /// process running without background jobs - and then an export waits for
+    /// the next poll instead, which is slower and not broken.
+    pub exports: Option<ExportSignal>,
 }
+
+/// Somewhere to say that an export has been raised.
+///
+/// Unbounded, because the alternative is worse: a bounded channel would either
+/// block the request that raised the export or drop the news of it, and what
+/// flows through it is two ids. Losing one costs a wait for the next poll,
+/// never the work - the row is in the database before anything is sent.
+#[derive(Clone)]
+#[cfg(feature = "ssr")]
+pub struct ExportSignal(pub tokio::sync::mpsc::UnboundedSender<(TenantSlug, uuid::Uuid)>);
+
+/// Nothing in the browser raises an export this way; it calls a server
+/// function, which is what holds the sender.
+#[derive(Clone)]
+#[cfg(not(feature = "ssr"))]
+pub struct ExportSignal;
 
 impl AppState {
     /// The bundle every identity use case takes.

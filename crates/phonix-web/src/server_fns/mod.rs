@@ -47,6 +47,7 @@ pub mod master_fns;
 pub mod numbering_fns;
 pub mod onboarding_fns;
 pub mod public_fns;
+pub mod report_fns;
 pub mod reset_fns;
 pub mod settings_fns;
 pub mod tenant_fns;

@@ -39,6 +39,13 @@ pub const SERVER_REPORTS: &[ServerReport] = &[
         id: "customer-statement",
         permission: permissions::REPORTS,
     },
+    // Bounded: it renders in the request and never becomes a row. It is here
+    // for the same reason the other two are - the browser cannot write a file,
+    // so even the immediate path draws on the server.
+    ServerReport {
+        id: "receipt",
+        permission: permissions::PAYMENTS,
+    },
 ];
 
 /// The report with this id, if the server can run it.
@@ -63,6 +70,7 @@ mod render {
 
     use crate::ui::report::config::customer_statement::customer_statement;
     use crate::ui::report::config::product_list::{ROWS_PER_RUN, product_list};
+    use crate::ui::report::config::receipt::receipt;
 
     /// Draw one report on the server, as `caller`.
     ///
@@ -95,6 +103,13 @@ mod render {
 
                 Ok(customer_statement().rendered(&statement))
             }
+            "receipt" => {
+                let payment_id = id_of(parameters, "payment_id")?;
+                let payment =
+                    phonix_services::books::payment::find(pool, caller, payment_id).await?;
+
+                Ok(receipt().rendered(&payment))
+            }
             // A report the server does not know how to draw. Not a failure of
             // this request so much as a definition that was never added here.
             _ => Err(ServiceError::NotFound("report")),
@@ -111,16 +126,24 @@ mod render {
         caller: &Caller,
         parameters: &Json,
     ) -> ServiceResult<CustomerStatement> {
-        let party_id = parameters
-            .get("party_id")
-            .and_then(Json::as_str)
-            .and_then(|raw| Uuid::parse_str(raw).ok())
-            .ok_or(ServiceError::NotFound("customer"))?;
+        let party_id = id_of(parameters, "party_id")?;
 
         let from = date(parameters, "from")?;
         let to = date(parameters, "to")?;
 
         phonix_services::books::report::customer_statement(pool, caller, party_id, from, to).await
+    }
+
+    /// One id out of the parameters, or a refusal.
+    ///
+    /// A missing parameter is not a default: an export of "some customer" is a
+    /// document nobody asked for.
+    fn id_of(parameters: &Json, name: &'static str) -> ServiceResult<Uuid> {
+        parameters
+            .get(name)
+            .and_then(Json::as_str)
+            .and_then(|raw| Uuid::parse_str(raw).ok())
+            .ok_or(ServiceError::NotFound("report parameter"))
     }
 
     fn date(parameters: &Json, name: &'static str) -> ServiceResult<NaiveDate> {

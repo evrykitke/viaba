@@ -64,6 +64,13 @@ pub fn customer_statement_report_page() -> impl IntoView {
             definition=definition()
             back=("/accounting/reports/statement", l!("reports.customer_statement"))
             controls=move || view! { <SpanPicker span=span /> }.into_any()
+            parameters=Signal::derive(move || {
+                serde_json::json!({
+                    "party_id": party_id(),
+                    "from": span.get().map(|(from, _)| from.to_string()),
+                    "to": span.get().map(|(_, to)| to.to_string()),
+                })
+            })
         >
             <Transition fallback=|| {
                 view! { <p class="text-sm text-content-subtle">{l!("common.loading")}</p> }

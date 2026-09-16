@@ -14,7 +14,7 @@
 
 use app_inventory::item::ItemSummary;
 use phonix_core::query::Page;
-use phonix_core::report::{BandKind, ReportKind, ReportTheme};
+use phonix_core::report::{BandKind, ExportFormat, ReportKind, ReportTheme};
 
 use crate::l;
 use crate::ui::report::{Band, Field, ReportDefinition};
@@ -32,6 +32,7 @@ pub fn product_list() -> ReportDefinition<Page<ItemSummary>> {
     ReportDefinition::new("product-list", l!("items.title"), ReportKind::List)
         // The dense look: a list is read for how many rows reach a page.
         .theme(ReportTheme::Compact)
+        .exports(ExportFormat::Csv)
         .band(Band::new(BandKind::ReportHeader))
         // Repeated at the top of every page, so a torn-off sheet still says
         // what it is.

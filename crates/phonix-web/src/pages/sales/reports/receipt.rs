@@ -33,6 +33,7 @@ pub fn payment_receipt_page() -> impl IntoView {
         <ReportViewer
             definition=definition()
             back=("/selling/payments", l!("entity.payment.plural"))
+            parameters=Signal::derive(move || serde_json::json!({ "payment_id": payment_id() }))
         >
             <Transition fallback=|| {
                 view! { <p class="text-sm text-content-subtle">{l!("common.loading")}</p> }

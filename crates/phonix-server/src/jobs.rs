@@ -45,6 +45,7 @@ use phonix_services::identity::authentication;
 use phonix_services::report::{exports, writers};
 use phonix_web::reports;
 use phonix_web::state::AppState;
+use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
@@ -101,7 +102,11 @@ impl Background {
 }
 
 /// Start the background loops.
-pub fn spawn(state: AppState) -> Background {
+///
+/// `exports` is the ear for requests raised by a server function - see
+/// `AppState::exports`. Without it an export waits for the next poll rather
+/// than starting at once, which is slower and not broken.
+pub fn spawn(state: AppState, exports: Option<ExportReceiver>) -> Background {
     let shutdown = CancellationToken::new();
     let mut tasks = Vec::new();
 
@@ -111,6 +116,14 @@ pub fn spawn(state: AppState) -> Background {
         // The same switch, because an exporter writes files: a deployment with
         // file jobs turned off has nowhere to put what it would produce.
         tasks.push(tokio::spawn(exporter_loop(state.clone(), shutdown.clone())));
+
+        if let Some(exports) = exports {
+            tasks.push(tokio::spawn(export_dispatch(
+                state.clone(),
+                exports,
+                shutdown.clone(),
+            )));
+        }
     } else {
         // Said out loud, because the symptom - uploads that stay at "queued"
         // for ever - looks like a bug rather than a setting.
@@ -262,20 +275,10 @@ async fn verifier_loop(state: AppState, shutdown: CancellationToken) {
 
 /// Run one export, now.
 ///
-/// Claiming may fail - the loop might have got there first - and that is an
-/// ordinary outcome rather than an error, which is what `SKIP LOCKED` buys.
-///
-/// **Nothing calls this yet**, and the attribute says so rather than hiding
-/// it. An upload is dispatched from the route that receives the bytes, which
-/// is in this crate; an export is raised by a server function in
-/// `phonix-web`, which cannot reach this one. Closing that gap means a channel
-/// on `AppState` and it belongs with the screen that raises the request. Until
-/// then the loop is the only path, and an export waits at most one poll
-/// interval rather than starting at once.
-#[allow(
-    dead_code,
-    reason = "its caller lands with the viewer that raises an export"
-)]
+/// The fast path, reached from the dispatch below the moment a request is
+/// raised. Claiming may fail - the loop might have got there first - and that
+/// is an ordinary outcome rather than an error, which is what `SKIP LOCKED`
+/// buys.
 pub async fn export_one(state: &AppState, pool: &PgPool, tenant: &TenantSlug, id: Uuid) {
     let timeout = state.config.storage.jobs.claim_timeout_secs;
 
@@ -363,6 +366,42 @@ async fn render_and_store(
         .map_err(|err| err.to_string())?;
 
     Ok(())
+}
+
+/// What a server function's news arrives on.
+pub type ExportReceiver = mpsc::UnboundedReceiver<(TenantSlug, Uuid)>;
+
+/// Run each export as soon as the request that raised it says so.
+///
+/// This is the normal path. The loop below is the safety net - for a process
+/// that died mid-job, and for a request whose news died with the process that
+/// would have carried it.
+async fn export_dispatch(
+    state: AppState,
+    mut exports: ExportReceiver,
+    shutdown: CancellationToken,
+) {
+    tracing::info!("report export dispatch started");
+
+    loop {
+        let heard = tokio::select! {
+            biased;
+            () = shutdown.cancelled() => None,
+            heard = exports.recv() => heard,
+        };
+
+        let Some((tenant, id)) = heard else {
+            tracing::info!("report export dispatch stopping");
+            return;
+        };
+
+        match state.tenants.resolve(&tenant).await {
+            Ok(handle) => export_one(&state, &handle.pool, &tenant, id).await,
+            Err(err) => {
+                tracing::warn!(tenant = %tenant, error = %err, "could not open a tenant pool");
+            }
+        }
+    }
 }
 
 async fn exporter_loop(state: AppState, shutdown: CancellationToken) {

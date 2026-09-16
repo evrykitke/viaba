@@ -14,11 +14,19 @@ use leptos::html;
 use leptos::prelude::*;
 use leptos_router::components::A;
 
-use phonix_core::report::PageSetup;
+use std::time::Duration;
 
-use super::{ExportFormat, ReportDefinition};
+use phonix_core::report::{ExportState, PageSetup};
+use serde_json::Map;
+use serde_json::Value as Parameters;
+use uuid::Uuid;
+
+use super::{ExportFormat, Extent, ReportDefinition};
 use crate::icons::{Icon, IconSize};
 use crate::l;
+use crate::server_fns::file_fns as content;
+use crate::server_fns::report_fns::{export_state, raise_export, write_now};
+use crate::ui::table::export;
 
 /// How many CSS pixels one millimetre is, which is how the sheet's own width
 /// in millimetres becomes a number to fit against.
@@ -40,10 +48,15 @@ pub fn report_viewer<T>(
     /// The report's own parameters, as controls on the toolbar.
     #[prop(optional, into)]
     controls: Option<ViewFn>,
-    /// What to do when a format is chosen. Choosing one raises an export; the
-    /// bytes do not come back from the click.
-    #[prop(optional)]
-    on_export: Option<Callback<ExportFormat>>,
+    /// What the report was run with - the customer, the span, the record.
+    /// Handed to the server when an export is asked for, because the worker
+    /// draws the report again rather than being sent what is on screen.
+    ///
+    /// A signal, because a picker on this very toolbar changes it: read when
+    /// the format is chosen rather than when the frame was drawn, or an
+    /// export would be of whatever the screen opened on.
+    #[prop(optional, into)]
+    parameters: Option<Signal<Parameters>>,
     children: Children,
 ) -> impl IntoView
 where
@@ -95,13 +108,31 @@ where
         });
     });
 
+    // What the export is doing, in one line under the toolbar. `None` is the
+    // usual state: a report nobody has asked to write out.
+    let progress = RwSignal::new(None::<Progress>);
+
+    let report_id = definition.id;
+    let bounded = matches!(definition.extent(), Extent::Bounded(_));
+    let parameters =
+        parameters.unwrap_or_else(|| Signal::derive(|| Parameters::Object(Map::new())));
+
     let choose = move |format: ExportFormat| {
         if let Some(node) = menu.get() {
             node.set_open(false);
         }
 
-        if let Some(on_export) = on_export {
-            on_export.run(format);
+        progress.set(Some(Progress::Working));
+
+        // Which path a report takes is its definition's declaration, never a
+        // guess made here: bounded comes back with its bytes, and anything
+        // that grows with its data becomes a row a worker picks up.
+        let asked = parameters.get_untracked();
+
+        if bounded {
+            write_now_and_download(report_id, asked, format, progress);
+        } else {
+            raise_and_wait(report_id, asked, format, progress);
         }
     };
 
@@ -188,6 +219,8 @@ where
                 </div>
             </div>
 
+            {move || progress.get().map(|progress| view! { <ExportNotice progress=progress /> })}
+
             <div class="overflow-x-auto rounded-card border border-edge bg-surface-sunken p-3 sm:p-6">
                 <div node_ref=gauge class="h-0"></div>
                 <div style=move || format!("zoom:{}", scale.get())>{children()}</div>
@@ -198,6 +231,137 @@ where
             <style inner_html=print_rules></style>
         </section>
     }
+}
+
+/// How far an export has got, as the viewer needs to say it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum Progress {
+    /// Asked for, and nothing has come back yet.
+    Working,
+    /// Written, and here is where it is.
+    Ready { href: String },
+    /// Not written, and here is what the row says about why.
+    Failed { reason: String },
+    /// Still running when the viewer stopped asking. Not a failure: the file
+    /// is a stored file and it will be there.
+    Waiting,
+}
+
+/// One line under the toolbar: what the export is doing.
+#[component]
+fn export_notice(progress: Progress) -> impl IntoView {
+    let (tone, body) = match progress {
+        Progress::Working => (
+            "border-edge text-content-muted",
+            view! { <span>{l!("report.export.running")}</span> }.into_any(),
+        ),
+        Progress::Ready { href } => (
+            "border-brand text-content",
+            view! {
+                <span>
+                    {l!("report.export.ready")}
+                    " "
+                    <a href=href class="font-medium text-brand underline" download>
+                        {l!("report.export.download")}
+                    </a>
+                </span>
+            }
+            .into_any(),
+        ),
+        Progress::Failed { reason } => (
+            "border-danger text-content",
+            view! { <span>{l!("report.export.failed")} " " {reason}</span> }.into_any(),
+        ),
+        Progress::Waiting => (
+            "border-edge text-content-muted",
+            view! { <span>{l!("report.export.still_running")}</span> }.into_any(),
+        ),
+    };
+
+    view! {
+        <p class=format!("rounded-control border px-3 py-2 text-xs print:hidden {tone}")>{body}</p>
+    }
+}
+
+/// How long the viewer keeps asking after a running export, and how often.
+///
+/// Bounded on purpose. A report that is still running after this has not
+/// failed - it is a job, and the file will be there - so the viewer says so
+/// and stops rather than asking for ever on a page somebody left open.
+const ASK_EVERY: Duration = Duration::from_secs(2);
+const GIVE_UP_AFTER: Duration = Duration::from_secs(120);
+
+/// The bounded path: the bytes come back and the browser saves them.
+fn write_now_and_download(
+    report_id: &'static str,
+    parameters: Parameters,
+    format: ExportFormat,
+    progress: RwSignal<Option<Progress>>,
+) {
+    leptos::task::spawn_local(async move {
+        match write_now(report_id.to_owned(), parameters, format).await {
+            Ok(written) => {
+                export::download(&written.file_name, &written.contents);
+                progress.set(None);
+            }
+            Err(err) => progress.set(Some(Progress::Failed {
+                reason: err.to_string(),
+            })),
+        }
+    });
+}
+
+/// The unbounded path: a row, then asking after it until it is done.
+fn raise_and_wait(
+    report_id: &'static str,
+    parameters: Parameters,
+    format: ExportFormat,
+    progress: RwSignal<Option<Progress>>,
+) {
+    leptos::task::spawn_local(async move {
+        match raise_export(report_id.to_owned(), parameters, format).await {
+            Ok(request) => ask_after(request.id, progress, Duration::ZERO),
+            Err(err) => progress.set(Some(Progress::Failed {
+                reason: err.to_string(),
+            })),
+        }
+    });
+}
+
+/// Ask after a running export, and keep asking until it is one thing or the
+/// other.
+///
+/// Nothing here blocks the report: it stays readable, and a second format can
+/// be asked for while this one runs. Closing the page cancels nothing - the
+/// bytes become a stored file either way.
+fn ask_after(id: Uuid, progress: RwSignal<Option<Progress>>, waited: Duration) {
+    leptos::task::spawn_local(async move {
+        match export_state(id).await {
+            Ok(request) if request.state == ExportState::Ready => {
+                let href = request
+                    .file_id
+                    .map(content::content_url)
+                    .unwrap_or_default();
+
+                progress.set(Some(Progress::Ready { href }));
+            }
+            Ok(request) if request.state == ExportState::Failed => {
+                progress.set(Some(Progress::Failed {
+                    reason: request.failure.unwrap_or_default(),
+                }));
+            }
+            Ok(_) if waited >= GIVE_UP_AFTER => progress.set(Some(Progress::Waiting)),
+            Ok(_) => {
+                set_timeout(
+                    move || ask_after(id, progress, waited + ASK_EVERY),
+                    ASK_EVERY,
+                );
+            }
+            Err(err) => progress.set(Some(Progress::Failed {
+                reason: err.to_string(),
+            })),
+        }
+    });
 }
 
 /// What printing keeps, and at what size.

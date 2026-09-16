@@ -176,38 +176,6 @@ commits it is three items.
 > cannot, is a rendered report with the types erased. That is what makes one
 > writer serve both paths, which is ADR 0008 section 9's whole requirement.
 
-- [ ] `phonix-web` The viewer waits for its export
-      why: the request is raised and stored and nobody can get at it. This is
-           the half of the job the reader sees: pressing a format, the report
-           still being there while it runs, and the file arriving. Doing it
-           badly is what makes an asynchronous export feel worse than a slow
-           one.
-      touch: crates/phonix-web/src/ui/report/viewer.rs,
-             crates/phonix-web/src/server_fns/
-      done: choosing a format from the export menu does one of two things, and
-            the menu looks the same either way - a bounded report comes back
-            with its file at once, and an unbounded one raises a request, says
-            it is running, and arrives when it is done. Which path a report
-            takes is its definition's declaration and never a guess made here.
-            The viewer asks after a running request on an interval and hands
-            over the file through the download path `ui/table/export.rs`
-            already uses. The asking is bounded - it stops
-            on ready, stops on failed, and gives up after a stated wait saying
-            the export is still running rather than polling for ever. A failure
-            shows the reason the row carries. Nothing blocks: the report stays
-            readable throughout, and a second format can be asked for while the
-            first is still running. Closing the page does not cancel anything -
-            the file is a stored file and it is still there afterwards.
-      verify: export the product list as CSV - unbounded, so it should say it
-              is running and then offer the file. Reload the page while it runs
-              and confirm the file still arrives: it is a job, not a page. Then
-              export a receipt, which is bounded, and check it comes straight
-              back without a wait.
-      stop: fifth checkpoint. This is the first time the queue, the worker and
-            the storage all run together, none of it has been exercised in this
-            branch, and it is the only chance to see the two paths side by side
-            before three writers are built on them.
-
 - [ ] `phonix-web` Where a report is found, and who may run it
       why: two reports exist and the only way to either is knowing its address.
            `Pages.Accounting.Reports` already gates the four statements as one
@@ -471,6 +439,52 @@ commits it is three items.
      The user launches the application, looks, and then either moves the item
      to `## Done` or writes a new item in `## Next` saying what was wrong. The
      loop never moves anything out of this section by itself. -->
+
+- [x] `phonix-web` The viewer waits for its export
+      commit: "The two paths behind one menu"
+      The Export menu appears - the three reports that can be written out now
+      register CSV, and the menu is drawn because a definition says so rather
+      than because a screen remembered to. Choosing a format takes one of two
+      paths, and **which one is the definition's declaration**: bounded writes
+      in the request and the browser saves the bytes; anything that grows
+      raises a row, says it is running, and the file arrives.
+
+      The parameters are a **signal**, not a value. A picker on that very
+      toolbar changes them, so they are read when the format is chosen rather
+      than when the frame was drawn - otherwise an export would be of whatever
+      the screen opened on. The worker draws the report again from those
+      parameters instead of being sent what is on screen, which is what lets a
+      closed tab and a reload both end at the same file.
+
+      Immediate dispatch is wired, and this is the item that could do it: a
+      server function cannot call into `phonix-server`, so `AppState` carries
+      an unbounded channel and the exporter listens on it. **The row is
+      written before the news is sent** - a worker told about a request the
+      database had not accepted would render something nobody asked for - and
+      losing the news costs a wait for the next poll, never the work. That
+      mattered here: development polls every 120 seconds and the viewer stops
+      asking at 120, so without the channel nearly every export would have
+      ended on "still running".
+      verify: **the fifth checkpoint, and none of it has run.** Start the
+              application, then:
+
+              1. The items list, Report, then Export - CSV. It grows with its
+                 data, so it should say it is writing and then offer the file.
+                 Reload while it runs: the file should still arrive, because
+                 it is a job and not a page.
+              2. A receipt from the payments list, Export - CSV. Bounded, so
+                 it should come straight back with no waiting at all.
+              3. A customer statement, Export - CSV, after picking a customer
+                 and a span. The file should be that customer over that span,
+                 not the one the screen opened on.
+
+              There is also a request from the previous item waiting in
+              `viaba_tenant_med_app_staging` - `product-list`, `7a6d665f` -
+              which the loop should pick up within a poll of the first start.
+      stop: fifth checkpoint. The queue, the worker and the storage run
+            together here for the first time, and this is the only chance to
+            see the two paths side by side before three more writers are built
+            on them.
 
 - [x] `phonix-server` The exporter, the fourth loop
       commit: "The fourth loop"

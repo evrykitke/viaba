@@ -5,7 +5,9 @@
 
 use app_books::payment::{Allocation, Payment};
 use phonix_core::money::Money;
-use phonix_core::report::{Align, BandKind, Logo, LogoPlacement, ReportKind, ReportTheme};
+use phonix_core::report::{
+    Align, BandKind, ExportFormat, Logo, LogoPlacement, ReportKind, ReportTheme,
+};
 
 use crate::l;
 use crate::ui::report::{Band, Field, ReportDefinition};
@@ -17,6 +19,7 @@ pub fn receipt() -> ReportDefinition<Payment> {
         // The workspace's own `payment` document, so its settings apply.
         .document_type("payment")
         .theme(ReportTheme::Professional)
+        .exports(ExportFormat::Csv)
         .logo(Logo::new(LogoPlacement::ReportHeader(Align::Start)))
         // One payment and the invoices it was set against, which is a page.
         // Its export renders in the request rather than through the queue.

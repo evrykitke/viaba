@@ -126,6 +126,11 @@ pub async fn run(config: AppConfig, profiling: profiler::Profiling) -> Result<()
             .context("invalid [security.mfa] encryption_key")?,
     );
 
+    // The exporter's ear. The sender goes into the state a server function
+    // can reach; the receiver goes to the loop, which is in this crate because
+    // that is where the work happens.
+    let (exports_tx, exports_rx) = tokio::sync::mpsc::unbounded_channel();
+
     let state = AppState {
         config: Arc::clone(&config),
         catalog,
@@ -137,6 +142,7 @@ pub async fn run(config: AppConfig, profiling: profiler::Profiling) -> Result<()
         storage,
         naming,
         leptos_options: leptos_options.clone(),
+        exports: Some(phonix_web::state::ExportSignal(exports_tx)),
     };
 
     let routes = generate_route_list(App);
@@ -282,7 +288,7 @@ pub async fn run(config: AppConfig, profiling: profiler::Profiling) -> Result<()
     // --- Background work ---------------------------------------------------
     // Started before the listener, so an upload that arrives in the first
     // second has a worker to be picked up by.
-    let background = jobs::spawn(state.clone());
+    let background = jobs::spawn(state.clone(), Some(exports_rx));
 
     // --- Serve -------------------------------------------------------------
     let listener = tokio::net::TcpListener::bind(&site_addr)
