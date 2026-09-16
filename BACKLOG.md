@@ -219,27 +219,6 @@ commits it is three items.
 > like any other, and the loop takes the next one. The section is what they
 > read when they come back.
 
-- [ ] `phonix-web` The four dialogs that predate the modal
-      why: `ui/table/toolbar` (the column menu), `ui/alert/host`, `ui/lookup`
-           and `pages/admin/apps` each hand-rolled a dialog before `ui::modal`
-           existed - at three different widths, some closing on Escape and
-           some on a click outside, none of them moving focus. The commit that
-           added the modal said converting them was its own item and then did
-           not write it down, which is how four copies become five.
-      touch: crates/phonix-web/src/ui/table/toolbar.rs,
-             crates/phonix-web/src/ui/alert/host.rs,
-             crates/phonix-web/src/ui/lookup/mod.rs,
-             crates/phonix-web/src/pages/admin/apps.rs
-      done: each of the four opens a `<Modal>` instead of its own markup, or
-            carries one line saying why it cannot - the alert host in
-            particular may be the one that genuinely differs, since it stacks
-            and is not opened by anybody. Escape, the backdrop and focus then
-            behave the same way everywhere, which is the whole point of having
-            one.
-      verify: the column menu on any grid, a lookup, and the app install
-              dialog in Administration. All three should close on Escape and
-              on the backdrop, and none on a click inside.
-
 - [ ] `phonix-web` Three more editors that grow the page
       why: the same shape the settings tabs had, found while converting them:
            `master/party` edits an address below its panel, `master/tax` a
@@ -768,6 +747,28 @@ commits it is three items.
            it goes looking for a name that was never there.
       touch: crates/phonix-server/src/jobs.rs
       done: the comment names the function that exists.
+
+- [x] `phonix-web` The four dialogs that predate the modal
+      commit: "Three of four, and the one that stays"
+      why: `ui/table/toolbar` (the column menu), `ui/alert/host`, `ui/lookup`
+           and `pages/admin/apps` each hand-rolled a dialog before `ui::modal`
+           existed - at three different widths, some closing on Escape and
+           some on a click outside, none of them moving focus. The commit that
+           added the modal said converting them was its own item and then did
+           not write it down, which is how four copies become five.
+      touch: crates/phonix-web/src/ui/table/toolbar.rs,
+             crates/phonix-web/src/ui/alert/host.rs,
+             crates/phonix-web/src/ui/lookup/mod.rs,
+             crates/phonix-web/src/pages/admin/apps.rs
+      done: each of the four opens a `<Modal>` instead of its own markup, or
+            carries one line saying why it cannot - the alert host in
+            particular may be the one that genuinely differs, since it stacks
+            and is not opened by anybody. Escape, the backdrop and focus then
+            behave the same way everywhere, which is the whole point of having
+            one.
+      verify: the column menu on any grid, a lookup, and the app install
+              dialog in Administration. All three should close on Escape and
+              on the backdrop, and none on a click inside.
 
 - [x] `phonix-web` A total between two groups
       commit: "A figure that is not a subtotal"

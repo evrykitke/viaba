@@ -42,6 +42,7 @@ use crate::icons::{Icon, IconSize};
 use crate::l;
 use crate::server_fns::app_fns::{app_catalog, install_app, uninstall_app};
 use crate::ui::alert::{Alert, Alerts};
+use crate::ui::modal::{Modal, ModalSize};
 
 /// How long the install dialog takes to say it is done.
 ///
@@ -431,13 +432,26 @@ fn install_dialog(
         installing.set(None);
     };
 
+    // Dismissable only when there is nothing left to interrupt. An install
+    // runs against the tenant's database and half of one is not a state to
+    // leave somebody in, so Escape and the backdrop do nothing while it is
+    // going - which is the caller deciding what a close means, the way
+    // `Modal` intends.
+    let asked_to_close = Callback::new(move |()| {
+        if failed.get().is_some() {
+            close();
+        } else if finished.get() {
+            dismiss();
+        }
+    });
+
     view! {
-        <div
-            class="fixed inset-0 z-50 grid place-items-center bg-overlay p-4"
-            role="dialog"
-            aria-modal="true"
+        <Modal
+            title=t(&Message::new(app.name))
+            size=ModalSize::Small
+            on_close=asked_to_close
         >
-            <div class="w-full max-w-sm rounded-panel border border-edge bg-surface-raised p-6 shadow-pop">
+            <div class="p-2">
                 {move || {
                     if let Some(error) = failed.get() {
                         return view! {
@@ -602,6 +616,6 @@ fn install_dialog(
                         .into_any()
                 }}
             </div>
-        </div>
+        </Modal>
     }
 }

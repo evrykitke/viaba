@@ -41,6 +41,7 @@ use crate::icons::{Icon, IconSize};
 use crate::l;
 use crate::ui::form::field::Choice;
 use crate::ui::lookup::SelectField;
+use crate::ui::modal::{Modal, ModalSize};
 
 /// One filter, as the bar needs to know it.
 ///
@@ -320,79 +321,39 @@ fn quiet_button(#[prop(into)] label: String, icon: Icon, on_click: Callback<()>)
 #[component]
 fn column_menu(state: GridState, columns: Vec<ColumnChoice>) -> impl IntoView {
     let columns = StoredValue::new(columns);
-
-    // Escape closes it. Bound on the window rather than the dialog so it works
-    // before anything inside has been focused.
-    Effect::new(move |_| {
-        let handle = window_event_listener(leptos::ev::keydown, move |event| {
-            if event.key() == "Escape" {
-                state.columns_open.set(false);
-            }
-        });
-
-        on_cleanup(move || handle.remove());
-    });
+    let close = Callback::new(move |()| state.columns_open.set(false));
 
     view! {
         <Show when=move || state.columns_open.get() fallback=|| ()>
-            <div
-                // `inset-0` already sizes this to the viewport; a `max-h-dvh`
-                // on top of it only shrinks the box the panel is centred in,
-                // which showed up as a sheet sitting slightly low. The height
-                // cap belongs on the panel, below.
-                class="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-overlay px-4 py-4"
-                role="dialog"
-                aria-modal="true"
-                aria-label=l!("grid.choose_columns")
-                on:click=move |_| state.columns_open.set(false)
-            >
-                <div
-                    class="flex max-h-[85dvh] w-full max-w-sm flex-col overflow-hidden rounded-pop border border-edge bg-surface-raised shadow-pop"
-                    // The backdrop closes on click; the panel must not, or
-                    // ticking a box would dismiss the dialog.
-                    on:click=|event| event.stop_propagation()
-                >
-                    <div class="flex items-center justify-between gap-2 border-b border-edge px-3 py-2">
-                        <span class="text-sm font-medium text-content">{l!("grid.columns")}</span>
-                        <button
-                            type="button"
-                            class="grid size-7 place-items-center rounded-control text-content-muted hover:bg-surface-hover hover:text-content"
-                            aria-label=l!("common.close")
-                            on:click=move |_| state.columns_open.set(false)
-                        >
-                            <Icon icon=Icon::X size=IconSize::Sm />
-                        </button>
-                    </div>
+            <Modal title=l!("grid.columns") size=ModalSize::Small on_close=close>
+                <ul class="-m-4 p-1">
+                    {columns
+                        .with_value(|columns| {
+                            columns
+                                .iter()
+                                .cloned()
+                                .map(|column| view! { <ColumnRow state=state column=column /> })
+                                .collect::<Vec<_>>()
+                        })}
+                </ul>
 
-                    <ul class="min-h-0 flex-1 overflow-y-auto p-1">
-                        {columns
-                            .with_value(|columns| {
-                                columns
-                                    .iter()
-                                    .cloned()
-                                    .map(|column| view! { <ColumnRow state=state column=column /> })
-                                    .collect::<Vec<_>>()
-                            })}
-                    </ul>
-
-                    <div class="flex items-center justify-between gap-2 border-t border-edge px-3 py-2">
-                        <button
-                            type="button"
-                            class="text-xs font-medium text-brand hover:underline"
-                            on:click=move |_| state.show_all_columns()
-                        >
-                            {l!("grid.show_all_columns")}
-                        </button>
-                        <button
-                            type="button"
-                            class="inline-flex h-7 items-center rounded-control border border-edge px-2.5 text-xs text-content-muted hover:bg-surface-hover hover:text-content"
-                            on:click=move |_| state.columns_open.set(false)
-                        >
-                            {l!("common.done")}
-                        </button>
-                    </div>
+                <div class="-mx-4 -mb-4 mt-4 flex items-center justify-between gap-2 border-t border-edge px-3 py-2">
+                    <button
+                        type="button"
+                        class="text-xs font-medium text-brand hover:underline"
+                        on:click=move |_| state.show_all_columns()
+                    >
+                        {l!("grid.show_all_columns")}
+                    </button>
+                    <button
+                        type="button"
+                        class="inline-flex h-7 items-center rounded-control border border-edge px-2.5 text-xs text-content-muted hover:bg-surface-hover hover:text-content"
+                        on:click=move |_| state.columns_open.set(false)
+                    >
+                        {l!("common.done")}
+                    </button>
                 </div>
-            </div>
+            </Modal>
         </Show>
     }
 }

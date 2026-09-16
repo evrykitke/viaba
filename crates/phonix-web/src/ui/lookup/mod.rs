@@ -85,6 +85,7 @@ pub use self::select::SelectField;
 use crate::icons::{Icon, IconSize};
 use crate::l;
 use crate::ui::form::field::Choice;
+use crate::ui::modal::Modal;
 
 /// Something that renders into a panel and answers with a choice.
 ///
@@ -884,35 +885,8 @@ fn list_body(
 #[component]
 fn quick_add_dialog(title: String, close: Callback<()>, children: Children) -> impl IntoView {
     view! {
-        <div
-            class="fixed inset-0 z-[70] grid place-items-center bg-overlay p-4"
-            on:click=move |_| {
-                let _ = close.try_run(());
-            }
-        >
-            <div
-                class="alert-enter w-[min(32rem,100%)] overflow-hidden rounded-card border border-edge bg-surface-raised shadow-pop"
-                role="dialog"
-                aria-modal="true"
-                // The backdrop closes; the sheet must not, or every click
-                // inside the form dismisses the form.
-                on:click=move |event| event.stop_propagation()
-            >
-                <header class="flex items-center justify-between gap-3 border-b border-edge px-4 py-3">
-                    <h2 class="text-sm font-semibold text-content">{title}</h2>
-                    <button
-                        type="button"
-                        class="shrink-0 text-content-subtle hover:text-content"
-                        aria-label=l!("common.close")
-                        on:click=move |_| {
-                            let _ = close.try_run(());
-                        }
-                    >
-                        <Icon icon=Icon::X size=IconSize::Sm />
-                    </button>
-                </header>
-                <div class="p-4">{children()}</div>
-            </div>
-        </div>
+        <Modal title=title on_close=close>
+            {children()}
+        </Modal>
     }
 }

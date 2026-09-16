@@ -162,6 +162,15 @@ fn message_box_alert(alerts: Alerts) -> impl IntoView {
                         let alert = posted.alert;
 
                         view! {
+                            // Not a `Modal`, and this is the one of the four
+                            // that stays its own markup. It is `alertdialog`
+                            // rather than `dialog`, it is not opened by a
+                            // caller - anything anywhere can post one - and it
+                            // has to sit *above* whatever is already open,
+                            // which a shared z-index cannot express. A failure
+                            // reported from inside a form's modal has to be
+                            // readable over that modal, or it is a message
+                            // nobody sees.
                             <div
                                 class="fixed inset-0 z-[70] grid place-items-center bg-overlay p-4"
                                 // The backdrop closes it. A message box asks for

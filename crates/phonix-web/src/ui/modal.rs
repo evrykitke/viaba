@@ -14,8 +14,10 @@
 //! just clicked off the screen, and grows the page instead of focusing it.
 //!
 //! Four dialogs in this codebase were hand-rolled before this existed, at
-//! three widths, some closing on Escape and some on a click outside. They are
-//! left where they are; this is what the next one uses.
+//! three widths, some closing on Escape and some on a click outside. Three
+//! of them are this now. The fourth is the message box in
+//! [`ui::alert::host`](crate::ui::alert::host), which is not opened by
+//! anybody and has to sit *above* whatever is open - see the note there.
 
 use leptos::html;
 use leptos::prelude::*;
@@ -26,6 +28,10 @@ use crate::l;
 /// How wide the panel is.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum ModalSize {
+    /// A list of one-line choices - which columns are on, which format to
+    /// write. Narrow, because a column of tick boxes across a page is a
+    /// line of empty space with a word at each end.
+    Small,
     /// A form, a confirmation, a short list.
     #[default]
     Regular,
@@ -36,6 +42,7 @@ pub enum ModalSize {
 impl ModalSize {
     const fn width(self) -> &'static str {
         match self {
+            Self::Small => "max-w-sm",
             Self::Regular => "max-w-2xl",
             Self::Large => "max-w-5xl",
         }
