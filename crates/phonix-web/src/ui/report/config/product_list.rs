@@ -19,7 +19,7 @@ use phonix_core::query::Page;
 use phonix_core::report::{BandKind, ChartKind, ExportFormat, Point, ReportKind, ReportTheme};
 
 use crate::l;
-use crate::ui::report::{Band, Field, Grouping, ReportDefinition};
+use crate::ui::report::{Band, Field, Folding, Grouping, ReportDefinition};
 use crate::ui::table::Cell;
 
 /// How many items one run of the report draws.
@@ -99,7 +99,10 @@ pub fn product_list() -> ReportDefinition<Page<ItemSummary>> {
         ],
         // By category, which is the one column a reader of this list already
         // groups by in their head.
+        // Opens open: a product list is read for its rows, and the categories
+        // are how they are arranged rather than the answer.
         Grouping::by(|item: &ItemSummary| item.category_name.clone())
+            .folding(Folding::Open)
             .totalling("cost", |item: &ItemSummary| item.cost),
     ))
     // Under the rows rather than over them: the chart is what the list adds

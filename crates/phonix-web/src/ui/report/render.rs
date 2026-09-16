@@ -18,6 +18,7 @@
 //!
 //! [`Grouping`]: super::Grouping
 
+use std::collections::BTreeSet;
 use std::sync::OnceLock;
 
 use leptos::prelude::*;
@@ -27,10 +28,11 @@ use phonix_core::report::{
 
 use leptos_router::components::A;
 
-use super::definition::{ChartBand, Content};
+use super::definition::{ChartBand, Content, Folding};
 use super::{
     Band, DocumentStyles, Field, Heading, Letterhead, Paging, ReportDefinition, RowGroup, Value,
 };
+use crate::icons::{Icon, IconSize};
 
 /// Draw a report.
 ///
@@ -47,9 +49,63 @@ where
     // named however the workspace had answered.
     let data = StoredValue::new(data);
     let definition = StoredValue::new(definition);
+    // Which groups the reader has folded. A signal and nothing else: it
+    // never reaches the server, and a reload opens the report in the state
+    // its definition names.
+    let folded = RwSignal::new(BTreeSet::<String>::new());
+
+    provide_context(Folded(folded));
 
     move || {
         definition.with_value(|definition| data.with_value(|data| report_view(definition, data)))
+    }
+}
+
+/// Which groups this reader has folded away.
+///
+/// A context rather than a prop because a group header is several components
+/// below the report, and browser state rather than anything else because that
+/// is all it is: closing a section is a way of reading, not a decision about
+/// the document. Nothing here is sent anywhere, and a reload opens the report
+/// in the state its definition names.
+#[derive(Clone, Copy)]
+struct Folded(RwSignal<BTreeSet<String>>);
+
+impl Folded {
+    /// Whether this group is folded, as a signal the header and its rows both
+    /// read.
+    ///
+    /// A group the reader has not touched is however the definition opens it,
+    /// which is why the answer needs the folding as well as the label.
+    fn of(label: &str, folding: Folding) -> Signal<bool> {
+        let held = use_context::<Self>();
+        let label = label.to_owned();
+
+        Signal::derive(move || match held {
+            Some(Self(folded)) if folding.folds() => {
+                let touched = folded.with(|folded| folded.contains(&label));
+
+                // The set holds what the reader changed, not what is closed:
+                // a group that opens closed is folded until it is touched.
+                if folding.opens_open() {
+                    touched
+                } else {
+                    !touched
+                }
+            }
+            _ => false,
+        })
+    }
+
+    /// Fold this group, or open it.
+    fn toggle(label: &str) {
+        if let Some(Self(folded)) = use_context::<Self>() {
+            folded.update(|folded| {
+                if !folded.remove(label) {
+                    folded.insert(label.to_owned());
+                }
+            });
+        }
     }
 }
 
@@ -824,6 +880,7 @@ fn paged(groups: &[RowGroup], window: &std::ops::Range<usize>) -> Vec<RowGroup> 
 
         shown.push(RowGroup {
             label: group.label.clone(),
+            folding: group.folding,
             rows: group
                 .rows
                 .get(from - start..to - start)
@@ -838,20 +895,46 @@ fn paged(groups: &[RowGroup], window: &std::ops::Range<usize>) -> Vec<RowGroup> 
 
 /// One group: what it is called, its rows, and what they come to.
 fn group_view(headings: &[Heading], group: &RowGroup, metrics: &Metrics) -> AnyView {
+    let folded = Folded::of(&group.label, group.folding);
+    let label = group.label.clone();
+    let folding = group.folding;
+
     let header = (!group.label.is_empty()).then(|| {
-        view! {
-            <div
-                class=format!("font-medium {}", heading_ink(metrics.colour))
-                style=format!(
-                    "min-height:{}mm;padding:{}mm {}mm;font-size:{}pt",
-                    metrics.bands.group_header,
-                    metrics.padding.vertical,
-                    metrics.padding.horizontal,
-                    metrics.type_scale.heading_pt,
-                )
-            >
-                {group.label.clone()}
-            </div>
+        let style = format!(
+            "min-height:{}mm;padding:{}mm {}mm;font-size:{}pt",
+            metrics.bands.group_header,
+            metrics.padding.vertical,
+            metrics.padding.horizontal,
+            metrics.type_scale.heading_pt,
+        );
+        let ink = format!("font-medium {}", heading_ink(metrics.colour));
+
+        if folding.folds() {
+            view! {
+                <button
+                    type="button"
+                    class=format!(
+                        "flex w-full items-center gap-1 text-left print:cursor-auto {ink}",
+                    )
+                    style=style
+                    aria-expanded=move || (!folded.get()).to_string()
+                    on:click=move |_| Folded::toggle(&label)
+                >
+                    <span class="print:hidden">
+                        <Icon
+                            icon=Icon::ChevronDown
+                            size=IconSize::Xs
+                            attr:class=move || {
+                                if folded.get() { "-rotate-90 transition-transform" } else { "transition-transform" }
+                            }
+                        />
+                    </span>
+                    {group.label.clone()}
+                </button>
+            }
+            .into_any()
+        } else {
+            view! { <div class=ink style=style>{group.label.clone()}</div> }.into_any()
         }
     });
 
@@ -880,7 +963,10 @@ fn group_view(headings: &[Heading], group: &RowGroup, metrics: &Metrics) -> AnyV
             .map(|row| {
                 view! {
                     <div
-                        class="flex border-edge"
+                        data-folds=""
+                        class=move || {
+                            if folded.get() { "hidden flex border-edge" } else { "flex border-edge" }
+                        }
                         style=format!(
                             "min-height:{}mm;border-bottom:{}mm solid",
                             metrics.bands.detail,

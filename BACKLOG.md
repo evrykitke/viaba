@@ -219,20 +219,6 @@ commits it is three items.
 > like any other, and the loop takes the next one. The section is what they
 > read when they come back.
 
-- [ ] `phonix-web` A group that opens and closes
-      why: drill-down, and what makes a long grouped report readable - the
-           groups are the report, and the detail is opened where somebody wants
-           it. Without it a hundred-group report is a thousand-row scroll.
-      touch: crates/phonix-web/src/ui/report/
-      done: a group header toggles its detail where the definition allows it,
-            the report opens in the state the definition names, and that state
-            belongs to the browser - it does not survive a reload and never
-            goes to the server. Printing and every export ignore it entirely:
-            an archived statement with sections collapsed is evidence with
-            holes in it.
-      verify: collapse a group, reload, and confirm it opens in the state the
-              definition names rather than the one you left it in.
-
 - [ ] `phonix-services` The spreadsheet a job wrote
       why: CSV loses the totals, the grouping and the type of every number -
            somebody who wanted to pivot the export has to retype it. This is
@@ -846,6 +832,21 @@ commits it is three items.
 ## Done
 
 <!-- The loop appends here with the commit sha. Newest first. -->
+
+- [x] `phonix-web` A group that opens and closes
+      commit: "A section somebody has read"
+      why: drill-down, and what makes a long grouped report readable - the
+           groups are the report, and the detail is opened where somebody wants
+           it. Without it a hundred-group report is a thousand-row scroll.
+      touch: crates/phonix-web/src/ui/report/
+      done: a group header toggles its detail where the definition allows it,
+            the report opens in the state the definition names, and that state
+            belongs to the browser - it does not survive a reload and never
+            goes to the server. Printing and every export ignore it entirely:
+            an archived statement with sections collapsed is evidence with
+            holes in it.
+      verify: collapse a group, reload, and confirm it opens in the state the
+              definition names rather than the one you left it in.
 
 - [x] `phonix-web` The chart, as a band the server drew
       commit: "A picture of the same numbers"

@@ -51,6 +51,38 @@ pub struct Value {
     pub href: Option<String>,
 }
 
+/// Whether a group's rows fold away behind its header, and how the report
+/// opens.
+///
+/// Folding is the browser's and nothing else's: it is not a setting, it does
+/// not reach the server, and it does not survive a reload. A report opens in
+/// the state its definition names every time, which is what stops two people
+/// reading the same address and seeing different documents.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum Folding {
+    /// The header is a heading and nothing else. What a report gets unless it
+    /// asks otherwise.
+    #[default]
+    Fixed,
+    /// Folds, and opens open.
+    Open,
+    /// Folds, and opens closed - for a report of many groups where the
+    /// subtotals are the answer and the rows are the evidence.
+    Closed,
+}
+
+impl Folding {
+    /// Whether the header is a control at all.
+    pub const fn folds(self) -> bool {
+        !matches!(self, Self::Fixed)
+    }
+
+    /// Whether a group is open when the report is drawn.
+    pub const fn opens_open(self) -> bool {
+        !matches!(self, Self::Closed)
+    }
+}
+
 /// A run of lines drawn together, under a heading and over what they add up
 /// to.
 ///
@@ -60,6 +92,8 @@ pub struct Value {
 pub struct RowGroup {
     /// What the group's header says. Empty draws no header.
     pub label: String,
+    /// Whether the header folds the rows away, and how it opens.
+    pub folding: Folding,
     pub rows: Vec<Vec<Value>>,
     /// One cell per column, empty where the column is not totalled. Empty
     /// altogether draws no footer.
@@ -75,6 +109,7 @@ pub struct RowGroup {
 pub struct Grouping<L: 'static> {
     label: Arc<dyn Fn(&L) -> String + Send + Sync>,
     totals: Vec<(&'static str, Amount<L>)>,
+    folding: Folding,
 }
 
 impl<L: 'static> Grouping<L> {
@@ -83,7 +118,16 @@ impl<L: 'static> Grouping<L> {
         Self {
             label: Arc::new(label),
             totals: Vec::new(),
+            folding: Folding::Fixed,
         }
+    }
+
+    /// Let a reader fold the rows away behind the header, and say how the
+    /// report opens.
+    #[must_use]
+    pub const fn folding(mut self, folding: Folding) -> Self {
+        self.folding = folding;
+        self
     }
 
     /// Total this column, from the lines of the group rather than from what is
@@ -490,6 +534,7 @@ impl<T: 'static> Band<T> {
                 read: Arc::new(move |data| {
                     vec![RowGroup {
                         label: String::new(),
+                        folding: Folding::Fixed,
                         rows: rows_of(&fields, &read(data)),
                         totals: Vec::new(),
                     }]
@@ -529,6 +574,7 @@ impl<T: 'static> Band<T> {
                         .into_iter()
                         .map(|(label, lines)| RowGroup {
                             label,
+                            folding: grouping.folding,
                             rows: rows_of(&fields, &lines),
                             totals: captioned(&caption, grouping.totals_of(&lines, &keys)),
                         })

@@ -549,6 +549,10 @@ const PRINT_MEDIA: &str = concat!(
     "border:0!important;border-radius:0!important;box-shadow:none!important;",
     "background:transparent!important}",
     "[data-report-sheet]{zoom:1!important;margin:0!important;box-shadow:none!important}",
+    // A folded group is a way of reading, not a fact about the document. An
+    // archived statement with sections missing is evidence with holes in it,
+    // so everything the sheet holds is printed whatever is open on screen.
+    "[data-report-sheet] [data-folds]{display:flex!important}",
     "}"
 );
 
