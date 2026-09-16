@@ -160,6 +160,52 @@ commits it is three items.
 >   comparing the three, but the look is a document setting and two places to
 >   change one thing is how they come to disagree. Ask if it is wanted.
 
+- [ ] `phonix-db` A declared default never reaches a workspace that is current
+      why: found at the second checkpoint - the Documents tab is empty on a
+           workspace with every app installed. The cause is not the tab. The
+           boot sweep skips any tenant whose `schema_version` already equals
+           `apps::schema_fingerprint()`, and that fingerprint is **migration
+           versions only**. `core/0024` bumped it, the tenant migrated on the
+           binary that had the migration and not yet the installer, and every
+           boot since has skipped the tenant entirely - so
+           `install_document_settings` has never run. The same hole swallows a
+           new numbering series or a new default account added to an app that
+           is already installed, and the doc comments on all three installers
+           say the opposite in as many words.
+      touch: crates/phonix-db/src/tenancy/apps.rs,
+             crates/phonix-db/src/tenancy/provision.rs,
+             crates/phonix-config/src/documents.rs
+      done: the fingerprint covers what a workspace is brought up to date
+            *with*, not only its schema: the declarations in `config/numbering`
+            and `config/documents` are part of it, so changing one brings
+            existing workspaces forward on the next boot. The three installer
+            doc comments say what is actually true. The staging tenant ends the
+            item with its document settings in it, checked with a query rather
+            than assumed.
+      verify: Administration, the Documents tab, on a workspace that was
+              already current before this item. It should list the documents
+              Books and Inventory declare.
+
+- [ ] `phonix-web` Where the logo goes decides what sits beside it
+      why: asked for at the second checkpoint. Three placements, and each one
+           means a different letterhead rather than the same letterhead with
+           the mark shoved along: **left** puts the header's own lines
+           alongside the mark, **centre** puts the mark on its own line with
+           the header below it, and **right** is the mirror of left. Today all
+           three draw the mark on a line of its own and the fields underneath,
+           so choosing between them changes almost nothing on the page.
+      touch: crates/phonix-web/src/ui/report/render.rs
+      done: the report header lays itself out from the placement its settings
+            name. Left: the mark and the header's fields on one line, mark
+            first. Right: the same line, mark last. Centre: the mark centred on
+            its own line and the fields below it, which is the arrangement a
+            letterhead with a wide wordmark wants. A report with no mark draws
+            the fields exactly as it does now, and the page-header placement is
+            unchanged - that one is a running header, not a letterhead.
+      verify: Administration, the Documents tab. Put the logo left, centre and
+              right in turn on the `payment` document and watch the sample
+              redraw each way, then open a receipt and check it matches.
+
 - [ ] `phonix-core` A statement is a document nobody numbers
       why: found at the second checkpoint. Document settings are keyed by
            document type, and a type is only legal if the app declares a
