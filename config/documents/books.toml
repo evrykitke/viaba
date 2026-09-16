@@ -35,3 +35,15 @@ paper       = "a4"
 orientation = "portrait"
 logo        = "report_header"
 logo_align  = "start"
+
+# One customer's account, posted to them. Nobody numbers a statement - it is
+# not a document the ledger refers back to - so it declares itself unnumbered
+# rather than asking `config/numbering/` for a series that would issue nothing.
+[[document]]
+doc_type    = "statement"
+numbered    = false
+theme       = "professional"
+paper       = "a4"
+orientation = "portrait"
+logo        = "report_header"
+logo_align  = "start"

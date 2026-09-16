@@ -29,10 +29,18 @@
 //!
 //! # A document type here must be one the app issues
 //!
-//! `config/numbering/` already names the documents a workspace can issue. A
-//! setting attached to a type with no series is a setting for a document that
-//! does not exist, so it is refused at load rather than installed and
-//! forgotten.
+//! `config/numbering/` already names the documents a workspace can issue, so a
+//! type with no series there is refused: a setting attached to a document
+//! nobody can raise is a setting nothing will ever read, and a typo in a
+//! `doc_type` is exactly what that looks like.
+//!
+//! **Unless it says it is not numbered.** A statement is posted to a customer
+//! and printed like an invoice, and nobody numbers one - `numbered = false` is
+//! how a declaration says so, and it is deliberately a line somebody writes
+//! rather than a check that quietly stopped applying. An entry in
+//! `config/numbering/` that issues no numbers would be the alternative, and it
+//! is the wrong one: a series that hands out nothing is a row whose only
+//! honest value is "not applicable".
 //!
 //! # Missing is not an error
 //!
@@ -91,6 +99,15 @@ pub struct Document {
 
     #[serde(default = "default_logo_height")]
     pub logo_height_mm: f32,
+
+    /// Whether this document carries a number, and so must have a series in
+    /// `config/numbering/`. True unless the file says otherwise.
+    #[serde(default = "yes")]
+    pub numbered: bool,
+}
+
+const fn yes() -> bool {
+    true
 }
 
 fn professional() -> String {
@@ -242,9 +259,9 @@ fn check(documents: &[Document], series: &[Series], path: &Path) -> Result<(), D
     for entry in documents {
         let doc_type = entry.doc_type.as_str();
 
-        if doc_type.len() > MAX_DOC_TYPE_LEN
-            || !series.iter().any(|issued| issued.doc_type == doc_type)
-        {
+        let issued = series.iter().any(|issued| issued.doc_type == doc_type);
+
+        if doc_type.len() > MAX_DOC_TYPE_LEN || (entry.numbered && !issued) {
             return Err(DocumentError::UnknownDocType {
                 path: path.to_path_buf(),
                 doc_type: doc_type.to_owned(),
@@ -329,7 +346,7 @@ pub enum DocumentError {
     #[error(transparent)]
     Numbering(SeriesError),
     #[error(
-        "{path}: '{doc_type}' is not a document this app issues; declare a series for it first"
+        "{path}: '{doc_type}' is not a document this app issues; declare a series for it in          config/numbering, or say `numbered = false` if nobody numbers it"
     )]
     UnknownDocType { path: PathBuf, doc_type: String },
     #[error("{path}: '{doc_type}' has {field} '{value}', which this build does not know")]
@@ -468,6 +485,21 @@ mod tests {
         .expect_err("a type with no series");
 
         assert!(matches!(error, DocumentError::UnknownDocType { .. }));
+    }
+
+    #[test]
+    fn a_document_nobody_numbers_says_so_and_is_kept() {
+        let documents = load(
+            "unnumbered",
+            "[[document]]\ndoc_type = \"statement\"\nnumbered = false\n",
+            &issues(&["sales_invoice"]),
+        )
+        .expect("an unnumbered document is a document");
+
+        assert_eq!(
+            documents.first().map(|kept| kept.document_type.as_str()),
+            Some("statement")
+        );
     }
 
     #[test]

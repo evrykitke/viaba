@@ -16,6 +16,10 @@ pub fn customer_statement() -> ReportDefinition<CustomerStatement> {
         l!("reports.customer_statement"),
         ReportKind::Document,
     )
+    // The workspace's own `statement` document, so its settings apply. It is
+    // declared `numbered = false`: this is the one document here that carries
+    // no number.
+    .document_type("statement")
     .theme(ReportTheme::Professional)
     .logo(Logo::new(LogoPlacement::ReportHeader(Align::Start)))
     .band(

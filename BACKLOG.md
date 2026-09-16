@@ -160,24 +160,6 @@ commits it is three items.
 >   comparing the three, but the look is a document setting and two places to
 >   change one thing is how they come to disagree. Ask if it is wanted.
 
-- [ ] `phonix-core` A statement is a document nobody numbers
-      why: found at the second checkpoint. Document settings are keyed by
-           document type, and a type is only legal if the app declares a
-           number series for it - which is right for an invoice and wrong for
-           a statement, because nobody numbers a statement. So the customer
-           statement, which is as much a document as a receipt and is posted
-           to customers, cannot have a paper, a look or a footer of its own.
-           The checkpoint's own verify line expects it to follow the settings,
-           which is the honest evidence that the rule is too tight.
-      touch: crates/phonix-config/src/documents.rs, config/documents/books.toml
-      done: a document type can be declared without a number series, and the
-            cross-check refuses the reverse case instead - a *numbered* type
-            the app does not issue. `statement` is declared, the customer
-            statement names it, and a workspace can give its statements their
-            own paper and footer. Whether an unnumbered type belongs in
-            `config/numbering/` as a non-series entry or in the documents file
-            alone is the decision this item makes.
-
 - [ ] `phonix-web` The product list, as the first list report
       why: the document kind is proved and the list kind is not - many rows, a
            page header that repeats, a column set and a count at the foot.
@@ -509,6 +491,25 @@ commits it is three items.
      The user launches the application, looks, and then either moves the item
      to `## Done` or writes a new item in `## Next` saying what was wrong. The
      loop never moves anything out of this section by itself. -->
+
+- [x] `phonix-core` A statement is a document nobody numbers
+      commit: "A document that carries no number"
+      The decision the item asked for: an unnumbered document lives in
+      `config/documents/` **alone**, saying `numbered = false`, and not in
+      `config/numbering/` as a series that issues nothing - a series handing
+      out no numbers is a row whose only honest value is "not applicable".
+      The cross-check still refuses a type with no series, which is what
+      catches a typo in a `doc_type`; the flag is the deliberate line somebody
+      writes to step around it, rather than a check that quietly stopped
+      applying.
+
+      `statement` is declared and the customer statement names it, so a
+      workspace can give its statements their own paper, look and footer.
+      verify: Administration, the Documents tab - Statement should now be in
+              the list. Change its look and footer, then open
+              `/accounting/reports/statement/<a customer>` and check it
+              redrew. The receipt should be unaffected: they are separate
+              documents with separate answers.
 
 - [x] `phonix-web` Where the logo goes decides what sits beside it
       commit: "Three placements, three letterheads"
