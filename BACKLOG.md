@@ -176,25 +176,6 @@ commits it is three items.
 > cannot, is a rendered report with the types erased. That is what makes one
 > writer serve both paths, which is ADR 0008 section 9's whole requirement.
 
-- [ ] `phonix-server` The exporter, the fourth loop
-      why: the row is raised, the bytes can be written and stored, and nothing
-           runs. This is the loop, and the part of it that is genuinely new:
-           the worker needs the *rendered* report, which means asking
-           `phonix-web` for it by id - the crate the server already depends on
-           and the only place a definition can be seen from.
-      touch: crates/phonix-server/src/jobs.rs, crates/phonix-web/src/ui/report/
-      done: a `render` in `phonix-web`, server-side, from a report id and its
-            parameters to a `Rendered` - one arm per report that exports, each
-            naming the permission it needs, which is also what the reports
-            index will read. The loop claims a requested export, renders,
-            writes, stores and marks it, beside the verifier, the relay and
-            the sweeper: it walks the tenants, does a bounded amount per pass,
-            and is cancellable so a shutdown drains. Raising a request
-            dispatches it immediately and the loop is the safety net for a
-            process that died mid-job. **The worker re-checks the requester's
-            permission before it renders anything**, and a request whose
-            requester is gone fails rather than rendering as nobody.
-
 - [ ] `phonix-web` The viewer waits for its export
       why: the request is raised and stored and nobody can get at it. This is
            the half of the job the reader sees: pressing a format, the report
@@ -490,6 +471,43 @@ commits it is three items.
      The user launches the application, looks, and then either moves the item
      to `## Done` or writes a new item in `## Next` saying what was wrong. The
      loop never moves anything out of this section by itself. -->
+
+- [x] `phonix-server` The exporter, the fourth loop
+      commit: "The fourth loop"
+      The loop, beside the verifier, the relay and the sweeper: claim with
+      `SKIP LOCKED`, render, write, store, mark - and a `running` row older
+      than the claim timeout is claimed again, which is the whole recovery
+      story for a process that died mid-job. Every failure lands on the row,
+      because a worker that let an error out would leave a request saying
+      `running` for ever and a screen waiting on it.
+
+      The new part is `phonix_web::reports`: which reports the server can draw,
+      the permission each needs, and a `render` from an id and its parameters
+      to a `Rendered`. It is in `phonix-web` because a definition is closed
+      over a row type only that crate knows, and `phonix-server` depends on it
+      - so the worker asks there and what comes back has its types erased. The
+      index of reports somebody may run will read the same list.
+
+      **The worker renders as whoever asked**, rebuilt through
+      `load_auth_user_by_id` so the permissions are the ones they hold now. An
+      account deleted, or stripped of the report between the request and the
+      run, stops it with a sentence on the row rather than rendering as
+      nobody.
+
+      Two things left honest rather than finished. Immediate dispatch has no
+      caller: an upload is dispatched from the route that receives it, in this
+      crate, and an export is raised by a server function in `phonix-web`,
+      which cannot reach this one - closing that needs a channel on `AppState`
+      and belongs with the screen that raises the request. Until then an export
+      waits at most one poll interval. And a format with no writer fails by
+      name rather than producing an empty file that looks like an answer.
+      verify: **it has never run.** The dev server was stopped while this was
+              written, so the path compiles and nothing has executed it. There
+              is a real request waiting in `viaba_tenant_med_app_staging` -
+              `product-list`, CSV, `7a6d665f` - which the exporter should pick
+              up within a poll interval of the next start. Watch for
+              `report exporter started` in the log, then
+              `SELECT state, file_id, failure FROM core.report_exports`.
 
 - [x] `phonix-web` The viewer's toolbar stays where it is
       commit: "A toolbar for more than the first screenful", then "Square

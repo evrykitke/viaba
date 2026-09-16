@@ -3,7 +3,7 @@
 use std::sync::Arc;
 
 use phonix_core::report::{
-    Align, BandKind, ExportFormat, Logo, PageSetup, ReportKind, ReportTheme,
+    Align, BandKind, ExportFormat, Logo, PageSetup, Rendered, RenderedBand, ReportKind, ReportTheme,
 };
 
 use crate::ui::table::Cell;
@@ -16,6 +16,20 @@ type Href<T> = Arc<dyn Fn(&T) -> Option<String> + Send + Sync>;
 
 /// How a detail band reads a row of values per line.
 type ReadLines<T> = Arc<dyn Fn(&T) -> Vec<Vec<Value>> + Send + Sync>;
+
+/// A value with its label in front of it, for a band drawn once.
+///
+/// A letterhead's fields carry their own labels, and a file has no second
+/// column to put them in - `Closing balance 1,204.00` in one cell is what a
+/// spreadsheet can show of a value that is labelled where it stands.
+fn labelled<T: 'static>(field: &Field<T>, data: &T) -> String {
+    let value = field.read(data).to_text();
+
+    match &field.label {
+        Some(label) if !value.is_empty() => format!("{label} {value}"),
+        _ => value,
+    }
+}
 
 /// One drawn value: what it says, and the record it opens.
 ///
@@ -434,6 +448,49 @@ impl<T: 'static> ReportDefinition<T> {
 
         self.extent = Extent::Bounded(reason);
         self
+    }
+
+    /// The report with its types erased, ready to be written out.
+    ///
+    /// What crosses to `phonix-services`, which can see neither this type nor
+    /// the row type it is closed over. The screen does not use it - it draws
+    /// from the definition directly - so this is the export path's view of the
+    /// same report, produced by the same closures.
+    ///
+    /// The look and the page are the definition's own. A document's settings
+    /// reach the screen through `DocumentStyles`, which is a browser context;
+    /// the writer that needs them is the PDF one, and resolving them here is
+    /// that item's to do.
+    pub fn rendered(&self, data: &T) -> Rendered {
+        let bands = self
+            .bands
+            .iter()
+            .map(|band| match &band.content {
+                Content::Once(fields) => RenderedBand::once(
+                    band.kind,
+                    fields.iter().map(|field| labelled(field, data)).collect(),
+                ),
+                Content::Lines { headings, read } => RenderedBand::table(
+                    band.kind,
+                    headings
+                        .iter()
+                        .map(|heading| heading.label.clone().unwrap_or_default())
+                        .collect(),
+                    read(data)
+                        .into_iter()
+                        .map(|row| row.into_iter().map(|value| value.cell.to_text()).collect())
+                        .collect(),
+                ),
+            })
+            .collect();
+
+        Rendered {
+            report_id: self.id.to_owned(),
+            title: self.title.clone(),
+            theme: self.theme,
+            page: self.page,
+            bands,
+        }
     }
 
     /// The band of this kind, if the report declares one.

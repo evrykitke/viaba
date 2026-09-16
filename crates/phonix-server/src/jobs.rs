@@ -33,9 +33,17 @@
 use std::time::Duration;
 
 use phonix_core::TenantSlug;
-use phonix_db::{PgPool, audit as audit_db, files as files_db, outbox, settings as settings_db};
+use phonix_core::report::{ExportFormat, ExportRequest};
+use phonix_db::{
+    PgPool, audit as audit_db, files as files_db, outbox, report_exports as exports_db,
+    settings as settings_db,
+};
 use phonix_messaging::Publisher;
+use phonix_services::caller::Caller;
 use phonix_services::files::verify;
+use phonix_services::identity::authentication;
+use phonix_services::report::{exports, writers};
+use phonix_web::reports;
 use phonix_web::state::AppState;
 use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
@@ -100,6 +108,9 @@ pub fn spawn(state: AppState) -> Background {
     if state.config.storage.jobs.enabled {
         tasks.push(tokio::spawn(verifier_loop(state.clone(), shutdown.clone())));
         tasks.push(tokio::spawn(sweeper_loop(state.clone(), shutdown.clone())));
+        // The same switch, because an exporter writes files: a deployment with
+        // file jobs turned off has nowhere to put what it would produce.
+        tasks.push(tokio::spawn(exporter_loop(state.clone(), shutdown.clone())));
     } else {
         // Said out loud, because the symptom - uploads that stay at "queued"
         // for ever - looks like a bug rather than a setting.
@@ -239,6 +250,156 @@ async fn verifier_loop(state: AppState, shutdown: CancellationToken) {
                 }
                 Err(err) => {
                     tracing::warn!(tenant = %tenant, error = %err, "could not claim uploads");
+                }
+            }
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Writing reports out
+// ---------------------------------------------------------------------------
+
+/// Run one export, now.
+///
+/// Claiming may fail - the loop might have got there first - and that is an
+/// ordinary outcome rather than an error, which is what `SKIP LOCKED` buys.
+///
+/// **Nothing calls this yet**, and the attribute says so rather than hiding
+/// it. An upload is dispatched from the route that receives the bytes, which
+/// is in this crate; an export is raised by a server function in
+/// `phonix-web`, which cannot reach this one. Closing that gap means a channel
+/// on `AppState` and it belongs with the screen that raises the request. Until
+/// then the loop is the only path, and an export waits at most one poll
+/// interval rather than starting at once.
+#[allow(
+    dead_code,
+    reason = "its caller lands with the viewer that raises an export"
+)]
+pub async fn export_one(state: &AppState, pool: &PgPool, tenant: &TenantSlug, id: Uuid) {
+    let timeout = state.config.storage.jobs.claim_timeout_secs;
+
+    match exports_db::claim_one(pool, id, timeout).await {
+        Ok(Some(request)) => write_export(state, pool, tenant, &request).await,
+        Ok(None) => {}
+        Err(err) => {
+            tracing::warn!(export = %id, error = %err, "could not claim an export");
+        }
+    }
+}
+
+/// Render one claimed export and record what happened to it.
+///
+/// Every failure lands on the row. A worker that let an error out would leave
+/// the request saying `running` for ever, and a screen waiting on it.
+async fn write_export(
+    state: &AppState,
+    pool: &PgPool,
+    tenant: &TenantSlug,
+    request: &ExportRequest,
+) {
+    let outcome = render_and_store(state, pool, tenant, request).await;
+
+    let Err(reason) = outcome else {
+        tracing::info!(export = %request.id, report = %request.report_id, "export written");
+        return;
+    };
+
+    tracing::warn!(
+        export = %request.id,
+        report = %request.report_id,
+        error = %reason,
+        "export failed"
+    );
+
+    if let Err(err) = exports::fail(pool, request.id, &reason).await {
+        tracing::error!(export = %request.id, error = %err, "could not record a failed export");
+    }
+}
+
+/// The work itself. `Err` is the sentence the row keeps.
+async fn render_and_store(
+    state: &AppState,
+    pool: &PgPool,
+    tenant: &TenantSlug,
+    request: &ExportRequest,
+) -> Result<(), String> {
+    // A worker has no caller of its own: it renders as whoever asked, with the
+    // permissions they hold *now*. An account deleted, suspended or stripped of
+    // the report between the request and the run stops it here.
+    let Some(requested_by) = request.requested_by else {
+        return Err("the account that asked for this no longer exists".to_owned());
+    };
+
+    let Some(user) = authentication::load_auth_user_by_id(pool, requested_by, true)
+        .await
+        .map_err(|err| err.to_string())?
+    else {
+        return Err("the account that asked for this no longer exists".to_owned());
+    };
+
+    let caller = Caller::user(user);
+
+    let report = reports::server_report(&request.report_id)
+        .ok_or_else(|| format!("no report called `{}` can be run here", request.report_id))?;
+
+    caller
+        .require(report.permission)
+        .map_err(|_| "the account that asked for this may no longer run it".to_owned())?;
+
+    let rendered = reports::render(pool, &caller, &request.report_id, &request.parameters)
+        .await
+        .map_err(|err| err.to_string())?;
+
+    let bytes = match request.format {
+        ExportFormat::Csv => writers::to_csv(&rendered).into_bytes(),
+        // The writer has not landed yet. Failing by name is what tells
+        // somebody that, rather than an empty file that looks like an answer.
+        other => return Err(format!("nothing can write a {} yet", other.label())),
+    };
+
+    exports::finish(pool, state.files(), tenant, request, &bytes)
+        .await
+        .map_err(|err| err.to_string())?;
+
+    Ok(())
+}
+
+async fn exporter_loop(state: AppState, shutdown: CancellationToken) {
+    let jobs = &state.config.storage.jobs;
+    let interval = Duration::from_secs(jobs.poll_interval_secs);
+
+    tracing::info!(
+        every_secs = jobs.poll_interval_secs,
+        "report exporter started"
+    );
+
+    loop {
+        if !wait(&shutdown, interval).await {
+            tracing::info!("report exporter stopping");
+            return;
+        }
+
+        for (tenant, pool) in active_tenants(&state).await {
+            let claimed = exports_db::claim_batch(
+                &pool,
+                state.config.storage.jobs.concurrency,
+                state.config.storage.jobs.claim_timeout_secs,
+            )
+            .await;
+
+            match claimed {
+                Ok(requests) => {
+                    // Sequential within a tenant, like the verifier: rendering
+                    // reads rows this workspace already has, and running a
+                    // batch in parallel would contend for the same pool rather
+                    // than finish sooner.
+                    for request in requests {
+                        write_export(&state, &pool, &tenant, &request).await;
+                    }
+                }
+                Err(err) => {
+                    tracing::warn!(tenant = %tenant, error = %err, "could not claim exports");
                 }
             }
         }

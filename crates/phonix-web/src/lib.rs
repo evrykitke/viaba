@@ -52,6 +52,7 @@ pub mod ui;
 
 #[cfg(feature = "hydrate")]
 pub mod recovery;
+pub mod reports;
 
 #[cfg(feature = "ssr")]
 pub mod server;
