@@ -42,7 +42,7 @@ use phonix_messaging::Publisher;
 use phonix_services::caller::Caller;
 use phonix_services::files::verify;
 use phonix_services::identity::authentication;
-use phonix_services::report::{exports, writers};
+use phonix_services::report::{exports, spreadsheet, writers};
 use phonix_web::reports;
 use phonix_web::state::AppState;
 use tokio::sync::mpsc;
@@ -373,9 +373,13 @@ async fn render_and_store(
 
             writers::to_csv(&rendered).into_bytes()
         }
-        // The writer has not landed yet. Failing by name is what tells
-        // somebody that, rather than an empty file that looks like an answer.
-        other => return Err(format!("nothing can write a {} yet", other.label())),
+        ExportFormat::Xlsx => {
+            let rendered = reports::render(pool, &caller, &request.report_id, &request.parameters)
+                .await
+                .map_err(|err| err.to_string())?;
+
+            spreadsheet::to_xlsx(&rendered).map_err(|err| err.to_string())?
+        }
     };
 
     exports::finish(pool, state.files(), tenant, request, &bytes)

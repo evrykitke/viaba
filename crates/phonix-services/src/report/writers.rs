@@ -6,7 +6,7 @@
 //! and the reason a receipt and a statement cannot disagree about what a CSV
 //! looks like.
 
-use phonix_core::report::Rendered;
+use phonix_core::report::{Cell, Rendered};
 
 /// The report as a CSV.
 ///
@@ -28,7 +28,9 @@ pub fn to_csv(report: &Rendered) -> String {
         }
 
         for row in &band.rows {
-            write_row(&mut out, row, width);
+            let text: Vec<String> = row.iter().map(Cell::to_text).collect();
+
+            write_row(&mut out, &text, width);
         }
     }
 
@@ -96,8 +98,8 @@ mod tests {
             BandKind::Detail,
             vec!["Code".to_owned(), "Name".to_owned()],
             vec![
-                vec!["A1".to_owned(), "Sofa".to_owned()],
-                vec!["A2".to_owned(), "Lamp".to_owned()],
+                vec![Cell::text("A1"), Cell::text("Sofa")],
+                vec![Cell::text("A2"), Cell::text("Lamp")],
             ],
         )]));
 
@@ -110,13 +112,13 @@ mod tests {
             RenderedBand::table(
                 BandKind::Detail,
                 vec!["A".to_owned(), "B".to_owned(), "C".to_owned()],
-                vec![vec!["1".to_owned(), "2".to_owned(), "3".to_owned()]],
+                vec![vec![Cell::text("1"), Cell::text("2"), Cell::text("3")]],
             ),
             // Two cells where the report is three wide: a short row would put
             // this total under the wrong heading.
             RenderedBand::once(
                 BandKind::ReportFooter,
-                vec!["Total".to_owned(), "6".to_owned()],
+                vec![Cell::text("Total"), Cell::text("6")],
             ),
         ]));
 
@@ -128,10 +130,13 @@ mod tests {
         let csv = to_csv(&report(vec![RenderedBand::once(
             BandKind::Detail,
             vec![
-                "Smith, Jane".to_owned(),
-                "the \"good\" one".to_owned(),
-                "two\nlines".to_owned(),
-                "=1+1".to_owned(),
+                Cell::text("Smith, Jane"),
+                Cell::text("the \"good\" one"),
+                Cell::text(
+                    "two
+lines",
+                ),
+                Cell::text("=1+1"),
             ],
         )]));
 

@@ -129,12 +129,12 @@ pub async fn write_now(
 
             phonix_services::report::writers::to_csv(&rendered).into_bytes()
         }
-        // Failing by name: an empty file looks like an answer.
-        other => {
-            return Err(ServerFnError::new(format!(
-                "Nothing can write a {} yet.",
-                other.label()
-            )));
+        ExportFormat::Xlsx => {
+            let rendered = crate::reports::render(&pool, &caller, &report_id, &parameters)
+                .await
+                .map_err(service_error)?;
+
+            phonix_services::report::spreadsheet::to_xlsx(&rendered).map_err(ServerFnError::new)?
         }
     };
 

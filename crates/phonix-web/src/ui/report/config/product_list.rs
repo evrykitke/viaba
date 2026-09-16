@@ -67,6 +67,7 @@ pub fn product_list() -> ReportDefinition<Page<ItemSummary>> {
     // The dense look: a list is read for how many rows reach a page.
     .theme(ReportTheme::Compact)
     .exports(ExportFormat::Pdf)
+    .exports(ExportFormat::Xlsx)
     .exports(ExportFormat::Csv)
     .band(Band::new(BandKind::ReportHeader))
     // Repeated at the top of every page, so a torn-off sheet still says
@@ -88,7 +89,7 @@ pub fn product_list() -> ReportDefinition<Page<ItemSummary>> {
                 Cell::text(&item.stock_unit_code)
             }),
             Field::figure("cost", l!("items.cost"), |item: &ItemSummary| {
-                Cell::text(item.cost.to_display_string())
+                Cell::money(item.cost)
             }),
             // An item that is not tracked has no on-hand figure, which is
             // a different thing from having none of it.
@@ -134,7 +135,7 @@ pub fn product_list() -> ReportDefinition<Page<ItemSummary>> {
                         .and_then(|currency| {
                             Money::total(currency, page.rows.iter().map(|item| item.cost)).ok()
                         })
-                        .map_or(Cell::Empty, |total| Cell::text(total.to_display_string()))
+                        .map_or(Cell::Empty, Cell::money)
                 },
             )),
     )

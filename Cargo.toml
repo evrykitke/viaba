@@ -232,6 +232,12 @@ url = "2"
 # asks for.
 qrcode = { version = "0.14", default-features = false, features = ["svg"] }
 
+# Writes the spreadsheet an export is. Pure Rust - the alternative with the
+# same name, `xlsxwriter`, is bindings to a C library and would put a compiler
+# toolchain on every build box. `chrono` so a date reaches the file as a date
+# rather than as a string somebody has to re-type.
+rust_xlsxwriter = { version = "0.96", features = ["chrono"] }
+
 # --- wasm (hydrate) ---
 # Not pinned with '=': leptos 0.8.20 requires 0.2.108, and cargo-leptos fetches
 # a wasm-bindgen CLI matching whatever Cargo.lock resolves.

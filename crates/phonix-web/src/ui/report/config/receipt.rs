@@ -26,6 +26,7 @@ pub fn receipt() -> ReportDefinition<Payment> {
     .document_type("payment")
     .theme(ReportTheme::Professional)
     .exports(ExportFormat::Pdf)
+    .exports(ExportFormat::Xlsx)
     .exports(ExportFormat::Csv)
     .logo(Logo::new(LogoPlacement::ReportHeader(Align::Start)))
     // One payment and the invoices it was set against, which is a page.
@@ -74,12 +75,12 @@ pub fn receipt() -> ReportDefinition<Payment> {
                 Cell::maybe(line.due_on.map(|due| due.to_string()))
             }),
             Field::figure("invoiced", l!("invoices.total"), |line: &Allocation| {
-                Cell::text(line.invoiced.to_display_string())
+                Cell::money(line.invoiced)
             }),
             Field::figure(
                 "allocated",
                 l!("payments.allocated"),
-                |line: &Allocation| Cell::text(line.amount.to_display_string()),
+                |line: &Allocation| Cell::money(line.amount),
             ),
         ],
     ))
@@ -88,7 +89,7 @@ pub fn receipt() -> ReportDefinition<Payment> {
             .field(Field::figure(
                 "amount",
                 l!("payments.amount"),
-                |payment: &Payment| Cell::text(payment.amount.to_display_string()),
+                |payment: &Payment| Cell::money(payment.amount),
             ))
             .field(Field::figure(
                 "allocated_total",
@@ -106,5 +107,5 @@ pub fn receipt() -> ReportDefinition<Payment> {
 /// A figure the record had to work out, which it cannot do across two
 /// currencies - a shape the schema does not allow and a receipt does not draw.
 fn money(amount: Option<Money>) -> Cell {
-    amount.map_or(Cell::Empty, |amount| Cell::text(amount.to_display_string()))
+    amount.map_or(Cell::Empty, Cell::money)
 }

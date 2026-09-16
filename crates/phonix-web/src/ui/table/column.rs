@@ -30,126 +30,11 @@
 //! toggle and - for a server-side source - the `ORDER BY`. Renaming the heading
 //! is a wording change; renaming the field is a contract change.
 
-use std::cmp::Ordering;
 use std::sync::Arc;
 
-use chrono::{DateTime, Utc};
 use leptos::prelude::*;
 
-/// A value read out of a row, in the shape that says how to compare it.
-///
-/// Typed rather than stringly so that sorting is right: `9` before `10`, and
-/// last March before this January, neither of which survives being compared as
-/// text.
-#[derive(Debug, Clone, PartialEq)]
-pub enum Cell {
-    /// Nothing to show. Sorts before every value and exports as blank.
-    Empty,
-    Text(String),
-    Number(f64),
-    Bool(bool),
-    Timestamp(DateTime<Utc>),
-    /// Several short values - roles, tags, labels.
-    List(Vec<String>),
-}
-
-impl Cell {
-    pub fn text(value: impl Into<String>) -> Self {
-        let value: String = value.into();
-
-        if value.is_empty() {
-            Self::Empty
-        } else {
-            Self::Text(value)
-        }
-    }
-
-    pub fn number(value: impl Into<f64>) -> Self {
-        Self::Number(value.into())
-    }
-
-    pub const fn bool(value: bool) -> Self {
-        Self::Bool(value)
-    }
-
-    pub const fn timestamp(at: DateTime<Utc>) -> Self {
-        Self::Timestamp(at)
-    }
-
-    pub fn list(values: impl IntoIterator<Item = impl Into<String>>) -> Self {
-        let values: Vec<String> = values.into_iter().map(Into::into).collect();
-
-        if values.is_empty() {
-            Self::Empty
-        } else {
-            Self::List(values)
-        }
-    }
-
-    /// `Empty` when `None`, so an absent value never renders as "None" by
-    /// accident.
-    pub fn maybe(value: Option<impl Into<String>>) -> Self {
-        value.map_or(Self::Empty, Self::text)
-    }
-
-    pub const fn is_empty(&self) -> bool {
-        matches!(self, Self::Empty)
-    }
-
-    /// The value as one line of text: what the cell shows when the column has
-    /// no renderer, what the export writes, and what a search looks inside.
-    ///
-    /// The date format is fixed and sortable rather than friendly. A grid is
-    /// scanned down a column, where `2026-03-04 09:15` lines up and
-    /// "4 March 2026, 9:15 am" does not.
-    pub fn to_text(&self) -> String {
-        match self {
-            Self::Empty => String::new(),
-            Self::Text(value) => value.clone(),
-            Self::Number(value) => format_number(*value),
-            Self::Bool(true) => "Yes".to_owned(),
-            Self::Bool(false) => "No".to_owned(),
-            Self::Timestamp(at) => at.format("%Y-%m-%d %H:%M").to_string(),
-            Self::List(values) => values.join(", "),
-        }
-    }
-
-    /// Whether this cell contains `needle`, which is already lowercased.
-    pub fn contains(&self, needle: &str) -> bool {
-        self.to_text().to_lowercase().contains(needle)
-    }
-
-    /// Ascending order within a column.
-    ///
-    /// `Empty` sorts first, so "never signed in" collects at one end rather
-    /// than being scattered by whatever its text happens to be. Mixed variants
-    /// in one column would be a mistake in the configuration; they fall back to
-    /// comparing text so that a mistake still produces a stable order.
-    pub fn compare(&self, other: &Self) -> Ordering {
-        match (self, other) {
-            (Self::Empty, Self::Empty) => Ordering::Equal,
-            (Self::Empty, _) => Ordering::Less,
-            (_, Self::Empty) => Ordering::Greater,
-            (Self::Number(a), Self::Number(b)) => a.partial_cmp(b).unwrap_or(Ordering::Equal),
-            (Self::Timestamp(a), Self::Timestamp(b)) => a.cmp(b),
-            (Self::Bool(a), Self::Bool(b)) => a.cmp(b),
-            // Case-insensitive, because a column sorted A, B, a, b reads as
-            // broken to everyone who is not a computer.
-            (a, b) => a.to_text().to_lowercase().cmp(&b.to_text().to_lowercase()),
-        }
-    }
-}
-
-/// Trailing zeroes dropped: `4`, not `4.0000000`.
-fn format_number(value: f64) -> String {
-    if value.fract() == 0.0 && value.abs() < 1e15 {
-        format!("{value:.0}")
-    } else {
-        let text = format!("{value:.4}");
-
-        text.trim_end_matches('0').trim_end_matches('.').to_owned()
-    }
-}
+pub use phonix_core::report::Cell;
 
 /// Which edge of its cell a column's content sits against.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -375,55 +260,8 @@ impl<T: 'static> Column<T> {
 mod tests {
     use super::*;
 
-    #[test]
-    fn numbers_sort_as_numbers_not_as_text() {
-        assert_eq!(Cell::number(9).compare(&Cell::number(10)), Ordering::Less);
-        assert_eq!(
-            Cell::text("9").compare(&Cell::text("10")),
-            Ordering::Greater
-        );
-    }
-
-    #[test]
-    fn nothing_sorts_before_something() {
-        assert_eq!(Cell::Empty.compare(&Cell::text("a")), Ordering::Less);
-        assert_eq!(Cell::text("a").compare(&Cell::Empty), Ordering::Greater);
-    }
-
-    #[test]
-    fn text_sorts_without_regard_to_case() {
-        assert_eq!(
-            Cell::text("apple").compare(&Cell::text("Banana")),
-            Ordering::Less
-        );
-    }
-
-    #[test]
-    fn an_empty_string_is_an_empty_cell() {
-        assert!(Cell::text("").is_empty());
-        assert!(Cell::list(Vec::<String>::new()).is_empty());
-        assert!(Cell::maybe(None::<String>).is_empty());
-    }
-
-    #[test]
-    fn a_list_reads_and_searches_as_its_members() {
-        let cell = Cell::list(["Admin", "Buyer"]);
-
-        assert_eq!(cell.to_text(), "Admin, Buyer");
-        assert!(cell.contains("buyer"));
-    }
-
-    #[test]
-    fn a_flag_reads_as_a_word_so_the_export_says_something() {
-        assert_eq!(Cell::bool(true).to_text(), "Yes");
-        assert_eq!(Cell::bool(false).to_text(), "No");
-    }
-
-    #[test]
-    fn whole_numbers_do_not_grow_a_decimal_point() {
-        assert_eq!(Cell::number(4).to_text(), "4");
-        assert_eq!(Cell::number(4.5).to_text(), "4.5");
-    }
+    // `Cell`'s own tests moved to `phonix_core::report::cell` with the type.
+    // What is left here is what belongs to a column.
 
     #[test]
     fn a_renderer_changes_the_look_and_not_the_value() {

@@ -219,27 +219,6 @@ commits it is three items.
 > like any other, and the loop takes the next one. The section is what they
 > read when they come back.
 
-- [ ] `phonix-services` The spreadsheet a job wrote
-      why: CSV loses the totals, the grouping and the type of every number -
-           somebody who wanted to pivot the export has to retype it. This is
-           the export an accounts department actually asks for, and the third
-           writer on a path that by now has carried two.
-      touch: Cargo.toml, crates/phonix-services/
-      done: XLSX from the definition, with numbers as numbers and dates as
-            dates rather than strings, a frozen header row, and group subtotals
-            as real cells. It adds a pure-Rust dependency: name it in the commit
-            body and say what it was chosen over. By this item the exporter has
-            three writers and adding a fourth should be a writer and a line on
-            an enum - if it is not, say so in the report, because that is the
-            design having gone wrong rather than a format being awkward.
-      verify: export as XLSX and open it. Sum a column in the spreadsheet - if
-              the numbers are text it will not add up - and check the dates
-              sort as dates and the header row is frozen.
-      stop: seventh checkpoint. Every export format is in by here, and the three
-            items after it are the remaining statements moving onto all of them
-            at once.
-
-
 - [ ] `phonix-web` The trial balance, as a definition
       why: second of the four statements. It is the simplest - every account,
            two columns, and a pair of totals that must agree - which makes it
@@ -832,6 +811,28 @@ commits it is three items.
 ## Done
 
 <!-- The loop appends here with the commit sha. Newest first. -->
+
+- [x] `phonix-services` The spreadsheet a job wrote
+      commit: "A column somebody can add up"
+      why: CSV loses the totals, the grouping and the type of every number -
+           somebody who wanted to pivot the export has to retype it. This is
+           the export an accounts department actually asks for, and the third
+           writer on a path that by now has carried two.
+      touch: Cargo.toml, crates/phonix-services/
+      done: XLSX from the definition, with numbers as numbers and dates as
+            dates rather than strings, a frozen header row, and group subtotals
+            as real cells. It adds a pure-Rust dependency: name it in the commit
+            body and say what it was chosen over. By this item the exporter has
+            two writers and a printer: a format that is a *page* is the
+            report's own page printed by a browser, and one that is not is a
+            writer and a line on an enum. Adding a third writer is still that
+            one line.
+      verify: export as XLSX and open it. Sum a column in the spreadsheet - if
+              the numbers are text it will not add up - and check the dates
+              sort as dates and the header row is frozen.
+      stop: seventh checkpoint. Every export format is in by here, and the three
+            items after it are the remaining statements moving onto all of them
+            at once.
 
 - [x] `phonix-web` A group that opens and closes
       commit: "A section somebody has read"

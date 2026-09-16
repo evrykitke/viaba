@@ -11,4 +11,5 @@
 //! belongs here is a format that is not a page.
 
 pub mod exports;
+pub mod spreadsheet;
 pub mod writers;

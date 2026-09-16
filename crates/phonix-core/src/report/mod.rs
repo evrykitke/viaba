@@ -7,6 +7,7 @@
 //! Lengths are millimetres throughout.
 
 mod band;
+mod cell;
 mod chart;
 mod export;
 mod page;
@@ -16,6 +17,7 @@ mod settings;
 mod theme;
 
 pub use band::{Align, BandKind, ReportKind};
+pub use cell::Cell;
 pub use chart::{ChartKind, Frame, Mark, Plot, Point, Tick, plot};
 pub use export::ExportFormat;
 pub use page::{Logo, LogoPlacement, Margins, Orientation, PageSetup, PaperSize};

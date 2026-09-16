@@ -13,26 +13,29 @@
 //! which is ADR 0008 §9's requirement - two writers that drifted would be a
 //! receipt and a statement that disagree about what a CSV looks like.
 //!
-//! # Text, for now
+//! # Typed cells
 //!
-//! Every cell is a `String`. That is enough for CSV and for a PDF, which draws
-//! text either way, and it is not enough for XLSX, which wants numbers as
-//! numbers and dates as dates. The answer when that lands is to move the
-//! grid's `Cell` into this crate rather than to grow a second one here.
+//! Every cell is a [`Cell`], which is the grid's own type - moved here when
+//! the spreadsheet writer arrived, exactly as this note used to say it would
+//! be. A CSV asks each one for its text; a spreadsheet asks a number for its
+//! number and a date for its date, which is the difference between a column
+//! somebody can total and one they have to retype.
 
 use serde::{Deserialize, Serialize};
 
-use super::{Align, BandKind, PageSetup, ReportTheme};
+use super::{Align, BandKind, Cell, PageSetup, ReportTheme};
 
 /// One band, as something that can be written out.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+///
+/// `PartialEq` and not `Eq`: a cell can hold a number.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct RenderedBand {
     pub kind: BandKind,
     /// What the columns are called. Empty for a band drawn once, whose values
     /// carry their own labels.
     pub headings: Vec<String>,
     /// One row of cells per line. A band drawn once has exactly one row.
-    pub rows: Vec<Vec<String>>,
+    pub rows: Vec<Vec<Cell>>,
     /// Which edge each column sits against. Empty means every column starts,
     /// which is what a band built before anybody asked gets.
     pub aligns: Vec<Align>,
@@ -40,7 +43,7 @@ pub struct RenderedBand {
 
 impl RenderedBand {
     /// A band of rows under headings - a detail band.
-    pub fn table(kind: BandKind, headings: Vec<String>, rows: Vec<Vec<String>>) -> Self {
+    pub fn table(kind: BandKind, headings: Vec<String>, rows: Vec<Vec<Cell>>) -> Self {
         Self {
             kind,
             headings,
@@ -50,7 +53,7 @@ impl RenderedBand {
     }
 
     /// A band drawn once: a letterhead, a total.
-    pub fn once(kind: BandKind, cells: Vec<String>) -> Self {
+    pub fn once(kind: BandKind, cells: Vec<Cell>) -> Self {
         Self {
             kind,
             headings: Vec::new(),

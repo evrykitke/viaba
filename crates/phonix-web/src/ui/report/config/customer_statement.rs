@@ -2,6 +2,7 @@
 //! how long the rest has been owed.
 
 use app_books::report::{CustomerStatement, EntryKind, StatementLine};
+use phonix_core::money::Money;
 use phonix_core::permissions;
 use phonix_core::report::{
     Align, BandKind, ExportFormat, Logo, LogoPlacement, ReportKind, ReportTheme,
@@ -26,6 +27,7 @@ pub fn customer_statement() -> ReportDefinition<CustomerStatement> {
     .document_type("statement")
     .theme(ReportTheme::Professional)
     .exports(ExportFormat::Pdf)
+    .exports(ExportFormat::Xlsx)
     .exports(ExportFormat::Csv)
     .logo(Logo::new(LogoPlacement::ReportHeader(Align::Start)))
     .band(
@@ -48,7 +50,7 @@ pub fn customer_statement() -> ReportDefinition<CustomerStatement> {
             .field(Field::figure(
                 "opening",
                 l!("reports.statement.opening"),
-                |statement: &CustomerStatement| Cell::text(statement.opening.to_display_string()),
+                |statement: &CustomerStatement| Cell::money(statement.opening),
             )),
     )
     .band(Band::lines(
@@ -76,12 +78,12 @@ pub fn customer_statement() -> ReportDefinition<CustomerStatement> {
             Field::figure(
                 "amount",
                 l!("reports.column.amount"),
-                |line: &StatementLine| Cell::text(line.amount.to_display_string()),
+                |line: &StatementLine| Cell::money(line.amount),
             ),
             Field::figure(
                 "running",
                 l!("reports.column.balance"),
-                |line: &StatementLine| Cell::text(line.running.to_display_string()),
+                |line: &StatementLine| Cell::money(line.running),
             ),
         ],
     ))
@@ -90,46 +92,40 @@ pub fn customer_statement() -> ReportDefinition<CustomerStatement> {
             .field(bucket(
                 "ageing_not_due",
                 l!("reports.ageing.not_due"),
-                |a| a.not_yet_due.to_display_string(),
+                |a| a.not_yet_due,
             ))
-            .field(bucket("ageing_30", l!("reports.ageing.to_30"), |a| {
-                a.to_30.to_display_string()
-            }))
-            .field(bucket("ageing_60", l!("reports.ageing.to_60"), |a| {
-                a.to_60.to_display_string()
-            }))
-            .field(bucket("ageing_90", l!("reports.ageing.to_90"), |a| {
-                a.to_90.to_display_string()
-            }))
+            .field(bucket("ageing_30", l!("reports.ageing.to_30"), |a| a.to_30))
+            .field(bucket("ageing_60", l!("reports.ageing.to_60"), |a| a.to_60))
+            .field(bucket("ageing_90", l!("reports.ageing.to_90"), |a| a.to_90))
             .field(bucket(
                 "ageing_over_90",
                 l!("reports.ageing.over_90"),
-                |a| a.over_90.to_display_string(),
+                |a| a.over_90,
             ))
             .field(bucket(
                 "ageing_on_account",
                 l!("reports.ageing.on_account"),
-                |a| a.on_account.to_display_string(),
+                |a| a.on_account,
             ))
             .field(total(
                 "billed",
                 l!("reports.statement.billed"),
-                |statement| statement.billed.to_display_string(),
+                |statement| statement.billed,
             ))
             .field(total(
                 "credited",
                 l!("reports.statement.credited"),
-                |statement| statement.credited.to_display_string(),
+                |statement| statement.credited,
             ))
             .field(total(
                 "received",
                 l!("reports.statement.received"),
-                |statement| statement.received.to_display_string(),
+                |statement| statement.received,
             ))
             .field(total(
                 "closing",
                 l!("reports.statement.closing"),
-                |statement| statement.closing.to_display_string(),
+                |statement| statement.closing,
             )),
     )
 }
@@ -162,10 +158,10 @@ fn document(line: &StatementLine) -> String {
 fn bucket(
     key: &'static str,
     label: String,
-    read: impl Fn(&app_books::report::Ageing) -> String + Send + Sync + 'static,
+    read: impl Fn(&app_books::report::Ageing) -> Money + Send + Sync + 'static,
 ) -> Field<CustomerStatement> {
     Field::figure(key, label, move |statement: &CustomerStatement| {
-        Cell::text(read(&statement.ageing))
+        Cell::money(read(&statement.ageing))
     })
     .align(Align::Start)
 }
@@ -174,9 +170,9 @@ fn bucket(
 fn total(
     key: &'static str,
     label: String,
-    read: impl Fn(&CustomerStatement) -> String + Send + Sync + 'static,
+    read: impl Fn(&CustomerStatement) -> Money + Send + Sync + 'static,
 ) -> Field<CustomerStatement> {
     Field::figure(key, label, move |statement: &CustomerStatement| {
-        Cell::text(read(statement))
+        Cell::money(read(statement))
     })
 }

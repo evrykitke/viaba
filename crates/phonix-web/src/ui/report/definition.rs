@@ -31,12 +31,16 @@ type ReadPoints<T> = Arc<dyn Fn(&T) -> Vec<Point> + Send + Sync>;
 /// A letterhead's fields carry their own labels, and a file has no second
 /// column to put them in - `Closing balance 1,204.00` in one cell is what a
 /// spreadsheet can show of a value that is labelled where it stands.
-fn labelled<T: 'static>(field: &Field<T>, data: &T) -> String {
-    let value = field.read(data).to_text();
+fn labelled<T: 'static>(field: &Field<T>, data: &T) -> Cell {
+    let read = field.read(data);
+    let value = read.to_text();
 
     match &field.label {
-        Some(label) if !value.is_empty() => format!("{label} {value}"),
-        _ => value,
+        // A label in front of the value, which is what a letterhead's
+        // fields are: `Closing balance 1,204.00` in one cell. The type is
+        // spent to say so, and a figure that stands alone keeps it.
+        Some(label) if !value.is_empty() => Cell::text(format!("{label} {value}")),
+        _ => read,
     }
 }
 
@@ -209,7 +213,10 @@ fn written(headings: Vec<String>, aligns: &[Align], groups: Vec<RowGroup>) -> Ve
 
     for (index, group) in groups.into_iter().enumerate() {
         if !group.label.is_empty() {
-            bands.push(RenderedBand::once(BandKind::GroupHeader, vec![group.label]));
+            bands.push(RenderedBand::once(
+                BandKind::GroupHeader,
+                vec![Cell::text(group.label)],
+            ));
         }
 
         bands.push(
@@ -223,7 +230,7 @@ fn written(headings: Vec<String>, aligns: &[Align], groups: Vec<RowGroup>) -> Ve
                 group
                     .rows
                     .into_iter()
-                    .map(|row| row.into_iter().map(|value| value.cell.to_text()).collect())
+                    .map(|row| row.into_iter().map(|value| value.cell).collect())
                     .collect(),
             )
             .aligned(aligns.to_vec()),
@@ -233,11 +240,7 @@ fn written(headings: Vec<String>, aligns: &[Align], groups: Vec<RowGroup>) -> Ve
             bands.push(
                 RenderedBand::once(
                     BandKind::GroupFooter,
-                    group
-                        .totals
-                        .into_iter()
-                        .map(|value| value.cell.to_text())
-                        .collect(),
+                    group.totals.into_iter().map(|value| value.cell).collect(),
                 )
                 .aligned(aligns.to_vec()),
             );
@@ -276,7 +279,7 @@ fn sum<L>(amount: &Amount<L>, lines: &[L]) -> Cell {
         amount(first).currency(),
         lines.iter().map(|line| amount(line)),
     )
-    .map_or(Cell::Empty, |total| Cell::text(total.to_display_string()))
+    .map_or(Cell::Empty, Cell::money)
 }
 
 /// One value in a band: a field of the row, or a constant beside it.
