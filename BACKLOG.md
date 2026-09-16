@@ -466,6 +466,43 @@ commits it is three items.
             letterhead and its lines are two different types meeting in one
             definition.
 
+- [ ] `phonix-web` The four dialogs that predate the modal
+      why: `ui/table/toolbar` (the column menu), `ui/alert/host`, `ui/lookup`
+           and `pages/admin/apps` each hand-rolled a dialog before `ui::modal`
+           existed - at three different widths, some closing on Escape and
+           some on a click outside, none of them moving focus. The commit that
+           added the modal said converting them was its own item and then did
+           not write it down, which is how four copies become five.
+      touch: crates/phonix-web/src/ui/table/toolbar.rs,
+             crates/phonix-web/src/ui/alert/host.rs,
+             crates/phonix-web/src/ui/lookup/mod.rs,
+             crates/phonix-web/src/pages/admin/apps.rs
+      done: each of the four opens a `<Modal>` instead of its own markup, or
+            carries one line saying why it cannot - the alert host in
+            particular may be the one that genuinely differs, since it stacks
+            and is not opened by anybody. Escape, the backdrop and focus then
+            behave the same way everywhere, which is the whole point of having
+            one.
+      verify: the column menu on any grid, a lookup, and the app install
+              dialog in Administration. All three should close on Escape and
+              on the backdrop, and none on a click inside.
+
+- [ ] `phonix-web` Three more editors that grow the page
+      why: the same shape the settings tabs had, found while converting them:
+           `master/party` edits an address below its panel, `master/tax` a
+           rate, and `people/attendance` a day. Each pushes what you clicked
+           off the screen on a list of any length. Not reported, and the same
+           complaint applies.
+      touch: crates/phonix-web/src/pages/master/party.rs,
+             crates/phonix-web/src/pages/master/tax.rs,
+             crates/phonix-web/src/pages/people/attendance.rs
+      done: each opens its editor in a `<Modal>` and drops the `Panel` it was
+            wrapped in. Attendance keeps whatever its `Show` is doing about
+            the day being edited; this is about where the form appears, not
+            when.
+      verify: a party's addresses, a tax's rates, and an attendance day. Each
+              editor should open over the list rather than under it.
+
 ## Awaiting verification
 
 <!-- Committed, compiling, and not finished: each of these changed something
