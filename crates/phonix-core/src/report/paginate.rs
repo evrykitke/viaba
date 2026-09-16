@@ -10,7 +10,15 @@
 
 use core::ops::Range;
 
-use super::{BandKind, Metrics, Rendered, RenderedBand};
+use super::{Align, BandKind, Metrics, Rendered, RenderedBand};
+
+/// Points in a millimetre. A page is measured in millimetres and type is
+/// measured in points, and every report has both on it.
+pub const PT_PER_MM: f32 = 72.0 / 25.4;
+
+/// How far apart two stacked lines sit, as a share of their size. Read by the
+/// writers, so a band is drawn in the lines it was measured for.
+pub const LINE_SPACING: f32 = 1.35;
 
 /// One band, or part of one, on a page.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -69,6 +77,66 @@ impl Pagination {
     }
 }
 
+/// What size a band's own text is set in.
+///
+/// Read by the writers as well as by the measuring below: a band measured at
+/// one size and drawn at another is a page that overflows.
+pub const fn text_size(kind: BandKind, metrics: &Metrics) -> f32 {
+    match kind {
+        BandKind::ReportHeader | BandKind::Detail => metrics.type_scale.body_pt,
+        BandKind::PageHeader | BandKind::PageFooter => metrics.type_scale.caption_pt,
+        BandKind::GroupHeader => metrics.type_scale.heading_pt,
+        BandKind::GroupFooter | BandKind::ReportFooter => metrics.type_scale.total_pt,
+    }
+}
+
+/// How tall a band is drawn, in millimetres.
+///
+/// What the look declares, unless what the band holds needs more: a letterhead
+/// of six values stacked against one edge is six lines tall whatever the look
+/// says a report header is.
+pub fn band_height(band: &RenderedBand, metrics: &Metrics) -> f32 {
+    let declared = metrics.bands.of(band.kind);
+
+    if band.kind == BandKind::Detail || !stacks(band.kind) {
+        return declared;
+    }
+
+    let line = text_size(band.kind, metrics) * LINE_SPACING / PT_PER_MM;
+    let held = as_f32(stacked_lines(band)) * line + metrics.padding.vertical * 2.0;
+
+    declared.max(held)
+}
+
+/// Whether a band of this kind stacks its values by the edge they sit against,
+/// the way a letterhead does, rather than laying them out as one row of
+/// columns.
+pub const fn stacks(kind: BandKind) -> bool {
+    !matches!(kind, BandKind::Detail | BandKind::GroupFooter)
+}
+
+/// How many lines the tallest of a stacked band's three groups comes to.
+fn stacked_lines(band: &RenderedBand) -> usize {
+    let cells = band.rows.first().map_or(0, Vec::len);
+
+    [Align::Start, Align::Center, Align::End]
+        .into_iter()
+        .map(|edge| {
+            (0..cells)
+                .filter(|column| {
+                    band.align(*column) == edge
+                        && band
+                            .rows
+                            .first()
+                            .and_then(|row| row.get(*column))
+                            .is_some_and(|cell| !cell.is_empty())
+                })
+                .count()
+        })
+        .max()
+        .unwrap_or_default()
+}
+
 /// Lay a report out in pages.
 pub fn paginate(report: &Rendered) -> Pagination {
     let metrics = report.theme.metrics();
@@ -89,7 +157,7 @@ pub fn paginate(report: &Rendered) -> Pagination {
 
         match band.kind {
             BandKind::Detail => sheet.flow(index, band),
-            kind => sheet.whole(index, kind),
+            kind => sheet.whole(index, kind, band_height(band, &metrics)),
         }
     }
 
@@ -224,9 +292,7 @@ impl<'a> Sheet<'a> {
     }
 
     /// A band drawn once: placed whole, or moved to the next page.
-    fn whole(&mut self, band: usize, kind: BandKind) {
-        let height = self.metrics.bands.of(kind);
-
+    fn whole(&mut self, band: usize, kind: BandKind, height: f32) {
         if height > self.room() && !self.fresh() {
             self.turn();
         }
@@ -361,6 +427,28 @@ mod tests {
             .filter(|piece| piece.band == band)
             .flat_map(|piece| piece.rows.clone())
             .collect()
+    }
+
+    #[test]
+    fn a_band_is_measured_at_what_it_holds() {
+        // A letterhead of four values against one edge is four lines tall,
+        // whatever a report header is declared to be.
+        let metrics = ReportTheme::Modern.metrics();
+        let letterhead = RenderedBand::once(
+            BandKind::ReportHeader,
+            (0..8).map(|line| format!("Line {line}")).collect(),
+        )
+        .aligned(vec![Align::Start; 8]);
+
+        assert!(
+            band_height(&letterhead, &metrics) > metrics.bands.report_header,
+            "eight lines were measured at the height of one band",
+        );
+        assert_eq!(
+            band_height(&detail(3), &metrics),
+            metrics.bands.detail,
+            "a detail band is one row tall however many rows it holds",
+        );
     }
 
     #[test]

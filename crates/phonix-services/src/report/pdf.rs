@@ -19,11 +19,9 @@ use core::fmt;
 
 use pdf_writer::{Content, Finish, Name, Pdf, Rect, Ref, Str};
 use phonix_core::report::{
-    Align, BandKind, Metrics, PrintedPage, Rendered, RenderedBand, paginate,
+    Align, BandKind, LINE_SPACING, Metrics, PT_PER_MM, PrintedPage, Rendered, RenderedBand,
+    band_height, paginate, stacks, text_size,
 };
-
-/// Points to a millimetre.
-const PT_PER_MM: f32 = 72.0 / 25.4;
 
 /// What the cap of a letter comes to, as a share of its size. Used to sit a
 /// line of text in the middle of the band it belongs to.
@@ -140,20 +138,9 @@ fn draw(report: &Rendered, metrics: &Metrics, page: &PrintedPage) -> Result<Vec<
         match piece.kind {
             // The foot of the sheet, not the foot of the flow.
             BandKind::PageFooter => {
-                let band_height = metrics.bands.page_footer * PT_PER_MM;
+                let tall = band_height(band, metrics) * PT_PER_MM;
 
-                row(
-                    &mut content,
-                    band,
-                    &band.rows.first().cloned().unwrap_or_default(),
-                    &Line {
-                        top: foot + band_height,
-                        height: band_height,
-                        size: metrics.type_scale.caption_pt,
-                        bold: false,
-                    },
-                    column,
-                )?;
+                stacked(&mut content, band, foot + tall, metrics, column)?;
             }
             BandKind::Detail => {
                 if piece.headings {
@@ -183,7 +170,7 @@ fn draw(report: &Rendered, metrics: &Metrics, page: &PrintedPage) -> Result<Vec<
                 }
             }
             kind => {
-                let band_height = metrics.bands.of(kind) * PT_PER_MM;
+                let tall = band_height(band, metrics) * PT_PER_MM;
 
                 if matches!(kind, BandKind::ReportFooter | BandKind::GroupFooter) {
                     rule(&mut content, left, right, top, metrics.rules.above_total);
@@ -208,24 +195,28 @@ fn draw(report: &Rendered, metrics: &Metrics, page: &PrintedPage) -> Result<Vec<
                     top -= title.height;
                 }
 
-                let line = Line {
-                    top,
-                    height: band_height,
-                    size: size_of(kind, metrics),
-                    bold: matches!(
-                        kind,
-                        BandKind::GroupHeader | BandKind::GroupFooter | BandKind::ReportFooter
-                    ),
-                };
+                if stacks(kind) {
+                    stacked(&mut content, band, top, metrics, column)?;
+                } else {
+                    // A subtotal is a row of the same columns as the rows it
+                    // totals, so its figures sit under them.
+                    let line = Line {
+                        top,
+                        height: tall,
+                        size: text_size(kind, metrics),
+                        bold: true,
+                    };
 
-                row(
-                    &mut content,
-                    band,
-                    &band.rows.first().cloned().unwrap_or_default(),
-                    &line,
-                    column,
-                )?;
-                top -= band_height;
+                    row(
+                        &mut content,
+                        band,
+                        &band.rows.first().cloned().unwrap_or_default(),
+                        &line,
+                        column,
+                    )?;
+                }
+
+                top -= tall;
 
                 if kind == BandKind::ReportHeader {
                     rule(
@@ -241,16 +232,6 @@ fn draw(report: &Rendered, metrics: &Metrics, page: &PrintedPage) -> Result<Vec<
     }
 
     Ok(content.finish().into_vec())
-}
-
-/// What size a band's own text is set in.
-const fn size_of(kind: BandKind, metrics: &Metrics) -> f32 {
-    match kind {
-        BandKind::ReportHeader | BandKind::Detail => metrics.type_scale.body_pt,
-        BandKind::PageHeader | BandKind::PageFooter => metrics.type_scale.caption_pt,
-        BandKind::GroupHeader => metrics.type_scale.heading_pt,
-        BandKind::GroupFooter | BandKind::ReportFooter => metrics.type_scale.total_pt,
-    }
 }
 
 /// Where a row of cells sits, and how it is set.
@@ -304,20 +285,139 @@ fn row(
         }
 
         let (start, end) = columns.edges(index, cells.len());
+        let cell = fitted(cell, line.size, end - start);
 
         let x = match band.align(index) {
             Align::Start => start,
-            Align::Center => (start + end - width_of(cell, line.size)) / 2.0,
-            Align::End => end - width_of(cell, line.size),
+            Align::Center => (start + end - width_of(&cell, line.size)) / 2.0,
+            Align::End => end - width_of(&cell, line.size),
         };
 
-        text(content, cell, x, baseline, line.size, line.bold)?;
+        text(content, &cell, x, baseline, line.size, line.bold)?;
     }
 
     Ok(())
 }
 
-/// One run of text.
+/// A band drawn once: its values stacked against the edge each sits on.
+///
+/// What the screen does with a letterhead - three groups, one per edge, each a
+/// column of lines - rather than one row of equal columns, which prints four
+/// values on top of each other. Each group is given the width it needs rather
+/// than a third of the page, so a long note beside a short figure still reads.
+fn stacked(
+    content: &mut Content,
+    band: &RenderedBand,
+    top: f32,
+    metrics: &Metrics,
+    columns: Columns,
+) -> Result<(), PdfError> {
+    let cells = band.rows.first().cloned().unwrap_or_default();
+    let size = text_size(band.kind, metrics);
+    let bold = matches!(band.kind, BandKind::GroupHeader | BandKind::ReportFooter);
+    let step = size * LINE_SPACING;
+    let first = top - metrics.padding.vertical * PT_PER_MM - size * CAP_HEIGHT;
+
+    let group = |edge: Align| -> Vec<String> {
+        cells
+            .iter()
+            .enumerate()
+            .filter(|(column, cell)| !cell.is_empty() && band.align(*column) == edge)
+            .map(|(_, cell)| cell.clone())
+            .collect()
+    };
+
+    let start = group(Align::Start);
+    let centre = group(Align::Center);
+    let end = group(Align::End);
+
+    // Inside the same padding a cell of the detail band has, so a letterhead
+    // and the headings under it start on the same line down the page.
+    let left = columns.left + columns.padding;
+    let right = columns.right - columns.padding;
+
+    let gap = columns.padding * 2.0;
+    let end_width = widest(&end, size);
+    let centre_width = widest(&centre, size);
+    let start_width = (right - left - end_width - centre_width - gap * 2.0).max(gap);
+
+    for (index, line) in start.iter().enumerate() {
+        let line = fitted(line, size, start_width);
+
+        text(
+            content,
+            &line,
+            left,
+            first - step * as_f32(index),
+            size,
+            bold,
+        )?;
+    }
+
+    for (index, line) in centre.iter().enumerate() {
+        let line = fitted(line, size, centre_width.max(gap));
+        let middle = (left + right - width_of(&line, size)) / 2.0;
+
+        text(
+            content,
+            &line,
+            middle,
+            first - step * as_f32(index),
+            size,
+            bold,
+        )?;
+    }
+
+    for (index, line) in end.iter().enumerate() {
+        let line = fitted(line, size, end_width.max(gap));
+
+        text(
+            content,
+            &line,
+            right - width_of(&line, size),
+            first - step * as_f32(index),
+            size,
+            bold,
+        )?;
+    }
+
+    Ok(())
+}
+
+/// The widest of a group's lines.
+fn widest(lines: &[String], size: f32) -> f32 {
+    lines
+        .iter()
+        .map(|line| width_of(line, size))
+        .fold(0.0_f32, f32::max)
+}
+
+/// A line cut to the width it has, rather than drawn across its neighbour.
+///
+/// The screen wraps instead, which is what a `<div>` does for nothing; wrapping
+/// here would change how tall a band is after the paginator has already said
+/// where the page ends.
+fn fitted(line: &str, size: f32, width: f32) -> String {
+    if width_of(line, size) <= width {
+        return line.to_owned();
+    }
+
+    let mut cut = String::new();
+    let room = width - width_of("\u{2026}", size);
+
+    for letter in line.chars() {
+        if width_of(&cut, size) + width_of(&letter.to_string(), size) > room {
+            break;
+        }
+
+        cut.push(letter);
+    }
+
+    cut.push('\u{2026}');
+    cut
+}
+
+/// One run of text./// One run of text.
 fn text(
     content: &mut Content,
     words: &str,
@@ -481,6 +581,44 @@ mod tests {
         )]));
 
         assert!(written.is_ok(), "Latin-1 is inside the encoding");
+    }
+
+    #[test]
+    fn a_letterhead_stacks_rather_than_overlapping() {
+        // Four values on one baseline in four columns is what the first
+        // exported statement did, and all four sat on top of each other.
+        let letterhead = RenderedBand::once(
+            BandKind::ReportHeader,
+            vec![
+                "jamo101".to_owned(),
+                "2026-01-01 to 2026-09-16".to_owned(),
+                "Every figure is in USD.".to_owned(),
+                "Opening balance 0.00".to_owned(),
+            ],
+        )
+        .aligned(vec![Align::Start, Align::Start, Align::Start, Align::End]);
+
+        let bytes = to_pdf(&report(vec![letterhead])).expect("a letterhead");
+        let baselines = baselines_of(&bytes);
+
+        assert_eq!(baselines.len(), 5, "a title and four values");
+        assert_eq!(
+            baselines
+                .iter()
+                .collect::<std::collections::BTreeSet<_>>()
+                .len(),
+            4,
+            "the three values against one edge are not on three lines",
+        );
+    }
+
+    /// The line every run of text stands on, as it is written in the file.
+    fn baselines_of(bytes: &[u8]) -> Vec<String> {
+        String::from_utf8_lossy(bytes)
+            .lines()
+            .filter(|line| line.ends_with(" Td"))
+            .filter_map(|line| line.split_whitespace().nth(1).map(str::to_owned))
+            .collect()
     }
 
     fn count_of(haystack: &[u8], needle: &[u8]) -> usize {

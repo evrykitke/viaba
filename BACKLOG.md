@@ -195,6 +195,13 @@ commits it is three items.
 > backlog has four commits undoing that shape. The charts, the collapsing
 > group and the spreadsheet wait behind both.
 
+> **The first PDF anybody downloaded was wrong**, 2026-09-16. Three faults in
+> one file, all in front of the item that claimed the file and the screen were
+> one document: the letterhead's four values printed on top of each other, the
+> money columns came out left-aligned, and nothing stops a long cell running
+> across the column beside it. The first two are drawing; the third is
+> measurement, and it is why this sits in front of the mark and the words.
+
 - [ ] `phonix-services` The mark, and the words around it, in the PDF
       why: the file is the copy that gets sent, and it is the one without the
            workspace's logo on it. The screen draws the mark and the tenant's
@@ -422,6 +429,32 @@ commits it is three items.
      The user launches the application, looks, and then either moves the item
      to `## Done` or writes a new item in `## Next` saying what was wrong. The
      loop never moves anything out of this section by itself. -->
+
+- [x] `phonix-services` A letterhead that reads, in the PDF
+      commit: "Four values on one line"
+      why: the exported statement prints its party, its span, its currency note
+           and its opening balance on one baseline in four equal columns, so
+           all four overlap. The screen stacks a once-band by alignment - three
+           groups, each a column of lines - and the writer draws it as a row.
+           The detail band's alignment never reached the file at all: the call
+           that carried it was written and then lost in a reformat, so a figure
+           column is left-aligned in every PDF written so far.
+      touch: crates/phonix-web/src/ui/report/definition.rs,
+             crates/phonix-services/src/report/pdf.rs,
+             crates/phonix-core/src/report/paginate.rs
+      done: a once-band is drawn the way the screen draws it - the Start cells
+            stacked at the left, the End cells stacked at the right, Center
+            between them - and the detail band carries its alignment into the
+            file, so a figure sits at the end of its column in both. A band
+            that holds more lines than its declared height is measured at what
+            it holds, by the paginator as well as by the writer, or the two
+            disagree about where the page ends. A cell too wide for its column
+            is cut with an ellipsis rather than drawn across its neighbour.
+      verify: the statement, exported. The letterhead should read as it does on
+              the screen, the amount and balance columns should line up at
+              their right edge, and nothing should sit on top of anything.
+      stop: the file is what somebody sends, and the only way to judge one is
+            to open it.
 
 - [x] `phonix-services` The report as a PDF a job wrote
       commit: "The file that leaves the building"

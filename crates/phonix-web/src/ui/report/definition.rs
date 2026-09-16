@@ -164,19 +164,22 @@ fn written(headings: Vec<String>, aligns: &[Align], groups: Vec<RowGroup>) -> Ve
             bands.push(RenderedBand::once(BandKind::GroupHeader, vec![group.label]));
         }
 
-        bands.push(RenderedBand::table(
-            BandKind::Detail,
-            if index == 0 {
-                headings.clone()
-            } else {
-                Vec::new()
-            },
-            group
-                .rows
-                .into_iter()
-                .map(|row| row.into_iter().map(|value| value.cell.to_text()).collect())
-                .collect(),
-        ));
+        bands.push(
+            RenderedBand::table(
+                BandKind::Detail,
+                if index == 0 {
+                    headings.clone()
+                } else {
+                    Vec::new()
+                },
+                group
+                    .rows
+                    .into_iter()
+                    .map(|row| row.into_iter().map(|value| value.cell.to_text()).collect())
+                    .collect(),
+            )
+            .aligned(aligns.to_vec()),
+        );
 
         if !group.totals.is_empty() {
             bands.push(

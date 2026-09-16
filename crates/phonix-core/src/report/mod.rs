@@ -18,7 +18,10 @@ mod theme;
 pub use band::{Align, BandKind, ReportKind};
 pub use export::ExportFormat;
 pub use page::{Logo, LogoPlacement, Margins, Orientation, PageSetup, PaperSize};
-pub use paginate::{Pagination, Piece, PrintedPage, paginate};
+pub use paginate::{
+    LINE_SPACING, PT_PER_MM, Pagination, Piece, PrintedPage, band_height, paginate, stacks,
+    text_size,
+};
 pub use rendered::{Rendered, RenderedBand};
 pub use request::{ExportRequest, ExportState, NewExport};
 pub use settings::{DocumentChrome, DocumentSettings, MAX_DOCUMENT_TEXT_LEN};
