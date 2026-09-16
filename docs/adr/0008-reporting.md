@@ -53,6 +53,46 @@ nothing else in this tree has, and paying for it in every one of those places.
 What a data file would buy is a report somebody edits without a deploy — which
 is a report designer, and §6 says why that is not being built.
 
+### 1.1 What `T` is: one value, not a vector of rows
+
+*Settled 2026-09-16 while the customer statement was built, and true of every
+report since.*
+
+`T` is **the report's own data** — the whole of it, as one value — and not the
+type of a row. A customer statement is a `CustomerStatement`: a party, a span,
+an opening balance, its lines and its ageing. The bands read that value
+directly, and the detail band reaches the sequence inside it through
+`Band::lines(read, fields)`, whose `fields` are closures over the *line* type
+and are erased behind one reader built from the same vector the headings come
+from.
+
+The alternative — `ReportDefinition<Row>`, the report being a `Vec<Row>` — is
+the shape a grid has, and it cannot say what a document says. A letterhead
+showing a customer and a closing balance over lines that are transactions is
+two types meeting in one definition, and a report that only knew its rows would
+have to be handed its letterhead separately by every screen that drew one.
+That is the drift this record exists to prevent, one level up.
+
+Three consequences worth stating, because each is a thing somebody would
+otherwise invent again:
+
+* a band drawn once — the letterhead, the totals — reads `T`, so it needs no
+  data of its own;
+* the headings of a detail band and the cells under them are built from one
+  vector of `Field<L>`, so they cannot fall out of step;
+* a report whose data is a `Page<T>` — the product list — is a report over one
+  value like any other, and how many rows that page holds is the read's
+  business rather than the definition's.
+
+Grouping sits on the same distinction and is worth spelling out, because it is
+where getting it wrong would cost the most. A detail band's grouping reads `L`:
+what two lines share, and what the group's subtotal adds up — so a subtotal is
+always the arithmetic of the rows above it. A figure that *follows* a group and
+is not that — a gross profit, which is one section taken from another — is read
+from `T` instead, through `Band::result_after`, and is drawn unlike a subtotal.
+Which of the two a number comes from is what makes every subtotal on the page
+trustworthy, and it is a property of the types rather than of anybody's care.
+
 ## 2. The band model is in `phonix-core`, and it is a new top-level module
 
 `phonix_core::report` holds the band kinds — report header, page header, group

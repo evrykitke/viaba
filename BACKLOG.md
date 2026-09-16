@@ -219,18 +219,6 @@ commits it is three items.
 > like any other, and the loop takes the next one. The section is what they
 > read when they come back.
 
-- [ ] `docs` What ADR 0008 now owes the band model
-      why: the record says a definition is typed Rust and says nothing about
-           what it is typed *over*. The statement turned that into a decision:
-           a report is drawn from one value, and the detail band reads a
-           sequence inside it through `Band::lines` rather than the report
-           being a vector of rows. Every item after it is that shape, and a
-           reader of 0008 would not know.
-      touch: docs/adr/0008-reporting.md
-      done: section 1 says what a definition is over, and why a document's
-            letterhead and its lines are two different types meeting in one
-            definition.
-
 - [ ] `phonix-web` The four dialogs that predate the modal
       why: `ui/table/toolbar` (the column menu), `ui/alert/host`, `ui/lookup`
            and `pages/admin/apps` each hand-rolled a dialog before `ui::modal`
@@ -757,6 +745,19 @@ commits it is three items.
 ## Done
 
 <!-- The loop appends here with the commit sha. Newest first. -->
+
+- [x] `docs` What ADR 0008 now owes the band model
+      commit: "One value, not a vector of rows"
+      why: the record says a definition is typed Rust and says nothing about
+           what it is typed *over*. The statement turned that into a decision:
+           a report is drawn from one value, and the detail band reads a
+           sequence inside it through `Band::lines` rather than the report
+           being a vector of rows. Every item after it is that shape, and a
+           reader of 0008 would not know.
+      touch: docs/adr/0008-reporting.md
+      done: section 1 says what a definition is over, and why a document's
+            letterhead and its lines are two different types meeting in one
+            definition.
 
 - [x] `phonix-server` The dispatch that jobs.rs names and nothing answers to
       commit: "A name somebody could have gone looking for"
