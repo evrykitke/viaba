@@ -881,6 +881,7 @@ fn paged(groups: &[RowGroup], window: &std::ops::Range<usize>) -> Vec<RowGroup> 
         shown.push(RowGroup {
             label: group.label.clone(),
             folding: group.folding,
+            running: group.running.clone(),
             rows: group
                 .rows
                 .get(from - start..to - start)
@@ -955,6 +956,27 @@ fn group_view(headings: &[Heading], group: &RowGroup, metrics: &Metrics) -> AnyV
         }
     });
 
+    // After the subtotal and drawn unlike one: no rule of its own and the
+    // label beside the figure rather than in the first free column, because
+    // it is not what the rows above add up to.
+    let running = group.running.clone().map(|running| {
+        view! {
+            <div
+                class=format!("flex items-baseline justify-between {}", weight_ink(metrics.colour))
+                style=format!(
+                    "min-height:{}mm;padding:{}mm {}mm;font-size:{}pt",
+                    metrics.bands.group_footer,
+                    metrics.padding.vertical,
+                    metrics.padding.horizontal,
+                    metrics.type_scale.total_pt,
+                )
+            >
+                <span>{running.label}</span>
+                <span style=figures_style()>{running.amount.to_text()}</span>
+            </div>
+        }
+    });
+
     view! {
         {header}
         {group
@@ -979,6 +1001,7 @@ fn group_view(headings: &[Heading], group: &RowGroup, metrics: &Metrics) -> AnyV
             })
             .collect_view()}
         {footer}
+        {running}
     }
     .into_any()
 }

@@ -102,6 +102,22 @@ pub struct RowGroup {
     /// One cell per column, empty where the column is not totalled. Empty
     /// altogether draws no footer.
     pub totals: Vec<Value>,
+    /// A figure that follows this group without being what it adds up to -
+    /// a gross profit under cost of sales.
+    pub running: Option<Running>,
+}
+
+/// A labelled figure drawn after a group.
+///
+/// Not a subtotal and drawn unlike one: it is read off the report's own
+/// data, because what it says - gross profit, operating profit - is one
+/// section taken from another rather than a sum of the rows above it. A
+/// number that is not a group's arithmetic must never be drawn as if it
+/// were, or no subtotal on the page can be trusted.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Running {
+    pub label: String,
+    pub amount: Cell,
 }
 
 /// What a detail band groups by, and what each group adds up to.
@@ -243,6 +259,16 @@ fn written(headings: Vec<String>, aligns: &[Align], groups: Vec<RowGroup>) -> Ve
                     group.totals.into_iter().map(|value| value.cell).collect(),
                 )
                 .aligned(aligns.to_vec()),
+            );
+        }
+
+        if let Some(running) = group.running {
+            bands.push(
+                RenderedBand::once(
+                    BandKind::GroupFooter,
+                    vec![Cell::text(running.label), running.amount],
+                )
+                .aligned(vec![Align::Start, Align::End]),
             );
         }
     }
@@ -538,6 +564,7 @@ impl<T: 'static> Band<T> {
                     vec![RowGroup {
                         label: String::new(),
                         folding: Folding::Fixed,
+                        running: None,
                         rows: rows_of(&fields, &read(data)),
                         totals: Vec::new(),
                     }]
@@ -578,6 +605,7 @@ impl<T: 'static> Band<T> {
                         .map(|(label, lines)| RowGroup {
                             label,
                             folding: grouping.folding,
+                            running: None,
                             rows: rows_of(&fields, &lines),
                             totals: captioned(&caption, grouping.totals_of(&lines, &keys)),
                         })
@@ -616,6 +644,56 @@ impl<T: 'static> Band<T> {
                 height_mm: DEFAULT_CHART_MM,
             }),
         }
+    }
+
+    /// Put a labelled figure after the group with this label.
+    ///
+    /// ```ignore
+    /// .result_after(
+    ///     l!("reports.section.cost_of_sales"),
+    ///     l!("reports.gross_profit"),
+    ///     |report: &IncomeStatement| Cell::money(report.gross_profit),
+    /// )
+    /// ```
+    ///
+    /// The figure is read from the report rather than from the group,
+    /// which is the whole point: gross profit is revenue less what it cost
+    /// and not the sum of anything on the page.
+    #[must_use]
+    pub fn result_after(
+        mut self,
+        group: impl Into<String>,
+        label: impl Into<String>,
+        read: impl Fn(&T) -> Cell + Send + Sync + 'static,
+    ) -> Self {
+        let group: String = group.into();
+        let label: String = label.into();
+
+        match &mut self.content {
+            Content::Lines { read: groups, .. } => {
+                let previous = Arc::clone(groups);
+
+                *groups = Arc::new(move |data| {
+                    let mut drawn = previous(data);
+
+                    if let Some(found) = drawn.iter_mut().find(|candidate| candidate.label == group)
+                    {
+                        found.running = Some(Running {
+                            label: label.clone(),
+                            amount: read(data),
+                        });
+                    }
+
+                    drawn
+                });
+            }
+            _ => debug_assert!(
+                false,
+                "a result follows a group, and only a grouped band has any",
+            ),
+        }
+
+        self
     }
 
     /// How tall the chart is drawn. Only read by a chart band.

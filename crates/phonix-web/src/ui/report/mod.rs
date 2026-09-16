@@ -33,7 +33,7 @@ mod viewer;
 
 pub use chrome::{DocumentStyles, Letterhead};
 pub use definition::{
-    Band, Extent, Field, Folding, Grouping, Heading, ReportDefinition, RowGroup, Value,
+    Band, Extent, Field, Folding, Grouping, Heading, ReportDefinition, RowGroup, Running, Value,
 };
 pub use paging::Paging;
 pub use phonix_core::report::ExportFormat;

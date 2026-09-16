@@ -219,23 +219,6 @@ commits it is three items.
 > like any other, and the loop takes the next one. The section is what they
 > read when they come back.
 
-- [ ] `phonix-web` A total between two groups
-      why: a profit and loss reads gross profit straight after cost of sales
-           and operating profit straight after the expenses, and the engine can
-           only put a figure at the foot of a group or the foot of the report.
-           The three results are all on the statement and all correct; they are
-           read together at the bottom rather than where an accountant looks
-           for them.
-      touch: crates/phonix-web/src/ui/report/definition.rs,
-             crates/phonix-web/src/ui/report/render.rs
-      done: a definition can put a labelled figure after a named group, read
-            from the report's own data rather than from the group's rows -
-            because these three are differences between sections and not sums
-            of one. The profit and loss draws its three where they belong, and
-            the report footer keeps only what is genuinely the report's.
-      verify: the profit and loss beside the one in the history: gross profit
-              under cost of sales, operating profit under the expenses.
-
 - [ ] `phonix-server` The dispatch that jobs.rs names and nothing answers to
       why: the module doc says "an upload is dispatched the moment its bytes
            are down - see `files::dispatch`", and there is no `files::dispatch`.
@@ -783,6 +766,24 @@ commits it is three items.
 ## Done
 
 <!-- The loop appends here with the commit sha. Newest first. -->
+
+- [x] `phonix-web` A total between two groups
+      commit: "A figure that is not a subtotal"
+      why: a profit and loss reads gross profit straight after cost of sales
+           and operating profit straight after the expenses, and the engine can
+           only put a figure at the foot of a group or the foot of the report.
+           The three results are all on the statement and all correct; they are
+           read together at the bottom rather than where an accountant looks
+           for them.
+      touch: crates/phonix-web/src/ui/report/definition.rs,
+             crates/phonix-web/src/ui/report/render.rs
+      done: a definition can put a labelled figure after a named group, read
+            from the report's own data rather than from the group's rows -
+            because these three are differences between sections and not sums
+            of one. The profit and loss draws its three where they belong, and
+            the report footer keeps only what is genuinely the report's.
+      verify: the profit and loss beside the one in the history: gross profit
+              under cost of sales, operating profit under the expenses.
 
 - [x] `phonix-web` The profit and loss, as a definition
       commit: "The last statement, and no second path"

@@ -6,15 +6,11 @@
 //!
 //! Gross profit, operating profit and the result for the period are not
 //! sections and they are not sums of one - each is one section taken from
-//! another. The hand-written screen drew them between the sections they fall
-//! between; here they are the report footer, together, because a group's
-//! subtotal is the group's own arithmetic and a figure that is not would be a
-//! number under a word that does not mean it.
-//!
-//! Every figure the old screen showed is still here and still the same. What
-//! changed is that the three results are read together at the foot rather than
-//! three times down the page. A band between two groups is what would put them
-//! back, and there is a queued item for it.
+//! another. The first two follow the section they are read after, through
+//! `result_after`, which draws them unlike a subtotal *and* reads them off the
+//! report rather than off the rows above: a number that is not a group's
+//! arithmetic must never look like one. The result for the period is the
+//! report's own and is the report footer.
 
 use app_books::report::{IncomeStatement, ReportGroup};
 use phonix_core::money::Money;
@@ -57,38 +53,43 @@ pub fn profit_and_loss() -> ReportDefinition<IncomeStatement> {
                 ))
             })),
     )
-    .band(Band::grouped(
-        lines,
-        vec![
-            Field::new("label", l!("reports.column.account"), |line: &Line| {
-                Cell::text(&line.label)
-            }),
-            Field::figure("amount", l!("reports.column.amount"), |line: &Line| {
-                Cell::money(line.amount)
-            }),
-        ],
-        Grouping::by(|line: &Line| line.section.clone())
-            .folding(Folding::Open)
-            .totalling("amount", |line: &Line| line.amount),
-    ))
     .band(
-        Band::new(BandKind::ReportFooter)
-            .field(Field::figure(
-                "gross_profit",
-                l!("reports.gross_profit"),
-                |report: &IncomeStatement| Cell::money(report.gross_profit),
-            ))
-            .field(Field::figure(
-                "operating_profit",
-                l!("reports.operating_profit"),
-                |report: &IncomeStatement| Cell::money(report.operating_profit),
-            ))
-            .field(Field::figure(
-                "net_profit",
-                l!("reports.net_profit"),
-                |report: &IncomeStatement| Cell::money(report.net_profit),
-            )),
+        Band::grouped(
+            lines,
+            vec![
+                Field::new("label", l!("reports.column.account"), |line: &Line| {
+                    Cell::text(&line.label)
+                }),
+                Field::figure("amount", l!("reports.column.amount"), |line: &Line| {
+                    Cell::money(line.amount)
+                }),
+            ],
+            Grouping::by(|line: &Line| line.section.clone())
+                .folding(Folding::Open)
+                .totalling("amount", |line: &Line| line.amount),
+        )
+        // Where an accountant looks for them: gross profit under what the trade
+        // cost, operating profit under what running the place cost. Read off the
+        // report rather than summed from the rows above, because each is one
+        // section taken from another.
+        .result_after(
+            l!("reports.section.cost_of_sales"),
+            l!("reports.gross_profit"),
+            |report: &IncomeStatement| Cell::money(report.gross_profit),
+        )
+        .result_after(
+            l!("reports.section.operating_expenses"),
+            l!("reports.operating_profit"),
+            |report: &IncomeStatement| Cell::money(report.operating_profit),
+        ),
     )
+    // Only what is genuinely the report's: the other two now sit where they
+    // are read.
+    .band(Band::new(BandKind::ReportFooter).field(Field::figure(
+        "net_profit",
+        l!("reports.net_profit"),
+        |report: &IncomeStatement| Cell::money(report.net_profit),
+    )))
 }
 
 /// Every line, in the order the sections are read in.
