@@ -160,29 +160,6 @@ commits it is three items.
 >   comparing the three, but the look is a document setting and two places to
 >   change one thing is how they come to disagree. Ask if it is wanted.
 
-- [ ] `phonix-core` The three looks, as measurements rather than styling
-      why: a look has to reach the PDF, and a PDF cannot read a stylesheet. So
-           a theme resolves to numbers here - type sizes, band heights,
-           padding, rule weights - and the screen turns those into styles while
-           the writer draws with them directly. A theme that existed only as
-           CSS classes would be a screen that looks one way and a file that
-           looks another, which is the failure the band model is in core to
-           avoid. The paginator needs these numbers too: how many rows reach a
-           page is a consequence of the look, not a constant.
-      touch: crates/phonix-core/src/report/
-      done: `ReportTheme::{Modern, Compact, Professional}` with a resolved
-            metrics type behind it - type scale, band heights, cell padding,
-            rule weights and where a rule is drawn at all. **Modern** is the
-            default and matches the rest of the application: generous spacing,
-            hairline rules, colour for emphasis. **Compact** is the RDLC look -
-            dense rows, small type, full gridlines, minimal padding, no colour;
-            it is the one chosen when rows per page is what matters.
-            **Professional** is the document look for something a customer
-            receives: a strong rule under the letterhead, wider margins,
-            restrained colour, totals given weight. Three named looks and no
-            more - a tenant chooses between them and does not author one.
-            Plain data, no CSS and no leptos, and it compiles to wasm.
-
 - [ ] `phonix-web` The report definition, bound to a typed row
       why: a report field must name a real field of a real struct, the way
            `Column::new` already does for a grid - that is the whole reason
@@ -722,6 +699,19 @@ commits it is three items.
 ## Done
 
 <!-- The loop appends here with the commit sha. Newest first. -->
+
+- [x] `phonix-core` The three looks, as measurements rather than styling
+      `ReportTheme` resolves to a `Metrics` of type sizes in points and
+      everything else in millimetres: band heights one per kind, cell padding,
+      and a rule weight for each of the five places a rule can go. **Zero is
+      how a look says it draws no rule there** - Modern separates columns by
+      alignment, Compact rules every edge - so there is no second field
+      saying whether the first one counts. Colour is how far colour may
+      reach, not which colour it is: the hue belongs to the screen's palette
+      and to the document, and a crate that compiles to wasm has no business
+      holding either. Margins are the look's, since Professional's wider page
+      is part of what makes it the document look, and a document setting
+      still overrides them.
 
 - [x] `phonix-core` The band model, and the page a report is printed on
       `phonix_core::report`, in two files: the seven band kinds with

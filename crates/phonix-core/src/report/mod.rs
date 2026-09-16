@@ -8,6 +8,8 @@
 
 mod band;
 mod page;
+mod theme;
 
 pub use band::{Align, BandKind, ReportKind};
 pub use page::{LogoPlacement, Margins, Orientation, PageSetup, PaperSize};
+pub use theme::{BandHeights, Colour, Metrics, Padding, ReportTheme, Rules, TypeScale};

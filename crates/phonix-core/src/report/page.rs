@@ -49,6 +49,15 @@ pub struct Margins {
 }
 
 impl Margins {
+    /// Wider at the head and the foot, where a letterhead and a page number
+    /// go. What a look does not state for itself.
+    pub const DEFAULT: Self = Self {
+        top: 20.0,
+        right: 15.0,
+        bottom: 20.0,
+        left: 15.0,
+    };
+
     /// The same margin on all four edges.
     pub const fn uniform(mm: f32) -> Self {
         Self {
@@ -61,14 +70,8 @@ impl Margins {
 }
 
 impl Default for Margins {
-    /// Wider at the head and the foot, where a letterhead and a page number go.
     fn default() -> Self {
-        Self {
-            top: 20.0,
-            right: 15.0,
-            bottom: 20.0,
-            left: 15.0,
-        }
+        Self::DEFAULT
     }
 }
 
@@ -82,11 +85,11 @@ pub struct PageSetup {
 
 impl PageSetup {
     /// A page of this paper, this way up, with the default margins.
-    pub fn new(paper: PaperSize, orientation: Orientation) -> Self {
+    pub const fn new(paper: PaperSize, orientation: Orientation) -> Self {
         Self {
             paper,
             orientation,
-            margins: Margins::default(),
+            margins: Margins::DEFAULT,
         }
     }
 
