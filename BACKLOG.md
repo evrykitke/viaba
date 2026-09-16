@@ -160,22 +160,6 @@ commits it is three items.
 >   comparing the three, but the look is a document setting and two places to
 >   change one thing is how they come to disagree. Ask if it is wanted.
 
-- [ ] `phonix-web` The report definition, bound to a typed row
-      why: a report field must name a real field of a real struct, the way
-           `Column::new` already does for a grid - that is the whole reason
-           definitions are Rust here. Without it there is a band model and
-           nothing to put in it.
-      touch: crates/phonix-web/src/ui/report/mod.rs, crates/phonix-web/src/ui/mod.rs
-      done: `ReportDefinition<T>` is a builder taking bands from
-            `phonix_core::report` and `Field<T>` closures over the row type,
-            whose data comes from a typed server fn and never from a query the
-            definition composed. It also declares whether an export of it is
-            bounded or grows with the data - the first decides its own size,
-            the second is a job - and a definition claiming to be bounded
-            carries one line saying what bounds it, the way an unpaged query
-            does. `ui/report/` is a peer of `ui/table/` and
-            reuses `Cell` and `Align` rather than growing a second set of them.
-
 - [ ] `phonix-web` A report drawn from its definition
       why: the definition describes a report and nothing renders one. This is
            the component the viewer and every screen below hand a definition
@@ -699,6 +683,22 @@ commits it is three items.
 ## Done
 
 <!-- The loop appends here with the commit sha. Newest first. -->
+
+- [x] `phonix-web` The report definition, bound to a typed row
+      `ui/report/` beside `ui/table/`, and the same arrangement: a module
+      contributes a value and the kit draws it. A `Field<T>` is a closure over
+      the row and a `Band<T>` is a kind from `phonix_core::report` with fields
+      in it, so a field that names nothing does not compile - which is the
+      whole reason a definition is Rust. `Field::text` is a constant dressed
+      as a field, which is how a title and a column heading are one mechanism
+      rather than two.
+
+      **A definition holds no query.** Rows are handed to the renderer by the
+      screen, from a server function that already exists. And `Extent` is the
+      export declaration: a report **grows** until it says otherwise, because
+      a report wrongly called bounded holds a connection open for as long as
+      it takes, while a job that need not have been one is only slower.
+      `bounded_by` takes the sentence saying what bounds it.
 
 - [x] `phonix-core` The three looks, as measurements rather than styling
       `ReportTheme` resolves to a `Metrics` of type sizes in points and

@@ -37,6 +37,7 @@ pub mod clipboard;
 pub mod editor;
 pub mod form;
 pub mod lookup;
+pub mod report;
 pub mod table;
 pub mod tabs;
 pub mod viewer;
