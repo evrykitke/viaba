@@ -160,32 +160,6 @@ commits it is three items.
 >   comparing the three, but the look is a document setting and two places to
 >   change one thing is how they come to disagree. Ask if it is wanted.
 
-- [ ] `phonix-web` The viewer, which fills the page inside the shell
-      why: a report is read at the width it will print at, and a report shown
-           in a panel with something else beside it is read at neither. This is
-           the frame every report below opens in, and the toolbar is part of
-           it: putting the toolbar off means twenty reports that each grew
-           their own controls.
-      touch: crates/phonix-web/src/ui/report/viewer.rs,
-             crates/phonix-web/src/components/shell/
-      done: a report route fills the shell's content area - title, toolbar, and
-            a scrolling surface holding the report at its page width - rather
-            than sharing that area with a panel. The navigation and the header
-            are untouched: this is a page inside the shell, not a takeover of
-            the window. The toolbar declares its slots - the export menu,
-            print, page navigation, fit-to-width - and the export menu is one
-            dropdown listing whatever formats the definition registers, hidden
-            rather than empty while none have landed. Choosing one raises a job
-            rather than producing a file on the spot - what that looks like is
-            its own item, and nothing here should be built as though the bytes
-            come back from the click. A report parameter, like
-            the customer or the span, is a control on this toolbar rather than
-            a header above it.
-      verify: nothing to open on its own - no report is defined yet, and the
-              first one is the item below. The viewer is judged at that
-              checkpoint. This line is here so an empty frame is not mistaken
-              for something the build finished.
-
 - [ ] `phonix-web` The customer statement, as a definition
       why: the first real document through the engine, and the one that proves
            it - a letterhead, an address block, opening and closing balances,
@@ -661,6 +635,23 @@ commits it is three items.
      The user launches the application, looks, and then either moves the item
      to `## Done` or writes a new item in `## Next` saying what was wrong. The
      loop never moves anything out of this section by itself. -->
+
+- [x] `phonix-web` The viewer, which fills the page inside the shell
+      commit: "The frame, and the twenty toolbars it prevents"
+      The frame, its toolbar and the surface the sheet sits on. The parameters
+      a report takes are controls on that toolbar. Fit-to-width is real and
+      measured - a zero-height gauge beside the sheet, `zoom` on the sheet,
+      and the measurement runs in the browser after the first paint so both
+      builds render the same markup. Print is `window.print()` with a
+      server-side no-op beside it, the way `ui/clipboard` already does it. The
+      export menu is drawn only when the definition registers a format, and
+      none does yet. Page navigation is deliberately absent: nothing counts
+      pages until the paginator lands, and a control that always said "1 of 1"
+      would be a promise.
+      verify: nothing to open on its own - no report is defined yet, and the
+              first one is the item below. The viewer is judged at that
+              checkpoint. This line is here so an empty frame is not mistaken
+              for something the build finished.
 
 ## Blocked
 

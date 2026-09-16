@@ -7,9 +7,11 @@
 //! Lengths are millimetres throughout.
 
 mod band;
+mod export;
 mod page;
 mod theme;
 
 pub use band::{Align, BandKind, ReportKind};
+pub use export::ExportFormat;
 pub use page::{LogoPlacement, Margins, Orientation, PageSetup, PaperSize};
 pub use theme::{BandHeights, Colour, Metrics, Padding, ReportTheme, Rules, TypeScale};

@@ -2,7 +2,9 @@
 
 use std::sync::Arc;
 
-use phonix_core::report::{Align, BandKind, LogoPlacement, PageSetup, ReportKind, ReportTheme};
+use phonix_core::report::{
+    Align, BandKind, ExportFormat, LogoPlacement, PageSetup, ReportKind, ReportTheme,
+};
 
 use crate::ui::table::Cell;
 
@@ -150,6 +152,9 @@ pub struct ReportDefinition<T: 'static> {
     pub(crate) logo: Option<LogoPlacement>,
     pub(crate) bands: Vec<Band<T>>,
     pub(crate) extent: Extent,
+    /// The formats the export menu offers. Empty draws no menu at all, which
+    /// is what a report whose writers have not landed yet should show.
+    pub(crate) formats: Vec<ExportFormat>,
 }
 
 impl<T: 'static> Clone for ReportDefinition<T> {
@@ -163,6 +168,7 @@ impl<T: 'static> Clone for ReportDefinition<T> {
             logo: self.logo,
             bands: self.bands.clone(),
             extent: self.extent.clone(),
+            formats: self.formats.clone(),
         }
     }
 }
@@ -183,6 +189,7 @@ impl<T: 'static> ReportDefinition<T> {
             logo: None,
             bands: Vec::new(),
             extent: Extent::Grows,
+            formats: Vec::new(),
         }
     }
 
@@ -219,6 +226,16 @@ impl<T: 'static> ReportDefinition<T> {
     #[must_use]
     pub const fn logo(mut self, placement: LogoPlacement) -> Self {
         self.logo = Some(placement);
+        self
+    }
+
+    /// Offer this format in the export menu.
+    #[must_use]
+    pub fn exports(mut self, format: ExportFormat) -> Self {
+        if !self.formats.contains(&format) {
+            self.formats.push(format);
+        }
+
         self
     }
 
