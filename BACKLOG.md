@@ -219,20 +219,6 @@ commits it is three items.
 > like any other, and the loop takes the next one. The section is what they
 > read when they come back.
 
-- [ ] `docs` ADR 0008, and the writer it no longer describes
-      why: section 9 says a report is drawn once and written by a format writer
-           per format, and that is no longer what happens for a PDF. A decision
-           this size is changed in the record before it is changed in the code,
-           or the record stops being one.
-      touch: docs/adr/0008-reporting.md
-      done: section 9 says the PDF is the report's own page printed by a
-            browser, what that costs - a binary on the box that runs the
-            exporter, a process per export - and what it buys: one renderer,
-            one stylesheet, and a chart, a logo and a script the base-14 faces
-            never had. The band model stays what the screen and the CSV share,
-            and the paginator stays what the viewer's page navigation reads.
-            The status header names what is built.
-
 - [ ] `phonix-services` The token an export prints with
       why: a browser fetching a tenant's report page is not signed in, and the
            export must be of what the person who asked for it may see. A
@@ -945,6 +931,21 @@ commits it is three items.
 ## Done
 
 <!-- The loop appends here with the commit sha. Newest first. -->
+
+- [x] `docs` ADR 0008, and the writer it no longer describes
+      commit: "The record catches up with the decision"
+      why: section 9 says a report is drawn once and written by a format writer
+           per format, and that is no longer what happens for a PDF. A decision
+           this size is changed in the record before it is changed in the code,
+           or the record stops being one.
+      touch: docs/adr/0008-reporting.md
+      done: section 9 says the PDF is the report's own page printed by a
+            browser, what that costs - a binary on the box that runs the
+            exporter, a process per export - and what it buys: one renderer,
+            one stylesheet, and a chart, a logo and a script the base-14 faces
+            never had. The band model stays what the screen and the CSV share,
+            and the paginator stays what the viewer's page navigation reads.
+            The status header names what is built.
 
 - [x] `phonix-services` An export becomes a stored file
       commit: "Bytes nobody uploaded"

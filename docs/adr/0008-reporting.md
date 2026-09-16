@@ -1,8 +1,12 @@
 # ADR 0008 — The reporting engine
 
-Status: proposed; nothing built — the twenty-eight items that build it are
-queued in `BACKLOG.md`
+Status: accepted; built as far as the exports. The band model, the looks, the
+definition, the renderer, the viewer, three reports, the document settings, the
+index, grouping, the paginator and the export path are in; charts, drill-down,
+the spreadsheet and the four statements are queued in `BACKLOG.md`.
 Date: 2026-09-16
+Amended: 2026-09-16 — section 9. The PDF is printed by a browser rather than
+written by a band writer.
 
 This workspace has four statements. The trial balance, the balance sheet, the
 profit and loss and the customer statement are a thousand lines of hand-written
@@ -60,12 +64,16 @@ This is a new top-level module in the crate that is meant not to grow one, so
 the argument had better be in a record rather than in a commit message.
 
 **Two consumers need the same numbers on the same day.** The screen draws a
-report and the PDF writer draws the same report, and they are in different
-crates: `phonix-web` renders it and `phonix-services` writes it. A model that
-lived in either would be imported by the other across a boundary that exists
-precisely to keep the browser's crate free of I/O, or copied — and two
-definitions of where a margin is, is a printed statement that stops matching
-the one on screen, discovered by a customer holding it.
+report and a writer turns the same report into a file, and they are in
+different crates: `phonix-web` renders it and `phonix-services` writes it. A
+model that lived in either would be imported by the other across a boundary
+that exists precisely to keep the browser's crate free of I/O, or copied — and
+two definitions of where a margin is, is a document that stops matching the one
+on screen, discovered by somebody holding it.
+
+*Amended 2026-09-16: the PDF is no longer one of those consumers — it is the
+screen's own page, printed. The band model is what the screen, the CSV and the
+paginator share, and that is still three.*
 
 It passes 0001's test for `core`: it is mechanism, not meaning. It knows a band
 is drawn above the detail rows; it does not know what a statement is. The wasm
@@ -188,19 +196,26 @@ a PDF, so the file that gets sent would be the lesser copy of the report — the
 opposite of the point, since the file is the one that leaves the building.
 
 So: no `<canvas>`, no chart dependency, no clock. Axis, ticks, labels and
-legend are identical on both sides because both sides compute them from the
-same numbers, and the PDF writer draws from that same geometry rather than
-making a second drawing of the same idea.
+legend are computed from the numbers rather than by a library.
 
-## 8. PDF is written here, from a paginator that is pure
+*Amended 2026-09-16: the second half of this — the PDF writer drawing from the
+same geometry — is gone with the writer. The browser prints the SVG the screen
+drew, which is the same picture by construction rather than by agreement.*
 
-The file is written on the server, by a writer in `phonix-services`, from the
-same definition the screen draws.
+## 8. The page a report is printed on
 
-Printing from the browser was the alternative and it fails the requirement: a
-statement that can only exist while somebody has it open cannot be attached,
-filed, or produced by anything that is not a person at a keyboard — and every
-export below is a job with no browser in it.
+*Amended 2026-09-16. This section argued for a PDF written here by a band
+writer, and against printing from a browser. The second half of that is still
+right and the first is not — see §9.1.*
+
+The objection to a browser was that "a statement that can only exist while
+somebody has it open cannot be attached, filed, or produced by anything that is
+not a person at a keyboard". That is an objection to printing on the *client*,
+and it stands. It says nothing about a browser on the server: a headless one,
+opened by the job, printing a page nobody is looking at, storing the bytes as
+an ordinary file. No person, no open tab, and the same artefact at the end.
+
+What this section got right is the arithmetic, and it stays:
 
 Pages come from a paginator in `phonix_core::report`: given the metrics, the
 page setup and the rows it places the bands, repeats the page header and any
@@ -208,14 +223,17 @@ group header whose group continues, moves an orphaned group header to the next
 page, and places a chart band whole or not at all. It is pure, and it is the
 one piece of this engine whose correctness a test actually establishes — the
 orphan, the exact fit, the row taller than a page. The viewer's page navigation
-reads its answer rather than counting separately, so the screen and the file
-agree about how long the report is.
+reads its answer rather than counting separately.
 
-There is no font in this repository. Until one is embedded the writer uses the
-base-14 encoding, and a report in a locale that encoding cannot carry —
-`locales/zh.json` exists — **fails the export naming the reason** rather than
-writing a file of blank boxes. A job that produced something unreadable is
-worse than one that refused.
+The look reaches that arithmetic, which is why the metrics are a value in
+`phonix-core` and not a class name: "Compact fits more rows on a page than
+Modern" is a unit test rather than an intention.
+
+**Where a printed page ends is now CSS's answer, not this one.** The paginator
+is what the *viewer's* page navigation reads. The two are allowed to differ —
+ten rows a page on a screen somebody is scrolling, as many as fit on a sheet
+somebody is holding — and pretending otherwise was the assumption that made a
+band writer look necessary.
 
 ## 9. An export is a job when the work is unbounded, and there is one writer
 
@@ -240,7 +258,37 @@ That only stays honest if there is **one writer per format**. A writer is a
 plain function from a definition, its rows and its settings to bytes; it lives
 in `phonix-services`, it takes no pool and no worker context, and the request
 path and the exporter call the same one. Two writers that drifted would be a
-receipt and a statement that disagree about what a PDF is.
+receipt and a statement that disagree about what a CSV is.
+
+### 9.1 The PDF is the report's own page, printed
+
+*Amended 2026-09-16, after the first exported statement was put beside the
+screen.*
+
+A band writer was built for the PDF and it is not the right answer. It shares
+the report's *measurements* with the screen — band heights, the page, the
+padding, the rules — and nothing else: no font metrics, no colour tokens, no
+wrapping, no image decoder. So the first file anybody downloaded printed its
+letterhead on top of itself, and the three things queued to close the gap — the
+mark, the chart, and a font embedded so a Chinese report is not blank boxes —
+were three implementations of what a browser already has.
+
+**A PDF export opens the report's own address in a headless browser and takes
+what it prints.** The engine that draws the screen draws the file, so the two
+are one document rather than a resemblance, and they stay that way when
+somebody changes the stylesheet. `@page` already carries the definition's own
+paper, and the viewer's print rules already leave the sheet alone on the page.
+
+What it costs, said plainly: a browser binary on every box that runs the
+exporter, named in config and validated at boot like every other path, and a
+process per export with a timeout on it. A build with no browser fails fast
+rather than at the first export.
+
+What it does not change: the CSV is still a writer in `phonix-services`, the
+band model is still what the screen and that writer share, and
+`phonix_core::report::paginate` stays — it is what the viewer's own page
+navigation reads, and CSS decides where a *printed* page ends. A format that is
+not a page — the spreadsheet — is still a writer and a line on an enum.
 
 The exporter is a fourth loop beside the verifier, the relay and the sweeper in
 [`jobs.rs`](../../crates/phonix-server/src/jobs.rs), and it has the shape
