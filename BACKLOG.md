@@ -160,24 +160,6 @@ commits it is three items.
 >   comparing the three, but the look is a document setting and two places to
 >   change one thing is how they come to disagree. Ask if it is wanted.
 
-- [ ] `phonix-web` Printing prints the report, not the application
-      why: found at the first checkpoint. `window.print()` prints what is on
-           the screen, which is the sidebar, the top bar, the toolbar and a
-           sheet clipped by the box it is scrolling in. What comes out is not
-           the document, and until the PDF writer lands this button is the
-           only way anybody gets one on paper.
-      touch: crates/phonix-web/src/ui/report/viewer.rs
-      done: printing from the viewer puts the report on the paper its
-            definition names and nothing else on it: no navigation, no
-            toolbar, no fit-to-width zoom, no card frame or shadow round the
-            sheet, and no clipping - a long report runs onto as many pages as
-            it needs. The rules are the viewer's own `@media print` and the
-            page size comes from the definition, so a landscape report prints
-            landscape without anybody choosing it in the browser's dialog.
-      verify: open a statement and press Print. The preview should show the
-              statement alone, at its own size, with the navigation gone and
-              nothing cut off the right-hand edge.
-
 - [ ] `phonix-web` Figures that line up, in a font chosen for them
       why: asked for on 2026-09-16. A money column is read downwards and
            compared, and proportional numerals make 1,111.11 narrower than
@@ -681,6 +663,20 @@ commits it is three items.
      The user launches the application, looks, and then either moves the item
      to `## Done` or writes a new item in `## Next` saying what was wrong. The
      loop never moves anything out of this section by itself. -->
+
+- [x] `phonix-web` Printing prints the report, not the application
+      commit: "The sheet is the page"
+      The viewer carries its own `@media print`, and the rule is one
+      sentence: anything that is not the sheet, does not contain it and is not
+      inside it is not drawn. What is left of the chain down to the sheet
+      gives up its width, its scrolling, its frame and its fit-to-width zoom,
+      so a long report runs onto as many pages as it needs instead of being
+      clipped by the box it was scrolling in. `@page` takes its size from the
+      definition, which is how a landscape report prints landscape without
+      anybody choosing it in the browser's dialog.
+      verify: open a statement and press Print. The preview should show the
+              statement alone, at its own size, with the navigation gone and
+              nothing cut off the right-hand edge.
 
 - [x] `phonix-web` The statement starts at a list of customers
       commit: "Whose account, before what it says"

@@ -14,6 +14,8 @@ use leptos::html;
 use leptos::prelude::*;
 use leptos_router::components::A;
 
+use phonix_core::report::PageSetup;
+
 use super::{ExportFormat, ReportDefinition};
 use crate::icons::{Icon, IconSize};
 use crate::l;
@@ -26,7 +28,7 @@ const PX_PER_MM: f64 = 96.0 / 25.4;
 ///
 /// ```ignore
 /// <ReportViewer definition=customer_statement() controls=|| view! { <SpanPicker .. /> }>
-///     <Report definition=customer_statement() rows=rows />
+///     <Report definition=customer_statement() data=statement />
 /// </ReportViewer>
 /// ```
 #[component]
@@ -50,6 +52,7 @@ where
     let sheet_mm = f64::from(definition.page.width_mm());
     let formats = definition.formats.clone();
     let title = definition.title.clone();
+    let print_rules = print_rules(&definition.page);
 
     // Zero-height and full-width, so it measures the surface without being
     // resized by what is drawn on it.
@@ -181,9 +184,43 @@ where
                 <div node_ref=gauge class="h-0"></div>
                 <div style=move || format!("zoom:{}", scale.get())>{children()}</div>
             </div>
+
+            // Last, so that the gap `space-y-3` puts above every child but the
+            // first lands on something that is not drawn.
+            <style inner_html=print_rules></style>
         </section>
     }
 }
+
+/// What printing keeps, and at what size.
+///
+/// The sheet is the page: everything that is not the sheet, does not contain
+/// it and is not inside it stops being drawn, and what is left of the chain
+/// down to it gives up its width, its scrolling and its fit-to-width zoom. The
+/// paper is the one the definition names, so a landscape report prints
+/// landscape without anybody choosing it in the browser's dialog.
+fn print_rules(page: &PageSetup) -> String {
+    format!(
+        "@page{{size:{width}mm {height}mm;margin:0}}{PRINT_MEDIA}",
+        width = page.width_mm(),
+        height = page.height_mm(),
+    )
+}
+
+/// The half of [`print_rules`] that does not depend on the paper.
+const PRINT_MEDIA: &str = concat!(
+    "@media print{",
+    "body :not(:has([data-report-sheet])):not([data-report-sheet]):not([data-report-sheet] *)",
+    "{display:none!important}",
+    "body :has([data-report-sheet])",
+    "{display:block!important;overflow:visible!important;zoom:1!important;",
+    "width:auto!important;max-width:none!important;height:auto!important;",
+    "max-height:none!important;margin:0!important;padding:0!important;",
+    "border:0!important;border-radius:0!important;box-shadow:none!important;",
+    "background:transparent!important}",
+    "[data-report-sheet]{zoom:1!important;margin:0!important;box-shadow:none!important}",
+    "}"
+);
 
 /// Ask the browser to print what is on the screen.
 #[cfg(feature = "hydrate")]

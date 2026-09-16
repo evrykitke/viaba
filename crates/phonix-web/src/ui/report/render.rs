@@ -105,7 +105,12 @@ where
         .map(|band| band_content(band, &data, &metrics));
 
     view! {
-        <article class="mx-auto bg-surface text-content shadow-card" style=sheet>
+        // The one element printing keeps. See `viewer`.
+        <article
+            data-report-sheet=""
+            class="mx-auto bg-surface text-content shadow-card"
+            style=sheet
+        >
             {letterhead}
             {page_header}
             {group_header}
