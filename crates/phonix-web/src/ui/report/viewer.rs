@@ -26,6 +26,7 @@ use crate::icons::{Icon, IconSize};
 use crate::l;
 use crate::server_fns::file_fns as content;
 use crate::server_fns::report_fns::{export_state, raise_export, write_now};
+use crate::ui::alert::{Alert, Alerts};
 use crate::ui::table::export;
 
 /// How many CSS pixels one millimetre is, which is how the sheet's own width
@@ -63,7 +64,9 @@ where
     T: Send + Sync + 'static,
 {
     let sheet_mm = f64::from(definition.page.width_mm());
-    let formats = definition.formats.clone();
+    // What the definition declares, which is what the menu is measured
+    // against rather than what it draws.
+    let offered = definition.formats.clone();
     let title = definition.title.clone();
     let print_rules = print_rules(&definition.page);
 
@@ -117,9 +120,19 @@ where
     let parameters =
         parameters.unwrap_or_else(|| Signal::derive(|| Parameters::Object(Map::new())));
 
+    // Stored rather than captured, so the closure the menu hands to every
+    // item stays `Copy`.
+    let allowed = StoredValue::new(offered.clone());
+    let alerts = Alerts::get();
+
     let choose = move |format: ExportFormat| {
         if let Some(node) = menu.get() {
             node.set_open(false);
+        }
+
+        if !allowed.with_value(|allowed| allowed.contains(&format)) {
+            alerts.post(Alert::warning(l!("report.export.not_offered")).message_box());
+            return;
         }
 
         progress.set(Some(Progress::Working));
@@ -185,7 +198,7 @@ where
                         {l!("report.print")}
                     </button>
 
-                    {(!formats.is_empty())
+                    {(!offered.is_empty())
                         .then(|| {
                             view! {
                                 <details node_ref=menu class="relative">
@@ -195,7 +208,7 @@ where
                                         <Icon icon=Icon::ChevronDown size=IconSize::Xs />
                                     </summary>
                                     <ul class="absolute right-0 z-20 mt-1 min-w-32 rounded-pop border border-edge bg-surface-raised py-1 shadow-pop">
-                                        {formats
+                                        {ExportFormat::ALL
                                             .iter()
                                             .copied()
                                             .map(|format| {

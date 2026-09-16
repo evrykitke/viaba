@@ -2547,6 +2547,7 @@
   "report.export": "Exportieren",
   "report.export.download": "Herunterladen",
   "report.export.failed": "Der Export konnte nicht geschrieben werden.",
+  "report.export.not_offered": "Dieses Dokument laesst diese Exportoption nicht zu.",
   "report.export.ready": "Ihr Export ist fertig.",
   "report.export.running": "Export wird geschrieben...",
   "report.export.still_running": "Laeuft noch. Es ist ein Auftrag, keine Seite - die Datei wartet, sobald er fertig ist.",

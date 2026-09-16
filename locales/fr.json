@@ -2547,6 +2547,7 @@
   "report.export": "Exporter",
   "report.export.download": "Telecharger",
   "report.export.failed": "L'export n'a pas pu etre ecrit.",
+  "report.export.not_offered": "Ce document n'autorise pas cette option d'export.",
   "report.export.ready": "Votre export est pret.",
   "report.export.running": "Ecriture de votre export...",
   "report.export.still_running": "Toujours en cours. C'est une tache, pas une page - le fichier vous attendra.",

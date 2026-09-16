@@ -176,6 +176,33 @@ commits it is three items.
 > cannot, is a rendered report with the types erased. That is what makes one
 > writer serve both paths, which is ADR 0008 section 9's whole requirement.
 
+> **The export menu, as the user found it**, 2026-09-16, after the fifth
+> checkpoint ran. Two things came back from looking at it. PDF is what most
+> people mean when they say export, and it costs a menu and a second click on
+> every report. And a menu drawn from what a definition declares is a menu of
+> one item today, which reads as a broken control rather than as a deliberate
+> one - there is no way to tell a format this report will never have from one
+> whose writer has not landed, because neither is on it. Both are the
+> toolbar's business. **Which formats can actually be written does not change
+> here**, and the PDF writer stays where it is in this queue: until it lands
+> the new default answers with the same sentence the menu gives.
+
+- [ ] `phonix-web` The export button that does not need its menu
+      why: PDF is the answer often enough that it should not cost a menu, and
+           the other two formats are the exception the menu is for.
+      touch: crates/phonix-web/src/ui/report/viewer.rs
+      done: the toolbar's export control is a split button - the button itself
+            writes PDF, the chevron beside it opens the menu of every format.
+            One path serves both, so a report that does not declare PDF answers
+            the button with the message box the menu would have given, and the
+            button is not drawn at all where the menu is not.
+      verify: the items list, Report, then Export without opening anything: it
+              answers that the document does not allow PDF. The chevron still
+              opens the full list and CSV still writes as a job.
+      stop: sixth checkpoint. Both items change the same control and nobody has
+            seen either, and what the button does next is what the PDF writer
+            decides.
+
 - [ ] `phonix-web` Where a report is found, and who may run it
       why: two reports exist and the only way to either is knowing its address.
            `Pages.Accounting.Reports` already gates the four statements as one
@@ -439,6 +466,25 @@ commits it is three items.
      The user launches the application, looks, and then either moves the item
      to `## Done` or writes a new item in `## Next` saying what was wrong. The
      loop never moves anything out of this section by itself. -->
+
+- [x] `phonix-web` A format the document does not offer
+      commit: "The menu that showed one of three"
+      why: the export menu draws only the formats a definition declares, so it
+           is a menu of one on all three reports that have one. Somebody
+           looking for PDF is shown nothing at all rather than being told the
+           document does not offer it.
+      touch: crates/phonix-web/src/ui/report/viewer.rs,
+             crates/phonix-core/i18n/en.json, locales/
+      done: a report that offers any format offers all of `ExportFormat::ALL`,
+            in that order. Choosing one its definition does not declare posts a
+            message box saying the document does not allow that export option,
+            and raises nothing - no row, no worker, no progress line under the
+            toolbar. A declared format takes the path it takes now. A report
+            that declares no format still draws no menu. The sentence is a key
+            in all four catalogues.
+      verify: a receipt from the payments list, Export. PDF and XLSX are both
+              offered and each answers with the message box; CSV still comes
+              straight back with the file.
 
 - [x] `phonix-web` The viewer waits for its export
       commit: "The two paths behind one menu"
