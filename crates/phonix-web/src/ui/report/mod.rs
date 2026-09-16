@@ -24,5 +24,7 @@
 //! ```
 
 mod definition;
+mod render;
 
 pub use definition::{Band, Extent, Field, ReportDefinition};
+pub use render::Report;

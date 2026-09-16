@@ -160,19 +160,6 @@ commits it is three items.
 >   comparing the three, but the look is a document setting and two places to
 >   change one thing is how they come to disagree. Ask if it is wanted.
 
-- [ ] `phonix-web` A report drawn from its definition
-      why: the definition describes a report and nothing renders one. This is
-           the component the viewer and every screen below hand a definition
-           and rows to, so that a page gains a report without writing markup.
-      touch: crates/phonix-web/src/ui/report/
-      done: one component draws every band in order for both kinds, in the
-            theme the definition names, and a page that wants a report writes
-            none of its own markup. The three looks differ by the metrics they
-            resolve to and not by three sets of markup - one set of bands,
-            measured differently. Nothing in it reads the clock - the reason `pages/sales/reports/mod.rs` already
-            gives for that still holds here, and a mismatch costs the whole
-            page.
-
 - [ ] `phonix-web` The viewer, which fills the page inside the shell
       why: a report is read at the width it will print at, and a report shown
            in a panel with something else beside it is read at neither. This is
@@ -683,6 +670,20 @@ commits it is three items.
 ## Done
 
 <!-- The loop appends here with the commit sha. Newest first. -->
+
+- [x] `phonix-web` A report drawn from its definition
+      One component, and the sheet it draws is the size it will print at -
+      the metrics reach the markup as `mm` and `pt` in a `style`, which CSS
+      understands as well as a PDF does, so the three looks are one set of
+      bands measured differently rather than three sets of markup. Classes
+      say only which colour a rule or a heading is.
+
+      Three things decided while drawing it. A band outside the detail reads
+      the **first** row, which is a document's single record and nothing at
+      all for an empty list. The detail band's own labels are the heading
+      row, so a report does not declare its columns twice. And the group
+      bands are drawn once, around the rows - the shape is right and the
+      count is what grouping adds.
 
 - [x] `phonix-web` The report definition, bound to a typed row
       `ui/report/` beside `ui/table/`, and the same arrangement: a module
