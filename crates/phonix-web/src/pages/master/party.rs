@@ -40,6 +40,7 @@ use crate::ui::form::config::parties::party_form;
 use crate::ui::form::field::Choice;
 use crate::ui::form::{EntityForm, FormHost};
 use crate::ui::lookup::SelectField;
+use crate::ui::modal::Modal;
 use crate::ui::tabs::{Tab, TabbedPanel};
 
 #[component]
@@ -347,17 +348,18 @@ fn address_panel(
                         };
 
                         view! {
-                            <div class="max-w-3xl">
-                                <Panel>
-                                    <EntityForm
-                                        config=crate::ui::form::config::parties::party_address_form(
-                                            party_id,
-                                        )
-                                        value=draft
-                                        host=host
-                                    />
-                                </Panel>
-                            </div>
+                            <Modal
+                                title=l!("parties.addresses")
+                                on_close=Callback::new(move |()| editing.set(None))
+                            >
+                                <EntityForm
+                                    config=crate::ui::form::config::parties::party_address_form(
+                                        party_id,
+                                    )
+                                    value=draft
+                                    host=host
+                                />
+                            </Modal>
                         }
                     })
             }}
@@ -483,17 +485,18 @@ fn contact_panel(
                         };
 
                         view! {
-                            <div class="max-w-3xl">
-                                <Panel>
-                                    <EntityForm
-                                        config=crate::ui::form::config::parties::party_contact_form(
-                                            party_id,
-                                        )
-                                        value=draft
-                                        host=host
-                                    />
-                                </Panel>
-                            </div>
+                            <Modal
+                                title=l!("parties.contacts")
+                                on_close=Callback::new(move |()| editing.set(None))
+                            >
+                                <EntityForm
+                                    config=crate::ui::form::config::parties::party_contact_form(
+                                        party_id,
+                                    )
+                                    value=draft
+                                    host=host
+                                />
+                            </Modal>
                         }
                     })
             }}

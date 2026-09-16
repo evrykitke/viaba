@@ -32,6 +32,7 @@ use crate::server_fns::hr_fns::{
 use crate::ui::alert::{Alert, Alerts};
 use crate::ui::form::field::Choice;
 use crate::ui::lookup::SelectField;
+use crate::ui::modal::Modal;
 
 /// The first of the month a date falls in, and the first of the next one.
 ///
@@ -475,8 +476,13 @@ fn day_editor(
     let stored = move || editing.with(|draft| draft.as_ref().is_some_and(|d| d.id.is_some()));
 
     view! {
-        <Panel>
-            <Section title=Signal::derive(dated).get()>
+        // Over the timesheet rather than under it: a day clicked halfway down
+        // a month is a day whose editor was off the screen.
+        <Modal
+            title=Signal::derive(dated).get()
+            on_close=Callback::new(move |()| editing.set(None))
+        >
+            <Section flush=true>
                 <div class="grid gap-3 sm:grid-cols-2">
                     <div class="block space-y-1">
                         <label
@@ -598,6 +604,6 @@ fn day_editor(
                     />
                 </div>
             </Section>
-        </Panel>
+        </Modal>
     }
 }

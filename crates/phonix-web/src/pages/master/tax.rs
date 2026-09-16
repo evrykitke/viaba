@@ -31,6 +31,7 @@ use crate::server_fns::master_fns::{delete_tax_rate, tax_code_edit, tax_rates};
 use crate::ui::alert::{Alert, Alerts};
 use crate::ui::form::config::taxes::{tax_code_form, tax_rate_form};
 use crate::ui::form::{EntityForm, FormHost};
+use crate::ui::modal::Modal;
 use crate::ui::tabs::{Tab, TabbedPanel};
 
 #[component]
@@ -289,15 +290,16 @@ fn rate_panel(
                         };
 
                         view! {
-                            <div class="max-w-3xl">
-                                <Panel>
-                                    <EntityForm
-                                        config=tax_rate_form(tax_id, rate_id)
-                                        value=draft
-                                        host=host
-                                    />
-                                </Panel>
-                            </div>
+                            <Modal
+                                title=l!("taxes.rates")
+                                on_close=Callback::new(move |()| editing.set(None))
+                            >
+                                <EntityForm
+                                    config=tax_rate_form(tax_id, rate_id)
+                                    value=draft
+                                    host=host
+                                />
+                            </Modal>
                         }
                     })
             }}
