@@ -120,7 +120,12 @@ where
                     }
                 })}
 
-            <div class="flex flex-wrap items-center justify-between gap-3 rounded-card border border-edge bg-surface-raised px-3 py-2">
+            // Stuck to the top of the shell's scrolling region rather than to
+            // the window. `main` is the only thing that scrolls here, so
+            // `sticky` holds the bar against it while the sheet moves under;
+            // `fixed` would take the bar out of the layout and lay it over the
+            // top bar, which is the chrome this viewer is a page inside of.
+            <div class="sticky top-0 z-20 flex flex-wrap items-center justify-between gap-3 rounded-card border border-edge bg-surface-raised px-3 py-2 shadow-sm">
                 <div class="flex min-w-0 flex-wrap items-center gap-3">
                     <h1 class="truncate text-base font-semibold tracking-tight text-content">
                         {title}

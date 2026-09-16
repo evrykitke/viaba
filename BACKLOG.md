@@ -167,24 +167,6 @@ commits it is three items.
 > charts. PDF and the spreadsheet stay where they were: they are more writers
 > on a path that by then exists.
 
-- [ ] `phonix-web` The viewer's toolbar stays where it is
-      why: asked for after the second checkpoint. A report is long by nature,
-           and the toolbar scrolls away with it - so print, fit-to-width and
-           the export menu are reachable only by scrolling back to the top of
-           a document somebody is reading the bottom of. A toolbar that only
-           works at the top of the page is a toolbar for the first screenful.
-      touch: crates/phonix-web/src/ui/report/viewer.rs
-      done: the toolbar stays put while the sheet scrolls under it, against the
-            shell's own scrolling region rather than the window - the shell is
-            the only scrolling region, which is what makes `sticky` the answer
-            and `fixed` the wrong one. It sits above the sheet and below the
-            application's own chrome, and printing still keeps only the sheet.
-      verify: open a long report - the product list - and scroll. The toolbar
-              should stay at the top of the content area with the sheet moving
-              under it, and the navigation and top bar should not move at all.
-              Then press Print and check the toolbar is still absent from the
-              preview.
-
 - [ ] `phonix-core` The export request, as a row
       why: an export is a job, not an answer to a request. A statement over a
            year of a busy ledger is minutes of rendering, and a server function
@@ -537,6 +519,20 @@ commits it is three items.
      The user launches the application, looks, and then either moves the item
      to `## Done` or writes a new item in `## Next` saying what was wrong. The
      loop never moves anything out of this section by itself. -->
+
+- [x] `phonix-web` The viewer's toolbar stays where it is
+      commit: "A toolbar for more than the first screenful"
+      `sticky top-0` against the shell's scrolling region, which is the only
+      thing that scrolls here - `fixed` would have taken the bar out of the
+      layout and laid it over the top bar it is supposed to sit inside. The
+      surface's `overflow-x-auto` is a sibling rather than an ancestor, which
+      is what lets sticky work at all; a scrolling ancestor would have pinned
+      the bar to a box that is itself moving.
+      verify: open a long report - the product list - and scroll. The toolbar
+              should stay at the top of the content area with the sheet moving
+              under it, and the navigation and top bar should not move at all.
+              Then press Print and check the toolbar is still absent from the
+              preview.
 
 - [x] `phonix-web` A settings editor belongs in a modal, not under the grid
       commit: "A dialog, before there were five of them"
