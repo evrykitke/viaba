@@ -187,6 +187,64 @@ commits it is three items.
 > here**, and the PDF writer stays where it is in this queue: until it lands
 > the new default answers with the same sentence the menu gives.
 
+> **PDF moved to the front**, 2026-09-16, on the user's instruction: the export
+> button's default is PDF and nothing writes one, so the default answers every
+> report with a refusal. The paginator comes with it and stays in front of it -
+> a PDF writer that broke its own pages would be the second answer to a
+> question `phonix-core` is about to answer for the screen as well, and this
+> backlog has four commits undoing that shape. The charts, the collapsing
+> group and the spreadsheet wait behind both.
+
+- [ ] `phonix-services` The report as a PDF a job wrote
+      why: the reason the paginator exists, and the format everything else was
+           built towards. A statement that can only be printed out of a browser
+           cannot be attached to an email or filed, and being sent to somebody
+           is most of what a statement is for.
+      touch: Cargo.toml, crates/phonix-services/, crates/phonix-server/src/jobs.rs
+      done: a second writer on the exporter, drawing from the same definition
+            the screen uses, in the same look, so the file and the screen are
+            one document. The writer is a pure-Rust crate with no system
+            dependency - confirm it builds on this toolchain before writing
+            against it, and block the item saying so if it does not. The logo
+            is read through `phonix_services::files::access`, not fetched over
+            HTTP. There is no font in this repo, so text is the base-14
+            encoding until one is embedded: a report in a locale that encoding
+            cannot carry - `locales/zh.json` exists - fails the export with a
+            reason rather than writing a file full of blank boxes. Failing
+            loudly is the point: a job that wrote something unreadable is worse
+            than one that refused. The three definitions declare
+            `ExportFormat::Pdf` and `write_now` grows a PDF arm, because the
+            toolbar's default button is PDF and until this lands it answers
+            every report with "this document does not allow it".
+      verify: export the statement as PDF and open the file. The letterhead,
+              the look, the page breaks, the repeated header and the totals
+              should match the screen - put the two side by side and switch the
+              document's look to check they move together.
+      stop: sixth checkpoint. This is the artefact that leaves the building,
+            and the only way to judge a PDF is to open one.
+
+- [ ] `phonix-web` The pages a long report is read in
+      why: a list report is one endless sheet on screen today, and the viewer's
+           toolbar has said since it was built that page navigation belongs
+           there. Asked for directly on 2026-09-16, with the page size: **ten
+           rows at a time by default**.
+      touch: crates/phonix-core/src/report/paginate.rs,
+             crates/phonix-web/src/ui/report/viewer.rs,
+             crates/phonix-web/src/ui/report/render.rs
+      done: `paginate` takes a cap on the rows a page may hold as well as the
+            height, and a page ends at whichever comes first. The viewer asks
+            for ten and the writers ask for none, so a screen page and a
+            printed page are the same arithmetic read with different limits -
+            not two counts that can disagree. The toolbar carries first,
+            previous, next and last with "page n of m" between them, drawn only
+            where there is more than one page, and the report draws the rows of
+            the page it is on rather than all of them.
+      verify: the product list: ten rows, then Next through to the last page
+              and back. The page count should not change when the look does,
+              because ten is ten - but printing the same report should still
+              break its pages by the sheet.
+      stop: the toolbar is what was asked for and nobody has seen it.
+
 - [ ] `phonix-web` The chart, as a band the server drew
       why: charts are part of a report here, not a decoration on one, which is
            why this sits before the exports rather than after them. A
@@ -225,50 +283,6 @@ commits it is three items.
             holes in it.
       verify: collapse a group, reload, and confirm it opens in the state the
               definition names rather than the one you left it in.
-
-- [ ] `phonix-core` The paginator, which decides where a page ends
-      why: the PDF writer needs pages and a browser will not hand it any. This
-           is the one piece of the engine whose correctness a test actually
-           establishes - a group header orphaned at the foot of a page, a
-           footer that does not fit, a detail band split in half - so it is
-           pure, it is in core, and it is tested before anything draws with it.
-      touch: crates/phonix-core/src/report/
-      done: given a theme's metrics, a page setup and the rows, it returns
-            pages with their bands placed, repeating the page header and any group
-            header whose group continues onto the next page. A group header
-            alone at the foot of a page moves to the next one. A chart band is
-            placed whole or moved, never split. Tested: the orphan case, the
-            exact-fit case, a single row taller than a page, and that Compact
-            fits more rows on a page than Modern - the one assertion that
-            proves the look actually reaches the arithmetic. The viewer's
-            page navigation reads its answer rather than counting separately.
-      verify: the viewer's page navigation on a long report - the page count
-              and jumping to the last page. The unit tests carry the rest.
-
-- [ ] `phonix-services` The report as a PDF a job wrote
-      why: the reason the paginator exists, and the format everything else was
-           built towards. A statement that can only be printed out of a browser
-           cannot be attached to an email or filed, and being sent to somebody
-           is most of what a statement is for.
-      touch: Cargo.toml, crates/phonix-services/, crates/phonix-server/src/jobs.rs
-      done: a second writer on the exporter, drawing from the same definition
-            the screen uses, in the same look, so the file and the screen are
-            one document. The writer is a pure-Rust crate with no system
-            dependency - confirm it builds on this toolchain before writing
-            against it, and block the item saying so if it does not. The logo
-            is read through `phonix_services::files::access`, not fetched over
-            HTTP. There is no font in this repo, so text is the base-14
-            encoding until one is embedded: a report in a locale that encoding
-            cannot carry - `locales/zh.json` exists - fails the export with a
-            reason rather than writing a file full of blank boxes. Failing
-            loudly is the point: a job that wrote something unreadable is worse
-            than one that refused.
-      verify: export the statement as PDF and open the file. The letterhead,
-              the look, the page breaks, the repeated header and the totals
-              should match the screen - put the two side by side and switch the
-              document's look to check they move together.
-      stop: sixth checkpoint. This is the artefact that leaves the building,
-            and the only way to judge a PDF is to open one.
 
 - [ ] `phonix-services` The chart, in the PDF
       why: a chart that exists only on the screen makes the PDF the lesser copy
@@ -419,6 +433,27 @@ commits it is three items.
      The user launches the application, looks, and then either moves the item
      to `## Done` or writes a new item in `## Next` saying what was wrong. The
      loop never moves anything out of this section by itself. -->
+
+- [x] `phonix-core` The paginator, which decides where a page ends
+      commit: "Where a page ends"
+      why: the PDF writer needs pages and a browser will not hand it any. This
+           is the one piece of the engine whose correctness a test actually
+           establishes - a group header orphaned at the foot of a page, a
+           footer that does not fit, a detail band split in half - so it is
+           pure, it is in core, and it is tested before anything draws with it.
+      touch: crates/phonix-core/src/report/
+      done: given a theme's metrics, a page setup and the rows, it returns
+            pages with their bands placed, repeating the page header and any group
+            header whose group continues onto the next page. A group header
+            alone at the foot of a page moves to the next one. A chart band is
+            placed whole or moved, never split. Tested: the orphan case, the
+            exact-fit case, a single row taller than a page, and that Compact
+            fits more rows on a page than Modern - the one assertion that
+            proves the look actually reaches the arithmetic.
+      split: the viewer's page navigation came out of this item on 2026-09-16
+             and is queued below. The arithmetic is what the PDF writer needs
+             and it is tested here; a toolbar control is a screen, and the two
+             are two commits by this backlog's own rule.
 
 - [x] `phonix-web` Grouping, and what a group adds up to
       commit: "What a group of rows comes to"
