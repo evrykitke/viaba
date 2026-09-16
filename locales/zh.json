@@ -2276,6 +2276,7 @@
   "payments.post": "过账收款",
   "payments.post.confirm": "过账这笔收款？它将取用号段中的下一个编号，款项进入总账，被核销的发票不再是欠款。",
   "payments.posted": "已过账，编号 {number}。",
+  "payments.receipt": "收据",
   "payments.received_on": "收款日期",
   "payments.reference": "参考号",
   "payments.reference.help": "对方的支票号或转账备注。用于与银行对账单核对。",

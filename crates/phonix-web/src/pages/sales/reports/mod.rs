@@ -5,7 +5,11 @@
 //! /accounting/reports/balance-sheet       what is owned and owed, at a date
 //! /accounting/reports/profit-and-loss     what was earned and spent, between two
 //! /accounting/reports/statement           one customer's account
+//! /selling/payments/<id>/receipt          one payment, as a document
 //! ```
+//!
+//! The receipt is here because it is a report, and addressed under the payment
+//! because it is that record drawn as a document.
 //!
 //! # Nothing here reads the clock
 //!
@@ -26,5 +30,6 @@
 pub mod balance_sheet;
 pub mod customer_statement;
 pub mod profit_and_loss;
+pub mod receipt;
 pub mod shared;
 pub mod trial_balance;

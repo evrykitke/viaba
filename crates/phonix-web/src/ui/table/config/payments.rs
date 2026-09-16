@@ -160,6 +160,15 @@ pub fn payments_grid() -> GridConfig<PaymentSummary> {
             )
             .require(permissions::PAYMENTS),
         )
+        // A draft has no receipt: it carries no number, and as far as the
+        // ledger is concerned nothing was received.
+        .action(
+            RowAction::report(l!("payments.receipt"), |row: &PaymentSummary| {
+                format!("/selling/payments/{}/receipt", row.id)
+            })
+            .when(|row: &PaymentSummary| row.status.settles())
+            .require(permissions::PAYMENTS),
+        )
 }
 
 /// Received and set against nothing. `None` only where the two amounts are in

@@ -2276,6 +2276,7 @@
   "payments.post": "Post payment",
   "payments.post.confirm": "Post this payment? It takes the next number in the series, the money reaches the ledger, and the invoices it settles stop being owed.",
   "payments.posted": "Posted as {number}.",
+  "payments.receipt": "Receipt",
   "payments.received_on": "Received",
   "payments.reference": "Reference",
   "payments.reference.help": "Their cheque number or transfer reference. What this is matched against on a bank statement.",

@@ -113,6 +113,19 @@ impl<T: 'static> RowAction<T> {
         Self::of(label, icon, ActionKind::Link(Arc::new(href)))
     }
 
+    /// An action that opens the row's record as a report.
+    ///
+    /// A link with the icon fixed, so that every grid offering one offers the
+    /// same thing in the same place. The address is the caller's: a grid
+    /// adopts this by naming where its own record is drawn, and nothing here
+    /// knows what the record is.
+    pub fn report(
+        label: impl Into<String>,
+        href: impl Fn(&T) -> String + Send + Sync + 'static,
+    ) -> Self {
+        Self::link(label, Icon::Receipt, href)
+    }
+
     /// An action that does something to the row.
     ///
     /// The closure receives the row and a [`GridHandle`]. Anything that reaches

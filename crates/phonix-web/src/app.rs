@@ -94,6 +94,7 @@ use crate::pages::sales::reports::customer_statement::{
     CustomerStatementPage, CustomerStatementReportPage,
 };
 use crate::pages::sales::reports::profit_and_loss::ProfitAndLossPage;
+use crate::pages::sales::reports::receipt::PaymentReceiptPage;
 use crate::pages::sales::reports::trial_balance::TrialBalancePage;
 use crate::pages::{dashboard::DashboardPage, not_found::NotFoundPage};
 use crate::profiler::ProfilerBridge;
@@ -291,6 +292,10 @@ pub fn app() -> impl IntoView {
                     <Route path=path!("/selling/payments") view=PaymentsPage />
                     <Route path=path!("/selling/payments/new") view=PaymentNewPage />
                     <Route path=path!("/selling/payments/:id") view=PaymentPage />
+                    <Route
+                        path=path!("/selling/payments/:id/receipt")
+                        view=PaymentReceiptPage
+                    />
 
                     // Master data. Not under /admin, for the reason the
                     // permission tree is not: keeping a customer list up to

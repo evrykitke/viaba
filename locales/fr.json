@@ -2276,6 +2276,7 @@
   "payments.post": "Comptabiliser",
   "payments.post.confirm": "Comptabiliser ce règlement ? Il prend le numéro suivant de la série, l'argent atteint le grand livre, et les factures qu'il solde cessent d'être dues.",
   "payments.posted": "Comptabilisé sous le numéro {number}.",
+  "payments.receipt": "Reçu",
   "payments.received_on": "Reçu le",
   "payments.reference": "Référence",
   "payments.reference.help": "Leur numéro de chèque ou la référence du virement. C'est ce que l'on rapproche du relevé bancaire.",

@@ -160,33 +160,6 @@ commits it is three items.
 >   comparing the three, but the look is a document setting and two places to
 >   change one thing is how they come to disagree. Ask if it is wanted.
 
-- [ ] `phonix-web` The receipt, and the grid row that opens it
-      why: most grids in this kit offer one row action, "open", and it goes to
-           a form. A document sits behind a great many of those rows, and a
-           receipt is the plainest case - somebody is handed one. This is also
-           the first report over a single record rather than a span, which is
-           the shape an invoice, a delivery note and a purchase order all take
-           afterwards.
-      touch: crates/phonix-web/src/ui/report/config/receipt.rs,
-             crates/phonix-web/src/ui/table/config/payments.rs,
-             crates/phonix-web/src/ui/table/action.rs
-      done: a receipt definition over one payment, read through the existing
-            `payment_detail` rather than a read of its own, showing who paid,
-            what against, what is on account, and the receipt number the
-            `RCT-{YYYY}-#####` series issued. The payments grid gains a second
-            row action beside Open that opens that record in the viewer. The
-            action is general - it names a definition and a row's id, so any
-            grid adopts it by naming its own definition, and nothing about it
-            is specific to payments. A draft has no receipt: the action is
-            offered through `RowAction::when` on posted rows only, the way the
-            kit already decides an action does not apply to a row. The
-            definition declares itself bounded - one payment and its
-            allocations, which is a page - so its export will render in the
-            request rather than through the queue.
-      verify: the payments list. The row menu should offer Open and Report; the
-              report should open in the viewer with the receipt number and the
-              figures matching the row. Check a draft does not offer it.
-
 - [ ] `phonix-core` The document settings a tenant keeps
       why: an invoice that cannot carry the tenant's own payment terms is one
            they will keep producing outside the system. This is the table and
@@ -608,6 +581,21 @@ commits it is three items.
      The user launches the application, looks, and then either moves the item
      to `## Done` or writes a new item in `## Next` saying what was wrong. The
      loop never moves anything out of this section by itself. -->
+
+- [x] `phonix-web` The receipt, and the grid row that opens it
+      commit: "The document behind a row"
+      A receipt over one payment, read through the existing `payment_detail`,
+      with the allocations as its lines and each invoice number linking to the
+      invoice. It declares itself **bounded** - one payment and its
+      allocations, which is a page - so its export will render in the request
+      rather than through the queue. `RowAction::report` is the general form:
+      a link with the icon fixed, whose address is the caller's, so a grid
+      adopts it by naming where its own record is drawn. The payments grid
+      offers it through `when` on posted rows only, because a draft carries no
+      number and the ledger does not think anything was received.
+      verify: the payments list. The row menu should offer Open and Receipt;
+              the receipt should open in the viewer with the number and the
+              figures matching the row. Check a draft does not offer it.
 
 - [x] `phonix-web` The logo, where the definition says it goes
       commit: "The mark at the top, and who is allowed to see it"

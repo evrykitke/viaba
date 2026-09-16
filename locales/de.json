@@ -2276,6 +2276,7 @@
   "payments.post": "Zahlung buchen",
   "payments.post.confirm": "Diese Zahlung buchen? Sie erhält die nächste Nummer der Serie, das Geld erreicht das Hauptbuch, und die ausgeglichenen Rechnungen gelten nicht mehr als offen.",
   "payments.posted": "Gebucht als {number}.",
+  "payments.receipt": "Quittung",
   "payments.received_on": "Eingegangen",
   "payments.reference": "Referenz",
   "payments.reference.help": "Die Schecknummer oder der Überweisungsverwendungszweck. Damit wird auf dem Kontoauszug abgeglichen.",
