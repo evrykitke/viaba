@@ -219,28 +219,6 @@ commits it is three items.
 > like any other, and the loop takes the next one. The section is what they
 > read when they come back.
 
-- [ ] `phonix-web` The pages a long report is read in
-      why: a list report is one endless sheet on screen today, and the viewer's
-           toolbar has said since it was built that page navigation belongs
-           there. Asked for directly on 2026-09-16, with the page size: **ten
-           rows at a time by default**.
-      touch: crates/phonix-core/src/report/paginate.rs,
-             crates/phonix-web/src/ui/report/viewer.rs,
-             crates/phonix-web/src/ui/report/render.rs
-      done: `paginate` takes a cap on the rows a page may hold as well as the
-            height, and a page ends at whichever comes first. The viewer asks
-            for ten and the writers ask for none, so a screen page and a
-            printed page are the same arithmetic read with different limits -
-            not two counts that can disagree. The toolbar carries first,
-            previous, next and last with "page n of m" between them, drawn only
-            where there is more than one page, and the report draws the rows of
-            the page it is on rather than all of them.
-      verify: the product list: ten rows, then Next through to the last page
-              and back. The page count should not change when the look does,
-              because ten is ten - but printing the same report should still
-              break its pages by the sheet.
-      stop: the toolbar is what was asked for and nobody has seen it.
-
 - [ ] `phonix-web` The chart, as a band the server drew
       why: charts are part of a report here, not a decoration on one, which is
            why this sits before the exports rather than after them. A
@@ -893,6 +871,29 @@ commits it is three items.
 ## Done
 
 <!-- The loop appends here with the commit sha. Newest first. -->
+
+- [x] `phonix-web` The pages a long report is read in
+      commit: "Ten rows, and a way to the next ten"
+      why: a list report is one endless sheet on screen today, and the viewer's
+           toolbar has said since it was built that page navigation belongs
+           there. Asked for directly on 2026-09-16, with the page size: **ten
+           rows at a time by default**.
+      touch: crates/phonix-core/src/report/paginate.rs,
+             crates/phonix-web/src/ui/report/viewer.rs,
+             crates/phonix-web/src/ui/report/render.rs
+      done: **not as written.** `paginate` measured a printed page and the
+            browser does that now, so there was nothing left for it to serve
+            and it is deleted rather than given a second job. A screen page is
+            a row count and nothing else. The toolbar carries
+            previous and next with "page n of m" between them, the same two
+            steps and the same words the grid's pager uses, drawn only where
+            there is more than one page - and the report draws the rows of the
+            page it is on rather than all of them.
+      verify: the product list: ten rows, then Next through to the last page
+              and back. The page count should not change when the look does,
+              because ten is ten - but printing the same report should still
+              break its pages by the sheet.
+      stop: the toolbar is what was asked for and nobody has seen it.
 
 - [x] `phonix-services` The writer that is not needed any more
       commit: "One less renderer"

@@ -2544,6 +2544,7 @@
   "receipts.unit_cost.default": "物料成本",
   "receipts.value": "金额",
   "receipts.value.help": "此单计入资产负债表的金额，按到货当日的成本计。",
+  "report.page_of": "第 {page} 页，共 {pages} 页",
   "report.refused": "您无权查看此报表。",
   "report.refused.detail": "请向管理员申请所需的权限。",
   "report.export": "导出",

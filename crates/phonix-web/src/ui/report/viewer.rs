@@ -21,7 +21,8 @@ use serde_json::Map;
 use serde_json::Value as Parameters;
 use uuid::Uuid;
 
-use super::{ExportFormat, Extent, ReportDefinition};
+use super::paging;
+use super::{ExportFormat, Extent, Paging, ReportDefinition};
 use crate::icons::{Icon, IconSize};
 use crate::l;
 use crate::server_fns::file_fns as content;
@@ -59,6 +60,10 @@ pub fn report_viewer<T>(
     /// export would be of whatever the screen opened on.
     #[prop(optional, into)]
     parameters: Option<Signal<Parameters>>,
+    /// How many rows the report has, for a list long enough to be read in
+    /// pages. Left off by a document, which is read whole however long it is.
+    #[prop(optional, into)]
+    rows: Option<Signal<usize>>,
     children: ChildrenFn,
 ) -> impl IntoView
 where
@@ -73,6 +78,13 @@ where
     let back = StoredValue::new(back);
     let controls = StoredValue::new(controls);
     let children = StoredValue::new(children);
+
+    // Provided whatever the report is: the renderer asks for the window and a
+    // report with one page of rows gets one page. What decides whether the
+    // control is drawn is the count, not the context.
+    let paging = Paging::provide(paging::ROWS_PER_PAGE);
+    let rows = rows.unwrap_or_else(|| Signal::derive(|| 0));
+    let pages = Signal::derive(move || paging.pages(rows.get()));
 
     // The report's own gate. A page that only fetched through a refusing
     // server function would answer an address it should not have drawn at all.
@@ -190,6 +202,16 @@ where
                 </div>
 
                 <div class="flex items-center gap-2">
+                    // Inside a boundary for the reason every gated control is:
+                    // the count arrives with the rows, and a toolbar drawn
+                    // before it would hydrate to a different one.
+                    <Suspense fallback=|| ()>
+                        {move || {
+                            (pages.get() > 1)
+                                .then(|| view! { <Pages paging=paging pages=pages /> })
+                        }}
+                    </Suspense>
+
                     <button
                         type="button"
                         class="rounded-control border border-edge px-2 py-1 text-xs text-content hover:bg-surface-hover"
@@ -289,6 +311,70 @@ where
                 }
             }}
         </Suspense>
+    }
+}
+
+/// Which page of a long report is being read, and the way to the next.
+///
+/// The same two steps and the same words the grid's pager uses, because they
+/// are the same control: a long list read a screenful at a time. No page
+/// numbers - a report is read in order, and jumping to the seventh page of a
+/// statement is not something anybody does.
+#[component]
+fn pages(paging: Paging, #[prop(into)] pages: Signal<usize>) -> impl IntoView {
+    let page = paging.page;
+    let go = move |to: usize| page.set(to.clamp(1, pages.get().max(1)));
+
+    // Outside the macro, both of them: a bare `>` inside a `view!` attribute
+    // closes the tag it is in.
+    let at_start = move || page.get() <= 1;
+    let at_end = move || page.get() >= pages.get();
+
+    view! {
+        <div class="flex items-center gap-1">
+            <Step
+                label=l!("grid.previous")
+                icon=Icon::ChevronLeft
+                disabled=at_start
+                on_click=move || go(page.get().saturating_sub(1))
+            />
+
+            <span class="px-1 text-xs tabular-nums text-content-subtle">
+                {move || l!("report.page_of", page = page.get(), pages = pages.get())}
+            </span>
+
+            <Step
+                label=l!("grid.next")
+                icon=Icon::ChevronRight
+                disabled=at_end
+                on_click=move || go(page.get() + 1)
+            />
+        </div>
+    }
+}
+
+/// One step of the page control.
+///
+/// Plain closures rather than a signal and a callback, for the reason
+/// [`ui::table::pager`](crate::ui::table::pager) gives: a closure over `Copy`
+/// values owns nothing that can be disposed when the report reloads.
+#[component]
+fn step(
+    #[prop(into)] label: String,
+    icon: Icon,
+    disabled: impl Fn() -> bool + Send + Sync + 'static,
+    on_click: impl Fn() + 'static,
+) -> impl IntoView {
+    view! {
+        <button
+            type="button"
+            class="grid size-7 place-items-center rounded-control border border-edge text-content-muted hover:bg-surface-hover hover:text-content disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
+            disabled=disabled
+            aria-label=label
+            on:click=move |_| on_click()
+        >
+            <Icon icon=icon size=IconSize::Xs />
+        </button>
     }
 }
 

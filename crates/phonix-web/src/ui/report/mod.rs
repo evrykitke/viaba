@@ -27,11 +27,13 @@ pub mod config;
 
 mod chrome;
 mod definition;
+mod paging;
 mod render;
 mod viewer;
 
 pub use chrome::{DocumentStyles, Letterhead};
 pub use definition::{Band, Extent, Field, Grouping, Heading, ReportDefinition, RowGroup, Value};
+pub use paging::Paging;
 pub use phonix_core::report::ExportFormat;
 pub use render::Report;
 pub use viewer::ReportViewer;

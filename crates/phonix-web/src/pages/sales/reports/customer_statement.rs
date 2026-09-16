@@ -87,6 +87,9 @@ pub fn customer_statement_report_page() -> impl IntoView {
             definition=definition()
             back=("/accounting/reports/statement", l!("reports.customer_statement"))
             controls=move || view! { <SpanPicker span=span /> }.into_any()
+            rows=Signal::derive(move || {
+                statement.get().flatten().map_or(0, |statement| statement.lines.len())
+            })
             parameters=Signal::derive(move || {
                 serde_json::json!({
                     "party_id": party_id(),

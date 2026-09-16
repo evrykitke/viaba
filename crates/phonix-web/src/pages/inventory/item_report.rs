@@ -36,6 +36,9 @@ pub fn item_report_page() -> impl IntoView {
         <ReportViewer
             definition=product_list()
             back=("/inventory/items", l!("items.title"))
+            rows=Signal::derive(move || {
+                items.get().flatten().map_or(0, |page| page.rows.len())
+            })
         >
             <Transition fallback=|| {
                 view! { <p class="text-sm text-content-subtle">{l!("common.loading")}</p> }

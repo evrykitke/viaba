@@ -2544,6 +2544,7 @@
   "receipts.unit_cost.default": "Item cost",
   "receipts.value": "Value",
   "receipts.value.help": "What this put on the balance sheet, at the cost on the day it arrived.",
+  "report.page_of": "Page {page} of {pages}",
   "report.refused": "This report is not yours to read.",
   "report.refused.detail": "Ask an administrator for the permission it needs.",
   "report.export": "Export",

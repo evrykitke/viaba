@@ -2544,6 +2544,7 @@
   "receipts.unit_cost.default": "Coût de l'article",
   "receipts.value": "Valeur",
   "receipts.value.help": "Ce que cela a porté au bilan, au coût du jour de l'arrivée.",
+  "report.page_of": "Page {page} sur {pages}",
   "report.refused": "Ce rapport ne vous est pas accessible.",
   "report.refused.detail": "Demandez l'autorisation necessaire a un administrateur.",
   "report.export": "Exporter",

@@ -26,7 +26,9 @@ use phonix_core::report::{Align, BandKind, Colour, DocumentSettings, Logo, Metri
 use leptos_router::components::A;
 
 use super::definition::Content;
-use super::{Band, DocumentStyles, Field, Heading, Letterhead, ReportDefinition, RowGroup, Value};
+use super::{
+    Band, DocumentStyles, Field, Heading, Letterhead, Paging, ReportDefinition, RowGroup, Value,
+};
 
 /// Draw a report.
 ///
@@ -144,9 +146,17 @@ where
         }
     });
 
-    let detail = definition
-        .band_of(BandKind::Detail)
-        .map(|band| band_content(band, data, &metrics));
+    // The rows this page holds, which is every row where nothing is paging the
+    // report - a document, or a preview drawn outside the viewer.
+    let detail =
+        definition
+            .band_of(BandKind::Detail)
+            .map(|band| match (&band.content, Paging::get()) {
+                (Content::Lines { headings, read }, Some(paging)) => {
+                    lines(headings, &paged(&read(data), &paging.window()), &metrics)
+                }
+                _ => band_content(band, data, &metrics),
+            });
 
     view! {
         // The one element printing keeps. See `viewer`.
@@ -449,6 +459,44 @@ fn lines(headings: &[Heading], groups: &[RowGroup], metrics: &Metrics) -> AnyVie
         </section>
     }
     .into_any()
+}
+
+/// The groups as this page of the report shows them.
+///
+/// The window is over the rows, not over the groups: a group with nothing on
+/// this page is not drawn at all, and one that straddles the edge keeps its
+/// header and its subtotal with the part that is here. The subtotal is the
+/// group's own, not the page's - it is what the group comes to, and cutting it
+/// to the visible rows would be a different number under the same word.
+fn paged(groups: &[RowGroup], window: &std::ops::Range<usize>) -> Vec<RowGroup> {
+    let mut seen = 0;
+    let mut shown = Vec::new();
+
+    for group in groups {
+        let start = seen;
+        let end = seen + group.rows.len();
+
+        seen = end;
+
+        let from = window.start.max(start);
+        let to = window.end.min(end);
+
+        if from >= to {
+            continue;
+        }
+
+        shown.push(RowGroup {
+            label: group.label.clone(),
+            rows: group
+                .rows
+                .get(from - start..to - start)
+                .unwrap_or_default()
+                .to_vec(),
+            totals: group.totals.clone(),
+        });
+    }
+
+    shown
 }
 
 /// One group: what it is called, its rows, and what they come to.

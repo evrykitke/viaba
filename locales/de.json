@@ -2544,6 +2544,7 @@
   "receipts.unit_cost.default": "Artikelkosten",
   "receipts.value": "Wert",
   "receipts.value.help": "Was dies in der Bilanz ausmacht, zu den Kosten des Eingangstags.",
+  "report.page_of": "Seite {page} von {pages}",
   "report.refused": "Dieser Bericht ist nicht fuer Sie freigegeben.",
   "report.refused.detail": "Bitten Sie eine Administratorin um die noetige Berechtigung.",
   "report.export": "Exportieren",
