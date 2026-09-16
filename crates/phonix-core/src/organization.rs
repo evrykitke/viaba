@@ -38,6 +38,21 @@ pub const MAX_LINE_LEN: usize = 120;
 /// only here to stop somebody pasting a document into the box.
 pub const MAX_URL_LEN: usize = 300;
 
+/// What the top of a document needs to know about the workspace.
+///
+/// Narrower than [`OrganizationProfile`] on purpose. The profile is the
+/// settings screen's data and is gated on `Settings`; a name and a mark are
+/// what every document carries and are no secret from anybody signed in to the
+/// workspace. The address is deliberately not here - it is part of the profile
+/// and stays behind that gate until a document is designed that needs it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Letterhead {
+    /// The name its customers know it by - the trading name where there is
+    /// one. See [`OrganizationProfile::display_name`].
+    pub name: String,
+    pub logo_file_id: Option<FileId>,
+}
+
 /// Everything an organization has told us about itself.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct OrganizationProfile {

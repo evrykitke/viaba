@@ -3,7 +3,7 @@
 use std::sync::Arc;
 
 use phonix_core::report::{
-    Align, BandKind, ExportFormat, LogoPlacement, PageSetup, ReportKind, ReportTheme,
+    Align, BandKind, ExportFormat, Logo, PageSetup, ReportKind, ReportTheme,
 };
 
 use crate::ui::table::Cell;
@@ -303,7 +303,7 @@ pub struct ReportDefinition<T: 'static> {
     pub(crate) theme: ReportTheme,
     pub(crate) page: PageSetup,
     /// `None` draws no logo. A document setting can put one back.
-    pub(crate) logo: Option<LogoPlacement>,
+    pub(crate) logo: Option<Logo>,
     pub(crate) bands: Vec<Band<T>>,
     pub(crate) extent: Extent,
     /// The formats the export menu offers. Empty draws no menu at all, which
@@ -378,10 +378,13 @@ impl<T: 'static> ReportDefinition<T> {
         self
     }
 
-    /// Draw the workspace logo, here.
+    /// Draw the workspace logo, here and this tall.
+    ///
+    /// A workspace with no logo set draws its name in the same place rather
+    /// than leaving a hole in the letterhead.
     #[must_use]
-    pub const fn logo(mut self, placement: LogoPlacement) -> Self {
-        self.logo = Some(placement);
+    pub const fn logo(mut self, logo: Logo) -> Self {
+        self.logo = Some(logo);
         self
     }
 

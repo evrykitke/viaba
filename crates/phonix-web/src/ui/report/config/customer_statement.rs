@@ -2,7 +2,7 @@
 //! how long the rest has been owed.
 
 use app_books::report::{CustomerStatement, EntryKind, StatementLine};
-use phonix_core::report::{Align, BandKind, ReportKind, ReportTheme};
+use phonix_core::report::{Align, BandKind, Logo, LogoPlacement, ReportKind, ReportTheme};
 
 use crate::i18n::t;
 use crate::l;
@@ -17,6 +17,7 @@ pub fn customer_statement() -> ReportDefinition<CustomerStatement> {
         ReportKind::Document,
     )
     .theme(ReportTheme::Professional)
+    .logo(Logo::new(LogoPlacement::ReportHeader(Align::Start)))
     .band(
         Band::new(BandKind::ReportHeader)
             .field(Field::bare("party", |statement: &CustomerStatement| {

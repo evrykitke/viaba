@@ -22,7 +22,7 @@ use phonix_core::authorization::{
 use phonix_core::form::Submission;
 use phonix_core::identity::{InvitationIssued, UserEdit, UserId, UserInvite, UserListing};
 use phonix_core::mail::{MailSettings, MailSettingsInput};
-use phonix_core::organization::OrganizationProfile;
+use phonix_core::organization::{Letterhead, OrganizationProfile};
 use phonix_core::query::{Page, PageRequest};
 use uuid::Uuid;
 
@@ -252,6 +252,23 @@ pub async fn save_mail_settings(
     let state = app_state()?;
 
     phonix_services::mail::settings::save(&pool, &caller, &state.vault, input)
+        .await
+        .map_err(service_error)
+}
+
+/// The name and the mark a document is headed with.
+///
+/// Separate from [`organization_profile`] because it answers a different
+/// question for a different reader: that one is the settings screen's and is
+/// gated on `Settings`, and this one is what a report puts at the top of a
+/// page for whoever is allowed to read the report.
+#[server(name = LoadLetterhead, prefix = "/api", endpoint = "workspace/letterhead")]
+pub async fn letterhead() -> Result<Letterhead, ServerFnError> {
+    use crate::state::{pool_and_caller, service_error};
+
+    let (pool, caller) = pool_and_caller().await?;
+
+    phonix_services::workspace::profile::letterhead(&pool, &caller)
         .await
         .map_err(service_error)
 }

@@ -19,12 +19,12 @@
 use std::sync::OnceLock;
 
 use leptos::prelude::*;
-use phonix_core::report::{Align, BandKind, Colour, Metrics, Typeface};
+use phonix_core::report::{Align, BandKind, Colour, Logo, Metrics, Typeface};
 
 use leptos_router::components::A;
 
 use super::definition::Content;
-use super::{Band, Field, Heading, ReportDefinition, Value};
+use super::{Band, Field, Heading, Letterhead, ReportDefinition, Value};
 
 /// Draw a report.
 ///
@@ -49,6 +49,12 @@ where
         metrics.type_scale.body_pt,
     );
 
+    let logo = definition.logo;
+    let mark_here = |kind: BandKind| {
+        logo.filter(|logo| logo.placement.band() == kind)
+            .map(|logo| mark(logo, &metrics))
+    };
+
     let letterhead = definition.band_of(BandKind::ReportHeader).map(|band| {
         view! {
             <header
@@ -59,6 +65,8 @@ where
                     metrics.rules.under_letterhead,
                 )
             >
+                {mark_here(BandKind::ReportHeader)}
+
                 <h1
                     class=heading_ink(metrics.colour)
                     style=format!("font-size:{}pt", metrics.type_scale.title_pt)
@@ -70,9 +78,14 @@ where
         }
     });
 
-    let page_header = definition
-        .band_of(BandKind::PageHeader)
-        .map(|band| running_band(band, &data, &metrics, BandKind::PageHeader));
+    let page_header = definition.band_of(BandKind::PageHeader).map(|band| {
+        let band = running_band(band, &data, &metrics, BandKind::PageHeader);
+
+        view! {
+            {mark_here(BandKind::PageHeader)}
+            {band}
+        }
+    });
     let page_footer = definition
         .band_of(BandKind::PageFooter)
         .map(|band| running_band(band, &data, &metrics, BandKind::PageFooter));
@@ -225,6 +238,53 @@ where
     }
 }
 
+/// The workspace mark, where the definition places it.
+///
+/// A workspace that has uploaded none draws its name instead, at the size the
+/// title is set in: a letterhead with a hole in it is what makes a document
+/// look unfinished, which is the whole reason this item exists. The letterhead
+/// is read from context, so it is resolved once for the session rather than
+/// once per report or once per page.
+fn mark(logo: Logo, metrics: &Metrics) -> AnyView {
+    let letterhead = Letterhead::get();
+    let height = logo.height_mm;
+    let name_pt = metrics.type_scale.title_pt;
+
+    view! {
+        <div class=format!("flex {}", justify_class(logo.placement.align()))>
+            {move || match letterhead.get() {
+                Some(letterhead) => {
+                    match letterhead.logo_src {
+                        Some(src) => {
+                            view! {
+                                <img
+                                    src=src
+                                    alt=letterhead.name
+                                    style=format!("height:{height}mm;width:auto")
+                                />
+                            }
+                                .into_any()
+                        }
+                        None => {
+                            view! {
+                                <span
+                                    class="font-semibold"
+                                    style=format!("font-size:{name_pt}pt")
+                                >
+                                    {letterhead.name}
+                                </span>
+                            }
+                                .into_any()
+                        }
+                    }
+                }
+                None => ().into_any(),
+            }}
+        </div>
+    }
+    .into_any()
+}
+
 /// A value, as a link where it names a record and as words where it does not.
 ///
 /// The link is the screen's: it prints as the words it is made of, because a
@@ -356,6 +416,15 @@ fn figures_style() -> &'static str {
             )
         })
         .as_str()
+}
+
+/// Which edge of a row a mark sits against.
+const fn justify_class(align: Align) -> &'static str {
+    match align {
+        Align::Start => "justify-start",
+        Align::Center => "justify-center",
+        Align::End => "justify-end",
+    }
 }
 
 const fn align_class(align: Align) -> &'static str {

@@ -160,21 +160,6 @@ commits it is three items.
 >   comparing the three, but the look is a document setting and two places to
 >   change one thing is how they come to disagree. Ask if it is wanted.
 
-- [ ] `phonix-web` The logo, where the definition says it goes
-      why: `OrganizationProfile::logo_file_id` is already documented as "the
-           uploaded logo that goes on documents", and no document draws it. A
-           statement that reaches a customer with no letterhead is the one
-           thing that makes the whole engine look unfinished.
-      touch: crates/phonix-web/src/ui/report/, crates/phonix-core/src/organization.rs
-      done: a report draws the workspace logo in the placement its definition
-            names - left, centre or right of the report header, or in the page
-            header on every page - at a declared height. A workspace with no
-            logo set draws its name rather than leaving a gap, and the file is
-            resolved once per report rather than once per page.
-      verify: set a logo in the workspace settings, then reopen the statement.
-              It should appear where the definition places it, at a sane size.
-              Clear the logo and check the name is drawn instead of a hole.
-
 - [ ] `phonix-web` The receipt, and the grid row that opens it
       why: most grids in this kit offer one row action, "open", and it goes to
            a form. A document sits behind a great many of those rows, and a
@@ -623,6 +608,25 @@ commits it is three items.
      The user launches the application, looks, and then either moves the item
      to `## Done` or writes a new item in `## Next` saying what was wrong. The
      loop never moves anything out of this section by itself. -->
+
+- [x] `phonix-web` The logo, where the definition says it goes
+      commit: "The mark at the top, and who is allowed to see it"
+      `Logo` is a placement and a height - a height, because a wordmark is
+      wide and squaring one is how a logo becomes unreadable. A workspace with
+      none draws its name at the title's size rather than leaving a hole.
+
+      The interesting part was the permission. `profile::load` requires
+      `Settings`, so a report reading it would have drawn a letterhead for
+      administrators and a gap for everybody else. `Letterhead` is a narrower
+      answer to a narrower question - a name and a file id, no address - and
+      its service takes a `Caller` and requires nothing of it, because that is
+      already on every document a signed-in person can reach. The shell holds
+      it and hands the kit a name and an image address, the way it already
+      hands it the session, so `ui` learns nothing about organizations or file
+      routes and the fetch happens once for the session.
+      verify: set a logo in the workspace settings, then reopen the statement.
+              It should appear where the definition places it, at a sane size.
+              Clear the logo and check the name is drawn instead of a hole.
 
 - [x] `phonix-web` A field that links to the document it names
       commit: "A number that opens what it names"

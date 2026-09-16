@@ -16,7 +16,7 @@
 //! the screen can show what is currently set.
 
 use phonix_core::form::{Submission, rejected};
-use phonix_core::organization::OrganizationProfile;
+use phonix_core::organization::{Letterhead, OrganizationProfile};
 use phonix_core::permissions;
 use phonix_db::organization as store;
 use phonix_db::sqlx::PgPool;
@@ -33,6 +33,22 @@ use crate::error::ServiceResult;
 pub async fn load(pool: &PgPool, caller: &Caller) -> ServiceResult<OrganizationProfile> {
     caller.require(permissions::SETTINGS)?;
     Ok(store::load(pool).await?.profile)
+}
+
+/// The name and the mark a document is headed with.
+///
+/// Takes a [`Caller`] and requires no permission of it. Everything it returns
+/// is already on every document and every screen a signed-in person can reach,
+/// and gating it on `Settings` would mean a report drawing a letterhead only
+/// for administrators. The address, which is the part [`load`] guards, is not
+/// here - see [`Letterhead`].
+pub async fn letterhead(pool: &PgPool, _caller: &Caller) -> ServiceResult<Letterhead> {
+    let profile = store::load(pool).await?.profile;
+
+    Ok(Letterhead {
+        name: profile.display_name().to_owned(),
+        logo_file_id: profile.logo_file_id,
+    })
 }
 
 /// Who this workspace is, for anything that has to render it.

@@ -26,10 +26,12 @@
 pub mod config;
 
 mod definition;
+mod letterhead;
 mod render;
 mod viewer;
 
 pub use definition::{Band, Extent, Field, Heading, ReportDefinition, Value};
+pub use letterhead::Letterhead;
 pub use phonix_core::report::ExportFormat;
 pub use render::Report;
 pub use viewer::ReportViewer;

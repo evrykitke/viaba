@@ -72,11 +72,15 @@ use std::collections::HashMap;
 use leptos::prelude::*;
 use leptos_router::hooks::use_location;
 use phonix_core::identity::AuthUser;
+use phonix_core::organization::Letterhead as CoreLetterhead;
 
 use crate::navigation::{MENU, Trail};
+use crate::server_fns::admin_fns::letterhead;
 use crate::server_fns::app_fns::enabled_apps;
 use crate::server_fns::auth_fns::current_user;
+use crate::server_fns::file_fns as content;
 use crate::theme::Theme;
+use crate::ui::report::Letterhead;
 
 use command_palette::CommandPalette;
 use sidebar::Sidebar;
@@ -94,6 +98,12 @@ pub struct Shell {
     /// editor draws a *different tree* depending on this, and one that arrived
     /// a moment late would grow rows under the pointer. One indexed query.
     apps: Resource<Vec<String>>,
+    /// The name and mark a report heads its pages with.
+    ///
+    /// Not blocking, unlike the two above: no chrome waits on it, and the one
+    /// screen that reads it is a report. Fetched once for the session rather
+    /// than once per report, which is what the shell holding it is for.
+    letterhead: Resource<Option<CoreLetterhead>>,
     /// Bumped by [`Self::refresh`] to re-fetch the two above.
     ///
     /// They were `OnceResource`s, which is right for a fact that cannot change
@@ -127,6 +137,10 @@ impl Shell {
             apps: Resource::new_blocking(
                 move || generation.get(),
                 |_| async move { enabled_apps().await.unwrap_or_default() },
+            ),
+            letterhead: Resource::new(
+                move || generation.get(),
+                |_| async move { letterhead().await.ok() },
             ),
             generation,
             overrides: RwSignal::new(HashMap::new()),
@@ -164,6 +178,7 @@ impl Shell {
         // `ui` depends on `phonix_core` and not on this shell.
         crate::ui::viewer::Viewer::provide(shell.viewer());
         crate::apps::InstalledApps::provide(shell.installed_apps());
+        crate::ui::report::Letterhead::provide(shell.letterhead());
 
         shell
     }
@@ -204,6 +219,20 @@ impl Shell {
         let apps = self.apps;
 
         Signal::derive(move || apps.get())
+    }
+
+    /// What a report heads its pages with, as the kit's own shape - a name and
+    /// the address of an image, rather than a file id and a route to build
+    /// from it.
+    pub fn letterhead(self) -> Signal<Option<Letterhead>> {
+        let letterhead = self.letterhead;
+
+        Signal::derive(move || {
+            letterhead.get().flatten().map(|held| Letterhead {
+                name: held.name,
+                logo_src: held.logo_file_id.map(content::preview_url),
+            })
+        })
     }
 
     /// Ask the chrome to find out again who is signed in and what this

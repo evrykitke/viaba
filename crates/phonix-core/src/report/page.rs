@@ -124,6 +124,35 @@ impl PageSetup {
     }
 }
 
+/// The workspace mark on a report: where it goes and how tall it is drawn.
+///
+/// A height and not a width, because a wordmark is wide and squaring one is
+/// how a logo becomes unreadable - the same reason the settings screen has no
+/// cropper.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct Logo {
+    pub placement: LogoPlacement,
+    pub height_mm: f32,
+}
+
+impl Logo {
+    /// The height a letterhead is drawn at when nothing says otherwise.
+    pub const DEFAULT_HEIGHT_MM: f32 = 14.0;
+
+    pub const fn new(placement: LogoPlacement) -> Self {
+        Self {
+            placement,
+            height_mm: Self::DEFAULT_HEIGHT_MM,
+        }
+    }
+
+    #[must_use]
+    pub const fn at_height(mut self, mm: f32) -> Self {
+        self.height_mm = mm;
+        self
+    }
+}
+
 /// Where the workspace logo is drawn, when it is drawn at all.
 ///
 /// Whether it is drawn is `Option<LogoPlacement>`: a workspace that wants no
