@@ -2631,6 +2631,7 @@
   "reports.statement.pick": "Choisissez un client pour afficher son relevé.",
   "reports.statement.received": "Encaissé sur la période",
   "reports.subtitle": "Ce que dit le grand livre, présenté de quatre façons.",
+  "reports.subtotal": "Sous-total",
   "reports.title": "Rapports",
   "reports.total": "Total",
   "reports.total_assets": "Total de l'actif",

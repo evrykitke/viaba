@@ -187,23 +187,6 @@ commits it is three items.
 > here**, and the PDF writer stays where it is in this queue: until it lands
 > the new default answers with the same sentence the menu gives.
 
-- [ ] `phonix-web` Grouping, and what a group adds up to
-      why: a list report without groups is a grid with a letterhead. A group
-           header, a group footer and a subtotal is what separates the two, and
-           all three statements still to be migrated group.
-      touch: crates/phonix-web/src/ui/report/, crates/phonix-core/src/report/
-      done: a definition declares what it groups by and which fields total; the
-            renderer draws a header and a footer per group; a subtotal is
-            computed from the rows of that group rather than re-read. Money
-            totals go through `Money` and never through `f64` - `Cell::number`
-            is a display type, not an arithmetic one.
-      verify: the product list grouped by its category. Add up one group's rows
-              by hand and check the subtotal, then check the subtotals add to
-              the report total.
-      stop: third checkpoint. The list kind, the logo, the index and grouping
-            are all in by here, and the three items after this build on the
-            arithmetic.
-
 - [ ] `phonix-web` The chart, as a band the server drew
       why: charts are part of a report here, not a decoration on one, which is
            why this sits before the exports rather than after them. A
@@ -436,6 +419,24 @@ commits it is three items.
      The user launches the application, looks, and then either moves the item
      to `## Done` or writes a new item in `## Next` saying what was wrong. The
      loop never moves anything out of this section by itself. -->
+
+- [x] `phonix-web` Grouping, and what a group adds up to
+      commit: "What a group of rows comes to"
+      why: a list report without groups is a grid with a letterhead. A group
+           header, a group footer and a subtotal is what separates the two, and
+           all three statements still to be migrated group.
+      touch: crates/phonix-web/src/ui/report/, crates/phonix-core/src/report/
+      done: a definition declares what it groups by and which fields total; the
+            renderer draws a header and a footer per group; a subtotal is
+            computed from the rows of that group rather than re-read. Money
+            totals go through `Money` and never through `f64` - `Cell::number`
+            is a display type, not an arithmetic one.
+      verify: the product list grouped by its category. Add up one group's rows
+              by hand and check the subtotal, then check the subtotals add to
+              the report total.
+      stop: third checkpoint. The list kind, the logo, the index and grouping
+            are all in by here, and the three items after this build on the
+            arithmetic.
 
 - [x] `phonix-web` Where a report is found, and who may run it
       commit: "The list a report is found on, and the gate it carries"

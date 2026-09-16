@@ -13,8 +13,10 @@
 //! A report is drawn from one value. Its bands read that value directly; the
 //! detail band reads the sequence inside it, which is what lets a letterhead
 //! show a customer and a total while the rows below are that customer's lines.
-//! Group bands are drawn once, around the rows; drawing one per group is what
-//! grouping adds.
+//! A group band is not declared: the detail band's [`Grouping`] says what the
+//! groups are, and a header and a subtotal are drawn around each of them.
+//!
+//! [`Grouping`]: super::Grouping
 
 use std::sync::OnceLock;
 
@@ -24,7 +26,7 @@ use phonix_core::report::{Align, BandKind, Colour, DocumentSettings, Logo, Metri
 use leptos_router::components::A;
 
 use super::definition::Content;
-use super::{Band, DocumentStyles, Field, Heading, Letterhead, ReportDefinition, Value};
+use super::{Band, DocumentStyles, Field, Heading, Letterhead, ReportDefinition, RowGroup, Value};
 
 /// Draw a report.
 ///
@@ -121,13 +123,6 @@ where
     let page_footer = definition
         .band_of(BandKind::PageFooter)
         .map(|band| running_band(band, data, &metrics, BandKind::PageFooter));
-    let group_header = definition
-        .band_of(BandKind::GroupHeader)
-        .map(|band| running_band(band, data, &metrics, BandKind::GroupHeader));
-    let group_footer = definition
-        .band_of(BandKind::GroupFooter)
-        .map(|band| running_band(band, data, &metrics, BandKind::GroupFooter));
-
     let footer = definition.band_of(BandKind::ReportFooter).map(|band| {
         view! {
             <footer
@@ -162,9 +157,7 @@ where
         >
             {letterhead}
             {page_header}
-            {group_header}
             {detail}
-            {group_footer}
             {footer}
             {page_footer}
         </article>
@@ -196,8 +189,7 @@ fn words(text: Option<String>, metrics: &Metrics) -> AnyView {
     .into_any()
 }
 
-/// A band with no rule of its own: the page bands and, until grouping lands,
-/// the group bands.
+/// A band with no rule of its own: the page bands.
 fn running_band<T>(band: &Band<T>, data: &T, metrics: &Metrics, kind: BandKind) -> AnyView
 where
     T: Send + Sync + 'static,
@@ -410,8 +402,8 @@ fn drawn(value: Value) -> AnyView {
     }
 }
 
-/// The detail band: its headings, then a row per line.
-fn lines(headings: &[Heading], rows: &[Vec<Value>], metrics: &Metrics) -> AnyView {
+/// The detail band: its headings, then each group under them.
+fn lines(headings: &[Heading], groups: &[RowGroup], metrics: &Metrics) -> AnyView {
     let headed = headings.iter().any(|heading| heading.label.is_some());
 
     view! {
@@ -450,41 +442,92 @@ fn lines(headings: &[Heading], rows: &[Vec<Value>], metrics: &Metrics) -> AnyVie
                     }
                 })}
 
-            {rows
+            {groups
                 .iter()
-                .map(|cells| {
-                    let cells = cells
-                        .iter()
-                        .zip(headings)
-                        .map(|(value, heading)| {
-                            view! {
-                                <div
-                                    class=cell_class(heading.align, metrics)
-                                    style=cell_style(metrics, heading.figures)
-                                >
-                                    {drawn(value.clone())}
-                                </div>
-                            }
-                        })
-                        .collect_view();
-
-                    view! {
-                        <div
-                            class="flex border-edge"
-                            style=format!(
-                                "min-height:{}mm;border-bottom:{}mm solid",
-                                metrics.bands.detail,
-                                metrics.rules.between_rows,
-                            )
-                        >
-                            {cells}
-                        </div>
-                    }
-                })
+                .map(|group| group_view(headings, group, metrics))
                 .collect_view()}
         </section>
     }
     .into_any()
+}
+
+/// One group: what it is called, its rows, and what they come to.
+fn group_view(headings: &[Heading], group: &RowGroup, metrics: &Metrics) -> AnyView {
+    let header = (!group.label.is_empty()).then(|| {
+        view! {
+            <div
+                class=format!("font-medium {}", heading_ink(metrics.colour))
+                style=format!(
+                    "min-height:{}mm;padding:{}mm {}mm;font-size:{}pt",
+                    metrics.bands.group_header,
+                    metrics.padding.vertical,
+                    metrics.padding.horizontal,
+                    metrics.type_scale.heading_pt,
+                )
+            >
+                {group.label.clone()}
+            </div>
+        }
+    });
+
+    // The subtotal is a row of the same columns, so a figure sits under the
+    // column it totals rather than beside a label somewhere else.
+    let footer = (!group.totals.is_empty()).then(|| {
+        view! {
+            <div
+                class=format!("flex font-medium {}", rule_ink(metrics.colour))
+                style=format!(
+                    "min-height:{}mm;border-top:{}mm solid",
+                    metrics.bands.group_footer,
+                    metrics.rules.above_total,
+                )
+            >
+                {cells(headings, &group.totals, metrics)}
+            </div>
+        }
+    });
+
+    view! {
+        {header}
+        {group
+            .rows
+            .iter()
+            .map(|row| {
+                view! {
+                    <div
+                        class="flex border-edge"
+                        style=format!(
+                            "min-height:{}mm;border-bottom:{}mm solid",
+                            metrics.bands.detail,
+                            metrics.rules.between_rows,
+                        )
+                    >
+                        {cells(headings, row, metrics)}
+                    </div>
+                }
+            })
+            .collect_view()}
+        {footer}
+    }
+    .into_any()
+}
+
+/// One row's cells, each under the heading it belongs to.
+fn cells(headings: &[Heading], row: &[Value], metrics: &Metrics) -> AnyView {
+    row.iter()
+        .zip(headings)
+        .map(|(value, heading)| {
+            view! {
+                <div
+                    class=cell_class(heading.align, metrics)
+                    style=cell_style(metrics, heading.figures)
+                >
+                    {drawn(value.clone())}
+                </div>
+            }
+        })
+        .collect_view()
+        .into_any()
 }
 
 fn cell_class(align: Align, metrics: &Metrics) -> String {

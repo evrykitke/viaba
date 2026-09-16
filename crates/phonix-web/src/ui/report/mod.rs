@@ -31,7 +31,7 @@ mod render;
 mod viewer;
 
 pub use chrome::{DocumentStyles, Letterhead};
-pub use definition::{Band, Extent, Field, Heading, ReportDefinition, Value};
+pub use definition::{Band, Extent, Field, Grouping, Heading, ReportDefinition, RowGroup, Value};
 pub use phonix_core::report::ExportFormat;
 pub use render::Report;
 pub use viewer::ReportViewer;

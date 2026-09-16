@@ -13,12 +13,13 @@
 //! backlog has four commits about.
 
 use app_inventory::item::ItemSummary;
+use phonix_core::money::Money;
 use phonix_core::permissions;
 use phonix_core::query::Page;
 use phonix_core::report::{BandKind, ExportFormat, ReportKind, ReportTheme};
 
 use crate::l;
-use crate::ui::report::{Band, Field, ReportDefinition};
+use crate::ui::report::{Band, Field, Grouping, ReportDefinition};
 use crate::ui::table::Cell;
 
 /// How many items one run of the report draws.
@@ -43,7 +44,7 @@ pub fn product_list() -> ReportDefinition<Page<ItemSummary>> {
     // Repeated at the top of every page, so a torn-off sheet still says
     // what it is.
     .band(Band::new(BandKind::PageHeader).field(Field::text("name", l!("items.title"))))
-    .band(Band::lines(
+    .band(Band::grouped(
         |page: &Page<ItemSummary>| page.rows.clone(),
         vec![
             Field::new("code", l!("field.code"), |item: &ItemSummary| {
@@ -68,15 +69,34 @@ pub fn product_list() -> ReportDefinition<Page<ItemSummary>> {
                     .map_or(Cell::Empty, |held| Cell::text(held.to_string()))
             }),
         ],
+        // By category, which is the one column a reader of this list already
+        // groups by in their head.
+        Grouping::by(|item: &ItemSummary| item.category_name.clone())
+            .totalling("cost", |item: &ItemSummary| item.cost),
     ))
-    .band(Band::new(BandKind::ReportFooter).field(Field::bare(
-        "count",
-        |page: &Page<ItemSummary>| {
-            Cell::text(l!(
-                "reports.showing",
-                shown = page.rows.len(),
-                total = page.total
-            ))
-        },
-    )))
+    .band(
+        Band::new(BandKind::ReportFooter)
+            .field(Field::bare("count", |page: &Page<ItemSummary>| {
+                Cell::text(l!(
+                    "reports.showing",
+                    shown = page.rows.len(),
+                    total = page.total
+                ))
+            }))
+            // What the subtotals come to, over the rows this run drew rather
+            // than over the ones it did not.
+            .field(Field::figure(
+                "cost",
+                l!("reports.total"),
+                |page: &Page<ItemSummary>| {
+                    let currency = page.rows.first().map(|item| item.cost.currency());
+
+                    currency
+                        .and_then(|currency| {
+                            Money::total(currency, page.rows.iter().map(|item| item.cost)).ok()
+                        })
+                        .map_or(Cell::Empty, |total| Cell::text(total.to_display_string()))
+                },
+            )),
+    )
 }

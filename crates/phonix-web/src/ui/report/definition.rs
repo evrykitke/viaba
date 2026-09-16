@@ -2,10 +2,12 @@
 
 use std::sync::Arc;
 
+use phonix_core::money::Money;
 use phonix_core::report::{
     Align, BandKind, ExportFormat, Logo, PageSetup, Rendered, RenderedBand, ReportKind, ReportTheme,
 };
 
+use crate::l;
 use crate::ui::table::Cell;
 
 /// How one value is read out of a row.
@@ -14,8 +16,11 @@ type Read<T> = Arc<dyn Fn(&T) -> Cell + Send + Sync>;
 /// Where a value goes, when it goes anywhere.
 type Href<T> = Arc<dyn Fn(&T) -> Option<String> + Send + Sync>;
 
-/// How a detail band reads a row of values per line.
-type ReadLines<T> = Arc<dyn Fn(&T) -> Vec<Vec<Value>> + Send + Sync>;
+/// How a detail band reads its groups of lines.
+type ReadLines<T> = Arc<dyn Fn(&T) -> Vec<RowGroup> + Send + Sync>;
+
+/// How one line's share of a total is read.
+type Amount<L> = Arc<dyn Fn(&L) -> Money + Send + Sync>;
 
 /// A value with its label in front of it, for a band drawn once.
 ///
@@ -40,6 +45,184 @@ fn labelled<T: 'static>(field: &Field<T>, data: &T) -> String {
 pub struct Value {
     pub cell: Cell,
     pub href: Option<String>,
+}
+
+/// A run of lines drawn together, under a heading and over what they add up
+/// to.
+///
+/// An ungrouped detail band is one group: no label, no totals, and the rows it
+/// always had.
+#[derive(Debug, Clone, PartialEq)]
+pub struct RowGroup {
+    /// What the group's header says. Empty draws no header.
+    pub label: String,
+    pub rows: Vec<Vec<Value>>,
+    /// One cell per column, empty where the column is not totalled. Empty
+    /// altogether draws no footer.
+    pub totals: Vec<Value>,
+}
+
+/// What a detail band groups by, and what each group adds up to.
+///
+/// ```ignore
+/// Grouping::by(|item: &ItemSummary| item.category_name.clone())
+///     .totalling("cost", |item: &ItemSummary| item.cost)
+/// ```
+pub struct Grouping<L: 'static> {
+    label: Arc<dyn Fn(&L) -> String + Send + Sync>,
+    totals: Vec<(&'static str, Amount<L>)>,
+}
+
+impl<L: 'static> Grouping<L> {
+    /// Group the lines by what this reads off them.
+    pub fn by(label: impl Fn(&L) -> String + Send + Sync + 'static) -> Self {
+        Self {
+            label: Arc::new(label),
+            totals: Vec::new(),
+        }
+    }
+
+    /// Total this column, from the lines of the group rather than from what is
+    /// drawn in it.
+    #[must_use]
+    pub fn totalling(
+        mut self,
+        key: &'static str,
+        amount: impl Fn(&L) -> Money + Send + Sync + 'static,
+    ) -> Self {
+        self.totals.push((key, Arc::new(amount)));
+        self
+    }
+
+    /// One group's totals, a cell per column.
+    ///
+    /// A group whose lines are in more than one currency totals nothing: a
+    /// figure added across currencies is wrong in a way a reader cannot see.
+    fn totals_of(&self, lines: &[L], keys: &[&'static str]) -> Vec<Value> {
+        keys.iter()
+            .map(|key| {
+                let cell = self
+                    .totals
+                    .iter()
+                    .find(|(totalled, _)| totalled == key)
+                    .map_or(Cell::Empty, |(_, amount)| sum(amount, lines));
+
+                Value { cell, href: None }
+            })
+            .collect()
+    }
+}
+
+/// A band's headings, taken from the fields under them so the two cannot fall
+/// out of step.
+fn headings_of<L: 'static>(fields: &[Field<L>]) -> Vec<Heading> {
+    fields
+        .iter()
+        .map(|field| Heading {
+            key: field.key,
+            label: field.label.clone(),
+            align: field.align,
+            figures: field.figures,
+        })
+        .collect()
+}
+
+/// One row of values per line.
+fn rows_of<L: 'static>(fields: &[Field<L>], lines: &[L]) -> Vec<Vec<Value>> {
+    lines
+        .iter()
+        .map(|line| fields.iter().map(|field| field.value(line)).collect())
+        .collect()
+}
+
+/// The lines under their labels, in the order the labels first appear.
+fn gathered<L: 'static>(grouping: &Grouping<L>, lines: Vec<L>) -> Vec<(String, Vec<L>)> {
+    let mut groups: Vec<(String, Vec<L>)> = Vec::new();
+
+    for line in lines {
+        let label = (grouping.label)(&line);
+
+        match groups.iter_mut().find(|(seen, _)| *seen == label) {
+            Some((_, group)) => group.push(line),
+            None => groups.push((label, vec![line])),
+        }
+    }
+
+    groups
+}
+
+/// A detail band's groups, as the bands a writer sees.
+///
+/// Each group is its own header, its rows and its subtotal, in the order they
+/// are drawn - the headings only on the first, because a file repeating them
+/// between groups is a file a spreadsheet reads as several tables.
+fn written(headings: Vec<String>, groups: Vec<RowGroup>) -> Vec<RenderedBand> {
+    let mut bands = Vec::new();
+
+    for (index, group) in groups.into_iter().enumerate() {
+        if !group.label.is_empty() {
+            bands.push(RenderedBand::once(BandKind::GroupHeader, vec![group.label]));
+        }
+
+        bands.push(RenderedBand::table(
+            BandKind::Detail,
+            if index == 0 {
+                headings.clone()
+            } else {
+                Vec::new()
+            },
+            group
+                .rows
+                .into_iter()
+                .map(|row| row.into_iter().map(|value| value.cell.to_text()).collect())
+                .collect(),
+        ));
+
+        if !group.totals.is_empty() {
+            bands.push(RenderedBand::once(
+                BandKind::GroupFooter,
+                group
+                    .totals
+                    .into_iter()
+                    .map(|value| value.cell.to_text())
+                    .collect(),
+            ));
+        }
+    }
+
+    bands
+}
+
+/// The subtotal row with its caption in the first column that has no figure of
+/// its own. A row whose first column is totalled carries no caption: the
+/// figure is what the column is for.
+fn captioned(caption: &str, totals: Vec<Value>) -> Vec<Value> {
+    let mut totals = totals;
+
+    if let Some(free) = totals
+        .iter()
+        .position(|value| matches!(value.cell, Cell::Empty))
+    {
+        totals[free] = Value {
+            cell: Cell::text(caption),
+            href: None,
+        };
+    }
+
+    totals
+}
+
+/// What a column of lines adds up to.
+fn sum<L>(amount: &Amount<L>, lines: &[L]) -> Cell {
+    let Some(first) = lines.first() else {
+        return Cell::Empty;
+    };
+
+    Money::total(
+        amount(first).currency(),
+        lines.iter().map(|line| amount(line)),
+    )
+    .map_or(Cell::Empty, |total| Cell::text(total.to_display_string()))
 }
 
 /// One value in a band: a field of the row, or a constant beside it.
@@ -229,6 +412,11 @@ impl<T: 'static> Clone for Band<T> {
 impl<T: 'static> Band<T> {
     /// A band drawn once, from the report's own data.
     pub const fn new(kind: BandKind) -> Self {
+        debug_assert!(
+            !kind.is_group(),
+            "a group band is declared with `Grouping` on the detail band, not on its own",
+        );
+
         Self {
             kind,
             content: Content::Once(Vec::new()),
@@ -249,24 +437,55 @@ impl<T: 'static> Band<T> {
         read: impl Fn(&T) -> Vec<L> + Send + Sync + 'static,
         fields: Vec<Field<L>>,
     ) -> Self {
-        let headings = fields
-            .iter()
-            .map(|field| Heading {
-                key: field.key,
-                label: field.label.clone(),
-                align: field.align,
-                figures: field.figures,
-            })
-            .collect();
+        Self {
+            kind: BandKind::Detail,
+            content: Content::Lines {
+                headings: headings_of(&fields),
+                read: Arc::new(move |data| {
+                    vec![RowGroup {
+                        label: String::new(),
+                        rows: rows_of(&fields, &read(data)),
+                        totals: Vec::new(),
+                    }]
+                }),
+            },
+        }
+    }
+
+    /// The detail band, in groups.
+    ///
+    /// ```ignore
+    /// Band::grouped(
+    ///     |page: &Page<ItemSummary>| page.rows.clone(),
+    ///     fields,
+    ///     Grouping::by(|item: &ItemSummary| item.category_name.clone())
+    ///         .totalling("cost", |item: &ItemSummary| item.cost),
+    /// )
+    /// ```
+    ///
+    /// A group is where its lines are, not where they were sorted to: lines
+    /// are gathered by label in the order the labels first appear, so a read
+    /// that interleaves two categories still draws two groups.
+    pub fn grouped<L: 'static>(
+        read: impl Fn(&T) -> Vec<L> + Send + Sync + 'static,
+        fields: Vec<Field<L>>,
+        grouping: Grouping<L>,
+    ) -> Self {
+        let keys: Vec<&'static str> = fields.iter().map(|field| field.key).collect();
+        let caption = l!("reports.subtotal");
 
         Self {
             kind: BandKind::Detail,
             content: Content::Lines {
-                headings,
+                headings: headings_of(&fields),
                 read: Arc::new(move |data| {
-                    read(data)
-                        .iter()
-                        .map(|line| fields.iter().map(|field| field.value(line)).collect())
+                    gathered(&grouping, read(data))
+                        .into_iter()
+                        .map(|(label, lines)| RowGroup {
+                            label,
+                            rows: rows_of(&fields, &lines),
+                            totals: captioned(&caption, grouping.totals_of(&lines, &keys)),
+                        })
                         .collect()
                 }),
             },
@@ -478,22 +697,19 @@ impl<T: 'static> ReportDefinition<T> {
         let bands = self
             .bands
             .iter()
-            .map(|band| match &band.content {
-                Content::Once(fields) => RenderedBand::once(
+            .flat_map(|band| match &band.content {
+                Content::Once(fields) => vec![RenderedBand::once(
                     band.kind,
                     fields.iter().map(|field| labelled(field, data)).collect(),
-                ),
-                Content::Lines { headings, read } => RenderedBand::table(
-                    band.kind,
-                    headings
+                )],
+                Content::Lines { headings, read } => {
+                    let headings = headings
                         .iter()
                         .map(|heading| heading.label.clone().unwrap_or_default())
-                        .collect(),
-                    read(data)
-                        .into_iter()
-                        .map(|row| row.into_iter().map(|value| value.cell.to_text()).collect())
-                        .collect(),
-                ),
+                        .collect();
+
+                    written(headings, read(data))
+                }
             })
             .collect();
 
@@ -525,6 +741,7 @@ impl<T: 'static> ReportDefinition<T> {
 
 #[cfg(test)]
 mod tests {
+    use phonix_core::locale::Currency;
     use phonix_core::permissions;
 
     use super::*;
@@ -532,6 +749,18 @@ mod tests {
     #[derive(Clone)]
     struct Line {
         name: &'static str,
+        kind: &'static str,
+        cost: Money,
+    }
+
+    impl Line {
+        fn new(name: &'static str, kind: &'static str, units: i64) -> Self {
+            Self {
+                name,
+                kind,
+                cost: Money::from_units(Currency::USD, units).expect("a small amount"),
+            }
+        }
     }
 
     struct Statement {
@@ -553,7 +782,10 @@ mod tests {
     fn a_detail_band_reads_one_row_per_line() {
         let report = definition();
         let statement = Statement {
-            lines: vec![Line { name: "Sofa" }, Line { name: "Lamp" }],
+            lines: vec![
+                Line::new("Sofa", "seating", 300),
+                Line::new("Lamp", "lighting", 40),
+            ],
         };
 
         let Some(Content::Lines { headings, read }) =
@@ -566,11 +798,55 @@ mod tests {
         assert_eq!(
             read(&statement)
                 .into_iter()
+                .flat_map(|group| group.rows)
                 .flatten()
                 .map(|value| value.cell)
                 .collect::<Vec<_>>(),
             vec![Cell::text("Sofa"), Cell::text("Lamp")]
         );
+    }
+
+    #[test]
+    fn a_group_totals_its_own_lines() {
+        let report = ReportDefinition::new("test", permissions::REPORTS, "Test", ReportKind::List)
+            .band(Band::grouped(
+                |statement: &Statement| statement.lines.clone(),
+                vec![Field::new("name", "Name", |line: &Line| {
+                    Cell::text(line.name)
+                })],
+                Grouping::by(|line: &Line| line.kind.to_owned())
+                    .totalling("name", |line: &Line| line.cost),
+            ));
+
+        let statement = Statement {
+            lines: vec![
+                Line::new("sofa", "seating", 300),
+                Line::new("stool", "seating", 150),
+                Line::new("lamp", "lighting", 40),
+            ],
+        };
+
+        let Some(Content::Lines { read, .. }) =
+            report.band_of(BandKind::Detail).map(|band| &band.content)
+        else {
+            panic!("a detail band over lines");
+        };
+
+        let groups = read(&statement);
+
+        assert_eq!(groups.len(), 2);
+        assert_eq!(groups[0].label, "seating");
+        assert_eq!(groups[0].rows.len(), 2);
+        assert_eq!(
+            groups[0].totals[0].cell,
+            Cell::text(
+                Money::from_units(Currency::USD, 450)
+                    .expect("450")
+                    .to_display_string()
+            )
+        );
+        assert_eq!(groups[1].label, "lighting");
+        assert_eq!(groups[1].rows.len(), 1);
     }
 
     #[test]

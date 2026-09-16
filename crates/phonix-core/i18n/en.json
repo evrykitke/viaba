@@ -2631,6 +2631,7 @@
   "reports.statement.pick": "Choose a customer to see their statement.",
   "reports.statement.received": "Received in this span",
   "reports.subtitle": "What the ledger says, arranged four ways.",
+  "reports.subtotal": "Subtotal",
   "reports.title": "Reports",
   "reports.total": "Total",
   "reports.total_assets": "Total assets",

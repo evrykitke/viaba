@@ -2631,6 +2631,7 @@
   "reports.statement.pick": "Wählen Sie einen Kunden, um dessen Kontoauszug zu sehen.",
   "reports.statement.received": "In diesem Zeitraum eingegangen",
   "reports.subtitle": "Was das Hauptbuch sagt, in vier Darstellungen.",
+  "reports.subtotal": "Zwischensumme",
   "reports.title": "Berichte",
   "reports.total": "Summe",
   "reports.total_assets": "Summe Vermögen",
