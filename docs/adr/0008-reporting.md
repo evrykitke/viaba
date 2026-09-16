@@ -215,25 +215,24 @@ and it stands. It says nothing about a browser on the server: a headless one,
 opened by the job, printing a page nobody is looking at, storing the bytes as
 an ordinary file. No person, no open tab, and the same artefact at the end.
 
-What this section got right is the arithmetic, and it stays:
+What this section got right is that a report has to be read in pieces, and
+what it got wrong is that one answer serves both places it is read.
 
-Pages come from a paginator in `phonix_core::report`: given the metrics, the
-page setup and the rows it places the bands, repeats the page header and any
-group header whose group continues, moves an orphaned group header to the next
-page, and places a chart band whole or not at all. It is pure, and it is the
-one piece of this engine whose correctness a test actually establishes — the
-orphan, the exact fit, the row taller than a page. The viewer's page navigation
-reads its answer rather than counting separately.
+**A printed page ends where the paper does**, and the browser works that out
+from `@page` - the definition's own paper, which the viewer's print rules
+already put there.
 
-The look reaches that arithmetic, which is why the metrics are a value in
-`phonix-core` and not a class name: "Compact fits more rows on a page than
-Modern" is a unit test rather than an intention.
+**A page on screen ends where reading stops being comfortable**, which is a row
+count: ten, with Previous and Next on the toolbar. It lives in
+`ui::report::paging` because it is a screen's question, and it needs no
+millimetres to answer it.
 
-**Where a printed page ends is now CSS's answer, not this one.** The paginator
-is what the *viewer's* page navigation reads. The two are allowed to differ —
-ten rows a page on a screen somebody is scrolling, as many as fit on a sheet
-somebody is holding — and pretending otherwise was the assumption that made a
-band writer look necessary.
+The paginator that tried to answer both - bands measured against a sheet, in
+`phonix_core::report::paginate` - is gone. It was written for the band writer
+and deleted with it. The look still reaches `phonix-core` as metrics, because
+the screen and the CSV writer read them, and "Compact fits more rows on a page
+than Modern" is now something a stylesheet says rather than something a unit
+test proves.
 
 ## 9. An export is a job when the work is unbounded, and there is one writer
 
