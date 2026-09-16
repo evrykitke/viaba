@@ -39,6 +39,33 @@ commits it is three items.
 
 ## Next
 
+*Empty.* The reporting engine's queue was worked to the end on 2026-09-16
+and 17 - the record, the model, the renderer, the viewer, the index, the
+gate, grouping, the chart, folding, the exports, the browser that prints,
+the four statements and the two clean-ups that were queued behind them.
+Everything that was in it is in `## Awaiting verification` below, which is
+the section to read next: thirty-three items, each with the thing to open
+and what should be true on the screen.
+
+What is *not* here, deliberately: nothing was invented to keep the loop
+running. The queue ends where the work ended.
+
+## Awaiting verification`
+rather than `## Done`. The user launches the application, looks, and moves it
+on — or sends it back as a new item saying what was wrong.
+
+`stop:` marks a checkpoint. The loop ends there rather than building further on
+something nobody has seen. It is the loop's own brake, not a `blocked:` line:
+the item is finished, the tree compiles, and the next item can be taken as soon
+as the user has looked.
+
+Keep items small enough that one of them is one commit. If an item needs three
+commits it is three items.
+
+---
+
+## Next
+
 > **The reporting engine**, queued 2026-09-16. Twenty-eight items in order: the
 > decision record, the model, the renderer, the viewer that holds it, one
 > report of each kind to prove it, the receipt a grid row opens, the three
@@ -228,6 +255,220 @@ commits it is three items.
      The user launches the application, looks, and then either moves the item
      to `## Done` or writes a new item in `## Next` saying what was wrong. The
      loop never moves anything out of this section by itself. -->
+
+- [x] `phonix-web` Three more editors that grow the page
+      commit: "Four editors, over the list rather than under it"
+      why: the same shape the settings tabs had, found while converting them:
+           `master/party` edits an address below its panel, `master/tax` a
+           rate, and `people/attendance` a day. Each pushes what you clicked
+           off the screen on a list of any length. Not reported, and the same
+           complaint applies.
+      touch: crates/phonix-web/src/pages/master/party.rs,
+             crates/phonix-web/src/pages/master/tax.rs,
+             crates/phonix-web/src/pages/people/attendance.rs
+      done: each opens its editor in a `<Modal>` and drops the `Panel` it was
+            wrapped in. Attendance keeps whatever its `Show` is doing about
+            the day being edited; this is about where the form appears, not
+            when. Four in the end: `master/party` edits addresses *and*
+            contacts, and leaving one of the two under the list would have
+            been the drift this item exists to stop.
+      verify: a party's addresses, a tax's rates, and an attendance day. Each
+              editor should open over the list rather than under it.
+
+- [x] `phonix-web` The four dialogs that predate the modal
+      commit: "Three of four, and the one that stays"
+      why: `ui/table/toolbar` (the column menu), `ui/alert/host`, `ui/lookup`
+           and `pages/admin/apps` each hand-rolled a dialog before `ui::modal`
+           existed - at three different widths, some closing on Escape and
+           some on a click outside, none of them moving focus. The commit that
+           added the modal said converting them was its own item and then did
+           not write it down, which is how four copies become five.
+      touch: crates/phonix-web/src/ui/table/toolbar.rs,
+             crates/phonix-web/src/ui/alert/host.rs,
+             crates/phonix-web/src/ui/lookup/mod.rs,
+             crates/phonix-web/src/pages/admin/apps.rs
+      done: each of the four opens a `<Modal>` instead of its own markup, or
+            carries one line saying why it cannot - the alert host in
+            particular may be the one that genuinely differs, since it stacks
+            and is not opened by anybody. Escape, the backdrop and focus then
+            behave the same way everywhere, which is the whole point of having
+            one.
+      verify: the column menu on any grid, a lookup, and the app install
+              dialog in Administration. All three should close on Escape and
+              on the backdrop, and none on a click inside.
+
+- [x] `phonix-web` A total between two groups
+      commit: "A figure that is not a subtotal"
+      why: a profit and loss reads gross profit straight after cost of sales
+           and operating profit straight after the expenses, and the engine can
+           only put a figure at the foot of a group or the foot of the report.
+           The three results are all on the statement and all correct; they are
+           read together at the bottom rather than where an accountant looks
+           for them.
+      touch: crates/phonix-web/src/ui/report/definition.rs,
+             crates/phonix-web/src/ui/report/render.rs
+      done: a definition can put a labelled figure after a named group, read
+            from the report's own data rather than from the group's rows -
+            because these three are differences between sections and not sums
+            of one. The profit and loss draws its three where they belong, and
+            the report footer keeps only what is genuinely the report's.
+      verify: the profit and loss beside the one in the history: gross profit
+              under cost of sales, operating profit under the expenses.
+
+- [x] `phonix-web` The profit and loss, as a definition
+      commit: "The last statement, and no second path"
+      why: last of the four. With it there is one way of drawing a report in
+           this codebase and no second path left to drift from it.
+      touch: crates/phonix-web/src/ui/report/config/profit_and_loss.rs,
+             crates/phonix-web/src/pages/sales/reports/profit_and_loss.rs
+      done: `/accounting/reports/profit-and-loss` draws from a definition and
+            its figures match for the same span. `pages/sales/reports/` now
+            holds pickers and definitions only - no screen in it draws a report
+            with markup of its own, and `shared.rs` keeps only what the toolbar
+            controls still use.
+      verify: all four statements, each in the viewer, each exported once as
+              PDF. This is the last item, so it is also the whole engine's
+              verification.
+      stop: the queue ends here.
+
+- [x] `phonix-web` The balance sheet, as a definition
+      commit: "Three sections and two totals that agree"
+      why: third of the four, and the first with real nesting - classes, the
+           groups inside them, and a total that has to appear at both levels.
+           If grouping cannot draw a balance sheet then grouping is not
+           finished, and this is where that shows.
+      touch: crates/phonix-web/src/ui/report/config/balance_sheet.rs,
+             crates/phonix-web/src/pages/sales/reports/balance_sheet.rs
+      done: `/accounting/reports/balance-sheet` draws from a definition, the
+            as-at picker is a toolbar control and still works,
+            `BalanceSheet::is_balanced` still decides the footer, the figures
+            match for the same date, and the hand-written markup is deleted.
+      verify: `/accounting/reports/balance-sheet` at a date you know. Check
+              both levels of total, and that it still says whether it balances.
+
+- [x] `phonix-web` The trial balance, as a definition
+      commit: "The first statement onto the engine"
+      why: second of the four statements. It is the simplest - every account,
+           two columns, and a pair of totals that must agree - which makes it
+           the one that says whether a statement can be expressed without a
+           special case.
+      touch: crates/phonix-web/src/ui/report/config/trial_balance.rs,
+             crates/phonix-web/src/pages/sales/reports/trial_balance.rs
+      done: `/accounting/reports/trial-balance` opens in the viewer and draws
+            from a definition, `TrialBalance::is_balanced` still decides what
+            the footer says, the figures match the hand-coded screen for the
+            same span, and the hand-written markup is deleted.
+      verify: `/accounting/reports/trial-balance` for a span you know, against
+              the figures it gave before. The footer must still say whether it
+              balances.
+
+- [x] `phonix-services` The spreadsheet a job wrote
+      commit: "A column somebody can add up"
+      why: CSV loses the totals, the grouping and the type of every number -
+           somebody who wanted to pivot the export has to retype it. This is
+           the export an accounts department actually asks for, and the third
+           writer on a path that by now has carried two.
+      touch: Cargo.toml, crates/phonix-services/
+      done: XLSX from the definition, with numbers as numbers and dates as
+            dates rather than strings, a frozen header row, and group subtotals
+            as real cells. It adds a pure-Rust dependency: name it in the commit
+            body and say what it was chosen over. By this item the exporter has
+            two writers and a printer: a format that is a *page* is the
+            report's own page printed by a browser, and one that is not is a
+            writer and a line on an enum. Adding a third writer is still that
+            one line.
+      verify: export as XLSX and open it. Sum a column in the spreadsheet - if
+              the numbers are text it will not add up - and check the dates
+              sort as dates and the header row is frozen.
+      stop: seventh checkpoint. Every export format is in by here, and the three
+            items after it are the remaining statements moving onto all of them
+            at once.
+
+- [x] `phonix-web` A group that opens and closes
+      commit: "A section somebody has read"
+      why: drill-down, and what makes a long grouped report readable - the
+           groups are the report, and the detail is opened where somebody wants
+           it. Without it a hundred-group report is a thousand-row scroll.
+      touch: crates/phonix-web/src/ui/report/
+      done: a group header toggles its detail where the definition allows it,
+            the report opens in the state the definition names, and that state
+            belongs to the browser - it does not survive a reload and never
+            goes to the server. Printing and every export ignore it entirely:
+            an archived statement with sections collapsed is evidence with
+            holes in it.
+      verify: collapse a group, reload, and confirm it opens in the state the
+              definition names rather than the one you left it in.
+
+- [x] `phonix-web` The chart, as a band the server drew
+      commit: "A picture of the same numbers"
+      why: charts are part of a report here, not a decoration on one, which is
+           why this sits before the exports rather than after them. A
+           JavaScript chart library is the wrong answer twice over: it draws
+           nothing during the server's render, which is the hydration mismatch
+           that takes the whole page down, and it draws nothing at all into a
+           PDF.
+      touch: crates/phonix-core/src/report/, crates/phonix-web/src/ui/report/
+      done: a chart band drawn as inline SVG from the report's own rows, in the
+            kinds a report actually needs - bar and column including stacked,
+            line, area, and pie or donut - with axis, ticks, labels and legend
+            identical on the server and in the browser. It reads the same rows
+            and the same group subtotals the bands do rather than a query of
+            its own, and a report whose only band is a chart is a report. No
+            `<canvas>`, no chart dependency, no clock. The geometry is computed
+            in `phonix_core::report` - not for a PDF writer, which is gone,
+            but because it is the part a test can establish and the tests there
+            can be run.
+      verify: a report with each chart kind on it. Check the bars and the
+              legend against the numbers in the table below them, then reload
+              with the browser console open - a hydration mismatch shows there
+              and kills every handler on the page.
+      stop: fourth checkpoint. A chart that renders differently on the two sides
+            is the failure this design exists to avoid, and it is only visible
+            in a running browser.
+
+- [x] `phonix-web` The pages a long report is read in
+      commit: "Ten rows, and a way to the next ten"
+      why: a list report is one endless sheet on screen today, and the viewer's
+           toolbar has said since it was built that page navigation belongs
+           there. Asked for directly on 2026-09-16, with the page size: **ten
+           rows at a time by default**.
+      touch: crates/phonix-core/src/report/paginate.rs,
+             crates/phonix-web/src/ui/report/viewer.rs,
+             crates/phonix-web/src/ui/report/render.rs
+      done: **not as written.** `paginate` measured a printed page and the
+            browser does that now, so there was nothing left for it to serve
+            and it is deleted rather than given a second job. A screen page is
+            a row count and nothing else. The toolbar carries
+            previous and next with "page n of m" between them, the same two
+            steps and the same words the grid's pager uses, drawn only where
+            there is more than one page - and the report draws the rows of the
+            page it is on rather than all of them.
+      verify: the product list: ten rows, then Next through to the last page
+              and back. The page count should not change when the look does,
+              because ten is ten - but printing the same report should still
+              break its pages by the sheet.
+      stop: the toolbar is what was asked for and nobody has seen it.
+
+- [x] `phonix-server` The browser that prints
+      commit: "The engine that draws the screen draws the file"
+      also: a report's address had to become something a request could build,
+            and the statement's span had to become something its address could
+            say. A page that opened on its own default span would have printed
+            the wrong months.
+      why: the exporter has to turn a report into a PDF and the engine that
+           draws it correctly is already on the machine.
+      touch: crates/phonix-server/src/jobs.rs, crates/phonix-config/,
+             config/base.toml
+      done: an export of a PDF opens the report's own address in a headless
+            browser and takes what it prints. The binary is named in config
+            and validated at boot the way every other path is - a build with
+            no browser fails fast rather than at the first export. One process
+            per export, killed at a timeout, and a failure lands on the row
+            with a reason like every other. The paper is the definition's,
+            because `@page` already says so.
+      verify: export the statement as PDF and put it beside the screen. The
+              letterhead, the mark, the look, the rules and the totals should
+              be the same document, not a resemblance.
 
 - [x] `phonix-services` A letterhead that reads, in the PDF
       commit: "Four values on one line"
@@ -732,199 +973,6 @@ commits it is three items.
       touch: crates/phonix-server/src/jobs.rs
       done: the comment names the function that exists.
 
-- [x] `phonix-web` Three more editors that grow the page
-      commit: "Four editors, over the list rather than under it"
-      why: the same shape the settings tabs had, found while converting them:
-           `master/party` edits an address below its panel, `master/tax` a
-           rate, and `people/attendance` a day. Each pushes what you clicked
-           off the screen on a list of any length. Not reported, and the same
-           complaint applies.
-      touch: crates/phonix-web/src/pages/master/party.rs,
-             crates/phonix-web/src/pages/master/tax.rs,
-             crates/phonix-web/src/pages/people/attendance.rs
-      done: each opens its editor in a `<Modal>` and drops the `Panel` it was
-            wrapped in. Attendance keeps whatever its `Show` is doing about
-            the day being edited; this is about where the form appears, not
-            when. Four in the end: `master/party` edits addresses *and*
-            contacts, and leaving one of the two under the list would have
-            been the drift this item exists to stop.
-      verify: a party's addresses, a tax's rates, and an attendance day. Each
-              editor should open over the list rather than under it.
-
-- [x] `phonix-web` The four dialogs that predate the modal
-      commit: "Three of four, and the one that stays"
-      why: `ui/table/toolbar` (the column menu), `ui/alert/host`, `ui/lookup`
-           and `pages/admin/apps` each hand-rolled a dialog before `ui::modal`
-           existed - at three different widths, some closing on Escape and
-           some on a click outside, none of them moving focus. The commit that
-           added the modal said converting them was its own item and then did
-           not write it down, which is how four copies become five.
-      touch: crates/phonix-web/src/ui/table/toolbar.rs,
-             crates/phonix-web/src/ui/alert/host.rs,
-             crates/phonix-web/src/ui/lookup/mod.rs,
-             crates/phonix-web/src/pages/admin/apps.rs
-      done: each of the four opens a `<Modal>` instead of its own markup, or
-            carries one line saying why it cannot - the alert host in
-            particular may be the one that genuinely differs, since it stacks
-            and is not opened by anybody. Escape, the backdrop and focus then
-            behave the same way everywhere, which is the whole point of having
-            one.
-      verify: the column menu on any grid, a lookup, and the app install
-              dialog in Administration. All three should close on Escape and
-              on the backdrop, and none on a click inside.
-
-- [x] `phonix-web` A total between two groups
-      commit: "A figure that is not a subtotal"
-      why: a profit and loss reads gross profit straight after cost of sales
-           and operating profit straight after the expenses, and the engine can
-           only put a figure at the foot of a group or the foot of the report.
-           The three results are all on the statement and all correct; they are
-           read together at the bottom rather than where an accountant looks
-           for them.
-      touch: crates/phonix-web/src/ui/report/definition.rs,
-             crates/phonix-web/src/ui/report/render.rs
-      done: a definition can put a labelled figure after a named group, read
-            from the report's own data rather than from the group's rows -
-            because these three are differences between sections and not sums
-            of one. The profit and loss draws its three where they belong, and
-            the report footer keeps only what is genuinely the report's.
-      verify: the profit and loss beside the one in the history: gross profit
-              under cost of sales, operating profit under the expenses.
-
-- [x] `phonix-web` The profit and loss, as a definition
-      commit: "The last statement, and no second path"
-      why: last of the four. With it there is one way of drawing a report in
-           this codebase and no second path left to drift from it.
-      touch: crates/phonix-web/src/ui/report/config/profit_and_loss.rs,
-             crates/phonix-web/src/pages/sales/reports/profit_and_loss.rs
-      done: `/accounting/reports/profit-and-loss` draws from a definition and
-            its figures match for the same span. `pages/sales/reports/` now
-            holds pickers and definitions only - no screen in it draws a report
-            with markup of its own, and `shared.rs` keeps only what the toolbar
-            controls still use.
-      verify: all four statements, each in the viewer, each exported once as
-              PDF. This is the last item, so it is also the whole engine's
-              verification.
-      stop: the queue ends here.
-
-- [x] `phonix-web` The balance sheet, as a definition
-      commit: "Three sections and two totals that agree"
-      why: third of the four, and the first with real nesting - classes, the
-           groups inside them, and a total that has to appear at both levels.
-           If grouping cannot draw a balance sheet then grouping is not
-           finished, and this is where that shows.
-      touch: crates/phonix-web/src/ui/report/config/balance_sheet.rs,
-             crates/phonix-web/src/pages/sales/reports/balance_sheet.rs
-      done: `/accounting/reports/balance-sheet` draws from a definition, the
-            as-at picker is a toolbar control and still works,
-            `BalanceSheet::is_balanced` still decides the footer, the figures
-            match for the same date, and the hand-written markup is deleted.
-      verify: `/accounting/reports/balance-sheet` at a date you know. Check
-              both levels of total, and that it still says whether it balances.
-
-- [x] `phonix-web` The trial balance, as a definition
-      commit: "The first statement onto the engine"
-      why: second of the four statements. It is the simplest - every account,
-           two columns, and a pair of totals that must agree - which makes it
-           the one that says whether a statement can be expressed without a
-           special case.
-      touch: crates/phonix-web/src/ui/report/config/trial_balance.rs,
-             crates/phonix-web/src/pages/sales/reports/trial_balance.rs
-      done: `/accounting/reports/trial-balance` opens in the viewer and draws
-            from a definition, `TrialBalance::is_balanced` still decides what
-            the footer says, the figures match the hand-coded screen for the
-            same span, and the hand-written markup is deleted.
-      verify: `/accounting/reports/trial-balance` for a span you know, against
-              the figures it gave before. The footer must still say whether it
-              balances.
-
-- [x] `phonix-services` The spreadsheet a job wrote
-      commit: "A column somebody can add up"
-      why: CSV loses the totals, the grouping and the type of every number -
-           somebody who wanted to pivot the export has to retype it. This is
-           the export an accounts department actually asks for, and the third
-           writer on a path that by now has carried two.
-      touch: Cargo.toml, crates/phonix-services/
-      done: XLSX from the definition, with numbers as numbers and dates as
-            dates rather than strings, a frozen header row, and group subtotals
-            as real cells. It adds a pure-Rust dependency: name it in the commit
-            body and say what it was chosen over. By this item the exporter has
-            two writers and a printer: a format that is a *page* is the
-            report's own page printed by a browser, and one that is not is a
-            writer and a line on an enum. Adding a third writer is still that
-            one line.
-      verify: export as XLSX and open it. Sum a column in the spreadsheet - if
-              the numbers are text it will not add up - and check the dates
-              sort as dates and the header row is frozen.
-      stop: seventh checkpoint. Every export format is in by here, and the three
-            items after it are the remaining statements moving onto all of them
-            at once.
-
-- [x] `phonix-web` A group that opens and closes
-      commit: "A section somebody has read"
-      why: drill-down, and what makes a long grouped report readable - the
-           groups are the report, and the detail is opened where somebody wants
-           it. Without it a hundred-group report is a thousand-row scroll.
-      touch: crates/phonix-web/src/ui/report/
-      done: a group header toggles its detail where the definition allows it,
-            the report opens in the state the definition names, and that state
-            belongs to the browser - it does not survive a reload and never
-            goes to the server. Printing and every export ignore it entirely:
-            an archived statement with sections collapsed is evidence with
-            holes in it.
-      verify: collapse a group, reload, and confirm it opens in the state the
-              definition names rather than the one you left it in.
-
-- [x] `phonix-web` The chart, as a band the server drew
-      commit: "A picture of the same numbers"
-      why: charts are part of a report here, not a decoration on one, which is
-           why this sits before the exports rather than after them. A
-           JavaScript chart library is the wrong answer twice over: it draws
-           nothing during the server's render, which is the hydration mismatch
-           that takes the whole page down, and it draws nothing at all into a
-           PDF.
-      touch: crates/phonix-core/src/report/, crates/phonix-web/src/ui/report/
-      done: a chart band drawn as inline SVG from the report's own rows, in the
-            kinds a report actually needs - bar and column including stacked,
-            line, area, and pie or donut - with axis, ticks, labels and legend
-            identical on the server and in the browser. It reads the same rows
-            and the same group subtotals the bands do rather than a query of
-            its own, and a report whose only band is a chart is a report. No
-            `<canvas>`, no chart dependency, no clock. The geometry is computed
-            in `phonix_core::report` - not for a PDF writer, which is gone,
-            but because it is the part a test can establish and the tests there
-            can be run.
-      verify: a report with each chart kind on it. Check the bars and the
-              legend against the numbers in the table below them, then reload
-              with the browser console open - a hydration mismatch shows there
-              and kills every handler on the page.
-      stop: fourth checkpoint. A chart that renders differently on the two sides
-            is the failure this design exists to avoid, and it is only visible
-            in a running browser.
-
-- [x] `phonix-web` The pages a long report is read in
-      commit: "Ten rows, and a way to the next ten"
-      why: a list report is one endless sheet on screen today, and the viewer's
-           toolbar has said since it was built that page navigation belongs
-           there. Asked for directly on 2026-09-16, with the page size: **ten
-           rows at a time by default**.
-      touch: crates/phonix-core/src/report/paginate.rs,
-             crates/phonix-web/src/ui/report/viewer.rs,
-             crates/phonix-web/src/ui/report/render.rs
-      done: **not as written.** `paginate` measured a printed page and the
-            browser does that now, so there was nothing left for it to serve
-            and it is deleted rather than given a second job. A screen page is
-            a row count and nothing else. The toolbar carries
-            previous and next with "page n of m" between them, the same two
-            steps and the same words the grid's pager uses, drawn only where
-            there is more than one page - and the report draws the rows of the
-            page it is on rather than all of them.
-      verify: the product list: ten rows, then Next through to the last page
-              and back. The page count should not change when the look does,
-              because ten is ten - but printing the same report should still
-              break its pages by the sheet.
-      stop: the toolbar is what was asked for and nobody has seen it.
-
 - [x] `phonix-services` The writer that is not needed any more
       commit: "One less renderer"
       why: two PDF writers is the drift this decision was made to end, and the
@@ -934,27 +982,6 @@ commits it is three items.
             writer is untouched, and `phonix_core::report::paginate` stays -
             the viewer's page navigation is its caller now. Nothing names a
             band writer for a format a browser prints.
-
-- [x] `phonix-server` The browser that prints
-      commit: "The engine that draws the screen draws the file"
-      also: a report's address had to become something a request could build,
-            and the statement's span had to become something its address could
-            say. A page that opened on its own default span would have printed
-            the wrong months.
-      why: the exporter has to turn a report into a PDF and the engine that
-           draws it correctly is already on the machine.
-      touch: crates/phonix-server/src/jobs.rs, crates/phonix-config/,
-             config/base.toml
-      done: an export of a PDF opens the report's own address in a headless
-            browser and takes what it prints. The binary is named in config
-            and validated at boot the way every other path is - a build with
-            no browser fails fast rather than at the first export. One process
-            per export, killed at a timeout, and a failure lands on the row
-            with a reason like every other. The paper is the definition's,
-            because `@page` already says so.
-      verify: export the statement as PDF and put it beside the screen. The
-              letterhead, the mark, the look, the rules and the totals should
-              be the same document, not a resemblance.
 
 - [x] `phonix-web` The token an export prints with
       commit: "A door that opens once, onto one page"
