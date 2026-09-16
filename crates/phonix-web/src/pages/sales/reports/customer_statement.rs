@@ -1,35 +1,55 @@
-//! One customer's account, opened in the report viewer.
+//! One customer's account: whose accounts can be read, and the statement one
+//! of them opens.
 //!
-//! The screen is the pickers and the fetch; what the statement *is* lives in
+//! The screen is the list, the span and the fetch; what the statement *is*
+//! lives in
 //! [`ui::report::config::customer_statement`](crate::ui::report::config::customer_statement).
 
 use leptos::prelude::*;
 use leptos_meta::Title;
 use uuid::Uuid;
 
-use crate::components::page::Panel;
+use crate::components::page::{PageHeader, Panel};
+use crate::icons::Icon;
 use crate::l;
-use crate::server_fns::books_fns::{customer_statement, statement_customers};
+use crate::server_fns::books_fns::customer_statement;
 use crate::ui::report::config::customer_statement::customer_statement as definition;
 use crate::ui::report::{Report, ReportViewer};
+use crate::ui::table::DataGrid;
+use crate::ui::table::config::statement_customers::statement_customers_grid;
 
 use super::shared::SpanPicker;
 
+/// Whose account can be read.
 #[component]
 pub fn customer_statement_page() -> impl IntoView {
-    let span = super::shared::opening_span();
-    let customer = RwSignal::new(None::<Uuid>);
+    view! {
+        <Title text=format!("{} | Phonix", l!("reports.customer_statement")) />
 
-    let customers = Resource::new(
-        || (),
-        |()| async move { statement_customers().await.unwrap_or_default() },
-    );
+        <PageHeader
+            title=l!("reports.customer_statement")
+            subtitle=l!("reports.statement.pick")
+            icon=Icon::Receipt
+            back=("/accounting", l!("nav.accounting"))
+        />
+
+        <DataGrid config=statement_customers_grid() />
+    }
+}
+
+/// One customer's statement, in the viewer.
+#[component]
+pub fn customer_statement_report_page() -> impl IntoView {
+    let params = leptos_router::hooks::use_params_map();
+    let party_id = move || params.with(|params| params.get("party").unwrap_or_default());
+
+    let span = super::shared::opening_span();
 
     let statement = Resource::new(
-        move || (customer.get(), span.get()),
-        |(customer, span)| async move {
-            match (customer, span) {
-                (Some(party_id), Some((from, to))) => {
+        move || (party_id(), span.get()),
+        |(party, span)| async move {
+            match (party.parse::<Uuid>(), span) {
+                (Ok(party_id), Some((from, to))) => {
                     customer_statement(party_id, from, to).await.ok()
                 }
                 _ => None,
@@ -42,46 +62,8 @@ pub fn customer_statement_page() -> impl IntoView {
 
         <ReportViewer
             definition=definition()
-            back=("/accounting", l!("nav.accounting"))
-            controls=move || {
-                view! {
-                    <Transition fallback=|| ()>
-                        {move || Suspend::new(async move {
-                            let customers = customers.await;
-
-                            view! {
-                                <label class="flex items-center gap-2 text-xs text-content-subtle">
-                                    {l!("reports.customer")}
-                                    <select
-                                        class="h-8 rounded-control border border-edge bg-surface px-2 text-sm text-content"
-                                        on:change=move |ev| {
-                                            customer.set(event_target_value(&ev).parse().ok());
-                                        }
-                                    >
-                                        <option value="">{l!("reports.statement.pick")}</option>
-                                        {customers
-                                            .into_iter()
-                                            .map(|party| {
-                                                let id = party.id.to_string();
-                                                let text = format!(
-                                                    "{} \u{b7} {}",
-                                                    party.code,
-                                                    party.name,
-                                                );
-
-                                                view! { <option value=id>{text}</option> }
-                                            })
-                                            .collect_view()}
-                                    </select>
-                                </label>
-                            }
-                        })}
-                    </Transition>
-
-                    <SpanPicker span=span />
-                }
-                    .into_any()
-            }
+            back=("/accounting/reports/statement", l!("reports.customer_statement"))
+            controls=move || view! { <SpanPicker span=span /> }.into_any()
         >
             <Transition fallback=|| {
                 view! { <p class="text-sm text-content-subtle">{l!("common.loading")}</p> }
@@ -95,7 +77,7 @@ pub fn customer_statement_page() -> impl IntoView {
                             view! {
                                 <Panel>
                                     <p class="py-6 text-center text-sm text-content-muted">
-                                        {l!("reports.statement.pick")}
+                                        {l!("reports.empty")}
                                     </p>
                                 </Panel>
                             }

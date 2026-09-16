@@ -90,7 +90,9 @@ use crate::pages::sales::journals::JournalsPage;
 use crate::pages::sales::payment::{PaymentNewPage, PaymentPage, PaymentsPage};
 use crate::pages::sales::periods::PeriodsPage;
 use crate::pages::sales::reports::balance_sheet::BalanceSheetPage;
-use crate::pages::sales::reports::customer_statement::CustomerStatementPage;
+use crate::pages::sales::reports::customer_statement::{
+    CustomerStatementPage, CustomerStatementReportPage,
+};
 use crate::pages::sales::reports::profit_and_loss::ProfitAndLossPage;
 use crate::pages::sales::reports::trial_balance::TrialBalancePage;
 use crate::pages::{dashboard::DashboardPage, not_found::NotFoundPage};
@@ -263,6 +265,10 @@ pub fn app() -> impl IntoView {
                     <Route path=path!("/accounting/reports/balance-sheet") view=BalanceSheetPage />
                     <Route path=path!("/accounting/reports/profit-and-loss") view=ProfitAndLossPage />
                     <Route path=path!("/accounting/reports/statement") view=CustomerStatementPage />
+                    <Route
+                        path=path!("/accounting/reports/statement/:party")
+                        view=CustomerStatementReportPage
+                    />
 
                     // Selling: the chain in the order it happens. Two of these
                     // documents are app-inventory's and two app-books', which the

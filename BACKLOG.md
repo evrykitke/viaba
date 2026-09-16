@@ -160,27 +160,6 @@ commits it is three items.
 >   comparing the three, but the look is a document setting and two places to
 >   change one thing is how they come to disagree. Ask if it is wanted.
 
-- [ ] `phonix-web` The statement starts at a list of customers
-      why: found at the first checkpoint. The statement opens as an empty
-           frame with a dropdown on it, so the first thing the screen says is
-           "pick somebody". A list of who there is to pick is a screen; a
-           dropdown over nothing is a prompt. It is also the shape decision 7
-           describes - a row opens its record as a report - arriving a few
-           items early because this is the screen that needs it.
-      touch: crates/phonix-web/src/pages/sales/reports/customer_statement.rs,
-             crates/phonix-web/src/app.rs
-      done: `/accounting/reports/statement` lists the customers
-            `statement_customers` already returns, through the grid kit rather
-            than markup of its own, and opening a row goes to
-            `/accounting/reports/statement/<party_id>`, which is the statement
-            in the viewer. The span picker stays a toolbar control there, the
-            customer dropdown is gone - the list is the picker now - and the
-            viewer's back link returns to the list rather than to Accounting.
-            No customer chosen is no longer a state the statement screen has.
-      verify: `/accounting/reports/statement` on 3010 shows the customers.
-              Click one: the statement opens, the span picker still works, and
-              back returns to the list.
-
 - [ ] `phonix-web` Printing prints the report, not the application
       why: found at the first checkpoint. `window.print()` prints what is on
            the screen, which is the sidebar, the top bar, the toolbar and a
@@ -198,6 +177,46 @@ commits it is three items.
       verify: open a statement and press Print. The preview should show the
               statement alone, at its own size, with the navigation gone and
               nothing cut off the right-hand edge.
+
+- [ ] `phonix-web` Figures that line up, in a font chosen for them
+      why: asked for on 2026-09-16. A money column is read downwards and
+           compared, and proportional numerals make 1,111.11 narrower than
+           8,888.88, so the decimal points wander and the eye has to do the
+           work. The grid answered this long ago with `tabular-nums`; a report
+           has not, and it needs the answer twice over - the PDF writer picks
+           a font by name rather than inheriting one, so what a figure is set
+           in has to be a decision the definition can carry rather than a
+           class the screen happens to have.
+      touch: crates/phonix-web/src/ui/report/, crates/phonix-core/src/report/
+      done: a field says it holds a figure - one constructor, which also right-
+            aligns it, so a definition stops remembering `Align::End` beside
+            every amount - and the renderer draws figures in tabular lining
+            numerals in a stack of faces that exist everywhere rather than one
+            that has to be shipped. The choice lives in `phonix_core::report`
+            beside the metrics, because the PDF writer reads it too and a
+            stylesheet is not something it can read.
+      verify: a statement. The amount and balance columns should have their
+              decimal points in one line and every digit the same width, and
+              the two columns should agree with each other.
+
+- [ ] `phonix-web` A field that links to the document it names
+      why: asked for on 2026-09-16. A statement lists invoice and payment
+           numbers and none of them goes anywhere, so the question a document
+           report raises most often - what *is* this line - is the one it
+           cannot answer. A field that carries a destination is the general
+           form of that, and the receipt and the three statements all want it.
+      touch: crates/phonix-web/src/ui/report/
+      done: `Field::link` takes the address beside the value, the renderer
+            draws it as a link inside the sheet, and everything else treats it
+            as text: printing and every export write the words, because a
+            printed page has nowhere to click and a CSV cell holding an href
+            is a cell nobody asked for. The statement's document numbers open
+            the record they name where that kind has a screen, and draw as
+            plain text where it does not - a link to a page that 404s is worse
+            than no link.
+      verify: a statement. Click a document number: it should open that
+              invoice or payment. A kind with no screen should still read as
+              an ordinary number rather than a dead link.
 
 - [ ] `phonix-web` The logo, where the definition says it goes
       why: `OrganizationProfile::logo_file_id` is already documented as "the
@@ -662,6 +681,20 @@ commits it is three items.
      The user launches the application, looks, and then either moves the item
      to `## Done` or writes a new item in `## Next` saying what was wrong. The
      loop never moves anything out of this section by itself. -->
+
+- [x] `phonix-web` The statement starts at a list of customers
+      commit: "Whose account, before what it says"
+      The statement is two screens now. `/accounting/reports/statement` is the
+      customers, through the grid kit, and a row opens
+      `/accounting/reports/statement/<party_id>`, which is the statement in
+      the viewer. The dropdown is gone: the list is the picker. The grid reads
+      `statement_customers` whole rather than paged, which is the read that
+      exists and is bounded by the customer file - the same list the dropdown
+      held. Back from a statement returns to the list rather than to
+      Accounting, so the two screens read as one place.
+      verify: `/accounting/reports/statement` on 3010 shows the customers.
+              Click one: the statement opens, the span picker still works, and
+              back returns to the list.
 
 ## Blocked
 
