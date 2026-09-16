@@ -19,7 +19,7 @@
 use leptos::prelude::*;
 use phonix_core::numbering::{NumberSeries, ResetPeriod, SeriesSaved, SeriesSettings};
 
-use crate::components::page::{GhostButton, Notice, Panel, PrimaryButton, Tone};
+use crate::components::page::{GhostButton, Notice, PrimaryButton, Tone};
 use crate::icons::Icon;
 use crate::l;
 use crate::server_fns::numbering_fns::{preview_number_format, save_number_series};
@@ -27,6 +27,7 @@ use crate::ui::alert::{Alert, Alerts};
 use crate::ui::card::CollapsibleCard;
 use crate::ui::form::field::Choice;
 use crate::ui::lookup::SelectField;
+use crate::ui::modal::Modal;
 use crate::ui::table::DataGrid;
 use crate::ui::table::config::numbering::number_series_grid;
 
@@ -69,16 +70,24 @@ pub fn numbering_tab() -> impl IntoView {
                 }}
             </CollapsibleCard>
 
+            // Over the grid, not under it - see `ui::modal`.
             {move || {
                 editing
                     .get()
                     .map(|series| {
+                        let title = series.key();
+
                         view! {
-                            <SeriesEditor
-                                series=series
-                                saved=move || version.update(|v| *v = v.wrapping_add(1))
-                                close=move || editing.set(None)
-                            />
+                            <Modal
+                                title=title
+                                on_close=Callback::new(move |()| editing.set(None))
+                            >
+                                <SeriesEditor
+                                    series=series
+                                    saved=move || version.update(|v| *v = v.wrapping_add(1))
+                                    close=move || editing.set(None)
+                                />
+                            </Modal>
                         }
                     })
             }}
@@ -94,7 +103,6 @@ fn series_editor(
     close: impl Fn() + Copy + Send + Sync + 'static,
 ) -> impl IntoView {
     let alerts = Alerts::get();
-    let title = series.key();
     let issued = series.counter;
     let scope = series.scope_key.clone();
 
@@ -163,8 +171,7 @@ fn series_editor(
     };
 
     view! {
-        <div class="max-w-2xl">
-            <Panel title=title>
+        <div>
                 <div class="space-y-3">
                     <Notice
                         message=Signal::derive(move || refused.get())
@@ -293,7 +300,6 @@ fn series_editor(
                         />
                     </div>
                 </div>
-            </Panel>
         </div>
     }
 }

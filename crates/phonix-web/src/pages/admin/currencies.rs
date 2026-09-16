@@ -15,7 +15,7 @@ use leptos::prelude::*;
 use phonix_core::locale::Currency;
 use phonix_core::money::WorkspaceCurrency;
 
-use crate::components::page::{GhostButton, Panel, PrimaryButton};
+use crate::components::page::{GhostButton, PrimaryButton};
 use crate::icons::Icon;
 use crate::l;
 use crate::server_fns::currency_fns::save_currency;
@@ -23,6 +23,7 @@ use crate::ui::alert::{Alert, Alerts};
 use crate::ui::card::CollapsibleCard;
 use crate::ui::form::field::Choice;
 use crate::ui::lookup::SelectField;
+use crate::ui::modal::Modal;
 use crate::ui::table::DataGrid;
 use crate::ui::table::config::currencies::currencies_grid;
 
@@ -89,16 +90,22 @@ pub fn currencies_tab() -> impl IntoView {
 
             // Created fresh each time `editing` changes, which is what re-seeds
             // the controls: they read their opening value once.
+            // Over the grid, not under it - see `ui::modal`.
             {move || {
                 editing
                     .get()
                     .map(|row| {
                         view! {
-                            <CurrencyEditor
-                                row=row
-                                saved=move || version.update(|v| *v = v.wrapping_add(1))
-                                close=move || editing.set(None)
-                            />
+                            <Modal
+                                title=l!("currencies.add")
+                                on_close=Callback::new(move |()| editing.set(None))
+                            >
+                                <CurrencyEditor
+                                    row=row
+                                    saved=move || version.update(|v| *v = v.wrapping_add(1))
+                                    close=move || editing.set(None)
+                                />
+                            </Modal>
                         }
                     })
             }}
@@ -146,8 +153,7 @@ fn currency_editor(
     };
 
     view! {
-        <div class="max-w-2xl">
-            <Panel title=l!("currencies.add")>
+        <div>
                 <div class="space-y-3">
                     <div class="grid gap-3 sm:grid-cols-2">
                         // A `<div>` and a `<label for>` rather than a label
@@ -208,7 +214,6 @@ fn currency_editor(
                         />
                     </div>
                 </div>
-            </Panel>
         </div>
     }
 }

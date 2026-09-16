@@ -21,12 +21,13 @@ use phonix_core::report::{
     Align, DocumentSettings, Logo, LogoPlacement, Orientation, PaperSize, ReportTheme,
 };
 
-use crate::components::page::{GhostButton, Panel, PrimaryButton};
+use crate::components::page::{GhostButton, PrimaryButton};
 use crate::icons::Icon;
 use crate::l;
 use crate::server_fns::admin_fns::save_document_settings;
 use crate::ui::alert::{Alert, Alerts};
 use crate::ui::card::CollapsibleCard;
+use crate::ui::modal::{Modal, ModalSize};
 use crate::ui::report::Report;
 use crate::ui::report::config::sample::{Sample, sample};
 use crate::ui::table::DataGrid;
@@ -63,16 +64,28 @@ pub fn documents_tab() -> impl IntoView {
                 }}
             </CollapsibleCard>
 
+            // Over the grid rather than under it: a form appended below a
+            // list puts the row somebody just clicked off the screen.
             {move || {
                 editing
                     .get()
                     .map(|settings| {
+                        let title = settings.document_type.replace('_', " ");
+
                         view! {
-                            <DocumentEditor
-                                settings=settings
-                                saved=move || version.update(|count| *count = count.wrapping_add(1))
-                                close=move || editing.set(None)
-                            />
+                            <Modal
+                                title=title
+                                size=ModalSize::Large
+                                on_close=Callback::new(move |()| editing.set(None))
+                            >
+                                <DocumentEditor
+                                    settings=settings
+                                    saved=move || {
+                                        version.update(|count| *count = count.wrapping_add(1))
+                                    }
+                                    close=move || editing.set(None)
+                                />
+                            </Modal>
                         }
                     })
             }}
@@ -88,7 +101,6 @@ fn document_editor(
     close: impl Fn() + Copy + Send + Sync + 'static,
 ) -> impl IntoView {
     let alerts = Alerts::get();
-    let title = settings.document_type.replace('_', " ");
     // Stored rather than cloned into the closure, so `chosen` stays `Copy`
     // and both the form and the preview can read it.
     let document_type = StoredValue::new(settings.document_type.clone());
@@ -139,8 +151,7 @@ fn document_editor(
     };
 
     view! {
-        <Panel title=title>
-            <div class="grid gap-4 lg:grid-cols-2">
+        <div class="grid gap-4 lg:grid-cols-2">
                 <div class="space-y-4">
                     <fieldset class="space-y-2">
                         <legend class="text-xs font-medium text-content-muted">
@@ -252,8 +263,7 @@ fn document_editor(
                         </div>
                     </div>
                 </div>
-            </div>
-        </Panel>
+        </div>
     }
 }
 
