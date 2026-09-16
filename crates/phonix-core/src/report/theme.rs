@@ -36,6 +36,11 @@ impl ReportTheme {
         }
     }
 
+    /// The look a stored value names, or nothing.
+    pub fn parse(raw: &str) -> Option<Self> {
+        Self::ALL.iter().copied().find(|it| it.as_str() == raw)
+    }
+
     /// What the look measures out to.
     pub const fn metrics(self) -> Metrics {
         match self {

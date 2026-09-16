@@ -19,6 +19,21 @@ impl PaperSize {
     /// Every size, in the order a settings screen should offer them.
     pub const ALL: &'static [Self] = &[Self::A4, Self::A5, Self::Letter, Self::Legal];
 
+    /// The stored value, matching the column's CHECK constraint.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::A4 => "a4",
+            Self::A5 => "a5",
+            Self::Letter => "letter",
+            Self::Legal => "legal",
+        }
+    }
+
+    /// The size a stored value names, or nothing.
+    pub fn parse(raw: &str) -> Option<Self> {
+        Self::ALL.iter().copied().find(|size| size.as_str() == raw)
+    }
+
     /// Width and height in portrait, in millimetres.
     pub const fn dimensions_mm(self) -> (f32, f32) {
         match self {
@@ -37,6 +52,24 @@ pub enum Orientation {
     #[default]
     Portrait,
     Landscape,
+}
+
+impl Orientation {
+    /// Both, in the order a settings screen should offer them.
+    pub const ALL: &'static [Self] = &[Self::Portrait, Self::Landscape];
+
+    /// The stored value, matching the column's CHECK constraint.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Portrait => "portrait",
+            Self::Landscape => "landscape",
+        }
+    }
+
+    /// The orientation a stored value names, or nothing.
+    pub fn parse(raw: &str) -> Option<Self> {
+        Self::ALL.iter().copied().find(|it| it.as_str() == raw)
+    }
 }
 
 /// The space left around the content, in millimetres.
@@ -167,6 +200,23 @@ pub enum LogoPlacement {
 }
 
 impl LogoPlacement {
+    /// The band this places the logo in, as it is stored.
+    pub const fn band_str(self) -> &'static str {
+        match self {
+            Self::ReportHeader(_) => "report_header",
+            Self::PageHeader(_) => "page_header",
+        }
+    }
+
+    /// The placement a stored band and edge name, or nothing.
+    pub fn parse(band: &str, align: Align) -> Option<Self> {
+        match band {
+            "report_header" => Some(Self::ReportHeader(align)),
+            "page_header" => Some(Self::PageHeader(align)),
+            _ => None,
+        }
+    }
+
     /// The band the logo is drawn in.
     pub const fn band(self) -> BandKind {
         match self {

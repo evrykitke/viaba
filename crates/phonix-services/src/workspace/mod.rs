@@ -4,9 +4,11 @@
 //! and a tenant database. [`settings`] is how an organization tightens its own
 //! password and MFA policy afterwards, and [`profile`] is who it says it is -
 //! the legal entity, its address, and the currency and time zone it works in.
-//! [`setup`] answers what each app still needs before it is useful.
+//! [`setup`] answers what each app still needs before it is useful, and
+//! [`documents`] is what each kind of document it issues looks like.
 
 pub mod apps;
+pub mod documents;
 pub mod onboarding;
 pub mod profile;
 pub mod settings;

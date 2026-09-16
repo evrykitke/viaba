@@ -1041,6 +1041,8 @@
   "diff.changed": "Geändert",
   "diff.not_set": "Nicht gesetzt",
   "diff.removed": "Entfernt",
+  "documents.error.text_too_long": "Bitte auf {max} Zeichen oder weniger kürzen.",
+  "documents.error.type_required": "Eine Dokumenteinstellung muss angeben, für welches Dokument sie gilt.",
   "editor.blockquote": "Zitat",
   "editor.bold": "Fett",
   "editor.bullet_list": "Aufzählung",

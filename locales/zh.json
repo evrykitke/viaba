@@ -1041,6 +1041,8 @@
   "diff.changed": "变更",
   "diff.not_set": "未设置",
   "diff.removed": "移除",
+  "documents.error.text_too_long": "请将此内容限制在 {max} 个字符以内。",
+  "documents.error.type_required": "文档设置必须说明适用于哪种文档。",
   "editor.blockquote": "引用",
   "editor.bold": "加粗",
   "editor.bullet_list": "项目符号列表",

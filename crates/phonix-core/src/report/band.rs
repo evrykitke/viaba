@@ -70,3 +70,22 @@ pub enum Align {
     Center,
     End,
 }
+
+impl Align {
+    /// Every edge, in the order a settings screen should offer them.
+    pub const ALL: &'static [Self] = &[Self::Start, Self::Center, Self::End];
+
+    /// The stored value, matching the column's CHECK constraint.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Start => "start",
+            Self::Center => "center",
+            Self::End => "end",
+        }
+    }
+
+    /// The edge a stored value names, or nothing.
+    pub fn parse(raw: &str) -> Option<Self> {
+        Self::ALL.iter().copied().find(|it| it.as_str() == raw)
+    }
+}

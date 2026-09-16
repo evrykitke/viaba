@@ -1041,6 +1041,8 @@
   "diff.changed": "Modifié",
   "diff.not_set": "Non défini",
   "diff.removed": "Retiré",
+  "documents.error.text_too_long": "Limitez ce texte à {max} caractères ou moins.",
+  "documents.error.type_required": "Un réglage de document doit indiquer de quel document il s'agit.",
   "editor.blockquote": "Citation",
   "editor.bold": "Gras",
   "editor.bullet_list": "Liste à puces",

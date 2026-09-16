@@ -1041,6 +1041,8 @@
   "diff.changed": "Changed",
   "diff.not_set": "Not set",
   "diff.removed": "Removed",
+  "documents.error.text_too_long": "Keep this to {max} characters or fewer.",
+  "documents.error.type_required": "A document setting has to say which document it is for.",
   "editor.blockquote": "Quote",
   "editor.bold": "Bold",
   "editor.bullet_list": "Bulleted list",

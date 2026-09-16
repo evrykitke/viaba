@@ -160,26 +160,21 @@ commits it is three items.
 >   comparing the three, but the look is a document setting and two places to
 >   change one thing is how they come to disagree. Ask if it is wanted.
 
-- [ ] `phonix-core` The document settings a tenant keeps
-      why: an invoice that cannot carry the tenant's own payment terms is one
-           they will keep producing outside the system. This is the table and
-           the type, not the screen - and the line it must not cross is that it
-           holds a bounded set of answers, never a layout. Paper, logo, and the
-           text in the header and the footer.
-      touch: migrations/apps/core/0024_document_settings.sql,
-             crates/phonix-core/src/report/, crates/phonix-services/
-      done: `core.document_settings` keyed by document type, holding the look,
-            the page size and orientation, whether the logo is drawn and in
-            which placement and at what height, and header and footer text. The
-            look is one of the three `ReportTheme` names and the column refuses
-            anything else - a free-text theme is a report designer arriving
-            through the back door. The text
-            is the tenant's own words and is stored as such - it is not an i18n
-            key and must not be looked up in the catalog. A type in
-            `phonix_core::report` reads it, a service writes it, and a document
-            type with no row falls back to the defaults rather than to nothing.
-            The migration is validated against a staging database in a
-            rolled-back transaction, the way `delivery_lines.invoiced` was.
+- [ ] `phonix-services` The document settings have no trail
+      why: every other thing an administrator changes in settings is recorded -
+           the security policy, the mail relay, the organization itself - and
+           these reach every document the workspace issues. "Who changed the
+           invoice footer, and to what" is the question asked after one goes
+           out wrong, and `document_settings::save` cannot answer it. Left out
+           of the item that built the table because it needs an `EntityKind`
+           and the four catalogue entries that come with one.
+      touch: crates/phonix-core/src/audit/entity.rs,
+             crates/phonix-services/src/workspace/documents.rs
+      done: a `DOCUMENT_SETTINGS` kind with its two i18n keys, and `save`
+            recording a `{from, to}` the way `settings::save` does - one entry
+            per document type, on that type's own record, so a workspace that
+            only ever edited its invoice does not read receipt noise to find
+            when.
 
 - [ ] `phonix-config` The document settings each app declares
       why: the tenant owns the answer but somebody has to ask the question -
@@ -682,6 +677,25 @@ commits it is three items.
 ## Done
 
 <!-- The loop appends here with the commit sha. Newest first. -->
+
+- [x] `phonix-core` The document settings a tenant keeps
+      commit: "Answers, and the column that refuses a layout"
+      `core.document_settings` keyed by document type: the look, the paper and
+      which way up, the mark as a band-edge-height triple that is all present
+      or all absent, and the tenant's own words at the head and the foot. The
+      look column names the three and refuses a fourth, which is the back door
+      a report designer would come through. `DocumentSettings` in
+      `phonix_core::report` validates its own text so a form is told which box
+      is wrong rather than a constraint name, and a type with no row **is** the
+      defaults rather than an `Option` every caller has to remember. The
+      service splits the way `profile` does: the screen's read is gated on
+      `Settings`, the read a report does while drawing is not.
+
+      **Validated against `viaba_tenant_med_app_staging`**, which was on core
+      0023, in one transaction that was rolled back: the table created, two
+      rows written - one with a mark and one without - and four refusals
+      checked at the savepoint, an unknown look, a half-set mark, an unknown
+      band and a footer over 500. The database is as it was.
 
 - [x] `phonix-web` The viewer, which fills the page inside the shell
       Verified in the running application on 2026-09-16, with two faults
