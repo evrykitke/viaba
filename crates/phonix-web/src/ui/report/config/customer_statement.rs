@@ -34,16 +34,11 @@ pub fn customer_statement() -> ReportDefinition<CustomerStatement> {
                     currency = statement.currency.code()
                 ))
             }))
-            .field(
-                Field::new(
-                    "opening",
-                    l!("reports.statement.opening"),
-                    |statement: &CustomerStatement| {
-                        Cell::text(statement.opening.to_display_string())
-                    },
-                )
-                .align(Align::End),
-            ),
+            .field(Field::figure(
+                "opening",
+                l!("reports.statement.opening"),
+                |statement: &CustomerStatement| Cell::text(statement.opening.to_display_string()),
+            )),
     )
     .band(Band::lines(
         |statement: &CustomerStatement| statement.lines.clone(),
@@ -66,18 +61,16 @@ pub fn customer_statement() -> ReportDefinition<CustomerStatement> {
                 l!("reports.column.due"),
                 |line: &StatementLine| Cell::maybe(line.due_on.map(|due| due.to_string())),
             ),
-            Field::new(
+            Field::figure(
                 "amount",
                 l!("reports.column.amount"),
                 |line: &StatementLine| Cell::text(line.amount.to_display_string()),
-            )
-            .align(Align::End),
-            Field::new(
+            ),
+            Field::figure(
                 "running",
                 l!("reports.column.balance"),
                 |line: &StatementLine| Cell::text(line.running.to_display_string()),
-            )
-            .align(Align::End),
+            ),
         ],
     ))
     .band(
@@ -139,15 +132,18 @@ fn document(line: &StatementLine) -> String {
     }
 }
 
-/// One rung of the ageing ladder, on the left of the footer.
+/// One rung of the ageing ladder. A figure, and on the left of the footer
+/// rather than beside the totals - which is the one place a figure says where
+/// it goes.
 fn bucket(
     key: &'static str,
     label: String,
     read: impl Fn(&app_books::report::Ageing) -> String + Send + Sync + 'static,
 ) -> Field<CustomerStatement> {
-    Field::new(key, label, move |statement: &CustomerStatement| {
+    Field::figure(key, label, move |statement: &CustomerStatement| {
         Cell::text(read(&statement.ageing))
     })
+    .align(Align::Start)
 }
 
 /// One of the figures the statement adds up to, on the right of the footer.
@@ -156,8 +152,7 @@ fn total(
     label: String,
     read: impl Fn(&CustomerStatement) -> String + Send + Sync + 'static,
 ) -> Field<CustomerStatement> {
-    Field::new(key, label, move |statement: &CustomerStatement| {
+    Field::figure(key, label, move |statement: &CustomerStatement| {
         Cell::text(read(statement))
     })
-    .align(Align::End)
 }

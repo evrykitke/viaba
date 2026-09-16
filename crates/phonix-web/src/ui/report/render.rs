@@ -16,8 +16,10 @@
 //! Group bands are drawn once, around the rows; drawing one per group is what
 //! grouping adds.
 
+use std::sync::OnceLock;
+
 use leptos::prelude::*;
-use phonix_core::report::{Align, BandKind, Colour, Metrics};
+use phonix_core::report::{Align, BandKind, Colour, Metrics, Typeface};
 
 use super::definition::Content;
 use super::{Band, Field, Heading, ReportDefinition};
@@ -183,31 +185,43 @@ where
 }
 
 /// One value, with its label where it has one.
+///
+/// A figure sits at the end of its line rather than after its label, so a
+/// stack of them - an ageing ladder, four totals - lines up down its own
+/// column.
 fn field_view<T>(field: &Field<T>, data: &T, metrics: &Metrics) -> AnyView
 where
     T: Send + Sync + 'static,
 {
     let value = field.read(data).to_text();
+    let label = field.label.clone().map(|label| {
+        view! {
+            <span
+                class="text-content-subtle"
+                style=format!("font-size:{}pt", metrics.type_scale.caption_pt)
+            >
+                {label}
+            </span>
+        }
+    });
 
-    view! {
-        <div>
-            {field
-                .label
-                .clone()
-                .map(|label| {
-                    view! {
-                        <span
-                            class="mr-2 text-content-subtle"
-                            style=format!("font-size:{}pt", metrics.type_scale.caption_pt)
-                        >
-                            {label}
-                        </span>
-                    }
-                })}
-            <span>{value}</span>
-        </div>
+    if field.figures {
+        view! {
+            <div class="flex items-baseline justify-between gap-6">
+                {label}
+                <span style=figures_style()>{value}</span>
+            </div>
+        }
+        .into_any()
+    } else {
+        view! {
+            <div class="space-x-2">
+                {label}
+                <span>{value}</span>
+            </div>
+        }
+        .into_any()
     }
-    .into_any()
 }
 
 /// The detail band: its headings, then a row per line.
@@ -239,7 +253,7 @@ fn lines(headings: &[Heading], rows: &[Vec<Cell>], metrics: &Metrics) -> AnyView
                                     view! {
                                         <div
                                             class=cell_class(heading.align, metrics)
-                                            style=cell_style(metrics)
+                                            style=cell_style(metrics, false)
                                         >
                                             {label}
                                         </div>
@@ -260,7 +274,7 @@ fn lines(headings: &[Heading], rows: &[Vec<Cell>], metrics: &Metrics) -> AnyView
                             view! {
                                 <div
                                     class=cell_class(heading.align, metrics)
-                                    style=cell_style(metrics)
+                                    style=cell_style(metrics, heading.figures)
                                 >
                                     {cell.to_text()}
                                 </div>
@@ -297,11 +311,29 @@ fn cell_class(align: Align, metrics: &Metrics) -> String {
     format!("min-w-0 flex-1 {} {edge}", align_class(align))
 }
 
-fn cell_style(metrics: &Metrics) -> String {
+fn cell_style(metrics: &Metrics, figures: bool) -> String {
     format!(
-        "padding:{}mm {}mm",
-        metrics.padding.vertical, metrics.padding.horizontal
+        "padding:{}mm {}mm;{}",
+        metrics.padding.vertical,
+        metrics.padding.horizontal,
+        if figures { figures_style() } else { "" },
     )
+}
+
+/// What a figure is set in: a stack of faces that are on the machines this
+/// runs on, asked for the numerals that line up under each other.
+fn figures_style() -> &'static str {
+    static STYLE: OnceLock<String> = OnceLock::new();
+
+    STYLE
+        .get_or_init(|| {
+            format!(
+                "font-family:{};font-variant-numeric:{}",
+                Typeface::Figures.css_stack(),
+                Typeface::Figures.css_numerals(),
+            )
+        })
+        .as_str()
 }
 
 const fn align_class(align: Align) -> &'static str {

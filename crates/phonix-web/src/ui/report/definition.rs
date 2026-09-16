@@ -27,6 +27,9 @@ pub struct Field<T: 'static> {
     pub(crate) label: Option<String>,
     pub(crate) read: Read<T>,
     pub(crate) align: Align,
+    /// Whether the value is a figure, and so is set in numerals that line up
+    /// under each other.
+    pub(crate) figures: bool,
 }
 
 impl<T: 'static> Clone for Field<T> {
@@ -36,6 +39,7 @@ impl<T: 'static> Clone for Field<T> {
             label: self.label.clone(),
             read: Arc::clone(&self.read),
             align: self.align,
+            figures: self.figures,
         }
     }
 }
@@ -59,6 +63,7 @@ impl<T: 'static> Field<T> {
             label: Some(label.into()),
             read: Arc::new(read),
             align: Align::Start,
+            figures: false,
         }
     }
 
@@ -69,6 +74,7 @@ impl<T: 'static> Field<T> {
             label: None,
             read: Arc::new(read),
             align: Align::Start,
+            figures: false,
         }
     }
 
@@ -79,8 +85,25 @@ impl<T: 'static> Field<T> {
         Self::bare(key, move |_| Cell::text(value.clone()))
     }
 
-    /// Which edge of its box the value sits against. Money and counts are
-    /// [`Align::End`].
+    /// A figure: money, a count, a quantity.
+    ///
+    /// It is set in numerals that line up under each other and it sits against
+    /// the end of its box, so a definition stops writing `Align::End` beside
+    /// every amount. A figure that belongs somewhere else - the ageing ladder
+    /// down the left of a footer - says so with [`align`](Self::align) after.
+    pub fn figure(
+        key: &'static str,
+        label: impl Into<String>,
+        read: impl Fn(&T) -> Cell + Send + Sync + 'static,
+    ) -> Self {
+        Self {
+            figures: true,
+            align: Align::End,
+            ..Self::new(key, label, read)
+        }
+    }
+
+    /// Which edge of its box the value sits against.
     #[must_use]
     pub const fn align(mut self, align: Align) -> Self {
         self.align = align;
@@ -101,6 +124,7 @@ pub struct Heading {
     pub key: &'static str,
     pub label: Option<String>,
     pub align: Align,
+    pub figures: bool,
 }
 
 /// What a band draws.
@@ -172,6 +196,7 @@ impl<T: 'static> Band<T> {
                 key: field.key,
                 label: field.label.clone(),
                 align: field.align,
+                figures: field.figures,
             })
             .collect();
 

@@ -160,27 +160,6 @@ commits it is three items.
 >   comparing the three, but the look is a document setting and two places to
 >   change one thing is how they come to disagree. Ask if it is wanted.
 
-- [ ] `phonix-web` Figures that line up, in a font chosen for them
-      why: asked for on 2026-09-16. A money column is read downwards and
-           compared, and proportional numerals make 1,111.11 narrower than
-           8,888.88, so the decimal points wander and the eye has to do the
-           work. The grid answered this long ago with `tabular-nums`; a report
-           has not, and it needs the answer twice over - the PDF writer picks
-           a font by name rather than inheriting one, so what a figure is set
-           in has to be a decision the definition can carry rather than a
-           class the screen happens to have.
-      touch: crates/phonix-web/src/ui/report/, crates/phonix-core/src/report/
-      done: a field says it holds a figure - one constructor, which also right-
-            aligns it, so a definition stops remembering `Align::End` beside
-            every amount - and the renderer draws figures in tabular lining
-            numerals in a stack of faces that exist everywhere rather than one
-            that has to be shipped. The choice lives in `phonix_core::report`
-            beside the metrics, because the PDF writer reads it too and a
-            stylesheet is not something it can read.
-      verify: a statement. The amount and balance columns should have their
-              decimal points in one line and every digit the same width, and
-              the two columns should agree with each other.
-
 - [ ] `phonix-web` A field that links to the document it names
       why: asked for on 2026-09-16. A statement lists invoice and payment
            numbers and none of them goes anywhere, so the question a document
@@ -663,6 +642,23 @@ commits it is three items.
      The user launches the application, looks, and then either moves the item
      to `## Done` or writes a new item in `## Next` saying what was wrong. The
      loop never moves anything out of this section by itself. -->
+
+- [x] `phonix-web` Figures that line up, in a font chosen for them
+      commit: "Numerals that stay in their column"
+      `Field::figure` says a value is a figure; it sets it in tabular lining
+      numerals and puts it at the end of its box, so a definition stops
+      writing `Align::End` beside every amount. `Typeface` in
+      `phonix_core::report` holds both halves of the choice - the stack the
+      screen asks for and the base-14 name a PDF draws without carrying a font
+      with it - because the writer cannot read a stylesheet. A figure in a
+      band is a label at one end and a value at the other rather than a value
+      after a label, which is what makes the ageing ladder and the four totals
+      each line up down their own column. The ladder is the one place that
+      says where it goes, because a figure otherwise goes to the right.
+      verify: a statement. The amount and balance columns should have their
+              decimal points in one line and every digit the same width, and
+              the ageing figures and the totals should each line up under
+              themselves.
 
 - [x] `phonix-web` Printing prints the report, not the application
       commit: "The sheet is the page"

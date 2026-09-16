@@ -134,6 +134,56 @@ pub enum Colour {
     Emphasis,
 }
 
+/// A face a report is set in, named so that the screen and the PDF writer
+/// agree about it.
+///
+/// The screen gets a stack of faces that are on the machines this runs on; the
+/// writer gets a base-14 name, which is the set a PDF can draw without
+/// carrying a font with it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Typeface {
+    /// The document's words.
+    #[default]
+    Text,
+    /// Figures. A money column is read downwards and compared, and
+    /// proportional numerals make 1,111.11 narrower than 8,888.88.
+    Figures,
+}
+
+impl Typeface {
+    /// What the screen sets it in.
+    pub const fn css_stack(self) -> &'static str {
+        match self {
+            Self::Text => {
+                "'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Liberation Sans', sans-serif"
+            }
+            Self::Figures => {
+                "'Helvetica Neue', Helvetica, Arial, 'Liberation Sans', 'DejaVu Sans', sans-serif"
+            }
+        }
+    }
+
+    /// The numeral forms the screen asks that stack for.
+    pub const fn css_numerals(self) -> &'static str {
+        match self {
+            Self::Text => "normal",
+            Self::Figures => "tabular-nums lining-nums",
+        }
+    }
+
+    /// The base-14 font a PDF draws it with.
+    ///
+    /// One name for both: Helvetica's digits are already fixed-advance, so
+    /// figures need no second face there - only on screen, where the stack
+    /// above has to be asked for tabular numerals.
+    pub const fn base14(self) -> &'static str {
+        match self {
+            Self::Text | Self::Figures => "Helvetica",
+        }
+    }
+}
+
 const MODERN: Metrics = Metrics {
     type_scale: TypeScale {
         title_pt: 16.0,
