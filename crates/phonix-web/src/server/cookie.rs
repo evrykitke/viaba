@@ -26,6 +26,29 @@ use secrecy::{ExposeSecret, SecretString};
 /// `max_age_secs` should match the session's absolute deadline. It is a hint:
 /// the server decides when a session ends, and a client that ignores the
 /// attribute simply presents a token the database has already expired.
+/// What a print token's cookie is called: the session cookie's name with a
+/// word on the end, so the two can never be mistaken for each other by a
+/// browser or by this code.
+pub fn print_name(cfg: &SessionConfig, tenant_slug: &str) -> String {
+    format!("{}_printing", cfg.cookie_name_for(tenant_slug))
+}
+
+/// The cookie a browser prints a report with.
+///
+/// The same shape as the session cookie and none of its lifetime: seconds, and
+/// gone when the tab closes. `HttpOnly`, because nothing in the page has any
+/// business reading it either.
+pub fn set_print(cfg: &SessionConfig, tenant_slug: &str, token: &str, max_age_secs: i64) -> String {
+    Cookie::build((print_name(cfg, tenant_slug), token.to_owned()))
+        .path("/")
+        .http_only(true)
+        .secure(cfg.secure)
+        .same_site(same_site(cfg.same_site))
+        .max_age(CookieDuration::seconds(max_age_secs))
+        .build()
+        .to_string()
+}
+
 pub fn set_session(
     cfg: &SessionConfig,
     tenant_slug: &str,

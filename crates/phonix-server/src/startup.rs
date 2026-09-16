@@ -20,7 +20,7 @@ use tower_http::limit::RequestBodyLimitLayer;
 use tower_http::timeout::TimeoutLayer;
 use tower_http::trace::TraceLayer;
 
-use crate::{api, auth, files, google, health, jobs, middleware, profiler, rate_limit};
+use crate::{api, auth, files, google, health, jobs, middleware, printing, profiler, rate_limit};
 
 /// Build everything and serve until shutdown.
 pub async fn run(config: AppConfig, profiling: profiler::Profiling) -> Result<()> {
@@ -143,6 +143,7 @@ pub async fn run(config: AppConfig, profiling: profiler::Profiling) -> Result<()
         naming,
         leptos_options: leptos_options.clone(),
         exports: Some(phonix_web::state::ExportSignal(exports_tx)),
+        printing: phonix_web::state::ExportTokens::default(),
     };
 
     let routes = generate_route_list(App);
@@ -165,6 +166,9 @@ pub async fn run(config: AppConfig, profiling: profiler::Profiling) -> Result<()
         // The Google flow, both halves on this one host - Google will not
         // redirect to a wildcard, so a workspace subdomain can never be the
         // registered URI. See `google` for what follows from that.
+        // Where the exporter's own browser lands. Before the Leptos routes,
+        // and answering with a cookie and a redirect rather than a page.
+        .route("/print/{token}", get(printing::print))
         .route("/auth/google/start", get(google::start))
         .route("/auth/google/callback", get(google::callback))
         .leptos_routes_with_context(

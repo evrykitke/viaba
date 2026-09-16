@@ -47,6 +47,9 @@ pub struct AppState {
     /// process running without background jobs - and then an export waits for
     /// the next poll instead, which is slower and not broken.
     pub exports: Option<ExportSignal>,
+    /// What a browser sent to print a report is let in with.
+    #[cfg(feature = "ssr")]
+    pub printing: ExportTokens,
 }
 
 /// Somewhere to say that an export has been raised.
@@ -64,6 +67,101 @@ pub struct ExportSignal(pub tokio::sync::mpsc::UnboundedSender<(TenantSlug, uuid
 #[derive(Clone)]
 #[cfg(not(feature = "ssr"))]
 pub struct ExportSignal;
+
+/// The tokens a headless browser is let in with, while it prints.
+///
+/// # Why this is in memory and not a table
+///
+/// The exporter and the server that answers the browser are the same process,
+/// and the token lives for as long as one print takes. A row would outlive the
+/// process that minted it, which is the one thing a credential like this must
+/// not do - and `user_tokens` is for secrets that travel in an email, not
+/// between two halves of one binary.
+///
+/// It is not a session. It names one account for one address, it is withdrawn
+/// the moment the print ends, and nothing renews it.
+#[derive(Clone, Default)]
+#[cfg(feature = "ssr")]
+pub struct ExportTokens(Arc<std::sync::Mutex<std::collections::HashMap<String, Printing>>>);
+
+/// What one outstanding token is good for.
+#[cfg(feature = "ssr")]
+pub struct Printing {
+    tenant: TenantSlug,
+    user: phonix_core::identity::UserId,
+    /// Where the browser is sent, which is the only page this token opens.
+    address: String,
+    expires_at: chrono::DateTime<chrono::Utc>,
+}
+
+#[cfg(feature = "ssr")]
+impl ExportTokens {
+    /// Let a browser in, as this account, to read this one address.
+    pub fn issue(
+        &self,
+        tenant: TenantSlug,
+        user: phonix_core::identity::UserId,
+        address: impl Into<String>,
+        life: std::time::Duration,
+    ) -> String {
+        use secrecy::ExposeSecret;
+
+        let token = phonix_services::crypto::token::IssuedToken::generate();
+        let token = token.secret.expose_secret().to_owned();
+
+        let printing = Printing {
+            tenant,
+            user,
+            address: address.into(),
+            expires_at: chrono::Utc::now()
+                + chrono::TimeDelta::from_std(life).unwrap_or(chrono::TimeDelta::zero()),
+        };
+
+        if let Ok(mut held) = self.0.lock() {
+            held.retain(|_, printing| printing.expires_at > chrono::Utc::now());
+            held.insert(token.clone(), printing);
+        }
+
+        token
+    }
+
+    /// Where this token's browser is going, if it is still good for anywhere.
+    pub fn address_of(&self, tenant: &TenantSlug, token: &str) -> Option<String> {
+        self.with(tenant, token, |printing| printing.address.clone())
+    }
+
+    /// Who the browser holding this token is reading as.
+    pub fn holder(
+        &self,
+        tenant: &TenantSlug,
+        token: &str,
+    ) -> Option<phonix_core::identity::UserId> {
+        self.with(tenant, token, |printing| printing.user)
+    }
+
+    /// Take it back. Called when the print ends, however it ended.
+    pub fn withdraw(&self, token: &str) {
+        if let Ok(mut held) = self.0.lock() {
+            held.remove(token);
+        }
+    }
+
+    /// The tenant is checked here rather than by each caller: a token minted
+    /// for one workspace must not open a page in another, whatever the host
+    /// says.
+    fn with<T>(
+        &self,
+        tenant: &TenantSlug,
+        token: &str,
+        read: impl FnOnce(&Printing) -> T,
+    ) -> Option<T> {
+        let held = self.0.lock().ok()?;
+        let printing = held.get(token)?;
+
+        (printing.tenant == *tenant && printing.expires_at > chrono::Utc::now())
+            .then(|| read(printing))
+    }
+}
 
 impl AppState {
     /// The bundle every identity use case takes.
@@ -163,6 +261,23 @@ pub async fn session_token() -> Option<secrecy::SecretString> {
     cookie::read(raw, &name).map(secrecy::SecretString::from)
 }
 
+/// The print token this request carries, if it is a browser we sent.
+#[cfg(feature = "ssr")]
+pub async fn print_token() -> Option<String> {
+    use crate::server::cookie;
+
+    let state = app_state().ok()?;
+    let tenant = tenant_from_request().await.ok()?;
+    let headers: http::HeaderMap = leptos_axum::extract().await.ok()?;
+
+    let raw = headers.get(http::header::COOKIE)?.to_str().ok()?;
+
+    cookie::read(
+        raw,
+        &cookie::print_name(&state.config.security.session, tenant.slug.as_str()),
+    )
+}
+
 /// Who is making this request.
 ///
 /// Returns `None` when there is no session, an expired one, or an account that
@@ -171,7 +286,7 @@ pub async fn session_token() -> Option<secrecy::SecretString> {
 /// `phonix_services::caller`.
 pub async fn current_caller() -> Result<Option<Caller>, ServerFnError> {
     let Some(token) = session_token().await else {
-        return Ok(None);
+        return printing_caller().await;
     };
 
     let state = app_state()?;
@@ -182,6 +297,39 @@ pub async fn current_caller() -> Result<Option<Caller>, ServerFnError> {
         .map_err(|err| ServerFnError::new(CoreError::from(err)))?;
 
     Ok(auth_user.map(Caller::user))
+}
+
+/// The account a browser we sent to print is reading as.
+///
+/// Not a session: the token names one account for one address and is withdrawn
+/// when the print ends. It is resolved here rather than in a layer of its own
+/// so that a page cannot be rendered for a printer by one path and refused to
+/// the same account by another.
+#[cfg(feature = "ssr")]
+async fn printing_caller() -> Result<Option<Caller>, ServerFnError> {
+    let Some(token) = print_token().await else {
+        return Ok(None);
+    };
+
+    let state = app_state()?;
+    let tenant = tenant_from_request().await.map_err(ServerFnError::new)?;
+
+    let Some(user) = state.printing.holder(&tenant.slug, &token) else {
+        return Ok(None);
+    };
+
+    let pool = tenant_pool().await?;
+    let auth_user =
+        phonix_services::identity::authentication::load_auth_user_by_id(&pool, user, true)
+            .await
+            .map_err(|err| ServerFnError::new(CoreError::from(err)))?;
+
+    Ok(auth_user.map(Caller::user))
+}
+
+#[cfg(not(feature = "ssr"))]
+async fn printing_caller() -> Result<Option<Caller>, ServerFnError> {
+    Ok(None)
 }
 
 /// [`current_caller`], refusing anonymous requests.

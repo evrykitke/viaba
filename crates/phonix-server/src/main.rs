@@ -14,6 +14,7 @@ mod google;
 mod health;
 mod jobs;
 mod middleware;
+mod printing;
 mod profiler;
 mod rate_limit;
 mod startup;

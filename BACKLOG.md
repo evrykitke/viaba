@@ -219,19 +219,6 @@ commits it is three items.
 > like any other, and the loop takes the next one. The section is what they
 > read when they come back.
 
-- [ ] `phonix-services` The token an export prints with
-      why: a browser fetching a tenant's report page is not signed in, and the
-           export must be of what the person who asked for it may see. A
-           session cookie cannot be borrowed and a permanent key would be a
-           credential lying in a config file.
-      touch: crates/phonix-services/src/auth/, crates/phonix-web/src/server/
-      done: the exporter mints a token for the one request it is running -
-            naming the tenant, the account, the report and its parameters, and
-            good for minutes rather than hours - and the middleware accepts it
-            as that account for that address alone. Used once, and never
-            issued to anybody but the worker. A request with a stale, reused or
-            mismatched token is refused the way an unauthenticated one is.
-
 - [ ] `phonix-server` The browser that prints
       why: the exporter has to turn a report into a PDF and the engine that
            draws it correctly is already on the machine.
@@ -931,6 +918,23 @@ commits it is three items.
 ## Done
 
 <!-- The loop appends here with the commit sha. Newest first. -->
+
+- [x] `phonix-web` The token an export prints with
+      commit: "A door that opens once, onto one page"
+      moved: `phonix-web`, not `phonix-services`. The registry lives beside
+             `AppState` because the minter and the reader are one process and
+             the token never reaches a database.
+      why: a browser fetching a tenant's report page is not signed in, and the
+           export must be of what the person who asked for it may see. A
+           session cookie cannot be borrowed and a permanent key would be a
+           credential lying in a config file.
+      touch: crates/phonix-services/src/auth/, crates/phonix-web/src/server/
+      done: the exporter mints a token for the one request it is running -
+            naming the tenant, the account, the report and its parameters, and
+            good for minutes rather than hours - and the middleware accepts it
+            as that account for that address alone. Used once, and never
+            issued to anybody but the worker. A request with a stale, reused or
+            mismatched token is refused the way an unauthenticated one is.
 
 - [x] `docs` ADR 0008, and the writer it no longer describes
       commit: "The record catches up with the decision"
