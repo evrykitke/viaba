@@ -160,20 +160,6 @@ commits it is three items.
 >   comparing the three, but the look is a document setting and two places to
 >   change one thing is how they come to disagree. Ask if it is wanted.
 
-- [ ] `phonix-core` The band model, and the page a report is printed on
-      why: the screen renderer and the PDF writer have to agree on what a
-           band is and where the margins are. Two definitions of a page is
-           how a printed statement stops matching the one on screen, and
-           nobody finds out until a customer is holding it.
-      touch: crates/phonix-core/src/report/mod.rs, crates/phonix-core/src/lib.rs
-      done: `phonix_core::report` holds the band kinds - report header, page
-            header, group header, detail, group footer, report footer, page
-            footer - with `ReportKind::{List, Document}`, `PageSetup` (size,
-            orientation, margins), `LogoPlacement` and alignment. Plain data
-            with serde, no leptos and no sqlx, and
-            `cargo check -p phonix-core --all-targets --target wasm32-unknown-unknown`
-            passes.
-
 - [ ] `phonix-core` The three looks, as measurements rather than styling
       why: a look has to reach the PDF, and a PDF cannot read a stylesheet. So
            a theme resolves to numbers here - type sizes, band heights,
@@ -736,6 +722,17 @@ commits it is three items.
 ## Done
 
 <!-- The loop appends here with the commit sha. Newest first. -->
+
+- [x] `phonix-core` The band model, and the page a report is printed on
+      `phonix_core::report`, in two files: the seven band kinds with
+      `ReportKind` and `Align` beside them, and the sheet - paper, orientation,
+      margins, and what is left for bands once the margins are off it.
+      Millimetres throughout, because the PDF writer works in them and a
+      stylesheet can be given whatever unit it likes. `LogoPlacement` names a
+      band and an edge, and *whether* there is a logo is the `Option` around
+      it rather than a state inside it. The report's `Align` is its own type:
+      the grid's carries a CSS class and belongs to the screen, and this one
+      is read by a writer that has no CSS.
 
 - [x] `docs` ADR 0008, the reporting engine
       Twenty-eight items of design, written down before any of it is built.

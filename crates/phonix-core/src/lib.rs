@@ -18,6 +18,7 @@
 //! | [`numbering`]   | What number does this document get, and in what format? |
 //! | [`i18n`]        | What does it say, and in which language?    |
 //! | [`organization`] | Who is the legal entity behind this workspace? |
+//! | [`report`]      | What is a report made of, and on what page? |
 //!
 //! # This crate may not panic
 //!
@@ -62,6 +63,7 @@ pub mod money;
 pub mod numbering;
 pub mod organization;
 pub mod query;
+pub mod report;
 pub mod setup;
 pub mod tenant;
 
