@@ -58,6 +58,12 @@ pub const SERVER_REPORTS: &[ServerReport] = &[
         title: "reports.customer_statement",
         href: "/accounting/reports/statement",
     },
+    ServerReport {
+        id: "trial-balance",
+        permission: permissions::REPORTS,
+        title: "reports.trial_balance",
+        href: "/accounting/reports/trial-balance",
+    },
     // Bounded: it renders in the request and never becomes a row. It is here
     // for the same reason the other two are - the browser cannot write a file,
     // so even the immediate path draws on the server.
@@ -89,6 +95,14 @@ pub fn address(report_id: &str, parameters: &serde_json::Value) -> Option<String
 
     match report_id {
         "product-list" => Some("/inventory/items/report".to_owned()),
+        "trial-balance" => {
+            let from = text("from")?;
+            let to = text("to")?;
+
+            Some(format!(
+                "/accounting/reports/trial-balance?from={from}&to={to}"
+            ))
+        }
         "customer-statement" => {
             let party = text("party_id")?;
             let from = text("from")?;
@@ -127,6 +141,7 @@ mod render {
     use crate::ui::report::config::customer_statement::customer_statement;
     use crate::ui::report::config::product_list::{ROWS_PER_RUN, product_list};
     use crate::ui::report::config::receipt::receipt;
+    use crate::ui::report::config::trial_balance::trial_balance;
 
     /// Draw one report on the server, as `caller`.
     ///
@@ -153,6 +168,14 @@ mod render {
                 .await?;
 
                 Ok(dressed(pool, &product_list(), &page).await)
+            }
+            "trial-balance" => {
+                let from = date(parameters, "from")?;
+                let to = date(parameters, "to")?;
+                let report =
+                    phonix_services::books::report::trial_balance(pool, caller, from, to).await?;
+
+                Ok(dressed(pool, &trial_balance(), &report).await)
             }
             "customer-statement" => {
                 let statement = statement(pool, caller, parameters).await?;

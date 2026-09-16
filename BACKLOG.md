@@ -219,21 +219,6 @@ commits it is three items.
 > like any other, and the loop takes the next one. The section is what they
 > read when they come back.
 
-- [ ] `phonix-web` The trial balance, as a definition
-      why: second of the four statements. It is the simplest - every account,
-           two columns, and a pair of totals that must agree - which makes it
-           the one that says whether a statement can be expressed without a
-           special case.
-      touch: crates/phonix-web/src/ui/report/config/trial_balance.rs,
-             crates/phonix-web/src/pages/sales/reports/trial_balance.rs
-      done: `/accounting/reports/trial-balance` opens in the viewer and draws
-            from a definition, `TrialBalance::is_balanced` still decides what
-            the footer says, the figures match the hand-coded screen for the
-            same span, and the hand-written markup is deleted.
-      verify: `/accounting/reports/trial-balance` for a span you know, against
-              the figures it gave before. The footer must still say whether it
-              balances.
-
 - [ ] `phonix-web` The balance sheet, as a definition
       why: third of the four, and the first with real nesting - classes, the
            groups inside them, and a total that has to appear at both levels.
@@ -811,6 +796,22 @@ commits it is three items.
 ## Done
 
 <!-- The loop appends here with the commit sha. Newest first. -->
+
+- [x] `phonix-web` The trial balance, as a definition
+      commit: "The first statement onto the engine"
+      why: second of the four statements. It is the simplest - every account,
+           two columns, and a pair of totals that must agree - which makes it
+           the one that says whether a statement can be expressed without a
+           special case.
+      touch: crates/phonix-web/src/ui/report/config/trial_balance.rs,
+             crates/phonix-web/src/pages/sales/reports/trial_balance.rs
+      done: `/accounting/reports/trial-balance` opens in the viewer and draws
+            from a definition, `TrialBalance::is_balanced` still decides what
+            the footer says, the figures match the hand-coded screen for the
+            same span, and the hand-written markup is deleted.
+      verify: `/accounting/reports/trial-balance` for a span you know, against
+              the figures it gave before. The footer must still say whether it
+              balances.
 
 - [x] `phonix-services` The spreadsheet a job wrote
       commit: "A column somebody can add up"
