@@ -5,6 +5,7 @@
 //! A definition names no query - its data is handed to the renderer by the
 //! screen, from a server function that already exists.
 
+pub mod balance_sheet;
 pub mod customer_statement;
 pub mod product_list;
 pub mod receipt;

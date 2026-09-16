@@ -219,20 +219,6 @@ commits it is three items.
 > like any other, and the loop takes the next one. The section is what they
 > read when they come back.
 
-- [ ] `phonix-web` The balance sheet, as a definition
-      why: third of the four, and the first with real nesting - classes, the
-           groups inside them, and a total that has to appear at both levels.
-           If grouping cannot draw a balance sheet then grouping is not
-           finished, and this is where that shows.
-      touch: crates/phonix-web/src/ui/report/config/balance_sheet.rs,
-             crates/phonix-web/src/pages/sales/reports/balance_sheet.rs
-      done: `/accounting/reports/balance-sheet` draws from a definition, the
-            as-at picker is a toolbar control and still works,
-            `BalanceSheet::is_balanced` still decides the footer, the figures
-            match for the same date, and the hand-written markup is deleted.
-      verify: `/accounting/reports/balance-sheet` at a date you know. Check
-              both levels of total, and that it still says whether it balances.
-
 - [ ] `phonix-web` The profit and loss, as a definition
       why: last of the four. With it there is one way of drawing a report in
            this codebase and no second path left to drift from it.
@@ -796,6 +782,21 @@ commits it is three items.
 ## Done
 
 <!-- The loop appends here with the commit sha. Newest first. -->
+
+- [x] `phonix-web` The balance sheet, as a definition
+      commit: "Three sections and two totals that agree"
+      why: third of the four, and the first with real nesting - classes, the
+           groups inside them, and a total that has to appear at both levels.
+           If grouping cannot draw a balance sheet then grouping is not
+           finished, and this is where that shows.
+      touch: crates/phonix-web/src/ui/report/config/balance_sheet.rs,
+             crates/phonix-web/src/pages/sales/reports/balance_sheet.rs
+      done: `/accounting/reports/balance-sheet` draws from a definition, the
+            as-at picker is a toolbar control and still works,
+            `BalanceSheet::is_balanced` still decides the footer, the figures
+            match for the same date, and the hand-written markup is deleted.
+      verify: `/accounting/reports/balance-sheet` at a date you know. Check
+              both levels of total, and that it still says whether it balances.
 
 - [x] `phonix-web` The trial balance, as a definition
       commit: "The first statement onto the engine"

@@ -59,6 +59,12 @@ pub const SERVER_REPORTS: &[ServerReport] = &[
         href: "/accounting/reports/statement",
     },
     ServerReport {
+        id: "balance-sheet",
+        permission: permissions::REPORTS,
+        title: "reports.balance_sheet",
+        href: "/accounting/reports/balance-sheet",
+    },
+    ServerReport {
         id: "trial-balance",
         permission: permissions::REPORTS,
         title: "reports.trial_balance",
@@ -95,6 +101,10 @@ pub fn address(report_id: &str, parameters: &serde_json::Value) -> Option<String
 
     match report_id {
         "product-list" => Some("/inventory/items/report".to_owned()),
+        "balance-sheet" => Some(format!(
+            "/accounting/reports/balance-sheet?as_at={}",
+            text("as_at")?
+        )),
         "trial-balance" => {
             let from = text("from")?;
             let to = text("to")?;
@@ -138,6 +148,7 @@ mod render {
     use uuid::Uuid;
 
     use crate::ui::report::ReportDefinition;
+    use crate::ui::report::config::balance_sheet::balance_sheet;
     use crate::ui::report::config::customer_statement::customer_statement;
     use crate::ui::report::config::product_list::{ROWS_PER_RUN, product_list};
     use crate::ui::report::config::receipt::receipt;
@@ -168,6 +179,13 @@ mod render {
                 .await?;
 
                 Ok(dressed(pool, &product_list(), &page).await)
+            }
+            "balance-sheet" => {
+                let as_at = date(parameters, "as_at")?;
+                let report =
+                    phonix_services::books::report::balance_sheet(pool, caller, as_at).await?;
+
+                Ok(dressed(pool, &balance_sheet(), &report).await)
             }
             "trial-balance" => {
                 let from = date(parameters, "from")?;
