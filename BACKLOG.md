@@ -12,11 +12,25 @@ it as the acceptance test.
       why: the reason this is worth doing, in one or two sentences
       touch: crates/.../file.rs, crates/.../other.rs      (optional hint)
       done: what is true afterwards that is not true now  (the acceptance test)
+      verify: what to open in the running application, and what should be true
+              on the screen                               (optional)
+      stop: why the loop ends here rather than going on   (optional)
 ```
 
 Only `why:` is required. `touch:` is a hint, not a fence — the loop may find
 the work lives elsewhere and will say so. An item with a `blocked:` line is
 skipped until that line is removed.
+
+`verify:` says a build does not finish this item. A `cargo check` proves an
+item compiles, which says nothing about whether a screen is right, so an item
+carrying this line is committed and then moved to `## Awaiting verification`
+rather than `## Done`. The user launches the application, looks, and moves it
+on — or sends it back as a new item saying what was wrong.
+
+`stop:` marks a checkpoint. The loop ends there rather than building further on
+something nobody has seen. It is the loop's own brake, not a `blocked:` line:
+the item is finished, the tree compiles, and the next item can be taken as soon
+as the user has looked.
 
 Keep items small enough that one of them is one commit. If an item needs three
 commits it is three items.
@@ -25,38 +39,694 @@ commits it is three items.
 
 ## Next
 
-> **The queue is empty.** The loop ran it out on 2026-09-15 and stopped,
-> which is how it ends rather than a fault. Everything below `## Done` was
-> taken one item to one commit; the tree is clean.
+> **The reporting engine**, queued 2026-09-16. Twenty-eight items in order: the
+> decision record, the model, the renderer, the viewer that holds it, one
+> report of each kind to prove it, the receipt a grid row opens, the three
+> looks and the document settings an administrator keeps, then grouping, charts, drill-down,
+> pagination, PDF, the spreadsheet exports, and the four existing statements
+> re-cut onto it last.
 >
-> **What to put here next is a decision, not a gap.** The candidates are in
-> `WORKFLOWS.md`: what ERPNext, Odoo and Frappe HR define against what viaba
-> has, with `[-]` for the deliberate omissions and `[?]` for the unverified.
-> The three unqueued People gaps are named at the foot of this section.
-> Refill it and start the loop again with `/loop /advance`.
+> **A `cargo check` does not finish an item here.** Most of these put
+> something on a screen, and the build says nothing about whether it is right.
+> An item carrying a `verify:` line goes to `## Awaiting verification` when it
+> is committed, not to `## Done`, and the user moves it on after looking at
+> it in the running application. An item carrying `stop:` is a checkpoint: the
+> loop ends there rather than building further on something unseen.
+>
+> **Eleven decisions the user made on 2026-09-16.** They are settled. An item
+> below that looks like it reopens one has been misread.
+>
+> 1. **A definition is typed Rust, not a data file**, and it lives in
+>    `crates/phonix-web/src/ui/report/config/`, one file per report, mirroring
+>    `ui/table/config/` exactly. A field bound to something that does not
+>    exist must fail to compile, and that is precisely what a TOML file cannot
+>    do. The alternative - a file naming columns by string, resolved against a
+>    row at runtime - means inventing a dynamic value layer nothing else in
+>    this tree has, and losing the compile-time check on every field and every
+>    i18n key to buy it.
+> 2. **A report fills the page, inside the application shell.** The navigation
+>    and the header stay exactly where they are; the report takes the whole of
+>    the content area rather than sitting in a panel with other things beside
+>    it. It is not a chrome-less takeover of the window.
+> 3. **The viewer has a toolbar**, and the export formats are one dropdown on
+>    it rather than a row of buttons that grows every time a writer lands.
+> 4. **Charts are part of a report, not a decoration.** Bars, lines and the
+>    rest are a band like any other, and a report may be nothing but a chart.
+> 5. **PDF is written on the server**, from a paginator that is pure and
+>    tested. A statement that can only be printed out of a browser cannot be
+>    attached to an email or filed, which is most of what a statement is for.
+> 6. **All four statements move onto the engine**, and **the band model lives
+>    in `phonix-core`** because the screen and the PDF writer are both
+>    consumers of it from the first day.
+> 7. **A grid row can open its record as a report.** Most grids offer only
+>    "open"; a document behind a row is a report, and the customer receipts
+>    list is where that starts - `ui/table/config/payments.rs`, the money a
+>    customer paid, not `receipts.rs`, which is what arrived from a supplier.
+>    The user chose between the two on 2026-09-16.
+> 8. **A tenant keeps document settings in administration** - per document
+>    type: the paper, whether the logo is drawn and where, and the free text
+>    in the header and footer. **This is not a report designer.** The layout
+>    is typed Rust and stays that way; what a tenant owns is a bounded set of
+>    answers, exactly the split `config/numbering` already makes between the
+>    question an app asks and the answer a tenant gives. Anything that would
+>    let somebody move a band, add a column or bind a field is out of scope
+>    and stays out.
+> 9. **Three looks, chosen and not authored** - Modern, Compact and
+>    Professional. Compact follows the RDLC style: dense rows, gridlines,
+>    small type, as many rows to a page as will go. A look resolves to
+>    measurements in `phonix-core`, never to a stylesheet, because the PDF
+>    writer and the paginator both need the numbers. A definition names its
+>    look and the document settings override it.
+> 10. **An export is a job when the work is unbounded.** A statement over a
+>     year of a busy ledger is minutes of rendering, and a request that held a
+>     connection open for all of it would lose the work the moment somebody
+>     closed the tab: that raises a row, a worker renders it, and the bytes
+>     are stored as an ordinary file. A receipt is one record and a known
+>     number of lines; it renders in the request and comes back at once,
+>     because a round trip through a queue to produce one page is a slower
+>     answer and a second set of failures for no gain.
+>
+>     **The definition declares which, and says what bounds it.** This is the
+>     same judgement this codebase already demands about an unpaged read -
+>     *"a query left unpaged on purpose gets one line on its doc comment
+>     saying what bounds it"* - and it is settled per report, in code, rather
+>     than by a size threshold nobody can predict or a switch on a screen.
+>     Growing with the data means a job. Bounded by the record it is about
+>     means inline.
+>
+>     **This only stays honest if there is one writer.** A format writer is a
+>     function from a definition, its rows and its settings to bytes. It lives
+>     in `phonix-services`, it takes no pool and no worker context, and the
+>     request path and the exporter both call the same one. Two writers that
+>     drifted would be a receipt and a statement that disagree about what a
+>     PDF looks like. The job machinery is the shape `files::verify` already
+>     has - claim, work, write the outcome and its event in one transaction -
+>     and the exporter is a fourth loop beside the verifier, the relay and
+>     the sweeper.
+> 11. **The user verifies in the running application.** The loop stops at the
+>     seven checkpoints marked `stop:` below, plus the one at the end.
 >
 > **Nothing in this branch has run against a database.** Migrations
-> `hr/0003` (holidays), `hr/0004` (attendance), `hr/0005` (shifts),
-> `hr/0006` (movements), `hr/0007` (applicants) and
-> `core/0023` (the `Pages.Sales` → `Pages.Accounting` rename) are all
-> unapplied and compiler-checked only. The `generate_series` + `LATERAL`
-> queries in `hr::holiday::working_days` and `hr::shift::for_span` are the
-> least-exercised SQL in it. Expect the first browser run to be where that
-> gets found out.
+> `hr/0003` - `hr/0007` and `core/0023` are unapplied and compiler-checked
+> only. The first checkpoint is where that gets found out, because it is the
+> first time anything here is launched.
+> **Two items below need a migration** - the document settings table,
+> `core/0024`, and the export request table, `core/0025` - and they are the
+> only two. An item that finds it needs another should say so rather than
+> quietly adding one.
 >
-> **Decisions the user made during the run**, all already applied:
-> Selling/Accounting menus with invoices under Selling only; the permission
-> root renamed with a migration rather than dropping the home-to-permission
-> invariant; no geolocation on attendance; `chrono-tz` as a server-only
-> dependency for lateness.
+> **Deliberately not queued**, so that nothing below quietly grows into it:
 >
+> - **The report row action on every other grid.** It lands on the payments
+>   list only. The action is general and a grid adopts it by naming a
+>   definition, but the invoice, the delivery note, the purchase order and the
+>   credit note each need a document designed for them - four more items, not
+>   four more lines. Queue them when somebody has decided each should exist.
+> - **A report designer.** See decision 8. A tenant keeps document settings,
+>   not layouts.
+> - **DOCX and HTML export.** The reference products offer both. Nobody has
+>   asked for either, and PDF, XLSX and CSV cover what a report is actually
+>   sent as.
+> - **A look somebody authors.** Three named looks, chosen from. A fourth is a
+>   commit, not a settings field, and a tenant-authored one is the report
+>   designer that decision 8 rules out.
+> - **An exports history screen.** A finished export is an ordinary stored
+>   file, so it is not lost, but nothing lists what a person has run. Worth
+>   having once there is enough of it to list; not before.
+> - **Emailing an export.** The bytes being a stored file makes this small, and
+>   sending a customer their statement is the obvious next thing. It is still a
+>   decision somebody has to make rather than a gap.
+> - **Switching the look from the viewer's toolbar.** It would be useful for
+>   comparing the three, but the look is a document setting and two places to
+>   change one thing is how they come to disagree. Ask if it is wanted.
 
-> **The People section is finished**, against what was queued on
-> 2026-09-15. What Frappe HR has and viaba does not is now only: expense
-> claims (needs `app-books`), performance management, and timesheets - plus
-> leave, payroll, salary and contracts, which are deliberate omissions with
-> their reasoning in ADR 0006 §9. None of these are queued; adding one is a
-> decision rather than a gap. See `WORKFLOWS.md`.
+- [ ] `phonix-core` The band model, and the page a report is printed on
+      why: the screen renderer and the PDF writer have to agree on what a
+           band is and where the margins are. Two definitions of a page is
+           how a printed statement stops matching the one on screen, and
+           nobody finds out until a customer is holding it.
+      touch: crates/phonix-core/src/report/mod.rs, crates/phonix-core/src/lib.rs
+      done: `phonix_core::report` holds the band kinds - report header, page
+            header, group header, detail, group footer, report footer, page
+            footer - with `ReportKind::{List, Document}`, `PageSetup` (size,
+            orientation, margins), `LogoPlacement` and alignment. Plain data
+            with serde, no leptos and no sqlx, and
+            `cargo check -p phonix-core --all-targets --target wasm32-unknown-unknown`
+            passes.
+
+- [ ] `phonix-core` The three looks, as measurements rather than styling
+      why: a look has to reach the PDF, and a PDF cannot read a stylesheet. So
+           a theme resolves to numbers here - type sizes, band heights,
+           padding, rule weights - and the screen turns those into styles while
+           the writer draws with them directly. A theme that existed only as
+           CSS classes would be a screen that looks one way and a file that
+           looks another, which is the failure the band model is in core to
+           avoid. The paginator needs these numbers too: how many rows reach a
+           page is a consequence of the look, not a constant.
+      touch: crates/phonix-core/src/report/
+      done: `ReportTheme::{Modern, Compact, Professional}` with a resolved
+            metrics type behind it - type scale, band heights, cell padding,
+            rule weights and where a rule is drawn at all. **Modern** is the
+            default and matches the rest of the application: generous spacing,
+            hairline rules, colour for emphasis. **Compact** is the RDLC look -
+            dense rows, small type, full gridlines, minimal padding, no colour;
+            it is the one chosen when rows per page is what matters.
+            **Professional** is the document look for something a customer
+            receives: a strong rule under the letterhead, wider margins,
+            restrained colour, totals given weight. Three named looks and no
+            more - a tenant chooses between them and does not author one.
+            Plain data, no CSS and no leptos, and it compiles to wasm.
+
+- [ ] `phonix-web` The report definition, bound to a typed row
+      why: a report field must name a real field of a real struct, the way
+           `Column::new` already does for a grid - that is the whole reason
+           definitions are Rust here. Without it there is a band model and
+           nothing to put in it.
+      touch: crates/phonix-web/src/ui/report/mod.rs, crates/phonix-web/src/ui/mod.rs
+      done: `ReportDefinition<T>` is a builder taking bands from
+            `phonix_core::report` and `Field<T>` closures over the row type,
+            whose data comes from a typed server fn and never from a query the
+            definition composed. It also declares whether an export of it is
+            bounded or grows with the data - the first decides its own size,
+            the second is a job - and a definition claiming to be bounded
+            carries one line saying what bounds it, the way an unpaged query
+            does. `ui/report/` is a peer of `ui/table/` and
+            reuses `Cell` and `Align` rather than growing a second set of them.
+
+- [ ] `phonix-web` A report drawn from its definition
+      why: the definition describes a report and nothing renders one. This is
+           the component the viewer and every screen below hand a definition
+           and rows to, so that a page gains a report without writing markup.
+      touch: crates/phonix-web/src/ui/report/
+      done: one component draws every band in order for both kinds, in the
+            theme the definition names, and a page that wants a report writes
+            none of its own markup. The three looks differ by the metrics they
+            resolve to and not by three sets of markup - one set of bands,
+            measured differently. Nothing in it reads the clock - the reason `pages/sales/reports/mod.rs` already
+            gives for that still holds here, and a mismatch costs the whole
+            page.
+
+- [ ] `phonix-web` The viewer, which fills the page inside the shell
+      why: a report is read at the width it will print at, and a report shown
+           in a panel with something else beside it is read at neither. This is
+           the frame every report below opens in, and the toolbar is part of
+           it: putting the toolbar off means twenty reports that each grew
+           their own controls.
+      touch: crates/phonix-web/src/ui/report/viewer.rs,
+             crates/phonix-web/src/components/shell/
+      done: a report route fills the shell's content area - title, toolbar, and
+            a scrolling surface holding the report at its page width - rather
+            than sharing that area with a panel. The navigation and the header
+            are untouched: this is a page inside the shell, not a takeover of
+            the window. The toolbar declares its slots - the export menu,
+            print, page navigation, fit-to-width - and the export menu is one
+            dropdown listing whatever formats the definition registers, hidden
+            rather than empty while none have landed. Choosing one raises a job
+            rather than producing a file on the spot - what that looks like is
+            its own item, and nothing here should be built as though the bytes
+            come back from the click. A report parameter, like
+            the customer or the span, is a control on this toolbar rather than
+            a header above it.
+      verify: nothing to open on its own - no report is defined yet, and the
+              first one is the item below. The viewer is judged at that
+              checkpoint. This line is here so an empty frame is not mistaken
+              for something the build finished.
+
+- [ ] `phonix-web` The customer statement, as a definition
+      why: the first real document through the engine, and the one that proves
+           it - a letterhead, an address block, opening and closing balances,
+           an ageing summary and a total. If the band model cannot draw what
+           `customer_statement.rs` already draws by hand, the model is wrong,
+           and finding that out here is cheaper than after three more reports
+           are built on it.
+      touch: crates/phonix-web/src/ui/report/config/customer_statement.rs,
+             crates/phonix-web/src/pages/sales/reports/customer_statement.rs
+      done: `/accounting/reports/statement` opens in the viewer and draws from
+            a definition over `app_books::report::CustomerStatement`; the
+            customer and span pickers are toolbar controls and still work;
+            every figure matches what the hand-coded screen showed for the same
+            customer and span. The hand-written markup is deleted rather than
+            left beside it.
+      verify: `/accounting/reports/statement` on 3010. Pick a customer and a
+              span, and check the figures against what the same screen showed
+              before the change - the totals, the ageing and the closing
+              balance. The report should fill the content area with the
+              navigation still beside it.
+      stop: first checkpoint. Nothing here has been launched before, so this is
+            where the unapplied migrations and the two untested SQL queries in
+            `hr::holiday` and `hr::shift` get found out as well.
+
+- [ ] `phonix-web` The logo, where the definition says it goes
+      why: `OrganizationProfile::logo_file_id` is already documented as "the
+           uploaded logo that goes on documents", and no document draws it. A
+           statement that reaches a customer with no letterhead is the one
+           thing that makes the whole engine look unfinished.
+      touch: crates/phonix-web/src/ui/report/, crates/phonix-core/src/organization.rs
+      done: a report draws the workspace logo in the placement its definition
+            names - left, centre or right of the report header, or in the page
+            header on every page - at a declared height. A workspace with no
+            logo set draws its name rather than leaving a gap, and the file is
+            resolved once per report rather than once per page.
+      verify: set a logo in the workspace settings, then reopen the statement.
+              It should appear where the definition places it, at a sane size.
+              Clear the logo and check the name is drawn instead of a hole.
+
+- [ ] `phonix-web` The receipt, and the grid row that opens it
+      why: most grids in this kit offer one row action, "open", and it goes to
+           a form. A document sits behind a great many of those rows, and a
+           receipt is the plainest case - somebody is handed one. This is also
+           the first report over a single record rather than a span, which is
+           the shape an invoice, a delivery note and a purchase order all take
+           afterwards.
+      touch: crates/phonix-web/src/ui/report/config/receipt.rs,
+             crates/phonix-web/src/ui/table/config/payments.rs,
+             crates/phonix-web/src/ui/table/action.rs
+      done: a receipt definition over one payment, read through the existing
+            `payment_detail` rather than a read of its own, showing who paid,
+            what against, what is on account, and the receipt number the
+            `RCT-{YYYY}-#####` series issued. The payments grid gains a second
+            row action beside Open that opens that record in the viewer. The
+            action is general - it names a definition and a row's id, so any
+            grid adopts it by naming its own definition, and nothing about it
+            is specific to payments. A draft has no receipt: the action is
+            offered through `RowAction::when` on posted rows only, the way the
+            kit already decides an action does not apply to a row. The
+            definition declares itself bounded - one payment and its
+            allocations, which is a page - so its export will render in the
+            request rather than through the queue.
+      verify: the payments list. The row menu should offer Open and Report; the
+              report should open in the viewer with the receipt number and the
+              figures matching the row. Check a draft does not offer it.
+
+- [ ] `phonix-core` The document settings a tenant keeps
+      why: an invoice that cannot carry the tenant's own payment terms is one
+           they will keep producing outside the system. This is the table and
+           the type, not the screen - and the line it must not cross is that it
+           holds a bounded set of answers, never a layout. Paper, logo, and the
+           text in the header and the footer.
+      touch: migrations/apps/core/0024_document_settings.sql,
+             crates/phonix-core/src/report/, crates/phonix-services/
+      done: `core.document_settings` keyed by document type, holding the look,
+            the page size and orientation, whether the logo is drawn and in
+            which placement and at what height, and header and footer text. The
+            look is one of the three `ReportTheme` names and the column refuses
+            anything else - a free-text theme is a report designer arriving
+            through the back door. The text
+            is the tenant's own words and is stored as such - it is not an i18n
+            key and must not be looked up in the catalog. A type in
+            `phonix_core::report` reads it, a service writes it, and a document
+            type with no row falls back to the defaults rather than to nothing.
+            The migration is validated against a staging database in a
+            rolled-back transaction, the way `delivery_lines.invoiced` was.
+
+- [ ] `phonix-config` The document settings each app declares
+      why: the tenant owns the answer but somebody has to ask the question -
+           which documents this workspace issues and what they should look like
+           out of the box. `config/numbering/<app>.toml` already makes exactly
+           this split and is the file to copy, down to validating at start-up
+           so a typo stops a deployment rather than an invoice.
+      touch: crates/phonix-config/src/documents.rs, config/documents/books.toml,
+             config/documents/inventory.toml, crates/phonix-config/src/lib.rs
+      done: `config/documents/<app_id>.toml` declares a default per document
+            type, read and validated at start-up next to the numbering files,
+            and installing an app inserts them with `ON CONFLICT DO NOTHING` so
+            a redeploy never puts back a setting a tenant changed. A document
+            type declared here but carrying no numbering series is a validation
+            error: the set of documents this workspace issues is already named
+            in `config/numbering/`, and two files disagreeing about it is how a
+            setting ends up attached to a document that does not exist. An app
+            with no file is not an error.
+
+- [ ] `phonix-web` The document settings tab, in administration
+      why: the settings exist and nobody can change them. Administration
+           already has this exact screen for numbering - a tab, a document type
+           to pick, a form and a preview - and a second tab that worked
+           differently would be a second idiom for one job.
+      touch: crates/phonix-web/src/pages/admin/documents.rs,
+             crates/phonix-web/src/pages/admin/settings.rs
+      done: a Documents tab beside Numbering, listing the document types this
+            workspace issues, with the look, the paper, the logo switch and
+            placement, and the header and footer text. The look is a choice of
+            three, shown as what each is for rather than as three words -
+            somebody picking one should not have to run a report to find out
+            what Compact means. It previews against a sample rather
+            than against a real document, for the reason the numbering tab
+            gives about a preview that promises something the save may not
+            keep. The tab is gated on the permission the other settings tabs
+            use. No field on it moves a band, adds a column or binds anything -
+            if one seems to be needed, that is a finding for the report, not a
+            field.
+      verify: Administration, the Documents tab. Change the look, the paper,
+              the logo placement and the footer text on the invoice, save, and
+              reopen - the values should still be there. Nothing is expected to redraw
+              yet; the item below is what reads them.
+
+- [ ] `phonix-web` A report drawn to its document settings
+      why: the settings are kept and nothing reads them, which is the worst of
+           the three states - an administrator changes the footer text and the
+           invoice is unmoved. This is the item that makes the tab mean
+           something.
+      touch: crates/phonix-web/src/ui/report/, crates/phonix-core/src/report/
+      done: a document report resolves its settings once, before drawing, and
+            uses them for the look, the page size and orientation, whether the
+            logo is drawn and where, and the header and footer text. The
+            definition's own choice is the default and the setting overrides
+            it, which is the rule for the theme as much as for the placement.
+            Settings are resolved on the server and travel with the report, so
+            the screen, the PDF and the spreadsheet cannot disagree about what
+            a document looks like. A list report has no settings row and keeps
+            the look its definition names - the tenant's document settings are
+            per document type, and a product list is not a document.
+      verify: change the look, the footer text and the logo placement on the
+              invoice in administration, then open a receipt and the customer
+              statement. Both should redraw with the new settings, and each of
+              the three looks should be recognisably itself - Compact fitting
+              visibly more rows on a page than Modern. Turn the logo off and
+              check the letterhead closes up rather than leaving a hole.
+      stop: second checkpoint. Four items of documents work land here - the
+            receipt, the row action, the settings and the screen that keeps
+            them - and the migration in the middle of it is the only one this
+            queue adds.
+
+- [ ] `phonix-web` The product list, as the first list report
+      why: the document kind is proved and the list kind is not - many rows, a
+           page header that repeats, a column set and a count at the foot.
+           Items are what every reference product demonstrates this with, and
+           the one list this workspace already has a paged read for.
+      touch: crates/phonix-web/src/ui/report/config/product_list.rs,
+             crates/phonix-web/src/server_fns/inventory_fns.rs
+      done: a product list report reads through the existing paged item list
+            rather than a read of its own, repeats its page header, and counts
+            its rows at the foot. It does not hold an unbounded result set in
+            memory - unpaged reads are a hazard this backlog already has four
+            commits about.
+      verify: the product list report. Scroll past the first page and check the
+              page header repeats and the count at the foot is the real number
+              of items.
+
+- [ ] `phonix-web` Where a report is found, and who may run it
+      why: two reports exist and the only way to either is knowing its address.
+           `Pages.Accounting.Reports` already gates the four statements as one
+           permission; a report the engine serves must be gated the same way
+           rather than being open because it is new.
+      touch: crates/phonix-web/src/ui/report/, crates/phonix-web/src/navigation/
+      done: an index lists every definition the viewer is permitted to run,
+            grouped by the app that declares it, and a definition carries the
+            permission it needs. A viewer without that permission is not shown
+            the report and cannot reach it by typing the address.
+      verify: the reports index, then sign in as an account without
+              `Pages.Accounting.Reports` and confirm the statement is neither
+              listed nor reachable by typing its address.
+
+- [ ] `phonix-web` Grouping, and what a group adds up to
+      why: a list report without groups is a grid with a letterhead. A group
+           header, a group footer and a subtotal is what separates the two, and
+           all three statements still to be migrated group.
+      touch: crates/phonix-web/src/ui/report/, crates/phonix-core/src/report/
+      done: a definition declares what it groups by and which fields total; the
+            renderer draws a header and a footer per group; a subtotal is
+            computed from the rows of that group rather than re-read. Money
+            totals go through `Money` and never through `f64` - `Cell::number`
+            is a display type, not an arithmetic one.
+      verify: the product list grouped by its category. Add up one group's rows
+              by hand and check the subtotal, then check the subtotals add to
+              the report total.
+      stop: third checkpoint. The list kind, the logo, the index and grouping
+            are all in by here, and the three items after this build on the
+            arithmetic.
+
+- [ ] `phonix-web` The chart, as a band the server drew
+      why: charts are part of a report here, not a decoration on one, which is
+           why this sits before the exports rather than after them. A
+           JavaScript chart library is the wrong answer twice over: it draws
+           nothing during the server's render, which is the hydration mismatch
+           that takes the whole page down, and it draws nothing at all into a
+           PDF.
+      touch: crates/phonix-core/src/report/, crates/phonix-web/src/ui/report/
+      done: a chart band drawn as inline SVG from the report's own rows, in the
+            kinds a report actually needs - bar and column including stacked,
+            line, area, and pie or donut - with axis, ticks, labels and legend
+            identical on the server and in the browser. It reads the same rows
+            and the same group subtotals the bands do rather than a query of
+            its own, and a report whose only band is a chart is a report. No
+            `<canvas>`, no chart dependency, no clock. The geometry is computed
+            in `phonix_core::report` so the PDF writer can draw the same chart
+            from the same numbers.
+      verify: a report with each chart kind on it. Check the bars and the
+              legend against the numbers in the table below them, then reload
+              with the browser console open - a hydration mismatch shows there
+              and kills every handler on the page.
+      stop: fourth checkpoint. A chart that renders differently on the two sides
+            is the failure this design exists to avoid, and it is only visible
+            in a running browser.
+
+- [ ] `phonix-web` A group that opens and closes
+      why: drill-down, and what makes a long grouped report readable - the
+           groups are the report, and the detail is opened where somebody wants
+           it. Without it a hundred-group report is a thousand-row scroll.
+      touch: crates/phonix-web/src/ui/report/
+      done: a group header toggles its detail where the definition allows it,
+            the report opens in the state the definition names, and that state
+            belongs to the browser - it does not survive a reload and never
+            goes to the server. Printing and every export ignore it entirely:
+            an archived statement with sections collapsed is evidence with
+            holes in it.
+      verify: collapse a group, reload, and confirm it opens in the state the
+              definition names rather than the one you left it in.
+
+- [ ] `phonix-core` The paginator, which decides where a page ends
+      why: the PDF writer needs pages and a browser will not hand it any. This
+           is the one piece of the engine whose correctness a test actually
+           establishes - a group header orphaned at the foot of a page, a
+           footer that does not fit, a detail band split in half - so it is
+           pure, it is in core, and it is tested before anything draws with it.
+      touch: crates/phonix-core/src/report/
+      done: given a theme's metrics, a page setup and the rows, it returns
+            pages with their bands placed, repeating the page header and any group
+            header whose group continues onto the next page. A group header
+            alone at the foot of a page moves to the next one. A chart band is
+            placed whole or moved, never split. Tested: the orphan case, the
+            exact-fit case, a single row taller than a page, and that Compact
+            fits more rows on a page than Modern - the one assertion that
+            proves the look actually reaches the arithmetic. The viewer's
+            page navigation reads its answer rather than counting separately.
+      verify: the viewer's page navigation on a long report - the page count
+              and jumping to the last page. The unit tests carry the rest.
+
+- [ ] `phonix-core` The export request, as a row
+      why: an export is a job, not an answer to a request. A statement over a
+           year of a busy ledger is minutes of rendering, and a server function
+           that returned the bytes would hold a connection open for all of it
+           and lose the work if the reader closed the tab. A row survives both.
+           This is the request and its states, not the worker - that is the
+           item below. Only an unbounded export raises one: a receipt renders
+           in the request and never becomes a row, so nothing here is on the
+           path of a document somebody is waiting on.
+      touch: migrations/apps/core/0025_report_exports.sql,
+             crates/phonix-core/src/report/, crates/phonix-db/, crates/phonix-services/
+      done: `core.report_exports` holds which report, the parameters it was run
+            with, the format asked for, who asked, when, the state, and - once
+            there is one - the id of the stored file. The states are the four
+            that can be told apart: requested, running, ready, failed, with the
+            reason kept on a failure so a screen can say more than "it did not
+            work". A service raises one and reads one back; `Caller::require`
+            gates raising it against the report's own permission. **Who asked
+            is part of the row** because a worker has no caller of its own, and
+            an export that rendered as nobody would be a way to read a report
+            through a queue that the screen refuses. The migration is validated
+            against a staging database in a rolled-back transaction.
+
+- [ ] `phonix-server` The exporter, and CSV as the first thing it writes
+      why: the fourth loop beside the verifier, the relay and the sweeper, and
+           it works the way the verifier already does because that shape is
+           settled here - claim a row, do the work, write the outcome and its
+           event in one transaction. CSV is what proves the path rather than
+           what anybody wanted first: `to_csv` already exists and is pure, so
+           this item is the plumbing with the least possible rendering in the
+           way of seeing whether it runs.
+      touch: crates/phonix-server/src/jobs.rs, crates/phonix-services/,
+             crates/phonix-web/src/ui/table/export.rs
+      done: an exporter loop claims a requested export, calls the writer,
+            stores the bytes through `FileStorage` as an ordinary file row, and
+            marks the request ready with that file's id - or failed, with the
+            reason. The writer is a plain function from a definition, its rows
+            and its settings to bytes, in `phonix-services`, taking no pool and
+            no worker context - because the request path calls the same one for
+            a bounded report. A writer that could only be reached from the
+            queue is the design having gone wrong.
+            Raising a request dispatches it immediately, the way
+            `files::dispatch` does, and the loop is the safety net for a
+            process that died mid-job rather than the normal path. It walks the
+            tenants like its three neighbours, does a bounded amount per pass,
+            and is cancellable so a shutdown drains. The worker re-checks the
+            requester's permission on the report before it renders anything: a
+            grant withdrawn between the request and the run must stop it.
+            A retry must not leave two files - the naming is deterministic from
+            the request id, for the reason `files::verify` gives. CSV itself:
+            through the existing `to_csv`, a grouped report repeating its group
+            key on every detail row rather than emitting header rows, totals as
+            a row nobody can mistake for data, and a chart band left out rather
+            than flattened into numbers pretending to be rows. The grid's own
+            browser-side CSV download is untouched - that is a different
+            feature and it stays where it is.
+
+- [ ] `phonix-web` The viewer waits for its export
+      why: the request is raised and stored and nobody can get at it. This is
+           the half of the job the reader sees: pressing a format, the report
+           still being there while it runs, and the file arriving. Doing it
+           badly is what makes an asynchronous export feel worse than a slow
+           one.
+      touch: crates/phonix-web/src/ui/report/viewer.rs,
+             crates/phonix-web/src/server_fns/
+      done: choosing a format from the export menu does one of two things, and
+            the menu looks the same either way - a bounded report comes back
+            with its file at once, and an unbounded one raises a request, says
+            it is running, and arrives when it is done. Which path a report
+            takes is its definition's declaration and never a guess made here.
+            The viewer asks after a running request on an interval and hands
+            over the file through the download path `ui/table/export.rs`
+            already uses. The asking is bounded - it stops
+            on ready, stops on failed, and gives up after a stated wait saying
+            the export is still running rather than polling for ever. A failure
+            shows the reason the row carries. Nothing blocks: the report stays
+            readable throughout, and a second format can be asked for while the
+            first is still running. Closing the page does not cancel anything -
+            the file is a stored file and it is still there afterwards.
+      verify: export the product list as CSV - unbounded, so it should say it
+              is running and then offer the file. Reload the page while it runs
+              and confirm the file still arrives: it is a job, not a page. Then
+              export a receipt, which is bounded, and check it comes straight
+              back without a wait.
+      stop: fifth checkpoint. This is the first time the queue, the worker and
+            the storage all run together, none of it has been exercised in this
+            branch, and it is the only chance to see the two paths side by side
+            before three writers are built on them.
+
+- [ ] `phonix-services` The report as a PDF a job wrote
+      why: the reason the paginator exists, and the format everything else was
+           built towards. A statement that can only be printed out of a browser
+           cannot be attached to an email or filed, and being sent to somebody
+           is most of what a statement is for.
+      touch: Cargo.toml, crates/phonix-services/, crates/phonix-server/src/jobs.rs
+      done: a second writer on the exporter, drawing from the same definition
+            the screen uses, in the same look, so the file and the screen are
+            one document. The writer is a pure-Rust crate with no system
+            dependency - confirm it builds on this toolchain before writing
+            against it, and block the item saying so if it does not. The logo
+            is read through `phonix_services::files::access`, not fetched over
+            HTTP. There is no font in this repo, so text is the base-14
+            encoding until one is embedded: a report in a locale that encoding
+            cannot carry - `locales/zh.json` exists - fails the export with a
+            reason rather than writing a file full of blank boxes. Failing
+            loudly is the point: a job that wrote something unreadable is worse
+            than one that refused.
+      verify: export the statement as PDF and open the file. The letterhead,
+              the look, the page breaks, the repeated header and the totals
+              should match the screen - put the two side by side and switch the
+              document's look to check they move together.
+      stop: sixth checkpoint. This is the artefact that leaves the building,
+            and the only way to judge a PDF is to open one.
+
+- [ ] `phonix-services` The chart, in the PDF
+      why: a chart that exists only on the screen makes the PDF the lesser copy
+           of the report, which is the opposite of the point - the PDF is the
+           one that gets sent. Separate from the chart band itself because
+           drawing to SVG and drawing to a page description are two commits.
+      touch: crates/phonix-services/, crates/phonix-core/src/report/
+      done: the PDF writer draws bars, lines, areas, pie segments, axis ticks
+            and labels from the same geometry the SVG uses, so the two are one
+            picture rather than two drawings of one idea. A chart band is never
+            silently skipped: if the writer cannot draw a kind, the export
+            fails naming it rather than producing a report with a hole where
+            the chart was.
+      verify: export a report with each chart kind and put the PDF beside the
+              screen. They should be the same picture, not two drawings of one
+              idea.
+
+- [ ] `phonix-services` The spreadsheet a job wrote
+      why: CSV loses the totals, the grouping and the type of every number -
+           somebody who wanted to pivot the export has to retype it. This is
+           the export an accounts department actually asks for, and the third
+           writer on a path that by now has carried two.
+      touch: Cargo.toml, crates/phonix-services/
+      done: XLSX from the definition, with numbers as numbers and dates as
+            dates rather than strings, a frozen header row, and group subtotals
+            as real cells. It adds a pure-Rust dependency: name it in the commit
+            body and say what it was chosen over. By this item the exporter has
+            three writers and adding a fourth should be a writer and a line on
+            an enum - if it is not, say so in the report, because that is the
+            design having gone wrong rather than a format being awkward.
+      verify: export as XLSX and open it. Sum a column in the spreadsheet - if
+              the numbers are text it will not add up - and check the dates
+              sort as dates and the header row is frozen.
+      stop: seventh checkpoint. Every export format is in by here, and the three
+            items after it are the remaining statements moving onto all of them
+            at once.
+
+
+- [ ] `phonix-web` The trial balance, as a definition
+      why: second of the four statements. It is the simplest - every account,
+           two columns, and a pair of totals that must agree - which makes it
+           the one that says whether a statement can be expressed without a
+           special case.
+      touch: crates/phonix-web/src/ui/report/config/trial_balance.rs,
+             crates/phonix-web/src/pages/sales/reports/trial_balance.rs
+      done: `/accounting/reports/trial-balance` opens in the viewer and draws
+            from a definition, `TrialBalance::is_balanced` still decides what
+            the footer says, the figures match the hand-coded screen for the
+            same span, and the hand-written markup is deleted.
+      verify: `/accounting/reports/trial-balance` for a span you know, against
+              the figures it gave before. The footer must still say whether it
+              balances.
+
+- [ ] `phonix-web` The balance sheet, as a definition
+      why: third of the four, and the first with real nesting - classes, the
+           groups inside them, and a total that has to appear at both levels.
+           If grouping cannot draw a balance sheet then grouping is not
+           finished, and this is where that shows.
+      touch: crates/phonix-web/src/ui/report/config/balance_sheet.rs,
+             crates/phonix-web/src/pages/sales/reports/balance_sheet.rs
+      done: `/accounting/reports/balance-sheet` draws from a definition, the
+            as-at picker is a toolbar control and still works,
+            `BalanceSheet::is_balanced` still decides the footer, the figures
+            match for the same date, and the hand-written markup is deleted.
+      verify: `/accounting/reports/balance-sheet` at a date you know. Check
+              both levels of total, and that it still says whether it balances.
+
+- [ ] `phonix-web` The profit and loss, as a definition
+      why: last of the four. With it there is one way of drawing a report in
+           this codebase and no second path left to drift from it.
+      touch: crates/phonix-web/src/ui/report/config/profit_and_loss.rs,
+             crates/phonix-web/src/pages/sales/reports/profit_and_loss.rs
+      done: `/accounting/reports/profit-and-loss` draws from a definition and
+            its figures match for the same span. `pages/sales/reports/` now
+            holds pickers and definitions only - no screen in it draws a report
+            with markup of its own, and `shared.rs` keeps only what the toolbar
+            controls still use.
+      verify: all four statements, each in the viewer, each exported once as
+              PDF. This is the last item, so it is also the whole engine's
+              verification.
+      stop: the queue ends here.
+
+
+- [ ] `phonix-server` The dispatch that jobs.rs names and nothing answers to
+      why: the module doc says "an upload is dispatched the moment its bytes
+           are down - see `files::dispatch`", and there is no `files::dispatch`.
+           The function is `files::upload::claim_for_verification`. ADR 0008 §9
+           puts the exporter on that same shape, so the next person reading for
+           it goes looking for a name that was never there.
+      touch: crates/phonix-server/src/jobs.rs
+      done: the comment names the function that exists.
+
+## Awaiting verification
+
+<!-- Committed, compiling, and not finished: each of these changed something
+     the build cannot judge. The loop puts an item here when it carries a
+     `verify:` line, with its commit sha and that line kept.
+
+     The user launches the application, looks, and then either moves the item
+     to `## Done` or writes a new item in `## Next` saying what was wrong. The
+     loop never moves anything out of this section by itself. -->
 
 ## Blocked
 
@@ -66,6 +736,17 @@ commits it is three items.
 ## Done
 
 <!-- The loop appends here with the commit sha. Newest first. -->
+
+- [x] `docs` ADR 0008, the reporting engine
+      Twenty-eight items of design, written down before any of it is built.
+      The load-bearing part is section 2: `phonix_core::report` is a new
+      top-level module in the crate that is meant not to grow one, and the
+      reason is that the screen and the PDF writer are consumers of the same
+      band model from different crates. Section 3 states the denial - a
+      definition reaches no datasource of its own and carries no SQL - and
+      section 6 draws the line between a layout, which is code, and a
+      document setting, which is the tenant's, with the report designer
+      refused by name. 0006 gained a pointer at it.
 
 - [x] `phonix-web` Recruitment, on a screen
       The last of the People screens. Hiring is a button beside the form

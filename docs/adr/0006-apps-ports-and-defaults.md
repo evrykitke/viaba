@@ -105,6 +105,12 @@ accrual is waiting for - and the mirror of all of it on the buying side, where
 not yet put cost of goods sold on an invoice, and that is the caller the port
 waits for.
 
+**How a report is drawn is now [ADR 0008](0008-reporting.md)'s.** The four
+statements section 5 makes possible are a thousand lines of hand-written markup
+apiece and none of them prints; that record specifies the engine they move onto,
+and nothing in this one changes because of it. It is where the reporting side of
+an app is argued from here.
+
 ## Section 7 follows Odoo
 
 Asked for by name, and taken seriously. The seven **location types**, stock as

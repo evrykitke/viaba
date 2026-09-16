@@ -1,0 +1,307 @@
+# ADR 0008 — The reporting engine
+
+Status: proposed; nothing built — the twenty-eight items that build it are
+queued in `BACKLOG.md`
+Date: 2026-09-16
+
+This workspace has four statements. The trial balance, the balance sheet, the
+profit and loss and the customer statement are a thousand lines of hand-written
+markup in [`pages/sales/reports/`](../../crates/phonix-web/src/pages/sales/reports/),
+and each of them decides for itself what a heading is, what a total row looks
+like and how a figure is aligned. They agree today because one person wrote all
+four in a week. The fifth will not agree, and neither will the change somebody
+makes to the third.
+
+None of them prints. There is no page, so there is no page break, so there is
+nothing to attach to an email or file — which is most of what a statement is
+for. `OrganizationProfile::logo_file_id` is documented in
+[`organization.rs`](../../crates/phonix-core/src/organization.rs) as "the
+uploaded logo that goes on documents" and no document draws it. And a grid row
+opens a form: there is no way to hand somebody the record behind a row.
+
+This record specifies the engine that answers all of that at once — one way to
+describe a report, one component that draws it, one frame it is read in, and
+one set of writers that turn it into a file. The four statements move onto it
+last, and when they have there is one way of drawing a report here and no
+second path left to drift from it.
+
+---
+
+## 1. A definition is Rust, and a field names a real field
+
+A report is a value of `ReportDefinition<T>`, built the way
+[`ui::table::config`](../../crates/phonix-web/src/ui/table/config/) already
+builds a grid: one file per report under `ui/report/config/`, a builder, and
+closures over a typed row. `ui/report/` is a peer of `ui/table/` and reuses
+`Cell` and `Align` rather than growing a second set of them.
+
+The obvious alternative is a data file — TOML naming columns by string,
+resolved against a row at runtime — and it is the one this record rules out
+first, because every other decision below leans on it.
+
+**A field that names something that does not exist must fail to compile.** That
+is the property `Column::new` has today, and a report has strictly more ways to
+lose it: a field, a group key, a total, a permission and an i18n key, each of
+which a string file turns into a runtime lookup that succeeds until the day the
+struct is renamed. Buying a data file means inventing a dynamic value layer
+nothing else in this tree has, and paying for it in every one of those places.
+
+What a data file would buy is a report somebody edits without a deploy — which
+is a report designer, and §6 says why that is not being built.
+
+## 2. The band model is in `phonix-core`, and it is a new top-level module
+
+`phonix_core::report` holds the band kinds — report header, page header, group
+header, detail, group footer, report footer, page footer — with
+`ReportKind::{List, Document}`, `PageSetup`, `LogoPlacement`, alignment, the
+resolved metrics of §5, the chart geometry of §7 and the paginator of §8.
+
+This is a new top-level module in the crate that is meant not to grow one, so
+the argument had better be in a record rather than in a commit message.
+
+**Two consumers need the same numbers on the same day.** The screen draws a
+report and the PDF writer draws the same report, and they are in different
+crates: `phonix-web` renders it and `phonix-services` writes it. A model that
+lived in either would be imported by the other across a boundary that exists
+precisely to keep the browser's crate free of I/O, or copied — and two
+definitions of where a margin is, is a printed statement that stops matching
+the one on screen, discovered by a customer holding it.
+
+It passes 0001's test for `core`: it is mechanism, not meaning. It knows a band
+is drawn above the detail rows; it does not know what a statement is. The wasm
+rule holds as written — plain data with serde, no leptos, no sqlx, and
+`cargo check -p phonix-core --target wasm32-unknown-unknown` is what says so.
+
+## 3. What a report may never do
+
+**A definition reaches no datasource of its own and carries no SQL.** Its rows
+arrive from a typed server function that already exists — the customer
+statement from `app_books::report::CustomerStatement`, the product list from
+the paged item read Inventory already has — and the definition describes what
+to draw with them.
+
+Every reference product in this category eventually grows a report that holds
+its own query, and it is where they stop being safe: a query written into a
+definition escapes the permission the read enforces, the tenancy the pool
+resolves, and the paging that keeps a list from being read whole. This
+workspace has four commits about unpaged reads already.
+
+So a report is a *view over a read that somebody else is responsible for*. If a
+report wants figures no read produces, the answer is a read in the app crate
+that owns them, with the port, the permission and the paging that implies — not
+a `SELECT` in `ui/report/config/`.
+
+The same denial covers the clock.
+[`pages/sales/reports/mod.rs`](../../crates/phonix-web/src/pages/sales/reports/mod.rs)
+gives the reason and it is unchanged here: a span worked out during the render
+and again during hydration is two different answers either side of midnight,
+and a hydration mismatch takes every handler on the page down with it.
+
+## 4. A report fills the content area, and the toolbar is part of the frame
+
+The viewer is a page inside the application shell. The navigation and the
+header stay exactly where they are; the report takes the whole of the content
+area rather than sharing it with a panel. It is not a chrome-less takeover of
+the window — somebody reading a statement is still somewhere in the
+application, and still has to leave.
+
+A report is read at the width it will print at. One shown in a column with
+something beside it is read at neither that width nor the screen's.
+
+**The toolbar is the frame's, not the report's** — the export menu, print, page
+navigation, fit-to-width, and the report's own parameters. A customer picker
+and a span picker are controls on it rather than a header above it, which is
+what keeps the report itself the whole of the page. The formats are one
+dropdown and not a row of buttons, because a row of buttons grows by one every
+time a writer lands and the twentieth report would have grown its own.
+
+## 5. A look is measurements, not a stylesheet
+
+Three looks, named and chosen between. **Modern** is the default and matches
+the rest of the application: generous spacing, hairline rules, colour for
+emphasis. **Compact** is the RDLC look — dense rows, small type, full
+gridlines, no colour — and is the one chosen when rows to a page is what
+matters. **Professional** is for something a customer receives: a strong rule
+under the letterhead, wider margins, restrained colour, totals given weight.
+
+`ReportTheme` resolves to a metrics value in `phonix-core`: the type scale,
+band heights, cell padding, rule weights, and where a rule is drawn at all. Not
+to a class name.
+
+**A PDF cannot read a stylesheet.** A look that existed as CSS would be a
+screen that looks one way and a file that looks another — the failure §2 put
+the band model in core to avoid. The paginator needs the same numbers for a
+third reason: how many rows reach a page is a consequence of the look, and
+"Compact fits more rows on a page than Modern" is then a unit test rather than
+an intention.
+
+The three looks are one set of bands measured three ways, not three sets of
+markup. A fourth look is a commit.
+
+## 6. A layout is code; a document setting is the tenant's
+
+A tenant keeps document settings, per document type, in administration: the
+look, the paper size and orientation, whether the logo is drawn and where and
+at what height, and the free text in the header and the footer. An invoice that
+cannot carry the tenant's own payment terms is one they will keep producing
+outside the system.
+
+That list is the whole of it, and the boundary is the point. **This is not a
+report designer.** Nothing on that screen moves a band, adds a column or binds
+a field. The layout is typed Rust and stays that way.
+
+The split is the one [`config/numbering/`](../../config/numbering/) already
+makes: the app declares the question — which documents this workspace issues,
+and what they should look like out of the box, in `config/documents/<app>.toml`
+validated at start-up — and the tenant owns the answer, in
+`core.document_settings`. A document type declared with no numbering series is
+a validation error, because the set of documents a workspace issues is already
+written down once.
+
+Two rules fall out of it. The look column holds one of the three names and
+refuses anything else, since a free-text theme is the designer arriving through
+the back door. And the header and footer text is the tenant's own words: it is
+stored as words, it is never an i18n key, and it is never looked up in the
+catalogue.
+
+A definition names its own look and the settings override it. A list report has
+no settings row at all — document settings are per document type, and a product
+list is not a document.
+
+Why not a designer: a layout the tenant owns is a layout nobody can change.
+Once somebody has dragged a band, every fix to that report is a migration of
+their drawing, and the compile-time binding §1 exists for is gone on the first
+save. The reference products that offer one spend the rest of their lives
+supporting it.
+
+## 7. A chart is a band the server drew
+
+Bars, columns including stacked, lines, areas, pie and donut — drawn as inline
+SVG from the report's own rows and its own group subtotals, from geometry
+computed in `phonix_core::report`. A report whose only band is a chart is a
+report.
+
+A chart library is the wrong answer twice. It draws nothing during the server's
+render, so the first thing that happens in the browser is the hydration
+mismatch that kills every handler on the page. And it draws nothing at all into
+a PDF, so the file that gets sent would be the lesser copy of the report — the
+opposite of the point, since the file is the one that leaves the building.
+
+So: no `<canvas>`, no chart dependency, no clock. Axis, ticks, labels and
+legend are identical on both sides because both sides compute them from the
+same numbers, and the PDF writer draws from that same geometry rather than
+making a second drawing of the same idea.
+
+## 8. PDF is written here, from a paginator that is pure
+
+The file is written on the server, by a writer in `phonix-services`, from the
+same definition the screen draws.
+
+Printing from the browser was the alternative and it fails the requirement: a
+statement that can only exist while somebody has it open cannot be attached,
+filed, or produced by anything that is not a person at a keyboard — and every
+export below is a job with no browser in it.
+
+Pages come from a paginator in `phonix_core::report`: given the metrics, the
+page setup and the rows it places the bands, repeats the page header and any
+group header whose group continues, moves an orphaned group header to the next
+page, and places a chart band whole or not at all. It is pure, and it is the
+one piece of this engine whose correctness a test actually establishes — the
+orphan, the exact fit, the row taller than a page. The viewer's page navigation
+reads its answer rather than counting separately, so the screen and the file
+agree about how long the report is.
+
+There is no font in this repository. Until one is embedded the writer uses the
+base-14 encoding, and a report in a locale that encoding cannot carry —
+`locales/zh.json` exists — **fails the export naming the reason** rather than
+writing a file of blank boxes. A job that produced something unreadable is
+worse than one that refused.
+
+## 9. An export is a job when the work is unbounded, and there is one writer
+
+A statement over a year of a busy ledger is minutes of rendering. A server
+function returning those bytes holds a connection open for all of it and loses
+the work the moment somebody closes the tab. So that export raises a row in
+`core.report_exports`, a worker renders it, and the bytes are stored as an
+ordinary file.
+
+A receipt is one payment and its allocations. It renders in the request and
+comes back at once, because a round trip through a queue to produce one page is
+a slower answer and a second set of failures bought for nothing.
+
+**The definition declares which, and says what bounds it.** Not a size
+threshold, and not a switch on a screen: this is the judgement this codebase
+already demands about an unpaged read — *a query left unpaged on purpose gets
+one line on its doc comment saying what bounds it* — settled per report, in
+code, by whoever knows what the report is over. Growing with the data means a
+job. Bounded by the record it is about means inline.
+
+That only stays honest if there is **one writer per format**. A writer is a
+plain function from a definition, its rows and its settings to bytes; it lives
+in `phonix-services`, it takes no pool and no worker context, and the request
+path and the exporter call the same one. Two writers that drifted would be a
+receipt and a statement that disagree about what a PDF is.
+
+The exporter is a fourth loop beside the verifier, the relay and the sweeper in
+[`jobs.rs`](../../crates/phonix-server/src/jobs.rs), and it has the shape
+`files::verify` already has: claim a row, do the work, write the outcome and
+its event in one transaction. Raising a request dispatches it immediately, the
+way an upload is claimed the moment its bytes are down, and the loop is the
+safety net for a process that died mid-job rather than the normal path. The
+file's name is deterministic from the request id, so a retry cannot leave two.
+
+Adding a format after the third should be a writer and a line on an enum. If it
+is not, the design has gone wrong, and that is worth saying out loud rather
+than working around.
+
+## 10. Who may run a report
+
+A definition carries the permission it needs, and the index lists only what the
+viewer may run. `Pages.Accounting.Reports` already gates the four statements as
+one permission; a report the engine serves is gated the same way rather than
+being open because it is new. An address typed by hand is refused, not merely
+unlisted.
+
+**The worker re-checks before it renders.** A job has no caller of its own, so
+the row records who asked — and a grant withdrawn between the request and the
+run has to stop the render. An export that ran as nobody would be a way to read
+a report through the queue that the screen refuses.
+
+## 11. The order of work, and the two migrations
+
+The record, the model, the looks, the definition, the renderer, the viewer;
+then one report of each kind — the customer statement first, because if the
+band model cannot draw what `customer_statement.rs` draws by hand then the
+model is wrong, and finding that out before three more reports are built on it
+is the cheap version. Then the logo, the receipt and the row action that opens
+it, the document settings and the screen that keeps them; then the index,
+grouping, charts, drill-down and the paginator; then the export row, the
+exporter, CSV, PDF and XLSX; and the remaining three statements last, onto all
+of it at once.
+
+**Two migrations, and only two.** `core/0024` is the document settings table
+and `core/0025` is the export request. An item that finds it needs a third
+should say so rather than adding one quietly.
+
+The queue stops at seven checkpoints. Most of this puts something on a screen,
+and a `cargo check` says nothing about whether a screen is right.
+
+## 12. What is deliberately not built
+
+* **The report row action on every other grid.** It lands on the customer
+  receipts list only. The action is general — it names a definition and a row's
+  id — but an invoice, a delivery note, a purchase order and a credit note each
+  need a document designed for them. Four items, not four lines.
+* **A report designer.** §6. A tenant keeps document settings, not layouts.
+* **DOCX and HTML export.** The reference products offer both. PDF, XLSX and
+  CSV cover what a report is actually sent as, and nobody has asked for either.
+* **A look somebody authors.** §5. Three, chosen from.
+* **An exports history screen.** A finished export is an ordinary stored file,
+  so nothing is lost; nothing lists what a person has run. Worth having once
+  there is enough of it to list.
+* **Emailing an export.** The bytes being a stored file makes this small, and
+  sending a customer their statement is the obvious next thing. It is still a
+  decision somebody makes rather than a gap.
+* **Switching the look from the viewer's toolbar.** Useful for comparing the
+  three, and refused because the look is a document setting: two places to
+  change one thing is how they come to disagree.
