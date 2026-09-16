@@ -195,33 +195,22 @@ commits it is three items.
 > backlog has four commits undoing that shape. The charts, the collapsing
 > group and the spreadsheet wait behind both.
 
-- [ ] `phonix-services` The report as a PDF a job wrote
-      why: the reason the paginator exists, and the format everything else was
-           built towards. A statement that can only be printed out of a browser
-           cannot be attached to an email or filed, and being sent to somebody
-           is most of what a statement is for.
-      touch: Cargo.toml, crates/phonix-services/, crates/phonix-server/src/jobs.rs
-      done: a second writer on the exporter, drawing from the same definition
-            the screen uses, in the same look, so the file and the screen are
-            one document. The writer is a pure-Rust crate with no system
-            dependency - confirm it builds on this toolchain before writing
-            against it, and block the item saying so if it does not. The logo
-            is read through `phonix_services::files::access`, not fetched over
-            HTTP. There is no font in this repo, so text is the base-14
-            encoding until one is embedded: a report in a locale that encoding
-            cannot carry - `locales/zh.json` exists - fails the export with a
-            reason rather than writing a file full of blank boxes. Failing
-            loudly is the point: a job that wrote something unreadable is worse
-            than one that refused. The three definitions declare
-            `ExportFormat::Pdf` and `write_now` grows a PDF arm, because the
-            toolbar's default button is PDF and until this lands it answers
-            every report with "this document does not allow it".
-      verify: export the statement as PDF and open the file. The letterhead,
-              the look, the page breaks, the repeated header and the totals
-              should match the screen - put the two side by side and switch the
-              document's look to check they move together.
-      stop: sixth checkpoint. This is the artefact that leaves the building,
-            and the only way to judge a PDF is to open one.
+- [ ] `phonix-services` The mark, and the words around it, in the PDF
+      why: the file is the copy that gets sent, and it is the one without the
+           workspace's logo on it. The screen draws the mark and the tenant's
+           header and footer text; the writer cannot see either, because
+           `Rendered` carries neither.
+      touch: crates/phonix-core/src/report/rendered.rs,
+             crates/phonix-services/src/report/pdf.rs,
+             crates/phonix-web/src/reports.rs
+      done: `Rendered` carries the logo, its placement and the document's own
+            header and footer words, and the PDF writer draws all three where
+            the screen draws them. The image is read through
+            `phonix_services::files::access` and never fetched over HTTP. A
+            mark that cannot be decoded is drawn as the workspace's name, the
+            way the screen falls back, rather than failing the export.
+      verify: a receipt with a logo set, exported. The mark, the header text
+              and the footer text should be where they are on the screen.
 
 - [ ] `phonix-web` The pages a long report is read in
       why: a list report is one endless sheet on screen today, and the viewer's
@@ -433,6 +422,40 @@ commits it is three items.
      The user launches the application, looks, and then either moves the item
      to `## Done` or writes a new item in `## Next` saying what was wrong. The
      loop never moves anything out of this section by itself. -->
+
+- [x] `phonix-services` The report as a PDF a job wrote
+      commit: "The file that leaves the building"
+      why: the reason the paginator exists, and the format everything else was
+           built towards. A statement that can only be printed out of a browser
+           cannot be attached to an email or filed, and being sent to somebody
+           is most of what a statement is for.
+      touch: Cargo.toml, crates/phonix-services/, crates/phonix-server/src/jobs.rs
+      done: a second writer on the exporter, drawing from the same definition
+            the screen uses, in the same look, so the file and the screen are
+            one document. The writer is a pure-Rust crate with no system
+            dependency - confirm it builds on this toolchain before writing
+            against it, and block the item saying so if it does not. The logo
+            is read through `phonix_services::files::access`, not fetched over
+            HTTP. There is no font in this repo, so text is the base-14
+            encoding until one is embedded: a report in a locale that encoding
+            cannot carry - `locales/zh.json` exists - fails the export with a
+            reason rather than writing a file full of blank boxes. Failing
+            loudly is the point: a job that wrote something unreadable is worse
+            than one that refused. The three definitions declare
+            `ExportFormat::Pdf` and `write_now` grows a PDF arm, because the
+            toolbar's default button is PDF and until this lands it answers
+            every report with "this document does not allow it".
+      split: the mark and the tenant's own words at the head and foot of a
+             document came out of this item on 2026-09-16 and are queued below.
+             `Rendered` carries no logo, so putting one in the file is a change
+             to what crosses the crate boundary as well as to the writer, and
+             an image needs a decoder this workspace does not depend on yet.
+      verify: export the statement as PDF and open the file. The letterhead,
+              the look, the page breaks, the repeated header and the totals
+              should match the screen - put the two side by side and switch the
+              document's look to check they move together.
+      stop: sixth checkpoint. This is the artefact that leaves the building,
+            and the only way to judge a PDF is to open one.
 
 - [x] `phonix-core` The paginator, which decides where a page ends
       commit: "Where a page ends"

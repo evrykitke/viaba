@@ -7,4 +7,5 @@
 //! writers arrive beside it.
 
 pub mod exports;
+pub mod pdf;
 pub mod writers;

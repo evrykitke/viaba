@@ -39,6 +39,7 @@ pub fn product_list() -> ReportDefinition<Page<ItemSummary>> {
     )
     // The dense look: a list is read for how many rows reach a page.
     .theme(ReportTheme::Compact)
+    .exports(ExportFormat::Pdf)
     .exports(ExportFormat::Csv)
     .band(Band::new(BandKind::ReportHeader))
     // Repeated at the top of every page, so a torn-off sheet still says

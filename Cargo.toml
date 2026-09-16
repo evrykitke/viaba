@@ -232,6 +232,12 @@ url = "2"
 # asks for.
 qrcode = { version = "0.14", default-features = false, features = ["svg"] }
 
+# Writes the PDF an export is. Pure Rust and one crate deep - no system
+# library, no font toolchain, nothing to install on a build box. It writes the
+# file format and nothing else: laying a report out on the page is this
+# workspace's own arithmetic, in `phonix_core::report::paginate`.
+pdf-writer = "0.15"
+
 # --- wasm (hydrate) ---
 # Not pinned with '=': leptos 0.8.20 requires 0.2.108, and cargo-leptos fetches
 # a wasm-bindgen CLI matching whatever Cargo.lock resolves.

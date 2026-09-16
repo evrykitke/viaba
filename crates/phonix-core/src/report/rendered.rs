@@ -22,7 +22,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use super::{BandKind, PageSetup, ReportTheme};
+use super::{Align, BandKind, PageSetup, ReportTheme};
 
 /// One band, as something that can be written out.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -33,6 +33,9 @@ pub struct RenderedBand {
     pub headings: Vec<String>,
     /// One row of cells per line. A band drawn once has exactly one row.
     pub rows: Vec<Vec<String>>,
+    /// Which edge each column sits against. Empty means every column starts,
+    /// which is what a band built before anybody asked gets.
+    pub aligns: Vec<Align>,
 }
 
 impl RenderedBand {
@@ -42,6 +45,7 @@ impl RenderedBand {
             kind,
             headings,
             rows,
+            aligns: Vec::new(),
         }
     }
 
@@ -51,7 +55,24 @@ impl RenderedBand {
             kind,
             headings: Vec::new(),
             rows: vec![cells],
+            aligns: Vec::new(),
         }
+    }
+
+    /// Say which edge each column sits against.
+    ///
+    /// The screen reads this off the definition; a writer has only what is
+    /// here, and a column of money left-aligned in the file and right-aligned
+    /// on the screen is not the same document.
+    #[must_use]
+    pub fn aligned(mut self, aligns: Vec<Align>) -> Self {
+        self.aligns = aligns;
+        self
+    }
+
+    /// Which edge the column at this index sits against.
+    pub fn align(&self, column: usize) -> Align {
+        self.aligns.get(column).copied().unwrap_or_default()
     }
 
     /// How many columns the widest row of this band has.

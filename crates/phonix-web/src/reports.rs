@@ -89,6 +89,7 @@ mod render {
     use serde_json::Value as Json;
     use uuid::Uuid;
 
+    use crate::ui::report::ReportDefinition;
     use crate::ui::report::config::customer_statement::customer_statement;
     use crate::ui::report::config::product_list::{ROWS_PER_RUN, product_list};
     use crate::ui::report::config::receipt::receipt;
@@ -117,24 +118,49 @@ mod render {
                 )
                 .await?;
 
-                Ok(product_list().rendered(&page))
+                Ok(dressed(pool, &product_list(), &page).await)
             }
             "customer-statement" => {
                 let statement = statement(pool, caller, parameters).await?;
 
-                Ok(customer_statement().rendered(&statement))
+                Ok(dressed(pool, &customer_statement(), &statement).await)
             }
             "receipt" => {
                 let payment_id = id_of(parameters, "payment_id")?;
                 let payment =
                     phonix_services::books::payment::find(pool, caller, payment_id).await?;
 
-                Ok(receipt().rendered(&payment))
+                Ok(dressed(pool, &receipt(), &payment).await)
             }
             // A report the server does not know how to draw. Not a failure of
             // this request so much as a definition that was never added here.
             _ => Err(ServiceError::NotFound("report")),
         }
+    }
+
+    /// A report in the look the workspace keeps for its kind.
+    ///
+    /// The screen resolves the same settings out of a context; a worker has
+    /// no context, so it reads them here. A report that is not one of the
+    /// workspace's documents - a product list - keeps what its definition
+    /// says, and a setting that cannot be read is not worth failing an export
+    /// over.
+    async fn dressed<T: Send + Sync + 'static>(
+        pool: &PgPool,
+        definition: &ReportDefinition<T>,
+        data: &T,
+    ) -> Rendered {
+        let mut rendered = definition.rendered(data);
+
+        if let Some(document) = definition.document()
+            && let Ok(settings) =
+                phonix_services::workspace::documents::current(pool, document).await
+        {
+            rendered.theme = settings.theme;
+            rendered.page = settings.page();
+        }
+
+        rendered
     }
 
     /// The statement the parameters name.

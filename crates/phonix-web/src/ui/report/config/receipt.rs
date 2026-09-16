@@ -25,6 +25,7 @@ pub fn receipt() -> ReportDefinition<Payment> {
     // The workspace's own `payment` document, so its settings apply.
     .document_type("payment")
     .theme(ReportTheme::Professional)
+    .exports(ExportFormat::Pdf)
     .exports(ExportFormat::Csv)
     .logo(Logo::new(LogoPlacement::ReportHeader(Align::Start)))
     // One payment and the invoices it was set against, which is a page.

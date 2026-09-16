@@ -373,7 +373,7 @@ fn write_now_and_download(
     leptos::task::spawn_local(async move {
         match write_now(report_id.to_owned(), parameters, format).await {
             Ok(written) => {
-                export::download(&written.file_name, &written.contents);
+                export::download_file(&written.file_name, &written.bytes, &written.content_type);
                 progress.set(None);
             }
             Err(err) => progress.set(Some(Progress::Failed {

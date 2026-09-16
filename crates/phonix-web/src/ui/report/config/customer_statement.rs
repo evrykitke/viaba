@@ -25,6 +25,7 @@ pub fn customer_statement() -> ReportDefinition<CustomerStatement> {
     // no number.
     .document_type("statement")
     .theme(ReportTheme::Professional)
+    .exports(ExportFormat::Pdf)
     .exports(ExportFormat::Csv)
     .logo(Logo::new(LogoPlacement::ReportHeader(Align::Start)))
     .band(

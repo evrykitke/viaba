@@ -75,7 +75,12 @@ pub fn paginate(report: &Rendered) -> Pagination {
     let furniture = Furniture::of(report, &metrics);
     let available = (report.page.content_height_mm() - furniture.height).max(0.0);
 
-    let mut sheet = Sheet::new(&metrics, available, furniture);
+    let letterhead = report
+        .bands
+        .iter()
+        .any(|band| band.kind == BandKind::ReportHeader);
+
+    let mut sheet = Sheet::new(&metrics, available, furniture, letterhead);
 
     for (index, band) in report.bands.iter().enumerate() {
         if sheet.furniture.owns(index) {
@@ -133,10 +138,13 @@ struct Sheet<'a> {
     /// The group header still open, which is drawn again wherever its group
     /// carries on.
     group: Option<Piece>,
+    /// Whether the page header is waiting for the letterhead to go above it,
+    /// which is where the first page of a report puts the two.
+    behind_the_letterhead: bool,
 }
 
 impl<'a> Sheet<'a> {
-    fn new(metrics: &'a Metrics, available: f32, furniture: Furniture) -> Self {
+    fn new(metrics: &'a Metrics, available: f32, furniture: Furniture, letterhead: bool) -> Self {
         let mut sheet = Self {
             metrics,
             available,
@@ -145,6 +153,7 @@ impl<'a> Sheet<'a> {
             current: Vec::new(),
             used: 0.0,
             group: None,
+            behind_the_letterhead: letterhead,
         };
 
         sheet.open();
@@ -152,9 +161,18 @@ impl<'a> Sheet<'a> {
     }
 
     /// Start a page with its header on it.
+    ///
+    /// Except the first page of a report that has a letterhead: there the
+    /// header goes under it, which is where the screen draws the two.
     fn open(&mut self) {
-        let repeated = !self.pages.is_empty();
+        if self.behind_the_letterhead && self.pages.is_empty() {
+            return;
+        }
 
+        self.page_header(!self.pages.is_empty());
+    }
+
+    fn page_header(&mut self, repeated: bool) {
         if let Some(band) = self.furniture.header {
             self.current.push(Piece {
                 band,
@@ -223,6 +241,11 @@ impl<'a> Sheet<'a> {
 
         self.used += height;
         self.current.push(piece.clone());
+
+        if kind == BandKind::ReportHeader && self.behind_the_letterhead {
+            self.behind_the_letterhead = false;
+            self.page_header(false);
+        }
 
         match kind {
             // A group header with no room for a row of its group under it is a
@@ -390,6 +413,37 @@ mod tests {
                 "a page with no header on it",
             );
         }
+    }
+
+    #[test]
+    fn the_first_page_puts_its_letterhead_above_the_page_header() {
+        // Where the screen draws the two, and a file that disagreed would not
+        // be the same document.
+        let pagination = paginate(&report(
+            ReportTheme::Modern,
+            vec![
+                RenderedBand::once(BandKind::ReportHeader, vec!["As at".to_owned()]),
+                RenderedBand::once(BandKind::PageHeader, vec!["Product list".to_owned()]),
+                detail(400),
+            ],
+        ));
+
+        let first: Vec<BandKind> = pagination.pages[0]
+            .pieces
+            .iter()
+            .map(|piece| piece.kind)
+            .collect();
+
+        assert_eq!(
+            &first[..2],
+            &[BandKind::ReportHeader, BandKind::PageHeader],
+            "the letterhead is not above the page header",
+        );
+        assert_eq!(
+            pagination.pages[1].pieces.first().map(|piece| piece.kind),
+            Some(BandKind::PageHeader),
+            "a later page starts with anything but its header",
+        );
     }
 
     #[test]

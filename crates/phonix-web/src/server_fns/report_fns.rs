@@ -25,7 +25,10 @@ use uuid::Uuid;
 pub struct WrittenNow {
     /// What a browser saves it as.
     pub file_name: String,
-    pub contents: String,
+    /// The file itself. Bytes rather than text, because a PDF is not text and
+    /// a format that came back as a string would be corrupted on the way.
+    pub bytes: Vec<u8>,
+    pub content_type: String,
 }
 
 /// Raise an export for a report that grows with its data.
@@ -105,8 +108,11 @@ pub async fn write_now(
         .await
         .map_err(service_error)?;
 
-    let contents = match format {
-        ExportFormat::Csv => phonix_services::report::writers::to_csv(&rendered),
+    let bytes = match format {
+        ExportFormat::Csv => phonix_services::report::writers::to_csv(&rendered).into_bytes(),
+        ExportFormat::Pdf => {
+            phonix_services::report::pdf::to_pdf(&rendered).map_err(ServerFnError::new)?
+        }
         // Failing by name: an empty file looks like an answer.
         other => {
             return Err(ServerFnError::new(format!(
@@ -118,6 +124,7 @@ pub async fn write_now(
 
     Ok(WrittenNow {
         file_name: format!("{report_id}.{}", format.as_str()),
-        contents,
+        bytes,
+        content_type: format.content_type().to_owned(),
     })
 }

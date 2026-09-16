@@ -124,6 +124,52 @@ pub fn download(file_name: &str, contents: &str) {
     let _ = web_sys::Url::revoke_object_url(&url);
 }
 
+/// Save a file the server wrote, whatever is in it.
+///
+/// The CSV above is built in the browser; this one is handed bytes that are
+/// already a file - a PDF, a spreadsheet - and must not touch them. A text
+/// format still gets the byte order mark, for the Excel reason.
+#[cfg(feature = "hydrate")]
+pub fn download_file(file_name: &str, bytes: &[u8], content_type: &str) {
+    use wasm_bindgen::JsCast;
+    use wasm_bindgen::JsValue;
+
+    const BOM: [u8; 3] = [0xEF, 0xBB, 0xBF];
+
+    let saved: Vec<u8> = if content_type.starts_with("text/") {
+        BOM.iter().chain(bytes).copied().collect()
+    } else {
+        bytes.to_vec()
+    };
+
+    let view = js_sys::Uint8Array::from(saved.as_slice());
+    let parts = js_sys::Array::of1(&JsValue::from(view));
+    let options = web_sys::BlobPropertyBag::new();
+    options.set_type(content_type);
+
+    let Ok(blob) = web_sys::Blob::new_with_u8_array_sequence_and_options(&parts, &options) else {
+        return;
+    };
+    let Ok(url) = web_sys::Url::create_object_url_with_blob(&blob) else {
+        return;
+    };
+
+    if let Ok(element) = leptos::prelude::document().create_element("a")
+        && let Some(anchor) = element.dyn_ref::<web_sys::HtmlAnchorElement>()
+    {
+        anchor.set_href(&url);
+        anchor.set_download(file_name);
+        anchor.click();
+    }
+
+    let _ = web_sys::Url::revoke_object_url(&url);
+}
+
+#[cfg(not(feature = "hydrate"))]
+pub fn download_file(_file_name: &str, _bytes: &[u8], _content_type: &str) {
+    // Saving a file is a browser action. See `download`.
+}
+
 #[cfg(not(feature = "hydrate"))]
 pub fn download(_file_name: &str, _contents: &str) {
     // Exporting is a browser action. On the server this is unreachable, and a

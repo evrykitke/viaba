@@ -356,6 +356,9 @@ async fn render_and_store(
 
     let bytes = match request.format {
         ExportFormat::Csv => writers::to_csv(&rendered).into_bytes(),
+        ExportFormat::Pdf => {
+            phonix_services::report::pdf::to_pdf(&rendered).map_err(|err| err.to_string())?
+        }
         // The writer has not landed yet. Failing by name is what tells
         // somebody that, rather than an empty file that looks like an answer.
         other => return Err(format!("nothing can write a {} yet", other.label())),

@@ -156,7 +156,7 @@ fn gathered<L: 'static>(grouping: &Grouping<L>, lines: Vec<L>) -> Vec<(String, V
 /// Each group is its own header, its rows and its subtotal, in the order they
 /// are drawn - the headings only on the first, because a file repeating them
 /// between groups is a file a spreadsheet reads as several tables.
-fn written(headings: Vec<String>, groups: Vec<RowGroup>) -> Vec<RenderedBand> {
+fn written(headings: Vec<String>, aligns: &[Align], groups: Vec<RowGroup>) -> Vec<RenderedBand> {
     let mut bands = Vec::new();
 
     for (index, group) in groups.into_iter().enumerate() {
@@ -179,14 +179,17 @@ fn written(headings: Vec<String>, groups: Vec<RowGroup>) -> Vec<RenderedBand> {
         ));
 
         if !group.totals.is_empty() {
-            bands.push(RenderedBand::once(
-                BandKind::GroupFooter,
-                group
-                    .totals
-                    .into_iter()
-                    .map(|value| value.cell.to_text())
-                    .collect(),
-            ));
+            bands.push(
+                RenderedBand::once(
+                    BandKind::GroupFooter,
+                    group
+                        .totals
+                        .into_iter()
+                        .map(|value| value.cell.to_text())
+                        .collect(),
+                )
+                .aligned(aligns.to_vec()),
+            );
         }
     }
 
@@ -698,17 +701,21 @@ impl<T: 'static> ReportDefinition<T> {
             .bands
             .iter()
             .flat_map(|band| match &band.content {
-                Content::Once(fields) => vec![RenderedBand::once(
-                    band.kind,
-                    fields.iter().map(|field| labelled(field, data)).collect(),
-                )],
+                Content::Once(fields) => vec![
+                    RenderedBand::once(
+                        band.kind,
+                        fields.iter().map(|field| labelled(field, data)).collect(),
+                    )
+                    .aligned(fields.iter().map(|field| field.align).collect()),
+                ],
                 Content::Lines { headings, read } => {
-                    let headings = headings
+                    let aligns: Vec<Align> = headings.iter().map(|heading| heading.align).collect();
+                    let labels = headings
                         .iter()
                         .map(|heading| heading.label.clone().unwrap_or_default())
                         .collect();
 
-                    written(headings, read(data))
+                    written(labels, &aligns, read(data))
                 }
             })
             .collect();
@@ -725,6 +732,12 @@ impl<T: 'static> ReportDefinition<T> {
     /// The band of this kind, if the report declares one.
     pub fn band_of(&self, kind: BandKind) -> Option<&Band<T>> {
         self.bands.iter().find(|band| band.kind == kind)
+    }
+
+    /// Which of the workspace's documents this draws, if it draws one. What
+    /// the export path dresses a report in the workspace's own settings by.
+    pub const fn document(&self) -> Option<&'static str> {
+        self.document_type
     }
 
     /// What somebody must hold to read this report.
