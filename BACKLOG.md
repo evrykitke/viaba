@@ -160,6 +160,45 @@ commits it is three items.
 >   comparing the three, but the look is a document setting and two places to
 >   change one thing is how they come to disagree. Ask if it is wanted.
 
+- [ ] `phonix-web` The statement starts at a list of customers
+      why: found at the first checkpoint. The statement opens as an empty
+           frame with a dropdown on it, so the first thing the screen says is
+           "pick somebody". A list of who there is to pick is a screen; a
+           dropdown over nothing is a prompt. It is also the shape decision 7
+           describes - a row opens its record as a report - arriving a few
+           items early because this is the screen that needs it.
+      touch: crates/phonix-web/src/pages/sales/reports/customer_statement.rs,
+             crates/phonix-web/src/app.rs
+      done: `/accounting/reports/statement` lists the customers
+            `statement_customers` already returns, through the grid kit rather
+            than markup of its own, and opening a row goes to
+            `/accounting/reports/statement/<party_id>`, which is the statement
+            in the viewer. The span picker stays a toolbar control there, the
+            customer dropdown is gone - the list is the picker now - and the
+            viewer's back link returns to the list rather than to Accounting.
+            No customer chosen is no longer a state the statement screen has.
+      verify: `/accounting/reports/statement` on 3010 shows the customers.
+              Click one: the statement opens, the span picker still works, and
+              back returns to the list.
+
+- [ ] `phonix-web` Printing prints the report, not the application
+      why: found at the first checkpoint. `window.print()` prints what is on
+           the screen, which is the sidebar, the top bar, the toolbar and a
+           sheet clipped by the box it is scrolling in. What comes out is not
+           the document, and until the PDF writer lands this button is the
+           only way anybody gets one on paper.
+      touch: crates/phonix-web/src/ui/report/viewer.rs
+      done: printing from the viewer puts the report on the paper its
+            definition names and nothing else on it: no navigation, no
+            toolbar, no fit-to-width zoom, no card frame or shadow round the
+            sheet, and no clipping - a long report runs onto as many pages as
+            it needs. The rules are the viewer's own `@media print` and the
+            page size comes from the definition, so a landscape report prints
+            landscape without anybody choosing it in the browser's dialog.
+      verify: open a statement and press Print. The preview should show the
+              statement alone, at its own size, with the navigation gone and
+              nothing cut off the right-hand edge.
+
 - [ ] `phonix-web` The logo, where the definition says it goes
       why: `OrganizationProfile::logo_file_id` is already documented as "the
            uploaded logo that goes on documents", and no document draws it. A
@@ -624,7 +663,18 @@ commits it is three items.
      to `## Done` or writes a new item in `## Next` saying what was wrong. The
      loop never moves anything out of this section by itself. -->
 
+## Blocked
+
+<!-- Items waiting on something outside the loop's reach. Each carries a
+     `blocked:` line saying what it waits for. -->
+
+## Done
+
+<!-- The loop appends here with the commit sha. Newest first. -->
+
 - [x] `phonix-web` The viewer, which fills the page inside the shell
+      Verified in the running application on 2026-09-16, with two faults
+      sent back as items: print, and where the statement starts.
       commit: "The frame, and the twenty toolbars it prevents"
       The frame, its toolbar and the surface the sheet sits on. The parameters
       a report takes are controls on that toolbar. Fit-to-width is real and
@@ -636,12 +686,9 @@ commits it is three items.
       none does yet. Page navigation is deliberately absent: nothing counts
       pages until the paginator lands, and a control that always said "1 of 1"
       would be a promise.
-      verify: nothing to open on its own - no report is defined yet, and the
-              first one is the item below. The viewer is judged at that
-              checkpoint. This line is here so an empty frame is not mistaken
-              for something the build finished.
 
 - [x] `phonix-web` The customer statement, as a definition
+      Verified on 2026-09-16: the figures are right and the frame is right.
       commit: "What the first real document said about the model"
       The first document through the engine, and it found the model wrong -
       which is what this item was for. A report is now drawn from **one
@@ -660,20 +707,6 @@ commits it is three items.
       because a band draws one line per row; and an empty statement shows an
       empty line area rather than the words "Nothing to show", which is what a
       printed document does.
-      verify: `/accounting/reports/statement` on 3010. Pick a customer and a
-              span, and check the figures against what the same screen showed
-              before the change - the totals, the ageing and the closing
-              balance. The report should fill the content area with the
-              navigation still beside it.
-
-## Blocked
-
-<!-- Items waiting on something outside the loop's reach. Each carries a
-     `blocked:` line saying what it waits for. -->
-
-## Done
-
-<!-- The loop appends here with the commit sha. Newest first. -->
 
 - [x] `phonix-web` A report drawn from its definition
       One component, and the sheet it draws is the size it will print at -
