@@ -2547,6 +2547,7 @@
   "report.export": "Export",
   "report.export.download": "Download",
   "report.export.failed": "The export could not be written.",
+  "report.export.formats": "Other export formats",
   "report.export.not_offered": "This document does not allow this export option.",
   "report.export.ready": "Your export is ready.",
   "report.export.running": "Writing your export...",

@@ -187,22 +187,6 @@ commits it is three items.
 > here**, and the PDF writer stays where it is in this queue: until it lands
 > the new default answers with the same sentence the menu gives.
 
-- [ ] `phonix-web` The export button that does not need its menu
-      why: PDF is the answer often enough that it should not cost a menu, and
-           the other two formats are the exception the menu is for.
-      touch: crates/phonix-web/src/ui/report/viewer.rs
-      done: the toolbar's export control is a split button - the button itself
-            writes PDF, the chevron beside it opens the menu of every format.
-            One path serves both, so a report that does not declare PDF answers
-            the button with the message box the menu would have given, and the
-            button is not drawn at all where the menu is not.
-      verify: the items list, Report, then Export without opening anything: it
-              answers that the document does not allow PDF. The chevron still
-              opens the full list and CSV still writes as a job.
-      stop: sixth checkpoint. Both items change the same control and nobody has
-            seen either, and what the button does next is what the PDF writer
-            decides.
-
 - [ ] `phonix-web` Where a report is found, and who may run it
       why: two reports exist and the only way to either is knowing its address.
            `Pages.Accounting.Reports` already gates the four statements as one
@@ -466,6 +450,23 @@ commits it is three items.
      The user launches the application, looks, and then either moves the item
      to `## Done` or writes a new item in `## Next` saying what was wrong. The
      loop never moves anything out of this section by itself. -->
+
+- [x] `phonix-web` The export button that does not need its menu
+      commit: "The export that costs no menu"
+      why: PDF is the answer often enough that it should not cost a menu, and
+           the other two formats are the exception the menu is for.
+      touch: crates/phonix-web/src/ui/report/viewer.rs
+      done: the toolbar's export control is a split button - the button itself
+            writes PDF, the chevron beside it opens the menu of every format.
+            One path serves both, so a report that does not declare PDF answers
+            the button with the message box the menu would have given, and the
+            button is not drawn at all where the menu is not.
+      verify: the items list, Report, then Export without opening anything: it
+              answers that the document does not allow PDF. The chevron still
+              opens the full list and CSV still writes as a job.
+      stop: sixth checkpoint. Both items change the same control and nobody has
+            seen either, and what the button does next is what the PDF writer
+            decides.
 
 - [x] `phonix-web` A format the document does not offer
       commit: "The menu that showed one of three"

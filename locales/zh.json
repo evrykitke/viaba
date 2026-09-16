@@ -2547,6 +2547,7 @@
   "report.export": "导出",
   "report.export.download": "下载",
   "report.export.failed": "无法生成导出文件。",
+  "report.export.formats": "其他导出格式",
   "report.export.not_offered": "此文档不允许此导出选项。",
   "report.export.ready": "导出已完成。",
   "report.export.running": "正在生成导出文件……",

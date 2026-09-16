@@ -201,32 +201,49 @@ where
                     {(!offered.is_empty())
                         .then(|| {
                             view! {
-                                <details node_ref=menu class="relative">
-                                    <summary class="flex cursor-pointer list-none items-center gap-1 rounded-control border border-edge px-2 py-1 text-xs text-content hover:bg-surface-hover">
+                                <div class="flex items-center">
+                                    // The default, which is what an export
+                                    // usually means. The menu beside it is for
+                                    // the exception.
+                                    <button
+                                        type="button"
+                                        class="flex items-center gap-1 rounded-l-control border border-edge px-2 py-1 text-xs text-content hover:bg-surface-hover"
+                                        on:click=move |_| choose(ExportFormat::Pdf)
+                                    >
                                         <Icon icon=Icon::Download size=IconSize::Xs />
                                         {l!("report.export")}
-                                        <Icon icon=Icon::ChevronDown size=IconSize::Xs />
-                                    </summary>
-                                    <ul class="absolute right-0 z-20 mt-1 min-w-32 rounded-pop border border-edge bg-surface-raised py-1 shadow-pop">
-                                        {ExportFormat::ALL
-                                            .iter()
-                                            .copied()
-                                            .map(|format| {
-                                                view! {
-                                                    <li>
-                                                        <button
-                                                            type="button"
-                                                            class="block w-full px-3 py-1.5 text-left text-xs text-content hover:bg-surface-hover"
-                                                            on:click=move |_| choose(format)
-                                                        >
-                                                            {format.label()}
-                                                        </button>
-                                                    </li>
-                                                }
-                                            })
-                                            .collect_view()}
-                                    </ul>
-                                </details>
+                                        " "
+                                        {ExportFormat::Pdf.label()}
+                                    </button>
+
+                                    <details node_ref=menu class="relative -ml-px">
+                                        <summary
+                                            class="flex cursor-pointer list-none items-center rounded-r-control border border-edge px-1.5 py-1 text-xs text-content hover:bg-surface-hover"
+                                            aria-label=l!("report.export.formats")
+                                        >
+                                            <Icon icon=Icon::ChevronDown size=IconSize::Xs />
+                                        </summary>
+                                        <ul class="absolute right-0 z-20 mt-1 min-w-32 rounded-pop border border-edge bg-surface-raised py-1 shadow-pop">
+                                            {ExportFormat::ALL
+                                                .iter()
+                                                .copied()
+                                                .map(|format| {
+                                                    view! {
+                                                        <li>
+                                                            <button
+                                                                type="button"
+                                                                class="block w-full px-3 py-1.5 text-left text-xs text-content hover:bg-surface-hover"
+                                                                on:click=move |_| choose(format)
+                                                            >
+                                                                {format.label()}
+                                                            </button>
+                                                        </li>
+                                                    }
+                                                })
+                                                .collect_view()}
+                                        </ul>
+                                    </details>
+                                </div>
                             }
                         })}
                 </div>
