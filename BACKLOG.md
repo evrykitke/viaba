@@ -602,6 +602,18 @@ commits it is three items.
       touch: crates/phonix-server/src/jobs.rs
       done: the comment names the function that exists.
 
+- [ ] `docs` What ADR 0008 now owes the band model
+      why: the record says a definition is typed Rust and says nothing about
+           what it is typed *over*. The statement turned that into a decision:
+           a report is drawn from one value, and the detail band reads a
+           sequence inside it through `Band::lines` rather than the report
+           being a vector of rows. Every item after it is that shape, and a
+           reader of 0008 would not know.
+      touch: docs/adr/0008-reporting.md
+      done: section 1 says what a definition is over, and why a document's
+            letterhead and its lines are two different types meeting in one
+            definition.
+
 ## Awaiting verification
 
 <!-- Committed, compiling, and not finished: each of these changed something
