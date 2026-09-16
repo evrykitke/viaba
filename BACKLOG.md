@@ -160,6 +160,36 @@ commits it is three items.
 >   comparing the three, but the look is a document setting and two places to
 >   change one thing is how they come to disagree. Ask if it is wanted.
 
+- [ ] `phonix-web` A settings editor belongs in a modal, not under the grid
+      why: seen on the Documents tab and on Currencies. Clicking Edit appends
+           the form *below* the grid, so on a list of any length the thing you
+           just clicked is off screen and the page grows instead of focusing.
+           The kit has no modal: `ui/table/toolbar`, `ui/alert/host`,
+           `ui/lookup` and `pages/admin/apps` each hand-rolled one, at three
+           different widths, with Escape in some and click-outside in others.
+           A fifth copy is the wrong answer and a shared one is overdue - this
+           is furniture, which is what `ui` is for.
+      touch: crates/phonix-web/src/ui/modal.rs, crates/phonix-web/src/ui/mod.rs,
+             crates/phonix-web/src/pages/admin/documents.rs,
+             crates/phonix-web/src/pages/admin/currencies.rs,
+             crates/phonix-web/src/pages/admin/numbering.rs
+      done: one `<Modal>` in the kit - a peer of `card` and `alert`, which is
+            the partition `ui` already has - taking a title, a size and its
+            children. It draws the backdrop, closes on Escape and on the
+            backdrop but never on a click inside, puts focus in the panel when
+            it opens and returns it when it closes, and carries `role=dialog`
+            with `aria-modal`. Two sizes: the usual one, and a large one for a
+            form with a preview beside it. The three settings tabs that edit a
+            row under their grid - documents, currencies, numbering - open
+            theirs in one instead, and the grid stops growing.
+            The four dialogs that already exist are left alone: converting
+            them is its own item, and this one is about the screens somebody
+            is looking at.
+      verify: Administration. On Documents, Currencies and Numbering, click
+              Edit on a row: the form should open over the grid, Escape and a
+              click on the backdrop should close it, and a click inside should
+              not. The page should not grow a second screenful.
+
 - [ ] `phonix-web` Where a report is found, and who may run it
       why: two reports exist and the only way to either is knowing its address.
            `Pages.Accounting.Reports` already gates the four statements as one
