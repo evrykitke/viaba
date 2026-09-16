@@ -11,6 +11,7 @@ use phonix_core::report::DocumentSettings;
 use phonix_db::document_settings as store;
 use phonix_db::sqlx::PgPool;
 
+use crate::audit::{self, Target, kinds};
 use crate::caller::{Caller, acting_user};
 use crate::error::{ServiceError, ServiceResult};
 
@@ -55,7 +56,20 @@ pub async fn save(
         return Err(ServiceError::Rejected(errors));
     }
 
+    let previous = store::load(pool, &settings.document_type).await?;
     store::save(pool, settings, Some(changed_by)).await?;
+
+    // On the document type's own record rather than on a settings singleton:
+    // the question asked after an invoice goes out wrong is about the invoice.
+    audit::updated(
+        pool,
+        caller,
+        Target::new(kinds::DOCUMENT_SETTINGS, &settings.document_type)
+            .named(&settings.document_type),
+        &previous,
+        settings,
+    )
+    .await;
 
     Ok(())
 }

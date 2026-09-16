@@ -63,6 +63,20 @@ pub mod kinds {
         singleton: true,
     };
 
+    /// What one kind of document looks like: its paper, its look, its mark
+    /// and the words at its head and foot.
+    ///
+    /// Not a singleton - one record per document type, keyed by that type, so
+    /// a workspace that only ever edited its invoice does not read receipt
+    /// noise to find out when.
+    pub const DOCUMENT_SETTINGS: EntityKind = EntityKind {
+        name: "document_settings",
+        singular_key: "entity.document_settings.singular",
+        plural_key: "entity.document_settings.plural",
+        href: Some("/admin/settings?tab=documents"),
+        singleton: false,
+    };
+
     /// A way to hold permissions. Deleting one silently strips whatever it
     /// granted from everybody who held it, which is why its history matters.
     pub const ROLE: EntityKind = EntityKind {
@@ -584,6 +598,7 @@ pub const ENTITY_KINDS: &[EntityKind] = &[
     kinds::ROLE,
     kinds::SECURITY_POLICY,
     kinds::MAIL_SETTINGS,
+    kinds::DOCUMENT_SETTINGS,
     kinds::CURRENCIES,
     kinds::NUMBER_SEQUENCE,
     kinds::APP,

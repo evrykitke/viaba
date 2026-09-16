@@ -160,22 +160,6 @@ commits it is three items.
 >   comparing the three, but the look is a document setting and two places to
 >   change one thing is how they come to disagree. Ask if it is wanted.
 
-- [ ] `phonix-services` The document settings have no trail
-      why: every other thing an administrator changes in settings is recorded -
-           the security policy, the mail relay, the organization itself - and
-           these reach every document the workspace issues. "Who changed the
-           invoice footer, and to what" is the question asked after one goes
-           out wrong, and `document_settings::save` cannot answer it. Left out
-           of the item that built the table because it needs an `EntityKind`
-           and the four catalogue entries that come with one.
-      touch: crates/phonix-core/src/audit/entity.rs,
-             crates/phonix-services/src/workspace/documents.rs
-      done: a `DOCUMENT_SETTINGS` kind with its two i18n keys, and `save`
-            recording a `{from, to}` the way `settings::save` does - one entry
-            per document type, on that type's own record, so a workspace that
-            only ever edited its invoice does not read receipt noise to find
-            when.
-
 - [ ] `phonix-config` The document settings each app declares
       why: the tenant owns the answer but somebody has to ask the question -
            which documents this workspace issues and what they should look like
@@ -677,6 +661,15 @@ commits it is three items.
 ## Done
 
 <!-- The loop appends here with the commit sha. Newest first. -->
+
+- [x] `phonix-services` The document settings have no trail
+      commit: "Who changed the invoice footer"
+      A `DOCUMENT_SETTINGS` kind, in `ENTITY_KINDS` so `find_kind` resolves it
+      and a history renders it, and `save` recording a `{from, to}` the way
+      `settings::save` does. Keyed by the document type rather than by a
+      settings singleton, because the question asked after an invoice goes out
+      wrong is about the invoice - a workspace that only ever edited that one
+      does not read receipt noise to find when.
 
 - [x] `phonix-core` The document settings a tenant keeps
       commit: "Answers, and the column that refuses a layout"

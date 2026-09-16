@@ -1221,6 +1221,8 @@
   "entity.delivery.singular": "Lieferung",
   "entity.department.plural": "Abteilungen",
   "entity.department.singular": "Abteilung",
+  "entity.document_settings.plural": "Dokumenteinstellungen",
+  "entity.document_settings.singular": "Dokumenteinstellungen",
   "entity.employee.plural": "Mitarbeitende",
   "entity.employee.singular": "Mitarbeitende Person",
   "entity.goods_receipt.plural": "Wareneingänge",

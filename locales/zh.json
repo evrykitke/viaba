@@ -1221,6 +1221,8 @@
   "entity.delivery.singular": "发货单",
   "entity.department.plural": "部门",
   "entity.department.singular": "部门",
+  "entity.document_settings.plural": "文档设置",
+  "entity.document_settings.singular": "文档设置",
   "entity.employee.plural": "员工",
   "entity.employee.singular": "员工",
   "entity.goods_receipt.plural": "收货单",

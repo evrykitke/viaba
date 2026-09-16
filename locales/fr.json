@@ -1221,6 +1221,8 @@
   "entity.delivery.singular": "Livraison",
   "entity.department.plural": "Services",
   "entity.department.singular": "Service",
+  "entity.document_settings.plural": "Réglages de document",
+  "entity.document_settings.singular": "Réglages de document",
   "entity.employee.plural": "Salariés",
   "entity.employee.singular": "Salarié",
   "entity.goods_receipt.plural": "Réceptions",
