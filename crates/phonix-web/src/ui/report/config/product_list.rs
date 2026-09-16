@@ -13,6 +13,7 @@
 //! backlog has four commits about.
 
 use app_inventory::item::ItemSummary;
+use phonix_core::permissions;
 use phonix_core::query::Page;
 use phonix_core::report::{BandKind, ExportFormat, ReportKind, ReportTheme};
 
@@ -29,48 +30,53 @@ pub const ROWS_PER_RUN: u32 = 100;
 
 /// The product list.
 pub fn product_list() -> ReportDefinition<Page<ItemSummary>> {
-    ReportDefinition::new("product-list", l!("items.title"), ReportKind::List)
-        // The dense look: a list is read for how many rows reach a page.
-        .theme(ReportTheme::Compact)
-        .exports(ExportFormat::Csv)
-        .band(Band::new(BandKind::ReportHeader))
-        // Repeated at the top of every page, so a torn-off sheet still says
-        // what it is.
-        .band(Band::new(BandKind::PageHeader).field(Field::text("name", l!("items.title"))))
-        .band(Band::lines(
-            |page: &Page<ItemSummary>| page.rows.clone(),
-            vec![
-                Field::new("code", l!("field.code"), |item: &ItemSummary| {
-                    Cell::text(&item.code)
-                }),
-                Field::new("name", l!("field.name"), |item: &ItemSummary| {
-                    Cell::text(&item.name)
-                }),
-                Field::new("category", l!("items.category"), |item: &ItemSummary| {
-                    Cell::text(&item.category_name)
-                }),
-                Field::new("unit", l!("items.unit"), |item: &ItemSummary| {
-                    Cell::text(&item.stock_unit_code)
-                }),
-                Field::figure("cost", l!("items.cost"), |item: &ItemSummary| {
-                    Cell::text(item.cost.to_display_string())
-                }),
-                // An item that is not tracked has no on-hand figure, which is
-                // a different thing from having none of it.
-                Field::figure("on_hand", l!("items.on_hand"), |item: &ItemSummary| {
-                    item.on_hand
-                        .map_or(Cell::Empty, |held| Cell::text(held.to_string()))
-                }),
-            ],
-        ))
-        .band(Band::new(BandKind::ReportFooter).field(Field::bare(
-            "count",
-            |page: &Page<ItemSummary>| {
-                Cell::text(l!(
-                    "reports.showing",
-                    shown = page.rows.len(),
-                    total = page.total
-                ))
-            },
-        )))
+    ReportDefinition::new(
+        "product-list",
+        permissions::ITEMS,
+        l!("items.title"),
+        ReportKind::List,
+    )
+    // The dense look: a list is read for how many rows reach a page.
+    .theme(ReportTheme::Compact)
+    .exports(ExportFormat::Csv)
+    .band(Band::new(BandKind::ReportHeader))
+    // Repeated at the top of every page, so a torn-off sheet still says
+    // what it is.
+    .band(Band::new(BandKind::PageHeader).field(Field::text("name", l!("items.title"))))
+    .band(Band::lines(
+        |page: &Page<ItemSummary>| page.rows.clone(),
+        vec![
+            Field::new("code", l!("field.code"), |item: &ItemSummary| {
+                Cell::text(&item.code)
+            }),
+            Field::new("name", l!("field.name"), |item: &ItemSummary| {
+                Cell::text(&item.name)
+            }),
+            Field::new("category", l!("items.category"), |item: &ItemSummary| {
+                Cell::text(&item.category_name)
+            }),
+            Field::new("unit", l!("items.unit"), |item: &ItemSummary| {
+                Cell::text(&item.stock_unit_code)
+            }),
+            Field::figure("cost", l!("items.cost"), |item: &ItemSummary| {
+                Cell::text(item.cost.to_display_string())
+            }),
+            // An item that is not tracked has no on-hand figure, which is
+            // a different thing from having none of it.
+            Field::figure("on_hand", l!("items.on_hand"), |item: &ItemSummary| {
+                item.on_hand
+                    .map_or(Cell::Empty, |held| Cell::text(held.to_string()))
+            }),
+        ],
+    ))
+    .band(Band::new(BandKind::ReportFooter).field(Field::bare(
+        "count",
+        |page: &Page<ItemSummary>| {
+            Cell::text(l!(
+                "reports.showing",
+                shown = page.rows.len(),
+                total = page.total
+            ))
+        },
+    )))
 }

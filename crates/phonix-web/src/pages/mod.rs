@@ -7,4 +7,5 @@ pub mod inventory;
 pub mod master;
 pub mod not_found;
 pub mod people;
+pub mod reports;
 pub mod sales;

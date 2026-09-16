@@ -8,6 +8,7 @@
 //! Nothing here reads the clock. The dates are written down, which is also
 //! what makes the sample identical on the server and in the browser.
 
+use phonix_core::permissions;
 use phonix_core::report::{BandKind, DocumentSettings, ReportKind};
 
 use crate::l;
@@ -55,6 +56,7 @@ impl Default for Sample {
 pub fn sample(settings: &DocumentSettings) -> ReportDefinition<Sample> {
     let mut definition = ReportDefinition::new(
         "document-sample",
+        permissions::SETTINGS,
         l!("documents.preview"),
         ReportKind::Document,
     )

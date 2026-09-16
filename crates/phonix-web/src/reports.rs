@@ -16,14 +16,29 @@
 //! list, which is what stops a report being reachable by one route and not
 //! the other.
 
+use phonix_core::apps::AppDescriptor;
 use phonix_core::permissions;
 
 /// One report the server can run.
 pub struct ServerReport {
     /// The definition's own id.
     pub id: &'static str,
-    /// What somebody must hold to run it.
+    /// What somebody must hold to run it. The definition names the same one
+    /// for the screen; this is the copy the worker reads, which cannot build
+    /// a definition in a const.
     pub permission: &'static str,
+    /// The catalogue key the index lists it under.
+    pub title: &'static str,
+    /// Where it is read. A report over one record names the list it is chosen
+    /// from, because the record is what supplies the rest of the address.
+    pub href: &'static str,
+}
+
+impl ServerReport {
+    /// Which app declares it, read from the permission rather than repeated.
+    pub fn app(&self) -> Option<&'static AppDescriptor> {
+        phonix_core::apps::owner_of(self.permission)
+    }
 }
 
 /// Every report that can be run away from a browser.
@@ -34,10 +49,14 @@ pub const SERVER_REPORTS: &[ServerReport] = &[
     ServerReport {
         id: "product-list",
         permission: permissions::ITEMS,
+        title: "items.title",
+        href: "/inventory/items/report",
     },
     ServerReport {
         id: "customer-statement",
         permission: permissions::REPORTS,
+        title: "reports.customer_statement",
+        href: "/accounting/reports/statement",
     },
     // Bounded: it renders in the request and never becomes a row. It is here
     // for the same reason the other two are - the browser cannot write a file,
@@ -45,6 +64,8 @@ pub const SERVER_REPORTS: &[ServerReport] = &[
     ServerReport {
         id: "receipt",
         permission: permissions::PAYMENTS,
+        title: "payments.receipt",
+        href: "/selling/payments",
     },
 ];
 

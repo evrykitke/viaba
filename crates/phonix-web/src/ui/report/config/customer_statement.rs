@@ -2,6 +2,7 @@
 //! how long the rest has been owed.
 
 use app_books::report::{CustomerStatement, EntryKind, StatementLine};
+use phonix_core::permissions;
 use phonix_core::report::{
     Align, BandKind, ExportFormat, Logo, LogoPlacement, ReportKind, ReportTheme,
 };
@@ -15,6 +16,7 @@ use crate::ui::table::Cell;
 pub fn customer_statement() -> ReportDefinition<CustomerStatement> {
     ReportDefinition::new(
         "customer-statement",
+        permissions::REPORTS,
         l!("reports.customer_statement"),
         ReportKind::Document,
     )

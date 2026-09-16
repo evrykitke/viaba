@@ -187,20 +187,6 @@ commits it is three items.
 > here**, and the PDF writer stays where it is in this queue: until it lands
 > the new default answers with the same sentence the menu gives.
 
-- [ ] `phonix-web` Where a report is found, and who may run it
-      why: two reports exist and the only way to either is knowing its address.
-           `Pages.Accounting.Reports` already gates the four statements as one
-           permission; a report the engine serves must be gated the same way
-           rather than being open because it is new.
-      touch: crates/phonix-web/src/ui/report/, crates/phonix-web/src/navigation/
-      done: an index lists every definition the viewer is permitted to run,
-            grouped by the app that declares it, and a definition carries the
-            permission it needs. A viewer without that permission is not shown
-            the report and cannot reach it by typing the address.
-      verify: the reports index, then sign in as an account without
-              `Pages.Accounting.Reports` and confirm the statement is neither
-              listed nor reachable by typing its address.
-
 - [ ] `phonix-web` Grouping, and what a group adds up to
       why: a list report without groups is a grid with a letterhead. A group
            header, a group footer and a subtotal is what separates the two, and
@@ -450,6 +436,21 @@ commits it is three items.
      The user launches the application, looks, and then either moves the item
      to `## Done` or writes a new item in `## Next` saying what was wrong. The
      loop never moves anything out of this section by itself. -->
+
+- [x] `phonix-web` Where a report is found, and who may run it
+      commit: "The list a report is found on, and the gate it carries"
+      why: two reports exist and the only way to either is knowing its address.
+           `Pages.Accounting.Reports` already gates the four statements as one
+           permission; a report the engine serves must be gated the same way
+           rather than being open because it is new.
+      touch: crates/phonix-web/src/ui/report/, crates/phonix-web/src/navigation/
+      done: an index lists every definition the viewer is permitted to run,
+            grouped by the app that declares it, and a definition carries the
+            permission it needs. A viewer without that permission is not shown
+            the report and cannot reach it by typing the address.
+      verify: the reports index, then sign in as an account without
+              `Pages.Accounting.Reports` and confirm the statement is neither
+              listed nor reachable by typing its address.
 
 - [x] `phonix-web` The export button that does not need its menu
       commit: "The export that costs no menu"

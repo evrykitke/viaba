@@ -28,6 +28,7 @@ use crate::server_fns::file_fns as content;
 use crate::server_fns::report_fns::{export_state, raise_export, write_now};
 use crate::ui::alert::{Alert, Alerts};
 use crate::ui::table::export;
+use crate::ui::viewer::Viewer;
 
 /// How many CSS pixels one millimetre is, which is how the sheet's own width
 /// in millimetres becomes a number to fit against.
@@ -58,7 +59,7 @@ pub fn report_viewer<T>(
     /// export would be of whatever the screen opened on.
     #[prop(optional, into)]
     parameters: Option<Signal<Parameters>>,
-    children: Children,
+    children: ChildrenFn,
 ) -> impl IntoView
 where
     T: Send + Sync + 'static,
@@ -66,9 +67,18 @@ where
     let sheet_mm = f64::from(definition.page.width_mm());
     // What the definition declares, which is what the menu is measured
     // against rather than what it draws.
-    let offered = definition.formats.clone();
-    let title = definition.title.clone();
-    let print_rules = print_rules(&definition.page);
+    let declared = StoredValue::new(definition.formats.clone());
+    let title = StoredValue::new(definition.title.clone());
+    let print_rules = StoredValue::new(print_rules(&definition.page));
+    let back = StoredValue::new(back);
+    let controls = StoredValue::new(controls);
+    let children = StoredValue::new(children);
+
+    // The report's own gate. A page that only fetched through a refusing
+    // server function would answer an address it should not have drawn at all.
+    let permission = definition.permission();
+    let viewer = Viewer::get();
+    let may_read = move || viewer.get().is_some_and(|user| user.can(permission));
 
     // Zero-height and full-width, so it measures the surface without being
     // resized by what is drawn on it.
@@ -120,9 +130,6 @@ where
     let parameters =
         parameters.unwrap_or_else(|| Signal::derive(|| Parameters::Object(Map::new())));
 
-    // Stored rather than captured, so the closure the menu hands to every
-    // item stays `Copy`.
-    let allowed = StoredValue::new(offered.clone());
     let alerts = Alerts::get();
 
     let choose = move |format: ExportFormat| {
@@ -130,7 +137,7 @@ where
             node.set_open(false);
         }
 
-        if !allowed.with_value(|allowed| allowed.contains(&format)) {
+        if !declared.with_value(|declared| declared.contains(&format)) {
             alerts.post(Alert::warning(l!("report.export.not_offered")).message_box());
             return;
         }
@@ -149,9 +156,11 @@ where
         }
     };
 
-    view! {
+    let frame = move || {
+        view! {
         <section class="space-y-3">
             {back
+                .get_value()
                 .map(|(href, label)| {
                     view! {
                         <A
@@ -175,9 +184,9 @@ where
             <div class="sticky top-0 z-20 flex flex-wrap items-center justify-between gap-3 border-y border-edge bg-surface-raised px-3 py-2 shadow-sm">
                 <div class="flex min-w-0 flex-wrap items-center gap-3">
                     <h1 class="truncate text-base font-semibold tracking-tight text-content">
-                        {title}
+                        {title.get_value()}
                     </h1>
-                    {controls.map(|controls| controls.run())}
+                    {controls.get_value().map(|controls| controls.run())}
                 </div>
 
                 <div class="flex items-center gap-2">
@@ -198,7 +207,8 @@ where
                         {l!("report.print")}
                     </button>
 
-                    {(!offered.is_empty())
+                    {declared
+                        .with_value(|declared| !declared.is_empty())
                         .then(|| {
                             view! {
                                 <div class="flex items-center">
@@ -253,12 +263,44 @@ where
 
             <div class="overflow-x-auto rounded-card border border-edge bg-surface-sunken p-3 sm:p-6">
                 <div node_ref=gauge class="h-0"></div>
-                <div style=move || format!("zoom:{}", scale.get())>{children()}</div>
+                <div style=move || format!(
+                    "zoom:{}",
+                    scale.get(),
+                )>{children.with_value(|children| children())}</div>
             </div>
 
             // Last, so that the gap `space-y-3` puts above every child but the
             // first lands on something that is not drawn.
-            <style inner_html=print_rules></style>
+            <style inner_html=print_rules.get_value()></style>
+        </section>
+        }
+    };
+
+    // Inside a boundary, because the session is a resource: read outside one
+    // the server draws the refusal and the browser hydrates the report, which
+    // is a node count that does not match.
+    view! {
+        <Suspense fallback=|| ()>
+            {move || {
+                if may_read() {
+                    frame().into_any()
+                } else {
+                    view! { <Refused /> }.into_any()
+                }
+            }}
+        </Suspense>
+    }
+}
+
+/// What a report shows somebody who may not read it.
+#[component]
+fn refused() -> impl IntoView {
+    view! {
+        <section class="space-y-3">
+            <h1 class="text-base font-semibold tracking-tight text-content">
+                {l!("report.refused")}
+            </h1>
+            <p class="text-sm text-content-subtle">{l!("report.refused.detail")}</p>
         </section>
     }
 }

@@ -312,6 +312,9 @@ pub struct ReportDefinition<T: 'static> {
     /// A stable name. It keys the ids that tie the toolbar to the report, and
     /// it is the stem an exported file is named with.
     pub(crate) id: &'static str,
+    /// What somebody must hold to read it. The viewer refuses without it, and
+    /// the index does not list it.
+    pub(crate) permission: &'static str,
     pub(crate) title: String,
     pub(crate) kind: ReportKind,
     /// Which of the workspace's documents this draws, if it draws one of them.
@@ -333,6 +336,7 @@ impl<T: 'static> Clone for ReportDefinition<T> {
     fn clone(&self) -> Self {
         Self {
             id: self.id,
+            permission: self.permission,
             title: self.title.clone(),
             kind: self.kind,
             document_type: self.document_type,
@@ -352,9 +356,18 @@ impl<T: 'static> ReportDefinition<T> {
     /// It grows with its data until it says otherwise: a report wrongly called
     /// bounded holds a connection open for however long it takes, and a job
     /// that did not need to be one is only slower.
-    pub fn new(id: &'static str, title: impl Into<String>, kind: ReportKind) -> Self {
+    ///
+    /// `permission` is an argument rather than a builder step because a report
+    /// that forgot one would be readable by anybody who knows the address.
+    pub fn new(
+        id: &'static str,
+        permission: &'static str,
+        title: impl Into<String>,
+        kind: ReportKind,
+    ) -> Self {
         Self {
             id,
+            permission,
             title: title.into(),
             kind,
             document_type: None,
@@ -498,6 +511,11 @@ impl<T: 'static> ReportDefinition<T> {
         self.bands.iter().find(|band| band.kind == kind)
     }
 
+    /// What somebody must hold to read this report.
+    pub const fn permission(&self) -> &'static str {
+        self.permission
+    }
+
     /// Whether an export of this report is a job or an answer, and what
     /// bounds it when it is an answer.
     pub const fn extent(&self) -> &Extent {
@@ -507,6 +525,8 @@ impl<T: 'static> ReportDefinition<T> {
 
 #[cfg(test)]
 mod tests {
+    use phonix_core::permissions;
+
     use super::*;
 
     #[derive(Clone)]
@@ -519,7 +539,7 @@ mod tests {
     }
 
     fn definition() -> ReportDefinition<Statement> {
-        ReportDefinition::new("test", "Test", ReportKind::List)
+        ReportDefinition::new("test", permissions::REPORTS, "Test", ReportKind::List)
             .band(Band::new(BandKind::ReportHeader).field(Field::text("title", "Test")))
             .band(Band::lines(
                 |statement: &Statement| statement.lines.clone(),

@@ -63,6 +63,16 @@ pub static MENU: &[NavNode] = &[
     )
     .require(names::DASHBOARD)
     .keywords(&["home", "overview", "start"]),
+    // Ungated: it spans the apps, and it lists only what the reader may run.
+    // A permission here would hide the index from somebody who holds one of
+    // the reports on it.
+    NavNode::leaf(
+        "reports-index",
+        "reports.index.title",
+        Icon::ChartColumn,
+        "/reports",
+    )
+    .keywords(&["print", "statements", "export", "documents"]),
     // Selling before master data: raising an order is the daily work, and
     // keeping the customer list tidy is what somebody does on the way to it.
     //

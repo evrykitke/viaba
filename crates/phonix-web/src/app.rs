@@ -79,6 +79,7 @@ use crate::pages::people::shifts::ShiftTypePage;
 // Aliased: `pages::account` is the viewer's own profile, and both are called
 // AccountPage in their own module.
 use crate::pages::inventory::item_report::ItemReportPage;
+use crate::pages::reports::ReportsPage;
 use crate::pages::sales::account::AccountPage as ChartAccountPage;
 use crate::pages::sales::account_roles::AccountRolesPage;
 use crate::pages::sales::accounts::{AccountNewPage, AccountsPage};
@@ -237,6 +238,10 @@ pub fn app() -> impl IntoView {
 
                     <Route path=path!("/dashboard") view=DashboardPage />
                     <Route path=path!("/account") view=AccountPage />
+                    // Above the apps rather than inside one: the index spans
+                    // them, and a report is listed under the app that declares
+                    // it rather than under the address it is read at.
+                    <Route path=path!("/reports") view=ReportsPage />
 
                     // Accounting. The first app, and the first routes that are a
                     // product rather than infrastructure. The namespace says what
