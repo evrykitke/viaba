@@ -194,6 +194,30 @@ pub const BUCKETS: &[BucketPolicy] = &[
         upload_permission: Some(permissions::ITEMS_EDIT),
     },
     BucketPolicy {
+        name: "exports",
+        label: "Exports",
+        description: "Reports this workspace has had written out.",
+        // A year of a busy ledger as a spreadsheet. Larger than anything
+        // anybody uploads here, because nobody uploads here at all: these
+        // bytes are written by a worker from rows this workspace already has.
+        max_bytes: 50 * MB,
+        categories: &[
+            FileCategory::Text,
+            FileCategory::Data,
+            FileCategory::Spreadsheet,
+            FileCategory::Document,
+        ],
+        // A PDF is the point of the bucket, and every PDF counts as active
+        // content. They are downloaded rather than displayed, like an
+        // attachment.
+        allow_active_content: true,
+        max_dimensions: None,
+        // Nothing uploads into this bucket: a file arrives here because a
+        // worker wrote it, and what was allowed to *ask* for it was checked
+        // when the export was raised, against the report's own permission.
+        upload_permission: None,
+    },
+    BucketPolicy {
         name: "imports",
         label: "Imports",
         description: "Spreadsheets and data files staged for loading.",

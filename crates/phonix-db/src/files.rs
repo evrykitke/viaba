@@ -196,6 +196,59 @@ where
         .map_err(DbError::Query)
 }
 
+/// A file this workspace produced rather than received.
+pub struct GeneratedFile<'a> {
+    pub id: Uuid,
+    pub bucket: &'a str,
+    /// What it is called when somebody downloads it.
+    pub file_name: &'a str,
+    pub content_type: &'a str,
+    pub category: FileCategory,
+    pub byte_size: u64,
+    pub checksum_sha256: &'a str,
+    pub storage_key: &'a str,
+    /// Who it was made for. The export's requester, not an uploader.
+    pub made_for: Option<UserId>,
+}
+
+/// Record bytes this workspace wrote for itself, already stored.
+///
+/// Straight to `stored`, with no quarantine hop and no verification: nobody
+/// uploaded this and there is nothing to inspect. The bytes came from rows
+/// this workspace already has, written by a worker under a key derived from
+/// the request - which is also why `ON CONFLICT DO NOTHING` would be wrong
+/// here and a conflict is a real error: two rows claiming one object is the
+/// bug `file_uploads_storage_key_key` exists to catch.
+pub async fn record_generated<'e, E>(
+    executor: E,
+    file: GeneratedFile<'_>,
+) -> Result<FileRow, DbError>
+where
+    E: PgExecutor<'e>,
+{
+    let statement = AssertSqlSafe(format!(
+        "INSERT INTO file_uploads
+             (id, status, bucket, original_name, stored_name, content_type, category,
+              byte_size, checksum_sha256, storage_key, uploaded_by, verified_at)
+         VALUES ($1, 'stored', $2, $3, $3, $4, $5, $6, $7, $8, $9, now())
+         RETURNING {COLUMNS}"
+    ));
+
+    sqlx::query_as::<_, FileRow>(statement)
+        .bind(file.id)
+        .bind(file.bucket)
+        .bind(file.file_name)
+        .bind(file.content_type)
+        .bind(file.category.as_str())
+        .bind(i64::try_from(file.byte_size).unwrap_or(i64::MAX))
+        .bind(file.checksum_sha256)
+        .bind(file.storage_key)
+        .bind(file.made_for)
+        .fetch_one(executor)
+        .await
+        .map_err(DbError::Query)
+}
+
 /// One row, whatever state it is in.
 pub async fn load<'e, E>(executor: E, id: Uuid) -> Result<Option<FileRow>, DbError>
 where

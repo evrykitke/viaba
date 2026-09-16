@@ -43,6 +43,7 @@
 
 pub mod access;
 pub mod attachment;
+pub mod generated;
 pub mod upload;
 pub mod verify;
 

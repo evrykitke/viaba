@@ -19,6 +19,9 @@ use crate::error::DbError;
 const SELECT: &str = "SELECT id, report_id, parameters, format, state, requested_by, \
      requested_at, file_id, failure FROM report_exports";
 
+/// Longest failure the column keeps, matching its CHECK.
+const MAX_FAILURE_LEN: usize = 500;
+
 struct RequestRow(ExportRequest);
 
 impl<'r> FromRow<'r, sqlx::postgres::PgRow> for RequestRow {
@@ -99,6 +102,50 @@ pub async fn load<'e, E: PgExecutor<'e>>(
         .await?;
 
     Ok(row.map(|row| row.0))
+}
+
+/// Mark a request finished, with the file it produced.
+pub async fn mark_ready<'e, E: PgExecutor<'e>>(
+    executor: E,
+    id: Uuid,
+    file_id: Uuid,
+) -> Result<(), DbError> {
+    sqlx::query(
+        "UPDATE report_exports
+            SET state = 'ready', file_id = $2, failure = NULL, finished_at = now()
+          WHERE id = $1",
+    )
+    .bind(id)
+    .bind(file_id)
+    .execute(executor)
+    .await?;
+
+    Ok(())
+}
+
+/// Mark a request finished, with the reason it produced nothing.
+///
+/// The reason is cut to what the column holds. A screen wants a sentence, and
+/// a longer one would be refused by the constraint and lose the whole update -
+/// so the row would say `running` for ever about work that had stopped.
+pub async fn mark_failed<'e, E: PgExecutor<'e>>(
+    executor: E,
+    id: Uuid,
+    reason: &str,
+) -> Result<(), DbError> {
+    let reason: String = reason.chars().take(MAX_FAILURE_LEN).collect();
+
+    sqlx::query(
+        "UPDATE report_exports
+            SET state = 'failed', failure = $2, finished_at = now()
+          WHERE id = $1",
+    )
+    .bind(id)
+    .bind(reason)
+    .execute(executor)
+    .await?;
+
+    Ok(())
 }
 
 /// What one person has asked for lately, newest first.

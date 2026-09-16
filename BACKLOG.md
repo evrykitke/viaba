@@ -176,21 +176,6 @@ commits it is three items.
 > cannot, is a rendered report with the types erased. That is what makes one
 > writer serve both paths, which is ADR 0008 section 9's whole requirement.
 
-- [ ] `phonix-services` An export becomes a stored file
-      why: the writer produces bytes and there is nowhere to put them. A
-           finished export is an ordinary stored file - that is what makes it
-           survive the tab closing, and what lets the viewer hand it over
-           through the download path it already has.
-      touch: crates/phonix-core/src/files/bucket.rs, crates/phonix-db/src/files.rs,
-             crates/phonix-services/src/files/, crates/phonix-services/src/report/
-      done: an `exports` bucket, a `files::store_generated` that writes bytes
-            straight to the stored key and records the row in one go - no
-            quarantine hop, because nobody uploaded this and there is nothing
-            to inspect - and `exports::finish`, which marks the request ready
-            with that file's id or failed with the reason. The key is
-            deterministic from the request id, for the reason `files::verify`
-            gives about a retry leaving two files.
-
 - [ ] `phonix-server` The exporter, the fourth loop
       why: the row is raised, the bytes can be written and stored, and nothing
            runs. This is the loop, and the part of it that is genuinely new:
@@ -752,6 +737,27 @@ commits it is three items.
 ## Done
 
 <!-- The loop appends here with the commit sha. Newest first. -->
+
+- [x] `phonix-services` An export becomes a stored file
+      commit: "Bytes nobody uploaded"
+      An `exports` bucket, `files::generated::store`, and `exports::finish`
+      and `fail`. The interesting half is what it is *not*: an upload arrives
+      from outside, lands in quarantine and is inspected before anybody may
+      have it back, and none of that applies to bytes a worker wrote out of
+      rows this workspace already has. So the object goes straight to its
+      stored key and the row is recorded `stored` - `record_generated` in one
+      statement, and no `ON CONFLICT`, because two rows claiming one object is
+      the bug the unique index exists to catch rather than something to
+      swallow.
+
+      The file's id is the request's, so a retry writes the same key instead
+      of leaving two files - the reason `verify` derives its destination from
+      the row it is working on. And the bucket takes no upload permission,
+      because nothing uploads into it: what was allowed to *ask* was checked
+      when the export was raised, against the report's own permission.
+
+      `finish` takes no caller for the same reason - a worker has none, and
+      three places to check one thing is how one of them ends up not checking.
 
 - [x] `phonix-core` A report, rendered, and written out as CSV
       commit: "The shape that crosses a crate boundary"
