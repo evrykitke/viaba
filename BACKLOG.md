@@ -160,94 +160,30 @@ commits it is three items.
 >   comparing the three, but the look is a document setting and two places to
 >   change one thing is how they come to disagree. Ask if it is wanted.
 
-- [ ] `phonix-web` Where a report is found, and who may run it
-      why: two reports exist and the only way to either is knowing its address.
-           `Pages.Accounting.Reports` already gates the four statements as one
-           permission; a report the engine serves must be gated the same way
-           rather than being open because it is new.
-      touch: crates/phonix-web/src/ui/report/, crates/phonix-web/src/navigation/
-      done: an index lists every definition the viewer is permitted to run,
-            grouped by the app that declares it, and a definition carries the
-            permission it needs. A viewer without that permission is not shown
-            the report and cannot reach it by typing the address.
-      verify: the reports index, then sign in as an account without
-              `Pages.Accounting.Reports` and confirm the statement is neither
-              listed nor reachable by typing its address.
+> **Export moved to the front**, 2026-09-16, because the Export menu being
+> absent was reported twice from the running application. The three items that
+> deliver a working button - the request row, the exporter with CSV, and the
+> viewer that waits for one - now come before the index, grouping and the
+> charts. PDF and the spreadsheet stay where they were: they are more writers
+> on a path that by then exists.
 
-- [ ] `phonix-web` Grouping, and what a group adds up to
-      why: a list report without groups is a grid with a letterhead. A group
-           header, a group footer and a subtotal is what separates the two, and
-           all three statements still to be migrated group.
-      touch: crates/phonix-web/src/ui/report/, crates/phonix-core/src/report/
-      done: a definition declares what it groups by and which fields total; the
-            renderer draws a header and a footer per group; a subtotal is
-            computed from the rows of that group rather than re-read. Money
-            totals go through `Money` and never through `f64` - `Cell::number`
-            is a display type, not an arithmetic one.
-      verify: the product list grouped by its category. Add up one group's rows
-              by hand and check the subtotal, then check the subtotals add to
-              the report total.
-      stop: third checkpoint. The list kind, the logo, the index and grouping
-            are all in by here, and the three items after this build on the
-            arithmetic.
-
-- [ ] `phonix-web` The chart, as a band the server drew
-      why: charts are part of a report here, not a decoration on one, which is
-           why this sits before the exports rather than after them. A
-           JavaScript chart library is the wrong answer twice over: it draws
-           nothing during the server's render, which is the hydration mismatch
-           that takes the whole page down, and it draws nothing at all into a
-           PDF.
-      touch: crates/phonix-core/src/report/, crates/phonix-web/src/ui/report/
-      done: a chart band drawn as inline SVG from the report's own rows, in the
-            kinds a report actually needs - bar and column including stacked,
-            line, area, and pie or donut - with axis, ticks, labels and legend
-            identical on the server and in the browser. It reads the same rows
-            and the same group subtotals the bands do rather than a query of
-            its own, and a report whose only band is a chart is a report. No
-            `<canvas>`, no chart dependency, no clock. The geometry is computed
-            in `phonix_core::report` so the PDF writer can draw the same chart
-            from the same numbers.
-      verify: a report with each chart kind on it. Check the bars and the
-              legend against the numbers in the table below them, then reload
-              with the browser console open - a hydration mismatch shows there
-              and kills every handler on the page.
-      stop: fourth checkpoint. A chart that renders differently on the two sides
-            is the failure this design exists to avoid, and it is only visible
-            in a running browser.
-
-- [ ] `phonix-web` A group that opens and closes
-      why: drill-down, and what makes a long grouped report readable - the
-           groups are the report, and the detail is opened where somebody wants
-           it. Without it a hundred-group report is a thousand-row scroll.
-      touch: crates/phonix-web/src/ui/report/
-      done: a group header toggles its detail where the definition allows it,
-            the report opens in the state the definition names, and that state
-            belongs to the browser - it does not survive a reload and never
-            goes to the server. Printing and every export ignore it entirely:
-            an archived statement with sections collapsed is evidence with
-            holes in it.
-      verify: collapse a group, reload, and confirm it opens in the state the
-              definition names rather than the one you left it in.
-
-- [ ] `phonix-core` The paginator, which decides where a page ends
-      why: the PDF writer needs pages and a browser will not hand it any. This
-           is the one piece of the engine whose correctness a test actually
-           establishes - a group header orphaned at the foot of a page, a
-           footer that does not fit, a detail band split in half - so it is
-           pure, it is in core, and it is tested before anything draws with it.
-      touch: crates/phonix-core/src/report/
-      done: given a theme's metrics, a page setup and the rows, it returns
-            pages with their bands placed, repeating the page header and any group
-            header whose group continues onto the next page. A group header
-            alone at the foot of a page moves to the next one. A chart band is
-            placed whole or moved, never split. Tested: the orphan case, the
-            exact-fit case, a single row taller than a page, and that Compact
-            fits more rows on a page than Modern - the one assertion that
-            proves the look actually reaches the arithmetic. The viewer's
-            page navigation reads its answer rather than counting separately.
-      verify: the viewer's page navigation on a long report - the page count
-              and jumping to the last page. The unit tests carry the rest.
+- [ ] `phonix-web` The viewer's toolbar stays where it is
+      why: asked for after the second checkpoint. A report is long by nature,
+           and the toolbar scrolls away with it - so print, fit-to-width and
+           the export menu are reachable only by scrolling back to the top of
+           a document somebody is reading the bottom of. A toolbar that only
+           works at the top of the page is a toolbar for the first screenful.
+      touch: crates/phonix-web/src/ui/report/viewer.rs
+      done: the toolbar stays put while the sheet scrolls under it, against the
+            shell's own scrolling region rather than the window - the shell is
+            the only scrolling region, which is what makes `sticky` the answer
+            and `fixed` the wrong one. It sits above the sheet and below the
+            application's own chrome, and printing still keeps only the sheet.
+      verify: open a long report - the product list - and scroll. The toolbar
+              should stay at the top of the content area with the sheet moving
+              under it, and the navigation and top bar should not move at all.
+              Then press Print and check the toolbar is still absent from the
+              preview.
 
 - [ ] `phonix-core` The export request, as a row
       why: an export is a job, not an answer to a request. A statement over a
@@ -337,6 +273,95 @@ commits it is three items.
             the storage all run together, none of it has been exercised in this
             branch, and it is the only chance to see the two paths side by side
             before three writers are built on them.
+
+- [ ] `phonix-web` Where a report is found, and who may run it
+      why: two reports exist and the only way to either is knowing its address.
+           `Pages.Accounting.Reports` already gates the four statements as one
+           permission; a report the engine serves must be gated the same way
+           rather than being open because it is new.
+      touch: crates/phonix-web/src/ui/report/, crates/phonix-web/src/navigation/
+      done: an index lists every definition the viewer is permitted to run,
+            grouped by the app that declares it, and a definition carries the
+            permission it needs. A viewer without that permission is not shown
+            the report and cannot reach it by typing the address.
+      verify: the reports index, then sign in as an account without
+              `Pages.Accounting.Reports` and confirm the statement is neither
+              listed nor reachable by typing its address.
+
+- [ ] `phonix-web` Grouping, and what a group adds up to
+      why: a list report without groups is a grid with a letterhead. A group
+           header, a group footer and a subtotal is what separates the two, and
+           all three statements still to be migrated group.
+      touch: crates/phonix-web/src/ui/report/, crates/phonix-core/src/report/
+      done: a definition declares what it groups by and which fields total; the
+            renderer draws a header and a footer per group; a subtotal is
+            computed from the rows of that group rather than re-read. Money
+            totals go through `Money` and never through `f64` - `Cell::number`
+            is a display type, not an arithmetic one.
+      verify: the product list grouped by its category. Add up one group's rows
+              by hand and check the subtotal, then check the subtotals add to
+              the report total.
+      stop: third checkpoint. The list kind, the logo, the index and grouping
+            are all in by here, and the three items after this build on the
+            arithmetic.
+
+- [ ] `phonix-web` The chart, as a band the server drew
+      why: charts are part of a report here, not a decoration on one, which is
+           why this sits before the exports rather than after them. A
+           JavaScript chart library is the wrong answer twice over: it draws
+           nothing during the server's render, which is the hydration mismatch
+           that takes the whole page down, and it draws nothing at all into a
+           PDF.
+      touch: crates/phonix-core/src/report/, crates/phonix-web/src/ui/report/
+      done: a chart band drawn as inline SVG from the report's own rows, in the
+            kinds a report actually needs - bar and column including stacked,
+            line, area, and pie or donut - with axis, ticks, labels and legend
+            identical on the server and in the browser. It reads the same rows
+            and the same group subtotals the bands do rather than a query of
+            its own, and a report whose only band is a chart is a report. No
+            `<canvas>`, no chart dependency, no clock. The geometry is computed
+            in `phonix_core::report` so the PDF writer can draw the same chart
+            from the same numbers.
+      verify: a report with each chart kind on it. Check the bars and the
+              legend against the numbers in the table below them, then reload
+              with the browser console open - a hydration mismatch shows there
+              and kills every handler on the page.
+      stop: fourth checkpoint. A chart that renders differently on the two sides
+            is the failure this design exists to avoid, and it is only visible
+            in a running browser.
+
+- [ ] `phonix-web` A group that opens and closes
+      why: drill-down, and what makes a long grouped report readable - the
+           groups are the report, and the detail is opened where somebody wants
+           it. Without it a hundred-group report is a thousand-row scroll.
+      touch: crates/phonix-web/src/ui/report/
+      done: a group header toggles its detail where the definition allows it,
+            the report opens in the state the definition names, and that state
+            belongs to the browser - it does not survive a reload and never
+            goes to the server. Printing and every export ignore it entirely:
+            an archived statement with sections collapsed is evidence with
+            holes in it.
+      verify: collapse a group, reload, and confirm it opens in the state the
+              definition names rather than the one you left it in.
+
+- [ ] `phonix-core` The paginator, which decides where a page ends
+      why: the PDF writer needs pages and a browser will not hand it any. This
+           is the one piece of the engine whose correctness a test actually
+           establishes - a group header orphaned at the foot of a page, a
+           footer that does not fit, a detail band split in half - so it is
+           pure, it is in core, and it is tested before anything draws with it.
+      touch: crates/phonix-core/src/report/
+      done: given a theme's metrics, a page setup and the rows, it returns
+            pages with their bands placed, repeating the page header and any group
+            header whose group continues onto the next page. A group header
+            alone at the foot of a page moves to the next one. A chart band is
+            placed whole or moved, never split. Tested: the orphan case, the
+            exact-fit case, a single row taller than a page, and that Compact
+            fits more rows on a page than Modern - the one assertion that
+            proves the look actually reaches the arithmetic. The viewer's
+            page navigation reads its answer rather than counting separately.
+      verify: the viewer's page navigation on a long report - the page count
+              and jumping to the last page. The unit tests carry the rest.
 
 - [ ] `phonix-services` The report as a PDF a job wrote
       why: the reason the paginator exists, and the format everything else was
