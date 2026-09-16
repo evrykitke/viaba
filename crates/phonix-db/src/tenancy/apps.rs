@@ -166,13 +166,30 @@ pub static APPS: &[AppMigrations] = &[
 /// query wanting the new column would then fail at runtime, per tenant, in
 /// production.
 ///
-/// Renders as `core:0014`, or `core:0014,books:0003` once there is more than
-/// one. The format is opaque: it is compared, never parsed.
+/// # It covers the declarations too
+///
+/// A workspace is brought up to date with more than a schema: an app also
+/// declares number series and document settings in `config/`, installed on the
+/// same pass with `ON CONFLICT DO NOTHING`. Those were invisible here, and the
+/// consequence was silent - adding a document type to an app that every
+/// workspace already had changed no fingerprint, so the sweep skipped every
+/// tenant and the rows were never installed anywhere. A migration is not the
+/// only thing a deploy has to deliver.
+///
+/// Renders as `core:0014,books:0003|decl:1a2b-3c4d`. The format is opaque: it
+/// is compared, never parsed.
 pub fn schema_fingerprint() -> String {
-    APPS.iter()
+    let schemas = APPS
+        .iter()
         .map(|app| format!("{}:{}", app.app_id, app.latest_version()))
         .collect::<Vec<_>>()
-        .join(",")
+        .join(",");
+
+    format!(
+        "{schemas}|decl:{:x}-{:x}",
+        phonix_config::numbering::digest(),
+        phonix_config::documents::digest(),
+    )
 }
 
 /// Record that an app's schema is present and migrated.

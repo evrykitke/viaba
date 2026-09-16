@@ -160,32 +160,6 @@ commits it is three items.
 >   comparing the three, but the look is a document setting and two places to
 >   change one thing is how they come to disagree. Ask if it is wanted.
 
-- [ ] `phonix-db` A declared default never reaches a workspace that is current
-      why: found at the second checkpoint - the Documents tab is empty on a
-           workspace with every app installed. The cause is not the tab. The
-           boot sweep skips any tenant whose `schema_version` already equals
-           `apps::schema_fingerprint()`, and that fingerprint is **migration
-           versions only**. `core/0024` bumped it, the tenant migrated on the
-           binary that had the migration and not yet the installer, and every
-           boot since has skipped the tenant entirely - so
-           `install_document_settings` has never run. The same hole swallows a
-           new numbering series or a new default account added to an app that
-           is already installed, and the doc comments on all three installers
-           say the opposite in as many words.
-      touch: crates/phonix-db/src/tenancy/apps.rs,
-             crates/phonix-db/src/tenancy/provision.rs,
-             crates/phonix-config/src/documents.rs
-      done: the fingerprint covers what a workspace is brought up to date
-            *with*, not only its schema: the declarations in `config/numbering`
-            and `config/documents` are part of it, so changing one brings
-            existing workspaces forward on the next boot. The three installer
-            doc comments say what is actually true. The staging tenant ends the
-            item with its document settings in it, checked with a query rather
-            than assumed.
-      verify: Administration, the Documents tab, on a workspace that was
-              already current before this item. It should list the documents
-              Books and Inventory declare.
-
 - [ ] `phonix-web` Where the logo goes decides what sits beside it
       why: asked for at the second checkpoint. Three placements, and each one
            means a different letterhead rather than the same letterhead with
@@ -707,6 +681,31 @@ commits it is three items.
 ## Done
 
 <!-- The loop appends here with the commit sha. Newest first. -->
+
+- [x] `phonix-db` A declared default never reaches a workspace that is current
+      commit: "The insert that failed every boot, quietly"
+      **The queued diagnosis was wrong and the log said so.** The tab was
+      empty because `install_from_config` wrote `INSERT INTO
+      document_settings` on a connection whose search path is the *app's*
+      schema, so it did not resolve - and that failed the whole tenant
+      migration, on every boot, after the apps before it had been dealt with.
+      `tenant migration failed: relation "document_settings" does not exist`
+      had been in `var/development.00*.log` since the installer landed.
+      Qualified now, the way `apps::record_installed` already spells out
+      `core.installed_apps` and says why.
+
+      The fingerprint hole is real as well, and is fixed with it: the sweep
+      skips a tenant whose `schema_fingerprint` matches, and that fingerprint
+      was migration versions only, so a series or a document added to an app
+      every workspace already has would reach none of them. It now carries a
+      digest of `config/numbering` and `config/documents`. That was **not**
+      what emptied the tab, and the entry that said so has been corrected
+      rather than left standing.
+
+      Proved against the real tenant in a rolled-back transaction: the
+      unqualified statement gives exactly the logged error under
+      `search_path = books`, the qualified one writes, and the six declared
+      documents land.
 
 - [x] `phonix-config` The document settings each app declares
       commit: "The question the app asks about a document"

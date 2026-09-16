@@ -385,6 +385,11 @@ async fn sync_permission_tree(
 /// `ON CONFLICT DO NOTHING`, so re-running it cannot put back a format the
 /// tenant changed or reset a counter that has already issued numbers.
 ///
+/// "Every migration pass" is the whole of the promise, and it is only worth
+/// anything because `apps::schema_fingerprint` covers these files: the boot
+/// sweep skips a tenant whose fingerprint matches, so a series added to an
+/// app that every workspace already has would otherwise reach none of them.
+///
 /// A missing file is not an error - most apps issue no numbered documents, and
 /// `core` is one of them. A *malformed* one is: `series_for` validates the mask,
 /// the label key and the document type when it reads the file, so a format typo
@@ -420,8 +425,8 @@ async fn install_number_sequences(
 /// Create the document settings this app's configuration file declares.
 ///
 /// The other half of `install_number_sequences`, and the same arrangement: on
-/// every migration pass, `ON CONFLICT DO NOTHING`, and a missing file is not
-/// an error. A malformed one is - `documents_for` checks every word against
+/// every migration pass, `ON CONFLICT DO NOTHING`, a missing file is not an
+/// error, and the file is in the fingerprint so the pass actually happens. A malformed one is - `documents_for` checks every word against
 /// the enums and every document type against the series the app declares, so a
 /// setting for a document nobody can issue stops a deployment rather than
 /// sitting in a table nothing reads.
@@ -470,6 +475,10 @@ async fn install_document_settings(
 /// upgrade that adds an account has to reach the workspaces that already have
 /// the app. Every install is `ON CONFLICT DO NOTHING`, so a re-run can neither
 /// put back a row somebody deleted nor overwrite one they edited.
+///
+/// Unlike the sequences and the document settings, these defaults are compiled
+/// in rather than declared in `config/`, so they move with a release and need
+/// nothing in the fingerprint beyond the app's own version.
 async fn install_app_defaults(
     pool: &sqlx::PgPool,
     database: &str,

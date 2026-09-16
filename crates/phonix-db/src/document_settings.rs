@@ -102,6 +102,13 @@ pub async fn list<'e, E: PgExecutor<'e>>(executor: E) -> Result<Vec<DocumentSett
 /// `ON CONFLICT DO NOTHING`, and it runs on every migration pass rather than
 /// only the first: an upgrade that adds a document type has to reach the
 /// workspaces that already have the app. Returns how many rows were new.
+///
+/// **Fully qualified**, unlike every read in this module, because this one
+/// runs on a connection whose search path is the *app's* schema - the same
+/// reason `apps::record_installed` spells out `core.installed_apps`. Written
+/// unqualified it does not resolve, and the failure is not local: it fails the
+/// whole tenant's migration, on every boot, after the apps before it have
+/// already been dealt with.
 pub async fn install_from_config<'e, E: PgExecutor<'e>>(
     executor: E,
     documents: &[DocumentSettings],
@@ -140,7 +147,11 @@ pub async fn install_from_config<'e, E: PgExecutor<'e>>(
         .collect();
 
     let result = sqlx::query(
-        "INSERT INTO document_settings (document_type, theme, paper, orientation, logo_band,               logo_align, logo_height_mm)          SELECT * FROM UNNEST($1::text[], $2::text[], $3::text[], $4::text[], $5::text[],               $6::text[], $7::real[])          ON CONFLICT (document_type) DO NOTHING",
+        "INSERT INTO core.document_settings (document_type, theme, paper, orientation, \
+              logo_band, logo_align, logo_height_mm) \
+         SELECT * FROM UNNEST($1::text[], $2::text[], $3::text[], $4::text[], $5::text[], \
+              $6::text[], $7::real[]) \
+         ON CONFLICT (document_type) DO NOTHING",
     )
     .bind(&types)
     .bind(&themes)

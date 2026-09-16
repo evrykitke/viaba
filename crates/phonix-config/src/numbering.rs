@@ -92,6 +92,56 @@ const fn one() -> i64 {
     1
 }
 
+/// A marker that changes when any app's declarations here do.
+///
+/// Compared, never parsed, and part of `apps::schema_fingerprint`. It exists
+/// because the boot sweep skips a tenant whose fingerprint already matches: a
+/// declaration that is not in the fingerprint never reaches a workspace that
+/// already has the app, which is exactly what a new series or a new default is
+/// for.
+///
+/// Hashes the bytes, so editing a comment in one of these files brings every
+/// workspace forward once. That costs an idempotent pass of
+/// `ON CONFLICT DO NOTHING` statements and is the cheap side of the trade.
+pub fn digest() -> u64 {
+    digest_of(crate::workspace_root().join("config").join(DIRECTORY))
+}
+
+/// The same, for an explicit directory, so a test can point somewhere else.
+pub fn digest_of(dir: impl AsRef<Path>) -> u64 {
+    use std::collections::hash_map::DefaultHasher;
+    use std::hash::{Hash, Hasher};
+
+    let mut hasher = DefaultHasher::new();
+
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        // No directory is no declarations, which is a stable answer rather
+        // than a failure - most deployments of most apps declare none.
+        return 0;
+    };
+
+    let mut files: Vec<std::path::PathBuf> = entries
+        .flatten()
+        .map(|entry| entry.path())
+        .filter(|path| path.extension().is_some_and(|kind| kind == "toml"))
+        .collect();
+
+    // Sorted, because a directory listing is in whatever order the filesystem
+    // hands back and a fingerprint that moved with it would re-migrate every
+    // workspace at random.
+    files.sort();
+
+    for path in files {
+        path.file_name().hash(&mut hasher);
+
+        if let Ok(bytes) = std::fs::read(&path) {
+            bytes.hash(&mut hasher);
+        }
+    }
+
+    hasher.finish()
+}
+
 /// Read one app's series from the workspace's own `config/numbering`.
 pub fn series_for(app_id: &str) -> Result<Vec<Series>, SeriesError> {
     series_from(
