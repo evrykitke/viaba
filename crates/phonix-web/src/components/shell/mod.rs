@@ -101,9 +101,11 @@ pub struct Shell {
     /// How this workspace's documents are drawn: its name and mark, and what
     /// it keeps for each kind of document.
     ///
-    /// Not blocking, unlike the two above: no chrome waits on it, and the only
-    /// screens that read it are reports. Fetched once for the session rather
-    /// than once per report, which is what the shell holding it is for.
+    /// Blocking, like the two above. A report's letterhead is read outside any
+    /// suspense boundary, so a value that arrives later is a value the server's
+    /// render does not have - and the server's render is the page a headless
+    /// browser prints. Fetched once for the session rather than once per
+    /// report, which is what the shell holding it is for.
     documents: Resource<Option<DocumentChrome>>,
     /// Bumped by [`Self::refresh`] to re-fetch the two above.
     ///
@@ -139,7 +141,7 @@ impl Shell {
                 move || generation.get(),
                 |_| async move { enabled_apps().await.unwrap_or_default() },
             ),
-            documents: Resource::new(
+            documents: Resource::new_blocking(
                 move || generation.get(),
                 |_| async move { document_chrome().await.ok() },
             ),

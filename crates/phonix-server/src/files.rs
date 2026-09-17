@@ -65,6 +65,7 @@ use axum::http::{HeaderMap, HeaderValue, StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
 use phonix_core::files::{FileSummary, Preview};
+use phonix_core::identity::AuthUser;
 use phonix_core::{Error as CoreError, TenantSummary};
 use phonix_db::PgPool;
 use phonix_services::files::{access, upload};
@@ -123,10 +124,11 @@ async fn upload_file(
     Query(query): Query<UploadQuery>,
     multipart: Multipart,
 ) -> Response {
-    let (tenant, pool, caller) = match authenticate(&state, tenant, &headers).await {
-        Ok(who) => who,
-        Err(response) => return response,
-    };
+    let (tenant, pool, caller) =
+        match authenticate(&state, tenant, &headers, Printing::Refused).await {
+            Ok(who) => who,
+            Err(response) => return response,
+        };
 
     // Before a single byte: may this caller write into this bucket, and how
     // many bytes may they write? Nothing here touches the disk, so a refusal
@@ -289,6 +291,17 @@ async fn preview_file(
     serve(state, tenant, headers, id, Serve::Preview).await
 }
 
+/// Whether a print token may stand in for a session.
+///
+/// A browser we sent to print a report reads the page as the account that
+/// asked for the export, and a mark in the letterhead is one of the things that
+/// page draws. Nothing it prints needs to write.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Printing {
+    Allowed,
+    Refused,
+}
+
 /// Which of the two promises this response is making.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Serve {
@@ -299,6 +312,17 @@ enum Serve {
     Preview,
 }
 
+impl Serve {
+    /// Only a preview. A download disposition is nothing a printed page asks
+    /// for, so the token that prints one does not open it.
+    const fn printing(self) -> Printing {
+        match self {
+            Self::Preview => Printing::Allowed,
+            Self::Download => Printing::Refused,
+        }
+    }
+}
+
 /// Both routes, which differ only in the disposition and the sandbox.
 async fn serve(
     state: AppState,
@@ -307,7 +331,8 @@ async fn serve(
     id: Uuid,
     mode: Serve,
 ) -> Response {
-    let (tenant, pool, caller) = match authenticate(&state, tenant, &headers).await {
+    let (tenant, pool, caller) = match authenticate(&state, tenant, &headers, mode.printing()).await
+    {
         Ok(who) => who,
         Err(response) => return response,
     };
@@ -463,11 +488,13 @@ fn percent_encode(text: &str) -> String {
 /// `leptos_axum::extract`, which only works inside a Leptos handler. These are
 /// plain axum routes, so the same three steps are done directly: the tenant
 /// from the middleware's extension, the pool from the registry, and the session
-/// from the cookie.
+/// from the cookie - or, where `printing` allows it, the print token that
+/// stands in for one.
 async fn authenticate(
     state: &AppState,
     tenant: Option<axum::Extension<TenantSummary>>,
     headers: &HeaderMap,
+    printing: Printing,
 ) -> Result<(TenantSummary, PgPool, Caller), Response> {
     let Some(axum::Extension(tenant)) = tenant else {
         return Err(error_response(
@@ -481,33 +508,71 @@ async fn authenticate(
             error_response(StatusCode::SERVICE_UNAVAILABLE, "Workspace unavailable.")
         })?;
 
-    let token = headers
+    let cookies = headers
         .get(header::COOKIE)
         .and_then(|value| value.to_str().ok())
-        .and_then(|raw| {
-            let name = state
-                .config
-                .security
-                .session
-                .cookie_name_for(tenant.slug.as_str());
-            phonix_web::server::cookie::read(raw, &name)
-        })
-        .map(secrecy::SecretString::from);
+        .unwrap_or_default();
 
-    let Some(token) = token else {
-        return Err(error_response(StatusCode::UNAUTHORIZED, "Not signed in."));
+    let session = phonix_web::server::cookie::read(
+        cookies,
+        &state
+            .config
+            .security
+            .session
+            .cookie_name_for(tenant.slug.as_str()),
+    )
+    .map(secrecy::SecretString::from);
+
+    let signed_in = match session {
+        Some(token) => {
+            phonix_services::authenticate_session(&handle.pool, &token, &state.config.security)
+                .await
+                .map_err(service_error)?
+        }
+        None => None,
     };
 
-    let authenticated =
-        phonix_services::authenticate_session(&handle.pool, &token, &state.config.security)
-            .await
-            .map_err(service_error)?;
+    let auth_user = match signed_in {
+        Some(auth_user) => Some(auth_user),
+        None if printing == Printing::Allowed => {
+            print_holder(state, &handle.pool, &tenant, cookies).await?
+        }
+        None => None,
+    };
 
-    let Some(auth_user) = authenticated else {
+    let Some(auth_user) = auth_user else {
         return Err(error_response(StatusCode::UNAUTHORIZED, "Not signed in."));
     };
 
     Ok((tenant, handle.pool.clone(), Caller::user(auth_user)))
+}
+
+/// The account a browser we sent to print is reading as.
+///
+/// The same token `phonix_web::state::printing_caller` resolves for a page,
+/// read here because these routes have no Leptos context to ask through.
+async fn print_holder(
+    state: &AppState,
+    pool: &PgPool,
+    tenant: &TenantSummary,
+    cookies: &str,
+) -> Result<Option<AuthUser>, Response> {
+    let name = phonix_web::server::cookie::print_name(
+        &state.config.security.session,
+        tenant.slug.as_str(),
+    );
+
+    let Some(token) = phonix_web::server::cookie::read(cookies, &name) else {
+        return Ok(None);
+    };
+
+    let Some(user) = state.printing.holder(&tenant.slug, &token) else {
+        return Ok(None);
+    };
+
+    phonix_services::identity::authentication::load_auth_user_by_id(pool, user, true)
+        .await
+        .map_err(service_error)
 }
 
 /// Turn a service failure into a response, without leaking what went wrong.

@@ -39,16 +39,66 @@ commits it is three items.
 
 ## Next
 
-*Empty.* The verification pass of 2026-09-17 queued three items - the menu, the
-palette heading the menu broke, and the exports - and all three are in
-`## Awaiting verification` below. Each names the screen to open and what should
-be true on it.
+Two items from the verification pass of 2026-09-17, in the order they were
+given, and both what is left of one subject: a document that does not say who
+issued it. The defect in front of them is committed. Both change a screen, so
+both carry `verify:`, and the second ends the loop.
 
-What is deliberately not here: the receipt. The exports item said to check it
-rather than fix it blind, and reading it settled the question - it takes its id
-from the route, which the server knows, so it is the same shape as the one
-report that already printed. If it still comes back blank it is a different
-cause and it earns its own item.
+- [ ] `phonix-core` A document that does not say who issued it
+      why: `Letterhead` is a name and a logo and nothing else, and its own doc
+           comment says the address is "deliberately not here ... until a
+           document is designed that needs it". A customer statement and a
+           receipt are handed to somebody outside the workspace, and they carry
+           no address, no registration number, no tax id and no way to reply.
+           That condition has now been met, so the comment is what changes
+           first. Nothing needs collecting: `OrganizationProfile` already holds
+           all of it, and `profile::current` already reads it ungated for the
+           outbox relay and the mailer.
+      touch: crates/phonix-core/src/organization.rs,
+             crates/phonix-services/src/workspace/profile.rs,
+             crates/phonix-web/src/ui/report/chrome.rs
+      done: the letterhead carries the company block a document is headed with
+            - the address, the registration number and tax id, and the ways to
+            reach the workspace - resolved the same way the name and the mark
+            already are, once for the session, through `DocumentChrome`.
+            `profile::letterhead` is still ungated and the commit body says why
+            that is still right: what it returns is on every document the
+            workspace issues, which is not a secret from the people inside it.
+            A field the workspace has not filled in is absent, not an empty
+            line: a letterhead with blank rows in it is the hole this is
+            closing.
+      verify: open a customer statement and a receipt. The company block should
+              be at the head of both, saying the same thing on each, with
+              nothing empty in it.
+
+- [ ] `phonix-web` One letterhead, the same on every report
+      why: `letterhead_layout` already describes what it is meant to draw - "a
+           name and an address beside a logo" - and there has been no address
+           to put there, so every definition's `ReportHeader` band carries only
+           what that report is about and the workspace's identity is one mark
+           and nothing more. With a company block to place, nothing says where
+           it goes, and the second report to grow one would put it somewhere
+           else. Uniform is the requirement: the head of a report says who this
+           workspace is, in the same shape, whichever report it is.
+      touch: crates/phonix-web/src/ui/report/render.rs,
+             crates/phonix-web/src/ui/report/config/,
+             docs/adr/0008-reporting.md
+      done: the company block is drawn by the engine from the letterhead, not
+            declared band by band, so a definition cannot get it wrong and a
+            new report gets it for nothing. What each report's own header says
+            - the customer and the span on a statement, the payment on a
+            receipt - stays that report's and stays in its `ReportHeader` band.
+      note: this changes what ADR 0008 §6 settled about a letterhead, so §6 is
+            amended in the same commit rather than built past. The boundary it
+            draws still holds and the amendment must say so: a company block
+            the engine draws from the workspace's own profile is not a band the
+            tenant moved, and this is still not a report designer.
+      verify: the trial balance, a customer statement and a receipt, side by
+              side. The head of each should carry the same company block in the
+              same place, and each should still say the thing that is its own
+              underneath it.
+      stop: all three are screen work, and the head of a document is the one
+            thing that cannot be judged from a build at all.
 
 ## Awaiting verification
 
@@ -59,6 +109,38 @@ cause and it earns its own item.
      The user launches the application, looks, and then either moves the item
      to `## Done` or writes a new item in `## Next` saying what was wrong. The
      loop never moves anything out of this section by itself. -->
+
+- [x] `phonix-web` The mark that never reaches the printed page
+      commit: "Two doors the printing browser could not open"
+      why: exporting a report gives a PDF with no logo on it, and there are two
+           causes, both read rather than guessed. `Shell::documents` is a plain
+           `Resource` and not `new_blocking` like `session` and `apps` beside
+           it, so during the server's render `Letterhead::get()` is `None` and
+           `render::mark` draws nothing at all - there is no `<img>` in the
+           HTML the headless browser prints. And `/files/{id}/preview` in
+           `phonix-server/src/files.rs` authenticates on the session cookie
+           alone, while a printing browser carries `<session>_printing` - so
+           even with the tag in place the image answers 401. Either one alone
+           is enough to print a document with a hole where its mark goes.
+      touch: crates/phonix-web/src/components/shell/mod.rs,
+             crates/phonix-server/src/files.rs
+      done: the letterhead is resolved before the page is rendered, and the
+            file routes accept a print token the way
+            `phonix_web::state::current_caller` already does - falling back to
+            `print_token()` rather than reading a second cookie in a second
+            place. A print token names one account for one address and is
+            withdrawn when the print ends, so what it opens is what that
+            account could already open; it is not a wider door, and the commit
+            body should say why it is not.
+      note: blocking the whole shell on this is not the answer. `documents` was
+            left non-blocking deliberately - no chrome waits on it - so if the
+            fix is to make it blocking, say in the commit body what that costs
+            every screen that is not a report, and if it is not, say what was
+            done instead.
+      verify: export any report as PDF and open the file. The workspace's mark
+              should be on it, in the place the screen shows it, and a
+              workspace that has uploaded no logo should get its name there
+              instead - not a gap.
 
 - [x] `phonix-web` The statements that print a blank sheet
       commit: "The span the server was never told"
