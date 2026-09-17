@@ -751,37 +751,95 @@ fn mark_row(logo: Logo, metrics: &Metrics) -> AnyView {
     .into_any()
 }
 
-/// The letterhead, arranged around wherever its mark is.
+/// The workspace's own words at the head of a document.
 ///
-/// Against an edge the header's own lines sit alongside the mark, which is
-/// what a letterhead with a name and an address beside a logo looks like.
-/// Centred, the mark takes a line and everything else goes under it. With no
-/// mark at all the header is what it always was.
+/// Drawn by the engine from the letterhead rather than declared band by band,
+/// so every report says the same thing in the same order and a new one gets it
+/// for nothing. Nothing unfilled is a line. `named` leads with the workspace's
+/// name, for a report whose header draws no mark to carry it.
+fn company_block(named: bool, metrics: &Metrics) -> AnyView {
+    let letterhead = Letterhead::get();
+    let caption_pt = metrics.type_scale.caption_pt;
+    let name_pt = metrics.type_scale.title_pt;
+
+    view! {
+        <div class="min-w-0 shrink-0">
+            {move || {
+                letterhead
+                    .get()
+                    .map(|letterhead| {
+                        view! {
+                            {named
+                                .then(|| {
+                                    view! {
+                                        <p
+                                            class="font-semibold"
+                                            style=format!("font-size:{name_pt}pt")
+                                        >
+                                            {letterhead.name.clone()}
+                                        </p>
+                                    }
+                                })}
+                            <div
+                                class="text-content-muted"
+                                style=format!("font-size:{caption_pt}pt")
+                            >
+                                {letterhead
+                                    .lines
+                                    .iter()
+                                    .map(|line| view! { <p>{line.clone()}</p> })
+                                    .collect_view()}
+                            </div>
+                        }
+                    })
+            }}
+        </div>
+    }
+    .into_any()
+}
+
+/// The letterhead, arranged around wherever its mark is, with the report's own
+/// header under it.
+///
+/// Against an edge the mark and the workspace's words take opposite sides,
+/// which is what a letterhead looks like. Centred, both take a line of their
+/// own. With no mark at all the words lead, so a report that declares none
+/// still says whose it is.
 fn letterhead_layout(logo: Option<Logo>, body: AnyView, metrics: &Metrics) -> AnyView {
-    match logo.map(|logo| logo.placement.align()) {
+    let company = company_block(logo.is_none(), metrics);
+
+    let head = match logo.map(|logo| logo.placement.align()) {
         Some(Align::Start) => view! {
-            <div class="flex items-start gap-4">
+            <div class="flex items-start justify-between gap-4">
                 {logo.map(|logo| mark(logo, metrics))}
-                {body}
+                {company}
             </div>
         }
         .into_any(),
         Some(Align::End) => view! {
-            <div class="flex items-start gap-4">
-                {body}
+            <div class="flex items-start justify-between gap-4">
+                {company}
                 {logo.map(|logo| mark(logo, metrics))}
             </div>
         }
         .into_any(),
         Some(Align::Center) => view! {
-            <div>
+            <div class="text-center">
                 {logo.map(|logo| mark_row(logo, metrics))}
-                {body}
+                {company}
             </div>
         }
         .into_any(),
-        None => body,
+        None => company,
+    };
+
+    view! {
+        <div>
+            {head}
+            {body}
+        </div>
     }
+    .into_any()
 }
 
 /// A value, as a link where it names a record and as words where it does not.

@@ -19,15 +19,14 @@ pub struct Letterhead {
     /// Where the mark's bytes are. `None` draws the name instead, which is
     /// what a workspace that has not uploaded one gets.
     pub logo_src: Option<String>,
-    /// Where the workspace is, as the lines to print, in order. Assembled
-    /// before it arrives here, so a document cannot order them differently
-    /// from the one beside it.
-    pub address: Vec<String>,
-    pub email: Option<String>,
-    pub phone: Option<String>,
-    pub website: Option<String>,
-    pub registration_number: Option<String>,
-    pub tax_id: Option<String>,
+    /// The workspace's own words under its name - where it is, how it is
+    /// reached, what it is registered as - as the lines to print, in order.
+    ///
+    /// Words and not fields, because `ui` resolves no catalogue keys: a line
+    /// that needs saying what it is arrives with its label already on it. And
+    /// assembled before it gets here, so no document can order them
+    /// differently from the one beside it.
+    pub lines: Vec<String>,
 }
 
 /// Held in context by the application shell.

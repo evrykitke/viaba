@@ -39,12 +39,31 @@ commits it is three items.
 
 ## Next
 
-The last of the verification pass of 2026-09-17. The mark that would not print
-and the words a document was missing are both committed; what is left is where
-those words go, which is the one part of it that is a decision rather than a
-gap. It changes a screen, so it carries `verify:`, and it ends the loop.
+*Empty.* The verification pass of 2026-09-17 queued five items across two
+sittings - the menu, the palette heading it broke, the statements that printed
+blank, the mark that would not print, the words a document was missing and
+where those words go - and every one of them is in `## Awaiting verification`
+below. Each names the screen to open and what should be true on it.
 
-- [ ] `phonix-web` One letterhead, the same on every report
+What is deliberately not here: a mark for the four list reports. Only the
+statement and the receipt declare a logo, and the trial balance, the profit and
+loss, the balance sheet and the product list declare none and have no document
+type to be given one - so they carry the company block and no image, which is
+what they are asking for and not a fault in the export. If that is wrong it is
+a decision, and it is one line in this section.
+
+## Awaiting verification
+
+<!-- Committed, compiling, and not finished: each of these changed something
+     the build cannot judge. The loop puts an item here when it carries a
+     `verify:` line, with its commit sha and that line kept.
+
+     The user launches the application, looks, and then either moves the item
+     to `## Done` or writes a new item in `## Next` saying what was wrong. The
+     loop never moves anything out of this section by itself. -->
+
+- [x] `phonix-web` One letterhead, the same on every report
+      commit: "The head of a document, said once"
       why: `letterhead_layout` already describes what it is meant to draw - "a
            name and an address beside a logo" - and there has been no address
            to put there, so every definition's `ReportHeader` band carries only
@@ -72,16 +91,6 @@ gap. It changes a screen, so it carries `verify:`, and it ends the loop.
               underneath it.
       stop: all three are screen work, and the head of a document is the one
             thing that cannot be judged from a build at all.
-
-## Awaiting verification
-
-<!-- Committed, compiling, and not finished: each of these changed something
-     the build cannot judge. The loop puts an item here when it carries a
-     `verify:` line, with its commit sha and that line kept.
-
-     The user launches the application, looks, and then either moves the item
-     to `## Done` or writes a new item in `## Next` saying what was wrong. The
-     loop never moves anything out of this section by itself. -->
 
 - [x] `phonix-core` A document that does not say who issued it
       commit: "The address that was waiting for a document to need it"

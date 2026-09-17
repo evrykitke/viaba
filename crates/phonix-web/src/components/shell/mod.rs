@@ -74,6 +74,7 @@ use leptos_router::hooks::use_location;
 use phonix_core::identity::AuthUser;
 use phonix_core::report::{DocumentChrome, DocumentSettings};
 
+use crate::l;
 use crate::navigation::{MENU, Trail};
 use crate::server_fns::admin_fns::document_chrome;
 use crate::server_fns::app_fns::enabled_apps;
@@ -85,6 +86,11 @@ use crate::ui::report::Letterhead;
 use command_palette::CommandPalette;
 use sidebar::Sidebar;
 use topbar::TopBar;
+
+/// One line from several parts, separated, or no line at all.
+fn joined(parts: Vec<String>) -> Option<String> {
+    (!parts.is_empty()).then(|| parts.join(" \u{b7} "))
+}
 
 /// Everything the chrome shares.
 #[derive(Clone, Copy)]
@@ -235,15 +241,31 @@ impl Shell {
             documents.get().flatten().map(|chrome| {
                 let held = chrome.letterhead;
 
+                let reached = [held.email, held.phone, held.website]
+                    .into_iter()
+                    .flatten()
+                    .collect::<Vec<_>>();
+
+                let registered = [
+                    held.registration_number.map(|number| {
+                        format!("{}: {number}", l!("organization.registration_number"))
+                    }),
+                    held.tax_id
+                        .map(|id| format!("{}: {id}", l!("organization.tax_id"))),
+                ]
+                .into_iter()
+                .flatten()
+                .collect::<Vec<_>>();
+
                 Letterhead {
                     name: held.name,
                     logo_src: held.logo_file_id.map(content::preview_url),
-                    address: held.address,
-                    email: held.email,
-                    phone: held.phone,
-                    website: held.website,
-                    registration_number: held.registration_number,
-                    tax_id: held.tax_id,
+                    lines: held
+                        .address
+                        .into_iter()
+                        .chain(joined(reached))
+                        .chain(joined(registered))
+                        .collect(),
                 }
             })
         })

@@ -7,6 +7,8 @@ the spreadsheet and the four statements are queued in `BACKLOG.md`.
 Date: 2026-09-16
 Amended: 2026-09-16 — section 9. The PDF is printed by a browser rather than
 written by a band writer.
+Amended: 2026-09-17 — section 6.1. The engine draws the workspace's own words at
+the head of every report; a definition does not declare them.
 
 This workspace has four statements. The trial balance, the balance sheet, the
 profit and loss and the customer statement are a thousand lines of hand-written
@@ -221,6 +223,38 @@ Once somebody has dragged a band, every fix to that report is a migration of
 their drawing, and the compile-time binding §1 exists for is gone on the first
 save. The reference products that offer one spend the rest of their lives
 supporting it.
+
+### 6.1 The letterhead is the engine's, not the definition's
+
+*Amended 2026-09-17, after a printed statement was read by somebody who had to
+ask who had sent it.*
+
+Section 6 said a tenant keeps the mark and the free text, and left what a
+document says about the workspace at that. It was not enough. A statement and a
+receipt go to somebody outside the workspace, and they carried a logo, a title
+and no way to tell who had issued them - no address, no registration number, no
+tax identifier, nothing to reply to.
+
+**The engine draws the workspace's own words at the head of every report**,
+from `organization::Letterhead`, which now carries the address, the ways to
+reach the workspace and what it is registered as. A definition does not declare
+it, cannot move it and cannot leave it out, so the head of a trial balance says
+the same thing in the same order as the head of a receipt, and a report added
+next year says it without knowing it has to. What a report's own header band
+says - the customer and the span on a statement, the payment on a receipt -
+remains the definition's and remains where it was, under the letterhead.
+
+The boundary §6 draws is untouched, and the distinction is the point. This is
+not a band the tenant moved: nobody chooses it, nobody places it, and there is
+nothing on the settings screen that changes it. It is drawn from what the
+workspace has already told us about itself on the organization screen, which is
+the same source the outbox relay and the mailer read. A field nobody filled in
+is not a blank line - it is absent - so the block is as complete as the profile
+is and never more.
+
+What the tenant still keeps is what §6 already listed: the look, the paper,
+whether the mark is drawn and where, and the free text at the head and the foot.
+**This is still not a report designer.**
 
 ## 7. A chart is a band the server drew
 
