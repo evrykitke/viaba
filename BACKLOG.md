@@ -39,15 +39,75 @@ commits it is three items.
 
 ## Next
 
-*Empty.* The reporting engine's queue was worked to the end on 2026-09-16 and
-17 - the record, the model, the renderer, the viewer, the index, the gate,
-grouping, the chart, folding, the exports, the browser that prints, the four
-statements, and the two clean-ups queued behind them. Everything that was in it
-is in `## Awaiting verification` below, which is the section to read next:
-each item names the thing to open and what should be true on the screen.
+The exports, from the verification pass of 2026-09-17, and one thing the menu
+change left behind. Both change a screen, so both carry `verify:`, and the
+exports item ends the loop: what it does is looked at in the running
+application, not in a build.
 
-What is deliberately not here: nothing invented to keep the loop running. The
-queue ends where the work ended.
+- [ ] `phonix-web` Every screen in the palette now sits under "Business"
+      why: `reachable` in `navigation/mod.rs` labels a destination with
+           `ancestors.first()`, which was the module before the modules were
+           grouped. Now it is "Business" for all five of them, so the command
+           palette groups forty-odd screens under one heading and the
+           breadcrumb on `/inventory/units` reads Business > Inventory >
+           Configuration > Units. The tree moved; the thing that names a
+           section did not.
+      touch: crates/phonix-web/src/navigation/mod.rs
+      done: a destination's `section` is the ancestor that names its module,
+            not the first one - which for a two-deep tree means the second
+            ancestor where there is one and the first where there is not. The
+            breadcrumb is a separate field and keeps every ancestor: a trail
+            is meant to be the whole path, and it is the palette's grouping
+            that wanted the module.
+      verify: the command palette with no query. The headings should be
+              Selling, Inventory, Accounting, People, Master data and
+              Administration, not Business and Administration.
+
+- [ ] `phonix-web` The statements that print a blank sheet
+      why: only `product-list` exports a usable PDF. The four accounting
+           statements and the receipt come back as an empty page, so the export
+           button is on six reports and works on one.
+      touch: crates/phonix-web/src/pages/sales/reports/shared.rs,
+             crates/phonix-web/src/pages/sales/reports/trial_balance.rs,
+             crates/phonix-web/src/pages/sales/reports/profit_and_loss.rs,
+             crates/phonix-web/src/pages/sales/reports/balance_sheet.rs,
+             crates/phonix-web/src/pages/sales/reports/customer_statement.rs
+      reading, to confirm before fixing: a PDF is the page printed by a
+           headless browser, and `print_rules` in `ui/report/viewer.rs` hides
+           everything that is not inside `[data-report-sheet]`. So a page that
+           renders its empty panel instead of its sheet does not print an empty
+           report - it prints nothing at all, which is the blank sheet being
+           reported. The four statements reach that state on the server's
+           render: the span they read over starts `None` and is only ever set
+           from an `Effect` - `opening_span()` in `shared.rs`, and the second
+           effect that applies `?from=&to=` from the address - and effects do
+           not run on the server. The resource is keyed on that span, so the
+           server renders "no span, no report". `product-list` has no such
+           parameter and renders its rows server-side, which is exactly the one
+           that works.
+      done: the four statements resolve their span during the server's render
+            - the query string is read where the resource can see it rather
+            than applied afterwards from an effect - so the sheet is in the
+            first HTML the browser is handed and a print does not depend on
+            hydration having finished. Exporting each of the four over a span
+            that has data gives a PDF with the statement on it. The receipt is
+            checked too: it has no effect-set parameter, so if it also prints
+            blank the cause is a different one and it becomes its own item
+            rather than being fixed blind here.
+      note: `opening_span` says in its own doc comment why the opening span is
+            asked of the server and set in an effect - a date worked out twice
+            is a hydration mismatch. That reasoning still holds; the fix is to
+            make the address's span, which is not a clock reading, reach the
+            server render, not to move the workspace's financial year into the
+            browser.
+      verify: run each of the trial balance, profit and loss, balance sheet and
+              a customer statement, export each as PDF, and open the four
+              files. Each should hold the statement it was run for, over the
+              span that was on screen - not the current month, and not a blank
+              page. The receipt too, from a payment.
+      stop: the menu and the exports are both screen work, and nothing after
+            them can be judged until they have been looked at in the running
+            application.
 
 ## Awaiting verification
 
@@ -58,6 +118,41 @@ queue ends where the work ended.
      The user launches the application, looks, and then either moves the item
      to `## Done` or writes a new item in `## Next` saying what was wrong. The
      loop never moves anything out of this section by itself. -->
+
+- [x] `phonix-web` The four business modules under one heading
+      commit: "The seven rows that should have been four"
+      why: Selling, Inventory, Accounting and People sit at the top level
+           beside Administration, so the sidebar's first question is "which of
+           seven?" when it should be "business, or administration?". They are
+           one family - the modules a workspace runs on - and nothing on
+           screen says so.
+      touch: crates/phonix-web/src/navigation/tree.rs,
+             crates/phonix-core/i18n/en.json, locales/de.json, locales/fr.json,
+             locales/zh.json
+      done: `MENU` is Dashboard, Reports, Business, Administration at the top
+            level, and Business holds Selling, Inventory, Accounting, People
+            and Master data in that order. The five keep their own keys,
+            labels, icons, permissions and children unchanged - this moves
+            them, it does not rename them. `nav.business` is a new catalogue
+            key with a word in all four languages. Business itself requires no
+            permission: a group with nothing visible inside it is already not
+            rendered, and naming one here would hide a module from somebody who
+            holds it.
+      note: the icon. `Building2` is People's already, and the set is generated
+            - a name goes in `tools/icons.txt` and `node tools/generate-icons.mjs`
+            regenerates `icons/generated.rs`. If npm cannot be run here, take an
+            unused icon that is already in the enum and say in the commit body
+            which, so it can be changed later rather than looked for.
+      note: depth. The sidebar indents 0.75rem a level and already draws
+            Inventory's own sub-groups, so this makes a leaf like
+            `/inventory/units` the third level and its row starts 2.75rem in.
+            Look at it. If it reads as a margin rather than a hierarchy, say so
+            in the commit body rather than inventing a fix for it here.
+      verify: the sidebar. Four rows at the top - Dashboard, Reports, Business,
+              Administration. Business opens onto the five, opening a child
+              route still expands its parents, and the collapsed rail is those
+              four icons. Then the command palette and a breadcrumb on a deep
+              route, both of which read the same tree.
 
 - [x] `phonix-web` Three more editors that grow the page
       commit: "Four editors, over the list rather than under it"

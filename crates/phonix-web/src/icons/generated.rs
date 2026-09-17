@@ -34,6 +34,8 @@ pub enum Icon {
     Bold,
     /// Lucide `boxes`.
     Boxes,
+    /// Lucide `briefcase`.
+    Briefcase,
     /// Lucide `building-2`.
     Building2,
     /// Lucide `calendar`.
@@ -228,6 +230,7 @@ impl Icon {
             Self::Blocks => "blocks",
             Self::Bold => "bold",
             Self::Boxes => "boxes",
+            Self::Briefcase => "briefcase",
             Self::Building2 => "building-2",
             Self::Calendar => "calendar",
             Self::ChartColumn => "chart-column",
@@ -342,6 +345,9 @@ impl Icon {
             }
             Self::Boxes => {
                 r#"<path d="M2.97 12.92A2 2 0 0 0 2 14.63v3.24a2 2 0 0 0 .97 1.71l3 1.8a2 2 0 0 0 2.06 0L12 19v-5.5l-5-3-4.03 2.42Z" /> <path d="m7 16.5-4.74-2.85" /> <path d="m7 16.5 5-3" /> <path d="M7 16.5v5.17" /> <path d="M12 13.5V19l3.97 2.38a2 2 0 0 0 2.06 0l3-1.8a2 2 0 0 0 .97-1.71v-3.24a2 2 0 0 0-.97-1.71L17 10.5l-5 3Z" /> <path d="m17 16.5-5-3" /> <path d="m17 16.5 4.74-2.85" /> <path d="M17 16.5v5.17" /> <path d="M7.97 4.42A2 2 0 0 0 7 6.13v4.37l5 3 5-3V6.13a2 2 0 0 0-.97-1.71l-3-1.8a2 2 0 0 0-2.06 0l-3 1.8Z" /> <path d="M12 8 7.26 5.15" /> <path d="m12 8 4.74-2.85" /> <path d="M12 13.5V8" />"#
+            }
+            Self::Briefcase => {
+                r#"<path d="M16 20V4a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" /> <rect width="20" height="14" x="2" y="6" rx="2" />"#
             }
             Self::Building2 => {
                 r#"<path d="M10 12h4" /> <path d="M10 8h4" /> <path d="M14 21v-3a2 2 0 0 0-4 0v3" /> <path d="M6 10H4a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-2" /> <path d="M6 21V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v16" />"#
@@ -593,6 +599,7 @@ impl Icon {
         Icon::Blocks,
         Icon::Bold,
         Icon::Boxes,
+        Icon::Briefcase,
         Icon::Building2,
         Icon::Calendar,
         Icon::ChartColumn,
@@ -702,6 +709,7 @@ impl core::str::FromStr for Icon {
             "blocks" => Ok(Self::Blocks),
             "bold" => Ok(Self::Bold),
             "boxes" => Ok(Self::Boxes),
+            "briefcase" => Ok(Self::Briefcase),
             "building-2" => Ok(Self::Building2),
             "calendar" => Ok(Self::Calendar),
             "chart-column" => Ok(Self::ChartColumn),

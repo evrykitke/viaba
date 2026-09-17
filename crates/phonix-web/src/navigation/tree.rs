@@ -23,7 +23,7 @@
 //!
 //! # Adding a module
 //!
-//! An inventory module is a group under a new top-level node, and the
+//! A module is a group in [`BUSINESS`], and the
 //! permissions it names have to exist in `phonix-core` first - the definition
 //! tree there is the source of truth, this is a view of it. Declare
 //! `Pages.Inventory`, `Pages.Inventory.Items`, `Pages.Inventory.Requisitions`
@@ -49,33 +49,11 @@ use crate::icons::Icon;
 /// Where a finished sign-in lands, and the first entry in the menu.
 pub const DASHBOARD: &str = "/dashboard";
 
-/// The workspace menu, top to bottom.
+/// The four apps a workspace runs on, and the reference data behind them.
 ///
-/// Order here is order on screen. Nothing sorts it: the sequence is a design
-/// decision - what people reach for most, first - and an alphabetical sidebar
-/// would bury the dashboard under "Audit logs".
-pub static MENU: &[NavNode] = &[
-    NavNode::leaf(
-        "dashboard",
-        "nav.dashboard",
-        Icon::LayoutDashboard,
-        DASHBOARD,
-    )
-    .require(names::DASHBOARD)
-    .keywords(&["home", "overview", "start"]),
-    // Ungated: it spans the apps, and it lists only what the reader may run.
-    // A permission here would hide the index from somebody who holds one of
-    // the reports on it.
-    NavNode::leaf(
-        "reports-index",
-        "reports.index.title",
-        Icon::ChartColumn,
-        "/reports",
-    )
-    .keywords(&["print", "statements", "export", "documents"]),
-    // Selling before master data: raising an order is the daily work, and
-    // keeping the customer list tidy is what somebody does on the way to it.
-    //
+/// Ungated: a group with nothing visible inside it is not rendered, and a
+/// permission named here would hide a module from somebody who holds it.
+const BUSINESS: &[NavNode] = &[
     // The chain in the order it happens: ordered, despatched, invoiced, paid.
     // Ungated, because it spans two apps and a group naming either app's
     // permission would hide the other half of the chain.
@@ -151,148 +129,6 @@ pub static MENU: &[NavNode] = &[
             ]),
         ],
     ),
-    // The ledger: the chart the selling chain posts to, the journals, the
-    // periods that close them and the statements read off them.
-    NavNode::group(
-        "accounting",
-        "nav.accounting",
-        Icon::ScrollText,
-        &[
-            // First in the group: the group heading opens and closes, it does
-            // not navigate, so without this Books' own front page is reachable
-            // from the launcher and from nowhere in the menu.
-            NavNode::leaf(
-                "accounting-overview",
-                "nav.overview",
-                Icon::LayoutGrid,
-                "/accounting",
-            )
-            .require(names::ACCOUNTING)
-            .keywords(&["books", "accounting", "finance", "home", "start"]),
-            NavNode::leaf(
-                "accounts",
-                "nav.accounts",
-                Icon::ListTree,
-                "/accounting/accounts",
-            )
-            .require(names::ACCOUNTS)
-            .keywords(&["chart", "ledger", "gl", "nominal", "coa"]),
-            // Beside the chart rather than under Settings. It is a decision
-            // about what the chart MEANS, and somebody looking for it is
-            // looking at the chart when they realise they need it.
-            NavNode::leaf(
-                "account-roles",
-                "nav.account_roles",
-                Icon::SlidersHorizontal,
-                "/accounting/accounts/roles",
-            )
-            .require(names::ACCOUNTS)
-            .keywords(&[
-                "determination",
-                "mapping",
-                "default accounts",
-                "posting",
-                "role",
-            ]),
-            NavNode::leaf(
-                "journals",
-                "nav.journals",
-                Icon::ScrollText,
-                "/accounting/journals",
-            )
-            .require(names::JOURNALS)
-            .keywords(&["ledger", "gl", "posting", "entry", "double entry"]),
-            NavNode::leaf(
-                "periods",
-                "nav.periods",
-                Icon::Calendar,
-                "/accounting/periods",
-            )
-            .require(names::PERIODS)
-            .keywords(&["close", "month end", "year end", "calendar", "lock"]),
-            // A section of their own, last: the four statements are read at
-            // month end rather than on the way through, and a reader looking
-            // for one is looking for "reports" rather than for its name.
-            NavNode::group(
-                "accounting-reports",
-                "nav.reports",
-                Icon::ChartColumn,
-                &[
-                    NavNode::leaf(
-                        "trial-balance",
-                        "reports.trial_balance",
-                        Icon::Table,
-                        "/accounting/reports/trial-balance",
-                    )
-                    .require(names::REPORTS)
-                    .keywords(&["tb", "balances", "ledger", "check"]),
-                    NavNode::leaf(
-                        "balance-sheet",
-                        "reports.balance_sheet",
-                        Icon::ClipboardList,
-                        "/accounting/reports/balance-sheet",
-                    )
-                    .require(names::REPORTS)
-                    .keywords(&["assets", "liabilities", "equity", "position"]),
-                    NavNode::leaf(
-                        "profit-and-loss",
-                        "reports.profit_and_loss",
-                        Icon::ChartColumn,
-                        "/accounting/reports/profit-and-loss",
-                    )
-                    .require(names::REPORTS)
-                    .keywords(&[
-                        "p&l",
-                        "income statement",
-                        "earnings",
-                        "result",
-                    ]),
-                    NavNode::leaf(
-                        "customer-statement",
-                        "reports.customer_statement",
-                        Icon::Receipt,
-                        "/accounting/reports/statement",
-                    )
-                    .require(names::REPORTS)
-                    .keywords(&[
-                        "ageing",
-                        "aging",
-                        "owed",
-                        "debtors",
-                        "receivable",
-                    ]),
-                ],
-            )
-            .require(names::REPORTS),
-        ],
-    )
-    .require(names::ACCOUNTING),
-    NavNode::group(
-        "master",
-        "nav.master",
-        Icon::Boxes,
-        &[
-            NavNode::leaf(
-                "master-overview",
-                "nav.overview",
-                Icon::LayoutGrid,
-                "/master",
-            )
-            .require(names::MASTER)
-            .keywords(&["home", "start"]),
-            NavNode::leaf("parties", "nav.parties", Icon::Users, "/master/parties")
-                .require(names::PARTIES)
-                .keywords(&["customers", "suppliers", "clients", "vendors", "contacts"]),
-            NavNode::leaf("taxes", "nav.taxes", Icon::Receipt, "/master/taxes")
-                .require(names::TAXES)
-                .keywords(&["vat", "gst", "sales tax", "rates", "groups"]),
-        ],
-    )
-    .require(names::MASTER),
-    // Inventory, between master data and people: an item list is read by more
-    // of a workspace than a department list is, and by fewer people than the
-    // customer list.
-    //
     // Sections rather than a column of fifteen rows. Two screens stay at the
     // top because they are opened every day - what we sell and what is on the
     // shelf - and everything else is one of three answers to "why am I here":
@@ -571,10 +407,122 @@ pub static MENU: &[NavNode] = &[
         ],
     )
     .require(names::INVENTORY),
-    // People, after master data and before administration: arranging the
-    // company is closer to keeping the customer list tidy than it is to
-    // managing user accounts, and somebody looking for departments looks in
-    // neither of the other two.
+    // The ledger: the chart the selling chain posts to, the journals, the
+    // periods that close them and the statements read off them.
+    NavNode::group(
+        "accounting",
+        "nav.accounting",
+        Icon::ScrollText,
+        &[
+            // First in the group: the group heading opens and closes, it does
+            // not navigate, so without this Books' own front page is reachable
+            // from the launcher and from nowhere in the menu.
+            NavNode::leaf(
+                "accounting-overview",
+                "nav.overview",
+                Icon::LayoutGrid,
+                "/accounting",
+            )
+            .require(names::ACCOUNTING)
+            .keywords(&["books", "accounting", "finance", "home", "start"]),
+            NavNode::leaf(
+                "accounts",
+                "nav.accounts",
+                Icon::ListTree,
+                "/accounting/accounts",
+            )
+            .require(names::ACCOUNTS)
+            .keywords(&["chart", "ledger", "gl", "nominal", "coa"]),
+            // Beside the chart rather than under Settings. It is a decision
+            // about what the chart MEANS, and somebody looking for it is
+            // looking at the chart when they realise they need it.
+            NavNode::leaf(
+                "account-roles",
+                "nav.account_roles",
+                Icon::SlidersHorizontal,
+                "/accounting/accounts/roles",
+            )
+            .require(names::ACCOUNTS)
+            .keywords(&[
+                "determination",
+                "mapping",
+                "default accounts",
+                "posting",
+                "role",
+            ]),
+            NavNode::leaf(
+                "journals",
+                "nav.journals",
+                Icon::ScrollText,
+                "/accounting/journals",
+            )
+            .require(names::JOURNALS)
+            .keywords(&["ledger", "gl", "posting", "entry", "double entry"]),
+            NavNode::leaf(
+                "periods",
+                "nav.periods",
+                Icon::Calendar,
+                "/accounting/periods",
+            )
+            .require(names::PERIODS)
+            .keywords(&["close", "month end", "year end", "calendar", "lock"]),
+            // A section of their own, last: the four statements are read at
+            // month end rather than on the way through, and a reader looking
+            // for one is looking for "reports" rather than for its name.
+            NavNode::group(
+                "accounting-reports",
+                "nav.reports",
+                Icon::ChartColumn,
+                &[
+                    NavNode::leaf(
+                        "trial-balance",
+                        "reports.trial_balance",
+                        Icon::Table,
+                        "/accounting/reports/trial-balance",
+                    )
+                    .require(names::REPORTS)
+                    .keywords(&["tb", "balances", "ledger", "check"]),
+                    NavNode::leaf(
+                        "balance-sheet",
+                        "reports.balance_sheet",
+                        Icon::ClipboardList,
+                        "/accounting/reports/balance-sheet",
+                    )
+                    .require(names::REPORTS)
+                    .keywords(&["assets", "liabilities", "equity", "position"]),
+                    NavNode::leaf(
+                        "profit-and-loss",
+                        "reports.profit_and_loss",
+                        Icon::ChartColumn,
+                        "/accounting/reports/profit-and-loss",
+                    )
+                    .require(names::REPORTS)
+                    .keywords(&[
+                        "p&l",
+                        "income statement",
+                        "earnings",
+                        "result",
+                    ]),
+                    NavNode::leaf(
+                        "customer-statement",
+                        "reports.customer_statement",
+                        Icon::Receipt,
+                        "/accounting/reports/statement",
+                    )
+                    .require(names::REPORTS)
+                    .keywords(&[
+                        "ageing",
+                        "aging",
+                        "owed",
+                        "debtors",
+                        "receivable",
+                    ]),
+                ],
+            )
+            .require(names::REPORTS),
+        ],
+    )
+    .require(names::ACCOUNTING),
     NavNode::group(
         "people",
         "nav.hr",
@@ -733,6 +681,55 @@ pub static MENU: &[NavNode] = &[
         ],
     )
     .require(names::PEOPLE),
+    NavNode::group(
+        "master",
+        "nav.master",
+        Icon::Boxes,
+        &[
+            NavNode::leaf(
+                "master-overview",
+                "nav.overview",
+                Icon::LayoutGrid,
+                "/master",
+            )
+            .require(names::MASTER)
+            .keywords(&["home", "start"]),
+            NavNode::leaf("parties", "nav.parties", Icon::Users, "/master/parties")
+                .require(names::PARTIES)
+                .keywords(&["customers", "suppliers", "clients", "vendors", "contacts"]),
+            NavNode::leaf("taxes", "nav.taxes", Icon::Receipt, "/master/taxes")
+                .require(names::TAXES)
+                .keywords(&["vat", "gst", "sales tax", "rates", "groups"]),
+        ],
+    )
+    .require(names::MASTER),
+];
+
+/// The workspace menu, top to bottom.
+///
+/// Order here is order on screen. Nothing sorts it: the sequence is a design
+/// decision - what people reach for most, first - and an alphabetical sidebar
+/// would bury the dashboard under "Audit logs".
+pub static MENU: &[NavNode] = &[
+    NavNode::leaf(
+        "dashboard",
+        "nav.dashboard",
+        Icon::LayoutDashboard,
+        DASHBOARD,
+    )
+    .require(names::DASHBOARD)
+    .keywords(&["home", "overview", "start"]),
+    // Ungated: it spans the apps, and it lists only what the reader may run.
+    // A permission here would hide the index from somebody who holds one of
+    // the reports on it.
+    NavNode::leaf(
+        "reports-index",
+        "reports.index.title",
+        Icon::ChartColumn,
+        "/reports",
+    )
+    .keywords(&["print", "statements", "export", "documents"]),
+    NavNode::group("business", "nav.business", Icon::Briefcase, BUSINESS),
     NavNode::group(
         "administration",
         "nav.administration",

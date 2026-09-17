@@ -32,6 +32,7 @@ sun
 
 # -- workspace navigation ---------------------------------------------------
 boxes
+briefcase
 building-2
 calendar
 chart-column
