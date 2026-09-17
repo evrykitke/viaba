@@ -29,13 +29,7 @@ pub fn trial_balance_page() -> impl IntoView {
         })
     };
 
-    let span = super::shared::opening_span();
-
-    Effect::new(move |_| {
-        if let Some(asked) = asked() {
-            span.set(Some(asked));
-        }
-    });
+    let span = super::shared::opening_span(asked());
 
     let report = Resource::new(
         move || span.get(),

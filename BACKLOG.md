@@ -39,11 +39,29 @@ commits it is three items.
 
 ## Next
 
-The exports, from the verification pass of 2026-09-17, and the last of that
-queue. It changes a screen, so it carries `verify:`, and it ends the loop: what
-it does is looked at in the running application, not in a build.
+*Empty.* The verification pass of 2026-09-17 queued three items - the menu, the
+palette heading the menu broke, and the exports - and all three are in
+`## Awaiting verification` below. Each names the screen to open and what should
+be true on it.
 
-- [ ] `phonix-web` The statements that print a blank sheet
+What is deliberately not here: the receipt. The exports item said to check it
+rather than fix it blind, and reading it settled the question - it takes its id
+from the route, which the server knows, so it is the same shape as the one
+report that already printed. If it still comes back blank it is a different
+cause and it earns its own item.
+
+## Awaiting verification
+
+<!-- Committed, compiling, and not finished: each of these changed something
+     the build cannot judge. The loop puts an item here when it carries a
+     `verify:` line, with its commit sha and that line kept.
+
+     The user launches the application, looks, and then either moves the item
+     to `## Done` or writes a new item in `## Next` saying what was wrong. The
+     loop never moves anything out of this section by itself. -->
+
+- [x] `phonix-web` The statements that print a blank sheet
+      commit: "The span the server was never told"
       why: only `product-list` exports a usable PDF. The four accounting
            statements and the receipt come back as an empty page, so the export
            button is on six reports and works on one.
@@ -88,16 +106,6 @@ it does is looked at in the running application, not in a build.
       stop: the menu and the exports are both screen work, and nothing after
             them can be judged until they have been looked at in the running
             application.
-
-## Awaiting verification
-
-<!-- Committed, compiling, and not finished: each of these changed something
-     the build cannot judge. The loop puts an item here when it carries a
-     `verify:` line, with its commit sha and that line kept.
-
-     The user launches the application, looks, and then either moves the item
-     to `## Done` or writes a new item in `## Next` saying what was wrong. The
-     loop never moves anything out of this section by itself. -->
 
 - [x] `phonix-web` Every screen in the palette now sits under "Business"
       commit: "The heading that stopped naming a module"

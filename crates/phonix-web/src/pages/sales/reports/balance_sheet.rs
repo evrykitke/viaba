@@ -25,13 +25,7 @@ pub fn balance_sheet_page() -> impl IntoView {
         })
     };
 
-    let span = super::shared::opening_span();
-
-    Effect::new(move |_| {
-        if let Some(as_at) = asked() {
-            span.set(Some((as_at, as_at)));
-        }
-    });
+    let span = super::shared::opening_span(asked().map(|as_at| (as_at, as_at)));
 
     // A balance sheet is read at a date rather than over a span: a photograph,
     // not a period.

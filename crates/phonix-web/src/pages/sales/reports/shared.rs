@@ -25,15 +25,22 @@ const SPANS: &[DatePreset] = &[
     DatePreset::LastYear,
 ];
 
-/// The span a report opens on, asked of the server.
+/// The span a report opens on: what its address asked for, or the workspace's
+/// financial year.
 ///
-/// `None` until it answers, which is what the screen waits on. The server is
-/// asked rather than the browser told, for two reasons: it is the only side
-/// that knows when this workspace's financial year began, and a date worked
-/// out in the browser as well as during the server's render is a hydration
-/// mismatch on any night the two disagree about what day it is.
-pub fn opening_span() -> RwSignal<Option<(NaiveDate, NaiveDate)>> {
-    let span = RwSignal::new(None);
+/// The address is applied here rather than in an effect, so the span is known
+/// during the server's render - which is the HTML a headless browser prints.
+/// The year is asked of the server because it is the only side that knows when
+/// this workspace's began, and a date read from a clock on both sides is a
+/// hydration mismatch.
+pub fn opening_span(
+    asked: Option<(NaiveDate, NaiveDate)>,
+) -> RwSignal<Option<(NaiveDate, NaiveDate)>> {
+    let span = RwSignal::new(asked);
+
+    if asked.is_some() {
+        return span;
+    }
 
     let fetched = Resource::new(|| (), |()| async move { report_span().await.ok() });
 
@@ -68,10 +75,12 @@ pub fn opening_span() -> RwSignal<Option<(NaiveDate, NaiveDate)>> {
 ///
 /// # It is not rendered until the span is known
 ///
-/// The dates come from the server, in an effect, so on the server's render
-/// there is nothing here at all. That is deliberate: the button names the span
-/// it is showing, naming it means asking what day it is, and a clock read
-/// during both renders is how the two come out different.
+/// Where the address names no span, the dates come from the server in an
+/// effect and there is nothing here during the server's render. That is
+/// deliberate: the button names the span it is showing, naming it means asking
+/// what day it is, and a clock read during both renders is how the two come
+/// out different. A span from the address is not a clock reading, and the
+/// control does render on both sides.
 #[component]
 pub fn span_picker(span: RwSignal<Option<(NaiveDate, NaiveDate)>>) -> impl IntoView {
     let range = Signal::derive(move || match span.get() {

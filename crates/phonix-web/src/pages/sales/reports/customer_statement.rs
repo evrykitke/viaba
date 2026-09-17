@@ -60,13 +60,7 @@ pub fn customer_statement_report_page() -> impl IntoView {
         })
     };
 
-    let span = super::shared::opening_span();
-
-    Effect::new(move |_| {
-        if let Some(asked) = asked() {
-            span.set(Some(asked));
-        }
-    });
+    let span = super::shared::opening_span(asked());
 
     let statement = Resource::new(
         move || (party_id(), span.get()),
