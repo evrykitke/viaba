@@ -396,7 +396,7 @@ pub fn reachable(
                     icon: node.icon,
                     href,
                     keywords: node.keywords,
-                    section: ancestors.first().cloned(),
+                    section: ancestors.get(1).or(ancestors.first()).cloned(),
                     breadcrumb: ancestors.clone(),
                 });
             }
@@ -428,7 +428,10 @@ pub struct Destination {
     /// administrator working from a support ticket - still finds the screen,
     /// and nobody typing French is any worse off for their being there.
     pub keywords: &'static [&'static str],
-    /// The top-level section this sits under, for grouping results.
+    /// The module this sits under, for grouping results.
+    ///
+    /// Its second ancestor where it has one: the top level holds families of
+    /// modules, and "Business" is not a heading anybody scans for.
     pub section: Option<String>,
     /// Ancestor labels, outermost first.
     pub breadcrumb: Vec<String>,
@@ -824,6 +827,24 @@ mod tests {
             .map(|destination| destination.key)
             .collect();
         assert!(!keys.contains(&"ship"));
+    }
+
+    #[test]
+    fn the_palette_groups_by_module_not_by_the_family_above_it() {
+        let found = reachable(DEEP, Some(&user(&[names::SETTINGS])), &words());
+        let section = |key: &str| {
+            found
+                .iter()
+                .find(|destination| destination.key == key)
+                .and_then(|destination| destination.section.clone())
+        };
+
+        assert_eq!(section("home"), None);
+        // Directly under a top-level group, so that group is the module.
+        assert_eq!(section("ship"), Some("Operations".into()));
+        assert_eq!(section("items"), Some("Inventory".into()));
+        // Three deep and still named by its module.
+        assert_eq!(section("req-new"), Some("Inventory".into()));
     }
 
     #[test]

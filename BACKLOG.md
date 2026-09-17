@@ -39,29 +39,9 @@ commits it is three items.
 
 ## Next
 
-The exports, from the verification pass of 2026-09-17, and one thing the menu
-change left behind. Both change a screen, so both carry `verify:`, and the
-exports item ends the loop: what it does is looked at in the running
-application, not in a build.
-
-- [ ] `phonix-web` Every screen in the palette now sits under "Business"
-      why: `reachable` in `navigation/mod.rs` labels a destination with
-           `ancestors.first()`, which was the module before the modules were
-           grouped. Now it is "Business" for all five of them, so the command
-           palette groups forty-odd screens under one heading and the
-           breadcrumb on `/inventory/units` reads Business > Inventory >
-           Configuration > Units. The tree moved; the thing that names a
-           section did not.
-      touch: crates/phonix-web/src/navigation/mod.rs
-      done: a destination's `section` is the ancestor that names its module,
-            not the first one - which for a two-deep tree means the second
-            ancestor where there is one and the first where there is not. The
-            breadcrumb is a separate field and keeps every ancestor: a trail
-            is meant to be the whole path, and it is the palette's grouping
-            that wanted the module.
-      verify: the command palette with no query. The headings should be
-              Selling, Inventory, Accounting, People, Master data and
-              Administration, not Business and Administration.
+The exports, from the verification pass of 2026-09-17, and the last of that
+queue. It changes a screen, so it carries `verify:`, and it ends the loop: what
+it does is looked at in the running application, not in a build.
 
 - [ ] `phonix-web` The statements that print a blank sheet
       why: only `product-list` exports a usable PDF. The four accounting
@@ -118,6 +98,26 @@ application, not in a build.
      The user launches the application, looks, and then either moves the item
      to `## Done` or writes a new item in `## Next` saying what was wrong. The
      loop never moves anything out of this section by itself. -->
+
+- [x] `phonix-web` Every screen in the palette now sits under "Business"
+      commit: "The heading that stopped naming a module"
+      why: `reachable` in `navigation/mod.rs` labels a destination with
+           `ancestors.first()`, which was the module before the modules were
+           grouped. Now it is "Business" for all five of them, so the command
+           palette groups forty-odd screens under one heading and the
+           breadcrumb on `/inventory/units` reads Business > Inventory >
+           Configuration > Units. The tree moved; the thing that names a
+           section did not.
+      touch: crates/phonix-web/src/navigation/mod.rs
+      done: a destination's `section` is the ancestor that names its module,
+            not the first one - which for a two-deep tree means the second
+            ancestor where there is one and the first where there is not. The
+            breadcrumb is a separate field and keeps every ancestor: a trail
+            is meant to be the whole path, and it is the palette's grouping
+            that wanted the module.
+      verify: the command palette with no query. The headings should be
+              Selling, Inventory, Accounting, People, Master data and
+              Administration, not Business and Administration.
 
 - [x] `phonix-web` The four business modules under one heading
       commit: "The seven rows that should have been four"
