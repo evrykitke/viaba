@@ -35,20 +35,17 @@ pub async fn load(pool: &PgPool, caller: &Caller) -> ServiceResult<OrganizationP
     Ok(store::load(pool).await?.profile)
 }
 
-/// The name and the mark a document is headed with.
+/// What a document is headed with.
 ///
 /// Takes a [`Caller`] and requires no permission of it. Everything it returns
-/// is already on every document and every screen a signed-in person can reach,
-/// and gating it on `Settings` would mean a report drawing a letterhead only
-/// for administrators. The address, which is the part [`load`] guards, is not
-/// here - see [`Letterhead`].
+/// is printed on the documents this workspace hands out, so gating it on
+/// `Settings` would mean a report drawing a letterhead only for
+/// administrators. It is still not the profile: what [`load`] guards and this
+/// does not return is the rest of it - the industry, the currency, the
+/// financial year - which is the settings screen's and nothing a document
+/// says.
 pub async fn letterhead(pool: &PgPool, _caller: &Caller) -> ServiceResult<Letterhead> {
-    let profile = store::load(pool).await?.profile;
-
-    Ok(Letterhead {
-        name: profile.display_name().to_owned(),
-        logo_file_id: profile.logo_file_id,
-    })
+    Ok(Letterhead::from(&store::load(pool).await?.profile))
 }
 
 /// Who this workspace is, for anything that has to render it.

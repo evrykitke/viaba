@@ -40,17 +40,56 @@ pub const MAX_URL_LEN: usize = 300;
 
 /// What the top of a document needs to know about the workspace.
 ///
-/// Narrower than [`OrganizationProfile`] on purpose. The profile is the
-/// settings screen's data and is gated on `Settings`; a name and a mark are
-/// what every document carries and are no secret from anybody signed in to the
-/// workspace. The address is deliberately not here - it is part of the profile
-/// and stays behind that gate until a document is designed that needs it.
+/// Still narrower than [`OrganizationProfile`], which is the settings screen's
+/// data and is gated on `Settings`. What is here is what a document says about
+/// who issued it, and every field of it is already printed on anything handed
+/// to a customer - it is no secret from somebody signed in to the workspace.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Letterhead {
     /// The name its customers know it by - the trading name where there is
     /// one. See [`OrganizationProfile::display_name`].
     pub name: String,
     pub logo_file_id: Option<FileId>,
+    /// Where it is, as the lines a document prints, in order. A field nobody
+    /// filled in is not a blank line.
+    pub address: Vec<String>,
+    pub email: Option<String>,
+    pub phone: Option<String>,
+    pub website: Option<String>,
+    pub registration_number: Option<String>,
+    pub tax_id: Option<String>,
+}
+
+impl From<&OrganizationProfile> for Letterhead {
+    fn from(profile: &OrganizationProfile) -> Self {
+        let town = match (profile.city.as_deref(), profile.postal_code.as_deref()) {
+            (Some(city), Some(postal)) => Some(format!("{city} {postal}")),
+            (city, postal) => city.or(postal).map(str::to_owned),
+        };
+
+        let address = [
+            profile.address_line1.clone(),
+            profile.address_line2.clone(),
+            town,
+            profile.region.clone(),
+            // The English short name, which is what the profile screen shows.
+            profile.country.map(|country| country.name().to_owned()),
+        ]
+        .into_iter()
+        .flatten()
+        .collect();
+
+        Self {
+            name: profile.display_name().to_owned(),
+            logo_file_id: profile.logo_file_id,
+            address,
+            email: profile.email.clone(),
+            phone: profile.phone.clone(),
+            website: profile.website.clone(),
+            registration_number: profile.registration_number.clone(),
+            tax_id: profile.tax_id.clone(),
+        }
+    }
 }
 
 /// Everything an organization has told us about itself.
@@ -596,6 +635,41 @@ mod tests {
         };
 
         assert_eq!(profile.validate().len(), 3);
+    }
+
+    #[test]
+    fn a_letterhead_has_no_blank_lines_in_it() {
+        let letterhead = Letterhead::from(&filled_profile());
+
+        // The trading name, not the registered one.
+        assert_eq!(letterhead.name, "Northwind");
+        // Line two, the region and the postal code are unset, and none of them
+        // is a line: a letterhead with holes in it is what this is for.
+        assert_eq!(letterhead.address, ["14 Harbour Road", "Mombasa", "Kenya"]);
+        assert_eq!(letterhead.tax_id, None);
+
+        let with_postal = OrganizationProfile {
+            postal_code: Some("80100".to_owned()),
+            region: Some("Coast".to_owned()),
+            tax_id: Some("P051234567X".to_owned()),
+            ..filled_profile()
+        };
+
+        // The town and its code are one line, and the order is the order a
+        // document prints.
+        assert_eq!(
+            Letterhead::from(&with_postal).address,
+            ["14 Harbour Road", "Mombasa 80100", "Coast", "Kenya"],
+        );
+    }
+
+    #[test]
+    fn an_empty_profile_makes_a_letterhead_of_nothing_but_a_name() {
+        let letterhead = Letterhead::from(&OrganizationProfile::empty());
+
+        assert!(letterhead.address.is_empty());
+        assert_eq!(letterhead.email, None);
+        assert_eq!(letterhead.registration_number, None);
     }
 
     #[test]

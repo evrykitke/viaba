@@ -39,37 +39,10 @@ commits it is three items.
 
 ## Next
 
-Two items from the verification pass of 2026-09-17, in the order they were
-given, and both what is left of one subject: a document that does not say who
-issued it. The defect in front of them is committed. Both change a screen, so
-both carry `verify:`, and the second ends the loop.
-
-- [ ] `phonix-core` A document that does not say who issued it
-      why: `Letterhead` is a name and a logo and nothing else, and its own doc
-           comment says the address is "deliberately not here ... until a
-           document is designed that needs it". A customer statement and a
-           receipt are handed to somebody outside the workspace, and they carry
-           no address, no registration number, no tax id and no way to reply.
-           That condition has now been met, so the comment is what changes
-           first. Nothing needs collecting: `OrganizationProfile` already holds
-           all of it, and `profile::current` already reads it ungated for the
-           outbox relay and the mailer.
-      touch: crates/phonix-core/src/organization.rs,
-             crates/phonix-services/src/workspace/profile.rs,
-             crates/phonix-web/src/ui/report/chrome.rs
-      done: the letterhead carries the company block a document is headed with
-            - the address, the registration number and tax id, and the ways to
-            reach the workspace - resolved the same way the name and the mark
-            already are, once for the session, through `DocumentChrome`.
-            `profile::letterhead` is still ungated and the commit body says why
-            that is still right: what it returns is on every document the
-            workspace issues, which is not a secret from the people inside it.
-            A field the workspace has not filled in is absent, not an empty
-            line: a letterhead with blank rows in it is the hole this is
-            closing.
-      verify: open a customer statement and a receipt. The company block should
-              be at the head of both, saying the same thing on each, with
-              nothing empty in it.
+The last of the verification pass of 2026-09-17. The mark that would not print
+and the words a document was missing are both committed; what is left is where
+those words go, which is the one part of it that is a decision rather than a
+gap. It changes a screen, so it carries `verify:`, and it ends the loop.
 
 - [ ] `phonix-web` One letterhead, the same on every report
       why: `letterhead_layout` already describes what it is meant to draw - "a
@@ -109,6 +82,34 @@ both carry `verify:`, and the second ends the loop.
      The user launches the application, looks, and then either moves the item
      to `## Done` or writes a new item in `## Next` saying what was wrong. The
      loop never moves anything out of this section by itself. -->
+
+- [x] `phonix-core` A document that does not say who issued it
+      commit: "The address that was waiting for a document to need it"
+      why: `Letterhead` is a name and a logo and nothing else, and its own doc
+           comment says the address is "deliberately not here ... until a
+           document is designed that needs it". A customer statement and a
+           receipt are handed to somebody outside the workspace, and they carry
+           no address, no registration number, no tax id and no way to reply.
+           That condition has now been met, so the comment is what changes
+           first. Nothing needs collecting: `OrganizationProfile` already holds
+           all of it, and `profile::current` already reads it ungated for the
+           outbox relay and the mailer.
+      touch: crates/phonix-core/src/organization.rs,
+             crates/phonix-services/src/workspace/profile.rs,
+             crates/phonix-web/src/ui/report/chrome.rs
+      done: the letterhead carries the company block a document is headed with
+            - the address, the registration number and tax id, and the ways to
+            reach the workspace - resolved the same way the name and the mark
+            already are, once for the session, through `DocumentChrome`.
+            `profile::letterhead` is still ungated and the commit body says why
+            that is still right: what it returns is on every document the
+            workspace issues, which is not a secret from the people inside it.
+            A field the workspace has not filled in is absent, not an empty
+            line: a letterhead with blank rows in it is the hole this is
+            closing.
+      verify: open a customer statement and a receipt. The company block should
+              be at the head of both, saying the same thing on each, with
+              nothing empty in it.
 
 - [x] `phonix-web` The mark that never reaches the printed page
       commit: "Two doors the printing browser could not open"

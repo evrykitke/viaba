@@ -225,16 +225,26 @@ impl Shell {
         Signal::derive(move || apps.get())
     }
 
-    /// What a report heads its pages with, as the kit's own shape - a name and
+    /// What a report heads its pages with, as the kit's own shape - words and
     /// the address of an image, rather than a file id and a route to build
     /// from it.
     pub fn letterhead(self) -> Signal<Option<Letterhead>> {
         let documents = self.documents;
 
         Signal::derive(move || {
-            documents.get().flatten().map(|chrome| Letterhead {
-                name: chrome.letterhead.name,
-                logo_src: chrome.letterhead.logo_file_id.map(content::preview_url),
+            documents.get().flatten().map(|chrome| {
+                let held = chrome.letterhead;
+
+                Letterhead {
+                    name: held.name,
+                    logo_src: held.logo_file_id.map(content::preview_url),
+                    address: held.address,
+                    email: held.email,
+                    phone: held.phone,
+                    website: held.website,
+                    registration_number: held.registration_number,
+                    tax_id: held.tax_id,
+                }
             })
         })
     }

@@ -12,13 +12,22 @@
 use leptos::prelude::*;
 use phonix_core::report::DocumentSettings;
 
-/// The name and the mark a report heads its pages with.
+/// What a report heads its pages with: the workspace, as words and a mark.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Letterhead {
     pub name: String,
     /// Where the mark's bytes are. `None` draws the name instead, which is
     /// what a workspace that has not uploaded one gets.
     pub logo_src: Option<String>,
+    /// Where the workspace is, as the lines to print, in order. Assembled
+    /// before it arrives here, so a document cannot order them differently
+    /// from the one beside it.
+    pub address: Vec<String>,
+    pub email: Option<String>,
+    pub phone: Option<String>,
+    pub website: Option<String>,
+    pub registration_number: Option<String>,
+    pub tax_id: Option<String>,
 }
 
 /// Held in context by the application shell.
