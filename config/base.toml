@@ -594,7 +594,7 @@ naming = "date_sharded"
 # be at least as large as the biggest bucket limit in phonix_core::files, and
 # startup refuses to proceed if it is not - a smaller value here would make a
 # bucket's own limit unreachable and the failure would be a truncated upload.
-max_upload_bytes = 26214400
+max_upload_bytes = 52428800
 # Uploads are slower than pages and must not be judged by the same clock: 25 MB
 # in 30 seconds needs 7 Mbit/s, which a phone on a train does not have.
 upload_timeout_secs = 300

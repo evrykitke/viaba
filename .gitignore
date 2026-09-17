@@ -44,3 +44,6 @@ __pycache__/
 # Local build settings. `target-dir` here is an absolute path on one
 # machine, so committing it would send that path to the build box.
 /.cargo
+
+.claude
+BACKLOG.md
