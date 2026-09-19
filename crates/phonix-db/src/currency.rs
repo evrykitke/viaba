@@ -128,6 +128,33 @@ where
     Ok(())
 }
 
+/// Put a currency on the list, leaving an existing row exactly as it is.
+///
+/// `true` when a row was added. Unlike [`upsert`] it never touches the symbol
+/// or the enabled flag, so listing the base currency cannot undo what somebody
+/// chose on the currencies screen.
+pub async fn ensure_listed<'e, E>(
+    executor: E,
+    currency: Currency,
+    actor: Option<UserId>,
+) -> Result<bool, DbError>
+where
+    E: PgExecutor<'e>,
+{
+    let inserted = sqlx::query(
+        "INSERT INTO currencies (code, updated_by)
+         VALUES ($1, $2)
+         ON CONFLICT (code) DO NOTHING",
+    )
+    .bind(currency.code())
+    .bind(actor)
+    .execute(executor)
+    .await
+    .map_err(DbError::Query)?;
+
+    Ok(inserted.rows_affected() == 1)
+}
+
 /// Switch one on or off. `false` when it was not on the list at all.
 pub async fn set_enabled<'e, E>(
     executor: E,

@@ -408,6 +408,16 @@ to the screen that satisfies it; `phonix_services::workspace::setup` holds the
 predicate. The declaration and the predicate are split for the reason
 `apps::CATALOG` and `tenancy::apps` are: one compiles to wasm so the browser can
 draw the list, and the other holds a pool.
+
+**Some items are the platform's, not an app's.** The base currency is the first:
+every posted row in the workspace is denominated in it, it is chosen once on the
+organization profile, and no app owns it. Those are declared as
+`phonix_core::setup::PLATFORM` and every app's checklist carries them ahead of
+its own. The alternative - each app that posts money declaring its own copy -
+puts one question in as many places as there are apps, and they drift: the day a
+fourth app is added is the day three of them refuse and one does not. An app
+never redeclares a platform item, and a platform item blocks every app, so
+`require_ready` answers for a workspace as much as for an app.
 The list is *advisory* for most items and *blocking* for a few: an app whose
 blocking items are unsatisfied refuses to post, with a message naming what is
 missing rather than a foreign-key violation from four layers down.

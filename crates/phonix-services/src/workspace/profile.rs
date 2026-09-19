@@ -16,10 +16,11 @@
 //! the screen can show what is currently set.
 
 use phonix_core::form::{Submission, rejected};
+use phonix_core::i18n::Message;
 use phonix_core::locale::Currency;
-use phonix_core::msg;
 use phonix_core::organization::{Letterhead, OrganizationProfile};
 use phonix_core::permissions;
+use phonix_core::setup;
 use phonix_db::organization as store;
 use phonix_db::sqlx::PgPool;
 
@@ -75,10 +76,13 @@ pub async fn base_currency(pool: &PgPool) -> ServiceResult<Currency> {
 }
 
 /// The same answer, from a profile the caller has already read.
+///
+/// The refusal is the setup item's own sentence, so a path that reaches this
+/// before the checklist does says the same thing the checklist would.
 pub fn require_currency(profile: &OrganizationProfile) -> ServiceResult<Currency> {
     profile
         .currency
-        .ok_or_else(|| ServiceError::rejected("currency", msg!("error.currency.unchosen")))
+        .ok_or_else(|| ServiceError::rejected("currency", Message::new(setup::PLATFORM[0].missing)))
 }
 
 /// Store a profile an administrator submitted.
@@ -135,6 +139,13 @@ pub async fn save(
         },
     )
     .await?;
+
+    // Chosen is listed. Every screen that offers a currency reads
+    // `core.currencies`, and a base currency missing from that list is a
+    // picker that cannot offer the one the books are kept in.
+    if let Some(currency) = profile.currency {
+        phonix_db::currency::ensure_listed(pool, currency, Some(changed_by)).await?;
+    }
 
     let after = store::load(pool).await?.profile;
 

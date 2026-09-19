@@ -74,6 +74,19 @@ impl SetupItem {
     }
 }
 
+/// What every app needs, whatever the app is.
+///
+/// Contributed by the platform and carried by every checklist rather than
+/// declared per app: the base currency is a workspace fact, and an app's copy
+/// of it would be the same question answered in as many places as there are
+/// apps. See ADR 0006 section 4.
+pub const PLATFORM: &[SetupItem] = &[SetupItem::blocking(
+    "base_currency",
+    "setup.currency",
+    "/admin/settings?tab=organization",
+    "setup.currency_missing",
+)];
+
 /// One item, answered for one workspace.
 ///
 /// Carries its own words rather than a key the browser looks up, so a home page
@@ -175,6 +188,16 @@ mod tests {
         assert_eq!(gaps(&answered([true, false])).len(), 0);
         assert_eq!(gaps(&answered([false, true])).len(), 1);
         assert_eq!(gaps(&answered([false, false])).len(), 1);
+    }
+
+    #[test]
+    fn the_platform_item_blocks_and_names_a_screen() {
+        // A workspace counting in a currency nobody chose must not post, and
+        // the line has to say where the answer is given.
+        for item in PLATFORM {
+            assert!(item.blocking, "{} is advisory", item.key);
+            assert!(item.href.starts_with('/'), "{} has no screen", item.key);
+        }
     }
 
     #[test]

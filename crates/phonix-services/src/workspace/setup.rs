@@ -8,6 +8,7 @@
 //! See `docs/adr/0006-apps-ports-and-defaults.md` section 4.
 
 use phonix_core::i18n::Message;
+use phonix_core::locale::Currency;
 use phonix_core::setup::{self, SetupItem, SetupStatus};
 use phonix_core::{apps, msg, pmsg};
 use phonix_db::sqlx::PgPool;
@@ -45,15 +46,35 @@ pub async fn require_ready(pool: &PgPool, app_id: &str) -> ServiceResult<()> {
     }
 }
 
-/// An app with no declared items is set up by definition, which is why an
-/// unknown id is an empty list rather than a fault: `checklist` has already
-/// refused one that is not in the catalog.
+/// The platform's items first, then the app's own.
+///
+/// An app with no declared items still carries the platform's, which is why an
+/// unknown id is not a fault here: `checklist` has already refused one that is
+/// not in the catalog.
 async fn answer(pool: &PgPool, app_id: &str) -> ServiceResult<Vec<SetupStatus>> {
-    match app_id {
-        app_books::APP_ID => books(pool).await,
-        app_hr::APP_ID => hr(pool).await,
-        _ => Ok(Vec::new()),
-    }
+    let mut statuses = platform(pool).await?;
+
+    statuses.extend(match app_id {
+        app_books::APP_ID => books(pool).await?,
+        app_hr::APP_ID => hr(pool).await?,
+        _ => Vec::new(),
+    });
+
+    Ok(statuses)
+}
+
+/// What the workspace owes every app.
+async fn platform(pool: &PgPool) -> ServiceResult<Vec<SetupStatus>> {
+    let currency = super::profile::current(pool).await?.currency;
+
+    Ok(vec![answered(
+        &setup::PLATFORM[0],
+        currency.is_some(),
+        msg!(
+            "setup.currency_found",
+            code = currency.map_or("", Currency::code)
+        ),
+    )])
 }
 
 async fn books(pool: &PgPool) -> ServiceResult<Vec<SetupStatus>> {
@@ -112,15 +133,32 @@ mod tests {
 
     #[test]
     fn every_app_with_declared_items_has_a_predicate_for_each() {
-        // `books` and `hr` index into SETUP by position. A declaration added
-        // without a predicate would answer the wrong item, or panic.
+        // `books`, `hr` and `platform` index into their declarations by
+        // position. One added without a predicate would answer the wrong item,
+        // or panic.
+        assert_eq!(setup::PLATFORM.len(), 1);
         assert_eq!(app_books::SETUP.len(), 3);
         assert_eq!(app_hr::SETUP.len(), 1);
     }
 
     #[test]
-    fn declared_keys_are_unique_within_an_app() {
+    fn no_app_redeclares_a_platform_item() {
+        // Every checklist carries the platform's, so an app's own copy would
+        // be the same line twice.
         for items in [app_books::SETUP, app_hr::SETUP] {
+            for item in items {
+                assert!(
+                    !setup::PLATFORM.iter().any(|other| other.key == item.key),
+                    "{} is declared by an app and by the platform",
+                    item.key
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn declared_keys_are_unique_within_an_app() {
+        for items in [setup::PLATFORM, app_books::SETUP, app_hr::SETUP] {
             for (index, item) in items.iter().enumerate() {
                 assert!(
                     !items[..index].iter().any(|other| other.key == item.key),

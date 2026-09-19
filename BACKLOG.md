@@ -39,12 +39,10 @@ commits it is three items.
 
 ## Next
 
-The currency item first, then the public site of 2026-09-19 - its navigation,
-its pricing and the content coming across - then five deploy items left over
-from putting it there. The currency item is ahead of the site work
-deliberately: a workspace that posts anything in a currency nobody chose
-cannot be corrected by a settings change afterwards. The absence is now
-representable; what is left is blocking on it.
+The public site of 2026-09-19 first - its navigation, its pricing and the
+content coming across - then five deploy items left over from putting it
+there. The currency pair that was ahead of them is done and waiting to be
+looked at.
 
 `evrykit.com` serves Global Connect now, and the Symfony application it
 displaced was carrying the content that earned this domain its search traffic:
@@ -62,40 +60,6 @@ ADR 0007 §12 names the content pipeline as a decision rather than an omission,
 so that decision is an item and every content item after it depends on which
 way it goes. The five `deploy` items below it are the older queue and are
 unchanged.
-
-- [ ] `phonix-core` The currency chosen during onboarding
-      why: the decision, and it is ADR 0006 §4's mechanism rather than a new
-           one. The currency is not a preference: every posted row is
-           denominated in it, `journals.error.wrong_base_currency` exists
-           because those rows are already in the old one, and the window in
-           which changing it is free closes the first time somebody raises an
-           invoice. §4 already says what to do with a thing an app cannot work
-           without - "advisory for most items and blocking for a few: an app
-           whose blocking items are unsatisfied refuses to post" - and it says
-           it is a checklist, explicitly "Not a wizard". So the workspace opens,
-           the checklist is amber, and nothing posts until somebody answers.
-      touch: crates/app-books/src/lib.rs, crates/app-inventory/src/lib.rs,
-             crates/phonix-services/src/workspace/setup.rs,
-             crates/phonix-core/i18n/en.json + the three catalogues
-      done: an unchosen currency is a blocking setup item, it names
-            `/admin/settings` as the screen that satisfies it, and an app that
-            posts money refuses to post while it is unsatisfied - with the
-            message §4 asks for, naming what is missing rather than a
-            constraint violation from four layers down. Choosing it turns the
-            line green and puts the currency in `core.currencies`.
-      decide: currency is a platform fact and §4 has apps declaring their own
-              items - `checklist()` takes an `app_id`. Either every app that
-              posts money declares the same item, or the platform contributes
-              one that every checklist carries. The second is the better shape
-              and it changes §4, so it amends ADR 0006 in the same commit
-              rather than quietly widening the mechanism.
-      note: nothing is added to signup. The wizard stays three screens and one
-            request, and Desk's create-workspace path needs no second question -
-            both produce a workspace whose checklist is honest about what is
-            missing, which is the whole advantage of doing it here.
-      verify: create a workspace, open Books. The checklist shows the currency
-              line unsatisfied, following it reaches the organization settings,
-              and until it is answered posting a journal is refused by name.
 
 - [ ] `global-connect` The mega menu, gone
       why: the Solutions mega panel on the public site is off and the user has
@@ -304,6 +268,31 @@ a decision, and it is one line in this section.
      The user launches the application, looks, and then either moves the item
      to `## Done` or writes a new item in `## Next` saying what was wrong. The
      loop never moves anything out of this section by itself. -->
+
+- [x] `phonix-core` The currency chosen during onboarding
+      commit: "The question every app was going to ask separately"
+      why: the currency is not a preference - every posted row is denominated
+           in it, and the window in which changing it is free closes the first
+           time somebody raises an invoice. ADR 0006 section 4 already had the
+           mechanism: a checklist an app declares and the platform answers,
+           blocking for the few whose absence would otherwise surface as a
+           violation from four layers down.
+      done: `phonix_core::setup::PLATFORM` declares the base currency as a
+            blocking item naming `/admin/settings?tab=organization`, every
+            app's checklist carries it ahead of the app's own, and posting a
+            journal, an invoice or a payment is refused by that sentence while
+            it is unanswered. Choosing a currency lists it in
+            `core.currencies` without disturbing a row already there.
+      decided: the platform declares it rather than each app that posts money,
+               because the second shape is one question in as many places as
+               there are apps. That widens section 4, so ADR 0006 was amended
+               in the same commit.
+      note: nothing was added to signup. Both ways a workspace is created -
+            the three-screen wizard and Desk - produce one whose checklist is
+            honest about what is missing.
+      verify: create a workspace, open Books. The checklist shows the currency
+              line unsatisfied, following it reaches the organization settings,
+              and until it is answered posting a journal is refused by name.
 
 - [x] `deploy` Evrykit on the box
       commit: "The site the box finally held" - deployed c14604f

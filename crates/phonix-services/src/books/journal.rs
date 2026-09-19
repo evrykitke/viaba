@@ -83,6 +83,8 @@ pub async fn post(pool: &PgPool, caller: &Caller, entry: JournalEntry) -> Servic
     caller.require(permissions::JOURNALS_POST)?;
     acting_user(caller)?;
 
+    crate::workspace::setup::require_ready(pool, app_books::APP_ID).await?;
+
     post_unchecked(pool, caller, entry).await
 }
 
@@ -271,6 +273,8 @@ pub async fn post_draft(
 ) -> ServiceResult<Posted> {
     caller.require(permissions::JOURNALS_POST)?;
     acting_user(caller)?;
+
+    crate::workspace::setup::require_ready(pool, app_books::APP_ID).await?;
 
     let base = base_currency(pool).await?;
 
