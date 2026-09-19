@@ -41,8 +41,8 @@ pub fn taxes_page() -> impl IntoView {
     .icon(Icon::ListTree);
 
     view! {
-        // "Phonix" is the product's name, not a word.
-        <Title text=format!("{} | Phonix", l!("taxes.title")) />
+        // "Evrykit" is the product's name, not a word.
+        <Title text=format!("{} | Evrykit", l!("taxes.title")) />
 
         <PageHeader
             title=l!("taxes.title")
@@ -63,7 +63,7 @@ pub fn taxes_page() -> impl IntoView {
 #[component]
 pub fn tax_new_page() -> impl IntoView {
     view! {
-        <Title text=format!("{} | Phonix", l!("taxes.new")) />
+        <Title text=format!("{} | Evrykit", l!("taxes.new")) />
 
         <PageHeader
             title=l!("taxes.new")

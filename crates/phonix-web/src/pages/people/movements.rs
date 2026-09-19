@@ -73,7 +73,7 @@ pub fn movement_page() -> impl IntoView {
     );
 
     view! {
-        <Title text=format!("{} | Phonix", l!("entity.movement.singular")) />
+        <Title text=format!("{} | Evrykit", l!("entity.movement.singular")) />
 
         <Transition fallback=|| {
             view! { <p class="text-sm text-content-subtle">{l!("common.loading")}</p> }

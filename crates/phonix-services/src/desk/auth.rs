@@ -1,4 +1,4 @@
-//! Signing in to Phonix Desk.
+//! Signing in to Evrykit Desk.
 //!
 //! Two steps, always. A password opens a session that can reach exactly one
 //! page - the code box - and a TOTP code turns that session into a sign-in.

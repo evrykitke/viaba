@@ -48,7 +48,7 @@ pub fn accept_invitation_page() -> impl IntoView {
     let outcome = move || submit.value().get();
 
     view! {
-        <Title text=format!("{} | Phonix", l!("accept.title")) />
+        <Title text=format!("{} | Evrykit", l!("accept.title")) />
 
         <div class="mx-auto w-full max-w-measure rounded-card border border-edge bg-surface-raised p-5 shadow-sm sm:p-8">
             {move || match outcome() {

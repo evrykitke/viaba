@@ -24,7 +24,7 @@ use super::shared::SpanPicker;
 #[component]
 pub fn customer_statement_page() -> impl IntoView {
     view! {
-        <Title text=format!("{} | Phonix", l!("reports.customer_statement")) />
+        <Title text=format!("{} | Evrykit", l!("reports.customer_statement")) />
 
         <PageHeader
             title=l!("reports.customer_statement")
@@ -75,7 +75,7 @@ pub fn customer_statement_report_page() -> impl IntoView {
     );
 
     view! {
-        <Title text=format!("{} | Phonix", l!("reports.customer_statement")) />
+        <Title text=format!("{} | Evrykit", l!("reports.customer_statement")) />
 
         <ReportViewer
             definition=definition()

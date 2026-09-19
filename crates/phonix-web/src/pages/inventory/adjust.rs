@@ -57,7 +57,7 @@ pub fn adjust_stock_page() -> impl IntoView {
     let locations = Resource::new(|| (), |()| async move { selectable_locations().await });
 
     view! {
-        <Title text=format!("{} | Phonix", l!("adjustments.title")) />
+        <Title text=format!("{} | Evrykit", l!("adjustments.title")) />
 
         <PageHeader
             title=l!("adjustments.title")

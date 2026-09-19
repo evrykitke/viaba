@@ -31,7 +31,7 @@ pub fn item_report_page() -> impl IntoView {
     );
 
     view! {
-        <Title text=format!("{} | Phonix", l!("items.title")) />
+        <Title text=format!("{} | Evrykit", l!("items.title")) />
 
         <ReportViewer
             definition=product_list()

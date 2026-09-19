@@ -36,7 +36,7 @@ const BACK: &str = "/inventory/bills";
 #[component]
 pub fn bills_page() -> impl IntoView {
     view! {
-        <Title text=format!("{} | Phonix", l!("bills.title")) />
+        <Title text=format!("{} | Evrykit", l!("bills.title")) />
 
         <PageHeader
             title=l!("bills.title")
@@ -70,7 +70,7 @@ pub fn bill_new_page() -> impl IntoView {
     });
 
     view! {
-        <Title text=format!("{} | Phonix", l!("bills.new")) />
+        <Title text=format!("{} | Evrykit", l!("bills.new")) />
 
         <PageHeader
             title=l!("bills.new")
@@ -122,7 +122,7 @@ pub fn bill_page() -> impl IntoView {
     });
 
     view! {
-        <Title text=format!("{} | Phonix", l!("entity.bill.singular")) />
+        <Title text=format!("{} | Evrykit", l!("entity.bill.singular")) />
 
         <Transition fallback=|| {
             view! { <p class="text-sm text-content-subtle">{l!("common.loading")}</p> }
@@ -185,7 +185,7 @@ pub fn unbilled_page() -> impl IntoView {
     let rows = Resource::new(|| (), |()| async move { unbilled_receipts().await });
 
     view! {
-        <Title text=format!("{} | Phonix", l!("bills.unbilled.title")) />
+        <Title text=format!("{} | Evrykit", l!("bills.unbilled.title")) />
 
         <PageHeader
             title=l!("bills.unbilled.title")

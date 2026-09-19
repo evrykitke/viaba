@@ -55,7 +55,7 @@ pub fn invitation(
 
     let text = format!(
         "{greeting},\n\n\
-         {invited_by} has invited you to join {workspace} on Phonix.\n\n\
+         {invited_by} has invited you to join {workspace} on Evrykit.\n\n\
          Set your password and sign in:\n{link}\n\n\
          This link works once and expires in {expiry}. If it has expired, ask \
          {invited_by} to send another.\n\n\
@@ -68,7 +68,7 @@ pub fn invitation(
         &format!(
             "<p>{greeting},</p>\
              <p><strong>{invited_by}</strong> has invited you to join \
-              <strong>{workspace}</strong> on Phonix.</p>\
+              <strong>{workspace}</strong> on Evrykit.</p>\
              {button}\
              <p style=\"color:#64748b;font-size:13px\">This link works once and expires in \
               {expiry}. If it has expired, ask {invited_by} to send another.</p>\
@@ -174,7 +174,7 @@ pub fn password_reset_code(
 /// "Does this relay work?" - what the settings screen sends to prove it.
 pub fn relay_test(to_address: &str, workspace: &str, host: &str) -> Mail {
     let text = format!(
-        "This is a test message from {workspace} on Phonix.\n\n\
+        "This is a test message from {workspace} on Evrykit.\n\n\
          It was sent through {host}. If you are reading it, that relay works \
          and invitations will be delivered.\n"
     );
@@ -182,7 +182,7 @@ pub fn relay_test(to_address: &str, workspace: &str, host: &str) -> Mail {
     let html = wrap(
         "Your mail relay works",
         &format!(
-            "<p>This is a test message from <strong>{workspace}</strong> on Phonix.</p>\
+            "<p>This is a test message from <strong>{workspace}</strong> on Evrykit.</p>\
              <p>It was sent through <strong>{host}</strong>. If you are reading it, that relay \
               works and invitations will be delivered.</p>",
             workspace = escape(workspace),

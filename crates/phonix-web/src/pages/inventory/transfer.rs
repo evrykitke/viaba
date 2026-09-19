@@ -45,7 +45,7 @@ const BACK: &str = "/inventory/transfers";
 #[component]
 pub fn transfers_page() -> impl IntoView {
     view! {
-        <Title text=format!("{} | Phonix", l!("transfers.title")) />
+        <Title text=format!("{} | Evrykit", l!("transfers.title")) />
 
         <PageHeader
             title=l!("transfers.title")
@@ -62,7 +62,7 @@ pub fn transfer_new_page() -> impl IntoView {
     let prefilled = Resource::new(|| (), |()| async move { blank_transfer().await });
 
     view! {
-        <Title text=format!("{} | Phonix", l!("transfers.new")) />
+        <Title text=format!("{} | Evrykit", l!("transfers.new")) />
 
         <PageHeader
             title=l!("transfers.new")
@@ -112,7 +112,7 @@ pub fn transfer_page() -> impl IntoView {
     });
 
     view! {
-        <Title text=format!("{} | Phonix", l!("entity.stock_transfer.singular")) />
+        <Title text=format!("{} | Evrykit", l!("entity.stock_transfer.singular")) />
 
         <Transition fallback=|| {
             view! { <p class="text-sm text-content-subtle">{l!("common.loading")}</p> }

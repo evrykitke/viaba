@@ -44,7 +44,7 @@ pub fn journal_new_page() -> impl IntoView {
     let context = Resource::new(|| (), |()| async move { journal_context().await });
 
     view! {
-        <Title text=format!("{} | Phonix", l!("journals.new")) />
+        <Title text=format!("{} | Evrykit", l!("journals.new")) />
 
         <PageHeader
             title=l!("journals.new")

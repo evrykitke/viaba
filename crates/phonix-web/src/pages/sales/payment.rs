@@ -67,7 +67,7 @@ pub fn payment_new_page() -> impl IntoView {
     let blank = Resource::new(|| (), |()| async move { blank_payment().await });
 
     view! {
-        <Title text=format!("{} | Phonix", l!("payments.new")) />
+        <Title text=format!("{} | Evrykit", l!("payments.new")) />
 
         <PageHeader
             title=l!("payments.new")
@@ -111,7 +111,7 @@ pub fn payment_page() -> impl IntoView {
     });
 
     view! {
-        <Title text=format!("{} | Phonix", l!("entity.payment.singular")) />
+        <Title text=format!("{} | Evrykit", l!("entity.payment.singular")) />
 
         <Transition fallback=|| {
             view! { <p class="text-sm text-content-subtle">{l!("common.loading")}</p> }
@@ -1031,7 +1031,7 @@ fn journal_row(payment_id: Uuid) -> impl IntoView {
 #[component]
 pub fn payments_page() -> impl IntoView {
     view! {
-        <Title text=format!("{} | Phonix", l!("payments.title")) />
+        <Title text=format!("{} | Evrykit", l!("payments.title")) />
 
         <PageHeader
             title=l!("payments.title")

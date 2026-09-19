@@ -481,7 +481,7 @@ fn check_profiler(profiler: &ProfilerConfig) -> Result<(), ConfigError> {
     Ok(())
 }
 
-/// Sanity for Phonix Desk.
+/// Sanity for Evrykit Desk.
 ///
 /// Checked whether or not the Desk binary is the one starting: both processes
 /// read this file, and a value that would refuse to serve is better reported by

@@ -228,7 +228,7 @@ where
 
 /// The relay's backlog, as an operator sees it.
 ///
-/// Counts and one timestamp. No routing keys and no payloads: Phonix Desk
+/// Counts and one timestamp. No routing keys and no payloads: Evrykit Desk
 /// reads this, and an event payload is business data - see ADR 0005 section 6.
 /// "How far behind is the relay" is answerable without any of it.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]

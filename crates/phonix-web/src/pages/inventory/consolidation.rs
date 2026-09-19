@@ -76,7 +76,7 @@ pub fn consolidation_new_page() -> impl IntoView {
     );
 
     view! {
-        <Title text=format!("{} | Phonix", l!("consolidations.new")) />
+        <Title text=format!("{} | Evrykit", l!("consolidations.new")) />
 
         <PageHeader
             title=l!("consolidations.new")
@@ -174,7 +174,7 @@ pub fn consolidation_page() -> impl IntoView {
     });
 
     view! {
-        <Title text=format!("{} | Phonix", l!("entity.consolidation.singular")) />
+        <Title text=format!("{} | Evrykit", l!("entity.consolidation.singular")) />
 
         <Transition fallback=|| {
             view! { <p class="text-sm text-content-subtle">{l!("common.loading")}</p> }

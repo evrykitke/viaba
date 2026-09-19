@@ -47,7 +47,7 @@ pub fn job_position_page() -> impl IntoView {
     });
 
     view! {
-        <Title text=format!("{} | Phonix", l!("entity.job_position.singular")) />
+        <Title text=format!("{} | Evrykit", l!("entity.job_position.singular")) />
 
         <Transition fallback=|| {
             view! { <p class="text-sm text-content-subtle">{l!("common.loading")}</p> }
@@ -348,7 +348,7 @@ pub fn work_location_page() -> impl IntoView {
     });
 
     view! {
-        <Title text=format!("{} | Phonix", l!("entity.work_location.singular")) />
+        <Title text=format!("{} | Evrykit", l!("entity.work_location.singular")) />
 
         <Transition fallback=|| {
             view! { <p class="text-sm text-content-subtle">{l!("common.loading")}</p> }

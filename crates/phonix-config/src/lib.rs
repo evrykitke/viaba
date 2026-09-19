@@ -1,4 +1,4 @@
-//! Layered configuration for Phonix.
+//! Layered configuration for Evrykit.
 //!
 //! Sources are merged in this order, later winning over earlier:
 //!
@@ -132,7 +132,7 @@ pub fn load_from(config_dir: impl AsRef<Path>) -> Result<AppConfig, ConfigError>
 /// Locate the workspace root so the app can be started from any directory.
 ///
 /// Walks up from the executable's directory and from the current directory
-/// looking for the marker files a Phonix checkout always has.
+/// looking for the marker files a Evrykit checkout always has.
 pub fn workspace_root() -> PathBuf {
     fn find_upwards(start: &Path) -> Option<PathBuf> {
         start.ancestors().find_map(|dir| {

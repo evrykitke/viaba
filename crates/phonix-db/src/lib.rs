@@ -86,7 +86,7 @@ pub mod authorization;
 pub mod books;
 pub mod connect;
 pub mod currency;
-/// Phonix Desk's own tables. Catalog-only - see `docs/adr/0005-phonix-desk.md`.
+/// Evrykit Desk's own tables. Catalog-only - see `docs/adr/0005-phonix-desk.md`.
 pub mod desk;
 pub mod document_settings;
 pub mod error;

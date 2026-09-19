@@ -47,7 +47,7 @@ pub fn tax_page() -> impl IntoView {
     });
 
     view! {
-        <Title text=format!("{} | Phonix", l!("entity.tax_code.singular")) />
+        <Title text=format!("{} | Evrykit", l!("entity.tax_code.singular")) />
 
         // Transition, not Suspense: navigating from one tax to another
         // re-suspends, and a fallback here would blank a screen somebody is

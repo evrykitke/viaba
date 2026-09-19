@@ -47,7 +47,7 @@ pub fn user_permissions_page() -> impl IntoView {
     );
 
     view! {
-        <Title text=format!("{} | Phonix", l!("permissions.title")) />
+        <Title text=format!("{} | Evrykit", l!("permissions.title")) />
 
         <Suspense fallback=|| {
             view! { <p class="text-sm text-content-subtle">"Loading..."</p> }

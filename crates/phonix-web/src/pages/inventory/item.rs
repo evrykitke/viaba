@@ -50,7 +50,7 @@ pub fn item_page() -> impl IntoView {
     });
 
     view! {
-        <Title text=format!("{} | Phonix", l!("entity.item.singular")) />
+        <Title text=format!("{} | Evrykit", l!("entity.item.singular")) />
 
         // Transition, not Suspense: moving between items re-suspends, and a
         // fallback would blank the screen somebody is looking at.

@@ -1,5 +1,5 @@
 # ===========================================================================
-# Phonix - production overrides (PHONIX_ENV=production)
+# Evrykit - production overrides (PHONIX_ENV=production)
 #
 # Every secret here MUST arrive via environment variables:
 #   PHONIX__DATABASE__PASSWORD

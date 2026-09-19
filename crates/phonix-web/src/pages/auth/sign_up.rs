@@ -162,7 +162,7 @@ pub fn sign_up_page() -> impl IntoView {
 #[component]
 fn not_here() -> impl IntoView {
     view! {
-        <Title text=format!("{} | Phonix", l!("signup.not_here.title")) />
+        <Title text=format!("{} | Evrykit", l!("signup.not_here.title")) />
 
         <div class="mx-auto w-full max-w-measure">
             <div class="rounded-card border border-edge bg-surface-raised p-5 text-center shadow-sm sm:p-8">
@@ -330,9 +330,9 @@ fn signup_wizard() -> impl IntoView {
     };
 
     view! {
-        // "Phonix" is the product's name, not a word: it reads the same in
+        // "Evrykit" is the product's name, not a word: it reads the same in
         // every language and is deliberately outside the catalog.
-        <Title text=format!("{} | Phonix", l!("signup.title")) />
+        <Title text=format!("{} | Evrykit", l!("signup.title")) />
 
         <div class="mx-auto w-full max-w-measure">
             <StepIndicator step=step />

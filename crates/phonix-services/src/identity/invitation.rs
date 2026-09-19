@@ -355,7 +355,7 @@ async fn issue_link(
 
 /// Mint an invitation link for an account, with no [`Caller`] behind it.
 ///
-/// Phonix Desk creates a workspace's owner and has no `Caller` to do it with -
+/// Evrykit Desk creates a workspace's owner and has no `Caller` to do it with -
 /// a desk user is not one, deliberately and irreversibly (ADR 0005 section 4).
 /// What it must not do is invent a different way of handing somebody their
 /// first password, so it issues the same token, of the same purpose, pointing

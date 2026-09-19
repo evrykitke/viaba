@@ -33,7 +33,7 @@ pub fn account_page() -> impl IntoView {
     });
 
     view! {
-        <Title text=format!("{} | Phonix", l!("entity.account.singular")) />
+        <Title text=format!("{} | Evrykit", l!("entity.account.singular")) />
 
         <Transition fallback=|| {
             view! { <p class="text-sm text-content-subtle">{l!("common.loading")}</p> }

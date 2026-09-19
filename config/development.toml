@@ -1,5 +1,5 @@
 # ===========================================================================
-# Phonix - development overrides (PHONIX_ENV=development)
+# Evrykit - development overrides (PHONIX_ENV=development)
 # Committed. Machine-specific values go in config/local.toml instead.
 # ===========================================================================
 
@@ -154,7 +154,7 @@ port = 2525
 # username: set PHONIX__SMTP__USERNAME in .env
 # password: set PHONIX__SMTP__PASSWORD in .env
 from_address = "no-reply@phonix.local"
-from_name = "Phonix (development)"
+from_name = "Evrykit (development)"
 encryption = "start_tls"
 
 # The profiler. On unless this says otherwise: `profiler` is in the workspace's

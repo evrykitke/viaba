@@ -77,7 +77,7 @@ pub fn delivery_new_page() -> impl IntoView {
     });
 
     view! {
-        <Title text=format!("{} | Phonix", l!("deliveries.new")) />
+        <Title text=format!("{} | Evrykit", l!("deliveries.new")) />
 
         <PageHeader
             title=l!("deliveries.new")
@@ -121,7 +121,7 @@ pub fn delivery_page() -> impl IntoView {
     });
 
     view! {
-        <Title text=format!("{} | Phonix", l!("entity.delivery.singular")) />
+        <Title text=format!("{} | Evrykit", l!("entity.delivery.singular")) />
 
         <Transition fallback=|| {
             view! { <p class="text-sm text-content-subtle">{l!("common.loading")}</p> }

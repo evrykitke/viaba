@@ -338,15 +338,15 @@ mod tests {
     #[test]
     fn the_provisioning_uri_survives_an_awkward_workspace_name() {
         let uri = provisioning_uri(
-            "Phonix & Co",
+            "Evrykit & Co",
             "ada@example.com",
             RFC4226_SECRET,
             TotpParams::default(),
         );
 
         // Nothing unencoded may end the label or start a parameter early.
-        assert!(uri.starts_with("otpauth://totp/Phonix%20%26%20Co:ada%40example.com?"));
-        assert!(uri.contains("issuer=Phonix%20%26%20Co"));
+        assert!(uri.starts_with("otpauth://totp/Evrykit%20%26%20Co:ada%40example.com?"));
+        assert!(uri.contains("issuer=Evrykit%20%26%20Co"));
         assert!(uri.contains("algorithm=SHA1"));
         assert!(uri.contains("digits=6"));
         assert!(uri.contains("period=30"));

@@ -209,7 +209,7 @@ pub fn forgot_password_page() -> impl IntoView {
     };
 
     view! {
-        <Title text=format!("{} | Phonix", l!("reset.title")) />
+        <Title text=format!("{} | Evrykit", l!("reset.title")) />
 
         // No vertical padding of its own: the public chrome owns the page's
         // margins, and a screen that adds its own ends up with two.

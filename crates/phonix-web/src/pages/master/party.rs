@@ -61,7 +61,7 @@ pub fn party_page() -> impl IntoView {
     let currencies = Resource::new(|| (), |()| async move { enabled_currencies().await });
 
     view! {
-        <Title text=format!("{} | Phonix", l!("entity.party.singular")) />
+        <Title text=format!("{} | Evrykit", l!("entity.party.singular")) />
 
         // Transition, not Suspense: navigating from one party to another
         // re-suspends, and a fallback here would blank a screen somebody is

@@ -1,4 +1,4 @@
-//! Phonix Desk's use cases.
+//! Evrykit Desk's use cases.
 //!
 //! Desk is the application the platform is run from: workspaces are created,
 //! licensed and stopped there. See `docs/adr/0005-phonix-desk.md`.

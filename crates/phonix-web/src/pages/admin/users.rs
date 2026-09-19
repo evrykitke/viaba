@@ -17,7 +17,7 @@ use crate::ui::table::config::users::users_grid;
 #[component]
 pub fn users_page() -> impl IntoView {
     view! {
-        <Title text=format!("{} | Phonix", l!("users.title")) />
+        <Title text=format!("{} | Evrykit", l!("users.title")) />
 
         <PageHeader
             title=l!("users.title")

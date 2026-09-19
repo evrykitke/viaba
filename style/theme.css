@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Phonix - the design tokens, and the only file two applications share.
+   Evrykit - the design tokens, and the only file two applications share.
 
    This is sections 1 to 4b of what used to be all of `main.css`: the raw
    ramps, the accent ramps, the semantic roles in light and dark, and the
@@ -9,7 +9,7 @@
    point.
 
    It is split out because there are two applications now. `style/main.css` is
-   the tenant product; `crates/phonix-desk/style/desk.css` is Phonix Desk,
+   the tenant product; `crates/phonix-desk/style/desk.css` is Evrykit Desk,
    which is server-rendered HTML with no wasm and none of the product's
    component kit (see docs/adr/0005-phonix-desk.md section 3). What Desk takes
    is exactly this file: the palette, the accent, the roles, the type scale.

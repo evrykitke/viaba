@@ -42,7 +42,7 @@ pub fn balance_sheet_page() -> impl IntoView {
     );
 
     view! {
-        <Title text=format!("{} | Phonix", l!("reports.balance_sheet")) />
+        <Title text=format!("{} | Evrykit", l!("reports.balance_sheet")) />
 
         <ReportViewer
             definition=definition()

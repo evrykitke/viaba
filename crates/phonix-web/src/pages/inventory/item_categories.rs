@@ -27,7 +27,7 @@ use crate::ui::tabs::{Tab, TabbedPanel};
 #[component]
 pub fn item_categories_page() -> impl IntoView {
     view! {
-        <Title text=format!("{} | Phonix", l!("categories.title")) />
+        <Title text=format!("{} | Evrykit", l!("categories.title")) />
 
         <PageHeader
             title=l!("categories.title")
@@ -45,7 +45,7 @@ pub fn item_category_new_page() -> impl IntoView {
     let categories = Resource::new(|| (), |()| async move { list_item_categories().await });
 
     view! {
-        <Title text=format!("{} | Phonix", l!("categories.new")) />
+        <Title text=format!("{} | Evrykit", l!("categories.new")) />
 
         <PageHeader
             title=l!("categories.new")
@@ -89,7 +89,7 @@ pub fn item_category_page() -> impl IntoView {
     });
 
     view! {
-        <Title text=format!("{} | Phonix", l!("entity.item_category.singular")) />
+        <Title text=format!("{} | Evrykit", l!("entity.item_category.singular")) />
 
         <Transition fallback=|| {
             view! { <p class="text-sm text-content-subtle">{l!("common.loading")}</p> }

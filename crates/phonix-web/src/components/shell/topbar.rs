@@ -83,7 +83,7 @@ fn breadcrumb() -> impl IntoView {
                     if keys.is_empty() {
                         return view! {
                             // The product's name, not a word.
-                            <li class="truncate-fade text-content-muted">"Phonix"</li>
+                            <li class="truncate-fade text-content-muted">"Evrykit"</li>
                         }
                             .into_any();
                     }

@@ -70,7 +70,7 @@ pub fn employee_new_page() -> impl IntoView {
     let blank = Resource::new(|| (), |()| async move { blank_employee().await });
 
     view! {
-        <Title text=format!("{} | Phonix", l!("employees.new")) />
+        <Title text=format!("{} | Evrykit", l!("employees.new")) />
 
         <PageHeader
             title=l!("employees.new")
@@ -113,7 +113,7 @@ pub fn employee_page() -> impl IntoView {
     });
 
     view! {
-        <Title text=format!("{} | Phonix", l!("entity.employee.singular")) />
+        <Title text=format!("{} | Evrykit", l!("entity.employee.singular")) />
 
         <Transition fallback=|| {
             view! { <p class="text-sm text-content-subtle">{l!("common.loading")}</p> }

@@ -31,7 +31,7 @@ use crate::ui::viewer::Viewer;
 #[component]
 pub fn api_keys_page() -> impl IntoView {
     view! {
-        <Title text=format!("{} | Phonix", l!("api_keys.title")) />
+        <Title text=format!("{} | Evrykit", l!("api_keys.title")) />
 
         <PageHeader
             title=l!("api_keys.title")

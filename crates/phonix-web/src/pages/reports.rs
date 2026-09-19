@@ -48,7 +48,7 @@ pub fn reports_page() -> impl IntoView {
     };
 
     view! {
-        <Title text=format!("{} | Phonix", l!("reports.index.title")) />
+        <Title text=format!("{} | Evrykit", l!("reports.index.title")) />
 
         <PageHeader
             title=l!("reports.index.title")

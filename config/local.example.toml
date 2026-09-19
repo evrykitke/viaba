@@ -1,5 +1,5 @@
 # ===========================================================================
-# Phonix - per-machine overrides.
+# Evrykit - per-machine overrides.
 #
 #   copy  config/local.example.toml  ->  config/local.toml
 #

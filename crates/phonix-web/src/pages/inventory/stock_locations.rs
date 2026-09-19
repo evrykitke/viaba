@@ -29,7 +29,7 @@ use crate::ui::tabs::{Tab, TabbedPanel};
 #[component]
 pub fn stock_locations_page() -> impl IntoView {
     view! {
-        <Title text=format!("{} | Phonix", l!("locations.title")) />
+        <Title text=format!("{} | Evrykit", l!("locations.title")) />
 
         <PageHeader
             title=l!("locations.title")
@@ -48,7 +48,7 @@ pub fn stock_location_new_page() -> impl IntoView {
     let warehouses = Resource::new(|| (), |()| async move { selectable_warehouses().await });
 
     view! {
-        <Title text=format!("{} | Phonix", l!("locations.new")) />
+        <Title text=format!("{} | Evrykit", l!("locations.new")) />
 
         <PageHeader
             title=l!("locations.new")
@@ -96,7 +96,7 @@ pub fn stock_location_page() -> impl IntoView {
     });
 
     view! {
-        <Title text=format!("{} | Phonix", l!("entity.stock_location.singular")) />
+        <Title text=format!("{} | Evrykit", l!("entity.stock_location.singular")) />
 
         <Transition fallback=|| {
             view! { <p class="text-sm text-content-subtle">{l!("common.loading")}</p> }

@@ -88,7 +88,7 @@ pub fn account_roles_page() -> impl IntoView {
     });
 
     view! {
-        <Title text=format!("{} | Phonix", l!("account_roles.title")) />
+        <Title text=format!("{} | Evrykit", l!("account_roles.title")) />
 
         <PageHeader
             title=l!("account_roles.title")

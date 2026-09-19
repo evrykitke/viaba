@@ -1,4 +1,4 @@
-//! Shared domain vocabulary for Phonix.
+//! Shared domain vocabulary for Evrykit.
 //!
 //! Compiled for both the server and the WebAssembly client, so this crate must
 //! stay free of `tokio`, `sqlx`, `redis` and `lapin`.

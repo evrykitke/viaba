@@ -143,13 +143,13 @@ fn brand() -> impl IntoView {
                     class="grid size-6 shrink-0 place-items-center rounded-control bg-brand text-2xs font-bold text-on-brand"
                     aria-hidden="true"
                 >
-                    "P"
+                    "E"
                 </span>
                 <span class=move || {
                     format!("truncate-fade text-sm font-semibold tracking-tight {}", rail_hidden(shell))
                 }>
                     // The product's name, not a word.
-                    "Phonix"
+                    "Evrykit"
                 </span>
             </A>
 

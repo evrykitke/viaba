@@ -69,7 +69,7 @@ pub fn applicant_page() -> impl IntoView {
     let jobs = Resource::new(|| (), |()| async move { selectable_job_positions().await });
 
     view! {
-        <Title text=format!("{} | Phonix", l!("entity.applicant.singular")) />
+        <Title text=format!("{} | Evrykit", l!("entity.applicant.singular")) />
 
         <Transition fallback=|| {
             view! { <p class="text-sm text-content-subtle">{l!("common.loading")}</p> }

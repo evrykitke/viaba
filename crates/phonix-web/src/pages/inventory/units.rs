@@ -28,8 +28,8 @@ use crate::ui::tabs::{Tab, TabbedPanel};
 #[component]
 pub fn units_page() -> impl IntoView {
     view! {
-        // "Phonix" is the product's name, not a word.
-        <Title text=format!("{} | Phonix", l!("units.title")) />
+        // "Evrykit" is the product's name, not a word.
+        <Title text=format!("{} | Evrykit", l!("units.title")) />
 
         <PageHeader
             title=l!("units.title")
@@ -49,7 +49,7 @@ pub fn unit_new_page() -> impl IntoView {
     let units = Resource::new(|| (), |()| async move { list_units().await });
 
     view! {
-        <Title text=format!("{} | Phonix", l!("units.new")) />
+        <Title text=format!("{} | Evrykit", l!("units.new")) />
 
         <PageHeader
             title=l!("units.new")
@@ -93,7 +93,7 @@ pub fn unit_page() -> impl IntoView {
     });
 
     view! {
-        <Title text=format!("{} | Phonix", l!("entity.unit_of_measure.singular")) />
+        <Title text=format!("{} | Evrykit", l!("entity.unit_of_measure.singular")) />
 
         // Transition, not Suspense: moving between units re-suspends, and a
         // fallback would blank the screen somebody is looking at.

@@ -12,7 +12,7 @@ use crate::ui::table::config::journals::journals_grid;
 #[component]
 pub fn journals_page() -> impl IntoView {
     view! {
-        <Title text=format!("{} | Phonix", l!("journals.title")) />
+        <Title text=format!("{} | Evrykit", l!("journals.title")) />
 
         <PageHeader
             title=l!("journals.title")

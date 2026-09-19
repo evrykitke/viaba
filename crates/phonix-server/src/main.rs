@@ -1,4 +1,4 @@
-//! Phonix server: Axum + Leptos SSR, database per tenant.
+//! Evrykit server: Axum + Leptos SSR, database per tenant.
 
 // This binary instantiates `phonix_web::app::App`, whose view is one deeply
 // nested tuple type per screen, and the compiler works out its layout

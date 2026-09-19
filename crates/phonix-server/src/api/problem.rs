@@ -6,7 +6,7 @@
 //!
 //! # `code` is the contract, and it is not a translation key
 //!
-//! Every user-facing string in Phonix is a `Message` key resolved by the view.
+//! Every user-facing string in Evrykit is a `Message` key resolved by the view.
 //! That is right for a browser and wrong here: a key labels a *sentence*, the
 //! sentence is translated, and neither is a stable thing for a script to branch
 //! on. So the machine-readable half is [`phonix_core::Error::code`] - which

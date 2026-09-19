@@ -18,8 +18,8 @@ use crate::ui::table::config::departments::departments_grid;
 #[component]
 pub fn departments_page() -> impl IntoView {
     view! {
-        // "Phonix" is the product's name, not a word.
-        <Title text=format!("{} | Phonix", l!("departments.title")) />
+        // "Evrykit" is the product's name, not a word.
+        <Title text=format!("{} | Evrykit", l!("departments.title")) />
 
         <PageHeader
             title=l!("departments.title")
@@ -45,7 +45,7 @@ pub fn department_new_page() -> impl IntoView {
     let managers = Resource::new(|| (), |()| async move { manager_candidates().await });
 
     view! {
-        <Title text=format!("{} | Phonix", l!("departments.new")) />
+        <Title text=format!("{} | Evrykit", l!("departments.new")) />
 
         <PageHeader
             title=l!("departments.new")

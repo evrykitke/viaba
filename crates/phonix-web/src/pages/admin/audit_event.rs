@@ -55,8 +55,8 @@ pub fn audit_event_page() -> impl IntoView {
     );
 
     view! {
-        // "Phonix" is the product's name, not a word.
-        <Title text=format!("{} | Phonix", l!("audit.entry.title")) />
+        // "Evrykit" is the product's name, not a word.
+        <Title text=format!("{} | Evrykit", l!("audit.entry.title")) />
 
         <Suspense fallback=|| {
             view! { <p class="text-sm text-content-subtle">{l!("common.loading")}</p> }

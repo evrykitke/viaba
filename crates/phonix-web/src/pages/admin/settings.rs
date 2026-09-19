@@ -57,8 +57,8 @@ pub fn settings_page() -> impl IntoView {
     let loaded = OnceResource::new(workspace_settings());
 
     view! {
-        // "Phonix" is the product's name, not a word.
-        <Title text=format!("{} | Phonix", l!("settings.title")) />
+        // "Evrykit" is the product's name, not a word.
+        <Title text=format!("{} | Evrykit", l!("settings.title")) />
 
         <PageHeader
             title=l!("settings.title")

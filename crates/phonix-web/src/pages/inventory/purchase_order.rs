@@ -59,7 +59,7 @@ pub fn purchase_order_new_page() -> impl IntoView {
     let blank = Resource::new(|| (), |()| async move { blank_purchase_order().await });
 
     view! {
-        <Title text=format!("{} | Phonix", l!("purchase_orders.new")) />
+        <Title text=format!("{} | Evrykit", l!("purchase_orders.new")) />
 
         <PageHeader
             title=l!("purchase_orders.new")
@@ -103,7 +103,7 @@ pub fn purchase_order_page() -> impl IntoView {
     });
 
     view! {
-        <Title text=format!("{} | Phonix", l!("entity.purchase_order.singular")) />
+        <Title text=format!("{} | Evrykit", l!("entity.purchase_order.singular")) />
 
         // Transition rather than Suspense, so moving between two orders replaces
         // the screen when the next one arrives instead of blanking it.

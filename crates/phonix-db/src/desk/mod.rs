@@ -1,4 +1,4 @@
-//! Phonix Desk's own tables, in the catalog.
+//! Evrykit Desk's own tables, in the catalog.
 //!
 //! * [`user`]    - who may sign in to Desk.
 //! * [`session`] - a signed-in browser, held by digest.

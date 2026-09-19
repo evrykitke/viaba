@@ -42,7 +42,7 @@ pub fn challenge_page() -> impl IntoView {
     let pending = OnceResource::new_blocking(pending_challenge());
 
     view! {
-        <Title text=format!("{} | Phonix", l!("challenge.title")) />
+        <Title text=format!("{} | Evrykit", l!("challenge.title")) />
 
         <div class="mx-auto w-full max-w-measure rounded-card border border-edge bg-surface-raised p-5 shadow-sm sm:p-8">
             <Suspense fallback=|| {

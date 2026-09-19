@@ -1,6 +1,6 @@
 //! The tenant slug: a routing key that is also part of a database name.
 //!
-//! Phonix is database-per-tenant. A slug is resolved from the request host,
+//! Evrykit is database-per-tenant. A slug is resolved from the request host,
 //! looked up in the shared catalog, and mapped to a dedicated Postgres
 //! database - which is why [`TenantSlug`] validates on construction instead of
 //! being a bare `String`.

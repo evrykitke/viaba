@@ -57,8 +57,8 @@ use crate::ui::tabs::{Tab, TabbedPanel};
 #[component]
 pub fn roles_page() -> impl IntoView {
     view! {
-        // "Phonix" is the product's name, not a word.
-        <Title text=format!("{} | Phonix", l!("roles.title")) />
+        // "Evrykit" is the product's name, not a word.
+        <Title text=format!("{} | Evrykit", l!("roles.title")) />
 
         <PageHeader
             title=l!("roles.title")
@@ -78,7 +78,7 @@ pub fn roles_page() -> impl IntoView {
 #[component]
 pub fn role_new_page() -> impl IntoView {
     view! {
-        <Title text=format!("{} | Phonix", l!("roles.new.title")) />
+        <Title text=format!("{} | Evrykit", l!("roles.new.title")) />
 
         <PageHeader
             title=l!("roles.new.title")
@@ -124,7 +124,7 @@ pub fn role_page() -> impl IntoView {
     });
 
     view! {
-        <Title text=format!("{} | Phonix", l!("entity.role.singular")) />
+        <Title text=format!("{} | Evrykit", l!("entity.role.singular")) />
 
         // Transition, not Suspense: navigating from one role to another
         // re-suspends, and a fallback here would blank a screen somebody is

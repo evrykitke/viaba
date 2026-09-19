@@ -198,8 +198,8 @@ pub fn app() -> impl IntoView {
     Previews::provide();
 
     view! {
-        <Title text="Phonix" />
-        <Meta name="description" content="Phonix" />
+        <Title text="Evrykit" />
+        <Meta name="description" content="Evrykit" />
         <Meta name="color-scheme" content="light dark" />
 
         <AlertLayer />

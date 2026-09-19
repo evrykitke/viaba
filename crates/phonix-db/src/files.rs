@@ -770,7 +770,7 @@ mod tests {
 
 /// How much outstanding work this workspace's upload queue is holding.
 ///
-/// Counts and one timestamp, and deliberately nothing else. Phonix Desk reads
+/// Counts and one timestamp, and deliberately nothing else. Evrykit Desk reads
 /// this and may not read a workspace's business data - a file name, who
 /// uploaded it, what it is - so the operational question ("is the verifier
 /// keeping up") is answered without the queue becoming a window into the

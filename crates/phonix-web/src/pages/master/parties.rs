@@ -17,8 +17,8 @@ use crate::ui::table::config::parties::parties_grid;
 #[component]
 pub fn parties_page() -> impl IntoView {
     view! {
-        // "Phonix" is the product's name, not a word.
-        <Title text=format!("{} | Phonix", l!("parties.title")) />
+        // "Evrykit" is the product's name, not a word.
+        <Title text=format!("{} | Evrykit", l!("parties.title")) />
 
         <PageHeader
             title=l!("parties.title")
@@ -47,7 +47,7 @@ pub fn party_new_page() -> impl IntoView {
     let currencies = Resource::new(|| (), |()| async move { enabled_currencies().await });
 
     view! {
-        <Title text=format!("{} | Phonix", l!("parties.new.title")) />
+        <Title text=format!("{} | Evrykit", l!("parties.new.title")) />
 
         <PageHeader
             title=l!("parties.new.title")

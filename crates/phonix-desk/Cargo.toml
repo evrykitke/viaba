@@ -5,7 +5,7 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 
-# Phonix Desk: the application the platform is run from. See
+# Evrykit Desk: the application the platform is run from. See
 # docs/adr/0005-phonix-desk.md.
 #
 # The dependency list is the design. There is deliberately no `phonix-web`:

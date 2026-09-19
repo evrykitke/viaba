@@ -1,5 +1,5 @@
 # ===========================================================================
-# Phonix - base configuration
+# Evrykit - base configuration
 #
 # Load order (later wins):
 #   1. config/base.toml            <- this file, committed
@@ -12,7 +12,7 @@
 # ===========================================================================
 
 [app]
-name = "Phonix"
+name = "Evrykit"
 # Free-form; surfaced in logs, telemetry resource attributes and the UI footer.
 environment = "development"
 # Where <code>.json translation files are read from at boot. English needs no
@@ -276,7 +276,7 @@ base_domain = "phonix.local"
 header_name = "X-Phonix-Tenant"
 # Hosts that are NOT tenants; requests to these get the marketing/admin app.
 #
-# `console-desk` is Phonix Desk, and it is listed here rather than only in nginx
+# `console-desk` is Evrykit Desk, and it is listed here rather than only in nginx
 # because the label satisfies both `slug_pattern` below and the
 # `tenants_slug_format` check constraint: until it is reserved, a workspace can
 # be created that claims it. Reserving it costs nothing and has to happen before
@@ -465,7 +465,7 @@ client_ip_header = ""
 [security.mfa]
 # What the authenticator app shows above the code. The workspace slug is added
 # per account, so somebody with two workspaces can tell the entries apart.
-issuer = "Phonix"
+issuer = "Evrykit"
 # RFC 6238 defaults. Every authenticator app assumes 6 digits and a 30-second
 # step; changing either locks out apps that cannot be told otherwise.
 totp_digits = 6
@@ -558,7 +558,7 @@ port = 2525
 username = ""
 password = ""
 from_address = "no-reply@phonix.local"
-from_name = "Phonix"
+from_name = "Evrykit"
 # start_tls | implicit | none
 encryption = "start_tls"
 timeout_secs = 15
@@ -653,7 +653,7 @@ filter = "info,sqlx::query=debug"
 backtraces = true
 
 # ---------------------------------------------------------------------------
-# Phonix Desk - the application the platform is run from.
+# Evrykit Desk - the application the platform is run from.
 #
 # A separate binary (`phonix-desk`) reading this same file: workspaces are
 # created, licensed and stopped there. The server loads this section and

@@ -54,7 +54,7 @@ pub fn accounts_page() -> impl IntoView {
     .icon(Icon::Table);
 
     view! {
-        <Title text=format!("{} | Phonix", l!("accounts.title")) />
+        <Title text=format!("{} | Evrykit", l!("accounts.title")) />
 
         <PageHeader
             title=l!("accounts.title")
@@ -85,7 +85,7 @@ pub fn account_new_page() -> impl IntoView {
     let chart = Resource::new(|| (), |()| async move { list_accounts().await });
 
     view! {
-        <Title text=format!("{} | Phonix", l!("accounts.new")) />
+        <Title text=format!("{} | Evrykit", l!("accounts.new")) />
 
         <PageHeader
             title=l!("accounts.new")

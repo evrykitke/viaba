@@ -2,7 +2,7 @@
 //!
 //! # What it is for
 //!
-//! [`crate::ui`] is furniture that has never heard of Phonix, and until now the
+//! [`crate::ui`] is furniture that has never heard of Evrykit, and until now the
 //! only way to see a piece of it was to find a screen that happened to use one.
 //! That is a poor way to answer the two questions people actually have - *does
 //! the kit already do this?* and *what does it look like in the state I need?* -
@@ -74,8 +74,8 @@ pub fn ui_library_page() -> impl IntoView {
     ];
 
     view! {
-        // "Phonix" is the product's name, not a word.
-        <Title text=format!("{} | Phonix", l!("ui_library.title")) />
+        // "Evrykit" is the product's name, not a word.
+        <Title text=format!("{} | Evrykit", l!("ui_library.title")) />
 
         <PageHeader
             title=l!("ui_library.title")

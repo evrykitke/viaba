@@ -26,7 +26,7 @@ use crate::ui::table::config::price_lists::price_lists_grid;
 #[component]
 pub fn price_lists_page() -> impl IntoView {
     view! {
-        <Title text=format!("{} | Phonix", l!("price_lists.title")) />
+        <Title text=format!("{} | Evrykit", l!("price_lists.title")) />
 
         <PageHeader
             title=l!("price_lists.title")
@@ -44,7 +44,7 @@ pub fn price_list_new_page() -> impl IntoView {
     let blank = Resource::new(|| (), |()| async move { blank_price_list().await });
 
     view! {
-        <Title text=format!("{} | Phonix", l!("price_lists.new")) />
+        <Title text=format!("{} | Evrykit", l!("price_lists.new")) />
 
         <PageHeader
             title=l!("price_lists.new")
@@ -89,7 +89,7 @@ pub fn price_list_page() -> impl IntoView {
     });
 
     view! {
-        <Title text=format!("{} | Phonix", l!("price_lists.title")) />
+        <Title text=format!("{} | Evrykit", l!("price_lists.title")) />
 
         <PageHeader
             title=l!("price_lists.title")

@@ -22,7 +22,7 @@ use crate::ui::table::config::items::items_grid;
 #[component]
 pub fn items_page() -> impl IntoView {
     view! {
-        <Title text=format!("{} | Phonix", l!("items.title")) />
+        <Title text=format!("{} | Evrykit", l!("items.title")) />
 
         <PageHeader title=l!("items.title") subtitle=l!("items.subtitle") icon=Icon::Package />
 
@@ -39,7 +39,7 @@ pub fn item_new_page() -> impl IntoView {
     let units = Resource::new(|| (), |()| async move { selectable_units().await });
 
     view! {
-        <Title text=format!("{} | Phonix", l!("items.new")) />
+        <Title text=format!("{} | Evrykit", l!("items.new")) />
 
         <PageHeader
             title=l!("items.new")

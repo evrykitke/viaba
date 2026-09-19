@@ -37,7 +37,7 @@ pub fn api_key_new_page() -> impl IntoView {
     let on_issued = Callback::new(move |result: ApiKeyIssued| issued.set(Some(result)));
 
     view! {
-        <Title text=format!("{} | Phonix", l!("api_keys.new.title")) />
+        <Title text=format!("{} | Evrykit", l!("api_keys.new.title")) />
 
         <PageHeader
             title=l!("api_keys.new.title")

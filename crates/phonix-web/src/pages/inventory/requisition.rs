@@ -79,7 +79,7 @@ pub fn requisition_new_page() -> impl IntoView {
     let blank = Resource::new(|| (), |()| async move { blank_requisition().await });
 
     view! {
-        <Title text=format!("{} | Phonix", l!("requisitions.new")) />
+        <Title text=format!("{} | Evrykit", l!("requisitions.new")) />
 
         <PageHeader
             title=l!("requisitions.new")
@@ -123,7 +123,7 @@ pub fn requisition_page() -> impl IntoView {
     });
 
     view! {
-        <Title text=format!("{} | Phonix", l!("entity.requisition.singular")) />
+        <Title text=format!("{} | Evrykit", l!("entity.requisition.singular")) />
 
         <Transition fallback=|| {
             view! { <p class="text-sm text-content-subtle">{l!("common.loading")}</p> }

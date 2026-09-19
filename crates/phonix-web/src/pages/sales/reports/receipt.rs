@@ -28,7 +28,7 @@ pub fn payment_receipt_page() -> impl IntoView {
     });
 
     view! {
-        <Title text=format!("{} | Phonix", l!("payments.receipt")) />
+        <Title text=format!("{} | Evrykit", l!("payments.receipt")) />
 
         <ReportViewer
             definition=definition()

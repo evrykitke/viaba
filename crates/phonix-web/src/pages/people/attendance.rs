@@ -134,7 +134,7 @@ pub fn attendance_page() -> impl IntoView {
     };
 
     view! {
-        <Title text=format!("{} | Phonix", l!("attendance.title")) />
+        <Title text=format!("{} | Evrykit", l!("attendance.title")) />
 
         <PageHeader
             title=l!("attendance.title")

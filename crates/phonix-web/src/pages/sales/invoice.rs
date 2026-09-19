@@ -93,8 +93,8 @@ pub fn invoice_new_page() -> impl IntoView {
     });
 
     view! {
-        // "Phonix" is the product's name, not a word.
-        <Title text=format!("{} | Phonix", l!("invoices.new")) />
+        // "Evrykit" is the product's name, not a word.
+        <Title text=format!("{} | Evrykit", l!("invoices.new")) />
 
         <PageHeader
             title=l!("invoices.new")
@@ -146,7 +146,7 @@ pub fn invoice_page() -> impl IntoView {
     });
 
     view! {
-        <Title text=format!("{} | Phonix", l!("entity.sales_invoice.singular")) />
+        <Title text=format!("{} | Evrykit", l!("entity.sales_invoice.singular")) />
 
         // Transition, not Suspense: navigating from one invoice to another
         // re-suspends, and a fallback here would blank a screen somebody is

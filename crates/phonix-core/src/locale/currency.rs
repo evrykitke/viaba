@@ -6,7 +6,7 @@
 //! Kuwaiti dinar, and getting it wrong is not a formatting bug: an amount held
 //! in minor units is off by a factor of a hundred.
 //!
-//! Nothing in Phonix holds money yet. This type exists first on purpose,
+//! Nothing in Evrykit holds money yet. This type exists first on purpose,
 //! because the alternative is a `TEXT` column that becomes a `Money` type's
 //! problem later, by which time there are rows in it.
 //!

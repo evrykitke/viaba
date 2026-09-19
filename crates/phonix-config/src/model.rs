@@ -19,7 +19,7 @@ pub struct AppConfig {
     /// that matters: see [`ProfilerConfig`].
     #[serde(default)]
     pub profiler: ProfilerConfig,
-    /// Phonix Desk, the platform's own application. Read by the `phonix-desk`
+    /// Evrykit Desk, the platform's own application. Read by the `phonix-desk`
     /// binary; the server loads it and ignores it.
     #[serde(default)]
     pub desk: DeskConfig,
@@ -1300,7 +1300,7 @@ mod tests {
 
     fn app(environment: &str, label: &str) -> AppSection {
         AppSection {
-            name: "Phonix".to_owned(),
+            name: "Evrykit".to_owned(),
             environment: environment.to_owned(),
             locales_dir: "locales".to_owned(),
             public_label: label.to_owned(),
@@ -1448,7 +1448,7 @@ impl Default for ProfilerConfig {
     }
 }
 
-/// Phonix Desk - the application the platform is run from.
+/// Evrykit Desk - the application the platform is run from.
 ///
 /// See `docs/adr/0005-phonix-desk.md`. This is a **separate binary** sharing
 /// this configuration file, which is deliberate: two files describing one

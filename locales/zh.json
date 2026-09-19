@@ -1312,7 +1312,7 @@
   "error.api_key.name_required": "请为密钥命名，以便日后与其他密钥区分。",
   "error.api_key.name_too_long": "密钥名称最多 {max} 个字符。",
   "error.api_key.scope_not_held": "您无法为密钥授予 {scope}，因为您本人并不拥有该权限。",
-  "error.api_key.unknown_scope": "{scope} 不是此版本 Phonix 拥有的权限。",
+  "error.api_key.unknown_scope": "{scope} 不是此版本 Evrykit 拥有的权限。",
   "error.audit_event.gone": "该审计条目不存在。",
   "error.avatar.pending": "该图片尚未完成检查。",
   "error.avatar.wrong_bucket": "该文件不是作为头像上传的。",

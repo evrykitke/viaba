@@ -26,8 +26,8 @@ pub fn tax_group_new_page() -> impl IntoView {
     let codes = Resource::new(|| (), |()| async move { list_tax_codes().await });
 
     view! {
-        // "Phonix" is the product's name, not a word.
-        <Title text=format!("{} | Phonix", l!("tax_groups.new")) />
+        // "Evrykit" is the product's name, not a word.
+        <Title text=format!("{} | Evrykit", l!("tax_groups.new")) />
 
         <PageHeader
             title=l!("tax_groups.new")
@@ -79,7 +79,7 @@ pub fn tax_group_page() -> impl IntoView {
     let codes = Resource::new(|| (), |()| async move { list_tax_codes().await });
 
     view! {
-        <Title text=format!("{} | Phonix", l!("entity.tax_group.singular")) />
+        <Title text=format!("{} | Evrykit", l!("entity.tax_group.singular")) />
 
         <Transition fallback=|| {
             view! { <p class="text-sm text-content-subtle">{l!("common.loading")}</p> }

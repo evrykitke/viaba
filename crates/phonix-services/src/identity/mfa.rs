@@ -100,7 +100,7 @@ pub async fn begin_totp_enrolment(
     let params = TotpParams::from_config(cfg);
 
     // The issuer carries the workspace, so somebody with accounts in two of
-    // them gets two distinguishable entries rather than two called "Phonix".
+    // them gets two distinguishable entries rather than two called "Evrykit".
     let issuer = format!("{} ({workspace})", cfg.issuer);
 
     Ok(TotpEnrolment {

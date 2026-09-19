@@ -81,7 +81,7 @@ pub fn receipt_new_page() -> impl IntoView {
     });
 
     view! {
-        <Title text=format!("{} | Phonix", l!("receipts.new")) />
+        <Title text=format!("{} | Evrykit", l!("receipts.new")) />
 
         // No `PageHeader`: the editor's own dock says the same three things and
         // stays on screen while the lines are keyed. Two headers would be the
@@ -130,7 +130,7 @@ pub fn receipt_page() -> impl IntoView {
     });
 
     view! {
-        <Title text=format!("{} | Phonix", l!("entity.goods_receipt.singular")) />
+        <Title text=format!("{} | Evrykit", l!("entity.goods_receipt.singular")) />
 
         <Transition fallback=|| {
             view! { <p class="text-sm text-content-subtle">{l!("common.loading")}</p> }

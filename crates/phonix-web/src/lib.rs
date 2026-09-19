@@ -1,4 +1,4 @@
-//! The Phonix Leptos application.
+//! The Evrykit Leptos application.
 //!
 //! Compiled twice:
 //!

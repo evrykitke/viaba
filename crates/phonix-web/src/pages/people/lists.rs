@@ -23,7 +23,7 @@ use crate::ui::table::config::work_locations::work_locations_grid;
 #[component]
 pub fn employees_page() -> impl IntoView {
     view! {
-        <Title text=format!("{} | Phonix", l!("employees.title")) />
+        <Title text=format!("{} | Evrykit", l!("employees.title")) />
 
         <PageHeader
             title=l!("employees.title")
@@ -39,7 +39,7 @@ pub fn employees_page() -> impl IntoView {
 #[component]
 pub fn job_positions_page() -> impl IntoView {
     view! {
-        <Title text=format!("{} | Phonix", l!("job_positions.title")) />
+        <Title text=format!("{} | Evrykit", l!("job_positions.title")) />
 
         <PageHeader
             title=l!("job_positions.title")
@@ -54,7 +54,7 @@ pub fn job_positions_page() -> impl IntoView {
 #[component]
 pub fn work_locations_page() -> impl IntoView {
     view! {
-        <Title text=format!("{} | Phonix", l!("work_locations.title")) />
+        <Title text=format!("{} | Evrykit", l!("work_locations.title")) />
 
         <PageHeader
             title=l!("work_locations.title")
@@ -70,7 +70,7 @@ pub fn work_locations_page() -> impl IntoView {
 #[component]
 pub fn holiday_lists_page() -> impl IntoView {
     view! {
-        <Title text=format!("{} | Phonix", l!("holidays.title")) />
+        <Title text=format!("{} | Evrykit", l!("holidays.title")) />
 
         <PageHeader
             title=l!("holidays.title")
@@ -86,7 +86,7 @@ pub fn holiday_lists_page() -> impl IntoView {
 #[component]
 pub fn shift_types_page() -> impl IntoView {
     view! {
-        <Title text=format!("{} | Phonix", l!("shifts.title")) />
+        <Title text=format!("{} | Evrykit", l!("shifts.title")) />
 
         <PageHeader
             title=l!("shifts.title")
@@ -102,7 +102,7 @@ pub fn shift_types_page() -> impl IntoView {
 #[component]
 pub fn movements_page() -> impl IntoView {
     view! {
-        <Title text=format!("{} | Phonix", l!("movements.title")) />
+        <Title text=format!("{} | Evrykit", l!("movements.title")) />
 
         <PageHeader
             title=l!("movements.title")
@@ -118,7 +118,7 @@ pub fn movements_page() -> impl IntoView {
 #[component]
 pub fn applicants_page() -> impl IntoView {
     view! {
-        <Title text=format!("{} | Phonix", l!("applicants.title")) />
+        <Title text=format!("{} | Evrykit", l!("applicants.title")) />
 
         <PageHeader
             title=l!("applicants.title")

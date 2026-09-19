@@ -1,10 +1,10 @@
 /* ==========================================================================
-   Phonix - Tailwind v4 entry point for the tenant application.
+   Evrykit - Tailwind v4 entry point for the tenant application.
 
    Tailwind v4 is CSS-first: there is no tailwind.config.js.
 
    The design tokens are not here. They live in `style/theme.css`, because
-   Phonix Desk imports the same ones - see the header of that file for the
+   Evrykit Desk imports the same ones - see the header of that file for the
    three-layer structure and why the indirection matters. What stays here is
    what only the product needs: the base layer that styles every control once,
    and the handful of utilities a Tailwind class cannot express.

@@ -64,7 +64,7 @@ use problem::Problem;
 #[derive(OpenApi)]
 #[openapi(
     info(
-        title = "Phonix API",
+        title = "Evrykit API",
         version = "1.0.0",
         description = "The versioned surface. Every call is authenticated with an API key \
                        issued from the workspace's administration area, and acts as the \

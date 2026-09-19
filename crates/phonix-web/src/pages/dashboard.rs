@@ -30,7 +30,7 @@ pub fn dashboard_page() -> impl IntoView {
     let count = OnceResource::new(tenant_user_count());
 
     view! {
-        <Title text=format!("{} | Phonix", l!("dashboard.title")) />
+        <Title text=format!("{} | Evrykit", l!("dashboard.title")) />
 
         <section class="space-y-6">
             <h1 class="text-2xl font-semibold tracking-tight text-content">

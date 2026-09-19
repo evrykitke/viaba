@@ -148,10 +148,10 @@ pub fn sign_in_page() -> impl IntoView {
     };
 
     view! {
-        // Not `l!` plus a literal " | Phonix": the product's name is a name,
+        // Not `l!` plus a literal " | Evrykit": the product's name is a name,
         // and joining it on here would leave a translator no way to reorder the
         // two halves.
-        <Title text=format!("{} | Phonix", l!("auth.signin.title")) />
+        <Title text=format!("{} | Evrykit", l!("auth.signin.title")) />
 
         <div class="mx-auto w-full max-w-measure">
             <div class="rounded-card border border-edge bg-surface-raised p-5 shadow-sm sm:p-8">

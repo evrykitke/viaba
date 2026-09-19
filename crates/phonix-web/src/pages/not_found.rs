@@ -16,7 +16,7 @@ pub fn not_found_page() -> impl IntoView {
     }
 
     view! {
-        <Title text=format!("{} | Phonix", l!("not_found.title")) />
+        <Title text=format!("{} | Evrykit", l!("not_found.title")) />
 
         <section class="space-y-3">
             <p class="text-sm font-medium text-content-subtle">"404"</p>

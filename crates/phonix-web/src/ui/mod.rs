@@ -6,7 +6,7 @@
 //! a workspace badge, a permission tree. Each piece is written once and used
 //! where it belongs.
 //!
-//! `ui` is furniture that has never heard of Phonix. Nothing here mentions a
+//! `ui` is furniture that has never heard of Evrykit. Nothing here mentions a
 //! user, a role or an invoice: a piece takes a configuration describing the
 //! shape of some data and renders it. The test of whether something belongs in
 //! this module is whether an inventory module could use it unchanged.

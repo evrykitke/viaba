@@ -41,7 +41,7 @@ pub fn user_invite_page() -> impl IntoView {
     let on_issued = Callback::new(move |result: InvitationIssued| issued.set(Some(result)));
 
     view! {
-        <Title text=format!("{} | Phonix", l!("invite.title")) />
+        <Title text=format!("{} | Evrykit", l!("invite.title")) />
 
         <PageHeader
             title=l!("invite.title")

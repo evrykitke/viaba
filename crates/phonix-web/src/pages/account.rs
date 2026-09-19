@@ -52,8 +52,8 @@ pub fn account_page() -> impl IntoView {
     let picture = stored_picture();
 
     view! {
-        // "Phonix" is the product's name, not a word.
-        <Title text=format!("{} | Phonix", l!("account.title")) />
+        // "Evrykit" is the product's name, not a word.
+        <Title text=format!("{} | Evrykit", l!("account.title")) />
 
         <PageHeader
             title=l!("account.title")

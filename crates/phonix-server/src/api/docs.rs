@@ -24,7 +24,7 @@ pub fn template() -> String {
         r#"<!doctype html>
 <html lang="en">
 <head>
-    <title>Phonix API</title>
+    <title>Evrykit API</title>
     <meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1"/>
     <link rel="icon" href="/favicon.svg"/>

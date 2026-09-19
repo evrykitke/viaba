@@ -31,7 +31,7 @@ pub fn periods_page() -> impl IntoView {
     let refresh = Callback::new(move |()| reload.update(|count| *count += 1));
 
     view! {
-        <Title text=format!("{} | Phonix", l!("periods.title")) />
+        <Title text=format!("{} | Evrykit", l!("periods.title")) />
 
         <PageHeader
             title=l!("periods.title")

@@ -50,8 +50,8 @@ pub fn entity_change_page() -> impl IntoView {
     );
 
     view! {
-        // "Phonix" is the product's name, not a word.
-        <Title text=format!("{} | Phonix", l!("audit.change.title")) />
+        // "Evrykit" is the product's name, not a word.
+        <Title text=format!("{} | Evrykit", l!("audit.change.title")) />
 
         <Suspense fallback=|| {
             view! { <p class="text-sm text-content-subtle">{l!("common.loading")}</p> }

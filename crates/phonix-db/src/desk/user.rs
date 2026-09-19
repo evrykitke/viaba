@@ -1,6 +1,6 @@
 //! The `desk_users` table.
 //!
-//! One row per person who may sign in to Phonix Desk. There is no signup: a
+//! One row per person who may sign in to Evrykit Desk. There is no signup: a
 //! desk user is created by another desk user (or, for the first one, by a CLI
 //! subcommand on the box), and collects a password of their own through a
 //! single-use setup link.

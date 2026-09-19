@@ -31,7 +31,7 @@ pub fn department_page() -> impl IntoView {
     });
 
     view! {
-        <Title text=format!("{} | Phonix", l!("entity.department.singular")) />
+        <Title text=format!("{} | Evrykit", l!("entity.department.singular")) />
 
         // Transition, not Suspense: moving between departments re-suspends, and
         // a fallback would blank the screen somebody is looking at.

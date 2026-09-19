@@ -42,7 +42,7 @@ pub fn trial_balance_page() -> impl IntoView {
     );
 
     view! {
-        <Title text=format!("{} | Phonix", l!("reports.trial_balance")) />
+        <Title text=format!("{} | Evrykit", l!("reports.trial_balance")) />
 
         <ReportViewer
             definition=definition()

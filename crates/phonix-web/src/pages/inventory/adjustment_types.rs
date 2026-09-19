@@ -29,8 +29,8 @@ const BACK: &str = "/inventory/adjustment-types";
 #[component]
 pub fn adjustment_types_page() -> impl IntoView {
     view! {
-        // "Phonix" is the product's name, not a word.
-        <Title text=format!("{} | Phonix", l!("adjustment_types.title")) />
+        // "Evrykit" is the product's name, not a word.
+        <Title text=format!("{} | Evrykit", l!("adjustment_types.title")) />
 
         <PageHeader
             title=l!("adjustment_types.title")
@@ -48,7 +48,7 @@ pub fn adjustment_type_new_page() -> impl IntoView {
     let chart = Resource::new(|| (), |()| async move { postable_accounts().await });
 
     view! {
-        <Title text=format!("{} | Phonix", l!("adjustment_types.new")) />
+        <Title text=format!("{} | Evrykit", l!("adjustment_types.new")) />
 
         <PageHeader
             title=l!("adjustment_types.new")
@@ -97,7 +97,7 @@ pub fn adjustment_type_page() -> impl IntoView {
     });
 
     view! {
-        <Title text=format!("{} | Phonix", l!("entity.adjustment_type.singular")) />
+        <Title text=format!("{} | Evrykit", l!("entity.adjustment_type.singular")) />
 
         // Transition, not Suspense: moving between types re-suspends, and a
         // fallback would blank the screen somebody is looking at.

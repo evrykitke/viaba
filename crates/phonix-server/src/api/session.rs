@@ -117,7 +117,7 @@ pub struct ViewerResource {
     pub id: uuid::Uuid,
     pub email: String,
     pub display_name: String,
-    /// For display. Authority comes from `permissions`; Phonix has no active
+    /// For display. Authority comes from `permissions`; Evrykit has no active
     /// role to switch between.
     pub roles: Vec<String>,
     /// Every permission this person currently holds, flattened. For a key, the

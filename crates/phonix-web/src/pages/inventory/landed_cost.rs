@@ -39,7 +39,7 @@ const BACK: &str = "/inventory/landed-costs";
 #[component]
 pub fn landed_costs_page() -> impl IntoView {
     view! {
-        <Title text=format!("{} | Phonix", l!("landed_costs.title")) />
+        <Title text=format!("{} | Evrykit", l!("landed_costs.title")) />
 
         <PageHeader
             title=l!("landed_costs.title")
@@ -78,7 +78,7 @@ pub fn landed_cost_new_page() -> impl IntoView {
     });
 
     view! {
-        <Title text=format!("{} | Phonix", l!("landed_costs.new")) />
+        <Title text=format!("{} | Evrykit", l!("landed_costs.new")) />
 
         <PageHeader
             title=l!("landed_costs.new")
@@ -128,7 +128,7 @@ pub fn landed_cost_page() -> impl IntoView {
     });
 
     view! {
-        <Title text=format!("{} | Phonix", l!("entity.landed_cost.singular")) />
+        <Title text=format!("{} | Evrykit", l!("entity.landed_cost.singular")) />
 
         <Transition fallback=|| {
             view! { <p class="text-sm text-content-subtle">{l!("common.loading")}</p> }

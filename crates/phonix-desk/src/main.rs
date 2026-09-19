@@ -1,4 +1,4 @@
-//! Phonix Desk: the application the platform is run from.
+//! Evrykit Desk: the application the platform is run from.
 //!
 //! A second binary beside `phonix-server`, sharing the same configuration file
 //! and the same crates underneath, serving a different surface to a different

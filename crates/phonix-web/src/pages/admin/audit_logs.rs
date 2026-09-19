@@ -54,7 +54,7 @@ pub fn audit_logs_page() -> impl IntoView {
     ];
 
     view! {
-        <Title text=format!("{} | Phonix", l!("audit.title")) />
+        <Title text=format!("{} | Evrykit", l!("audit.title")) />
 
         <PageHeader
             title=l!("audit.title")

@@ -91,7 +91,7 @@ mod tests {
 
     #[test]
     fn an_ordinary_user_agent_survives_intact() {
-        let real = "Phonix/1.0 (iPhone; iOS 18.2)";
+        let real = "Evrykit/1.0 (iPhone; iOS 18.2)";
         let facts = facts_of(&headers(&[("user-agent", real)]));
 
         assert_eq!(facts.user_agent.as_deref(), Some(real));

@@ -65,7 +65,7 @@ pub fn user_edit_page() -> impl IntoView {
     });
 
     view! {
-        <Title text=format!("{} | Phonix", l!("users.edit")) />
+        <Title text=format!("{} | Evrykit", l!("users.edit")) />
 
         <PageHeader
             title=l!("users.edit")

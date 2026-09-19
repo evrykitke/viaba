@@ -42,7 +42,7 @@ pub fn profit_and_loss_page() -> impl IntoView {
     );
 
     view! {
-        <Title text=format!("{} | Phonix", l!("reports.profit_and_loss")) />
+        <Title text=format!("{} | Evrykit", l!("reports.profit_and_loss")) />
 
         <ReportViewer
             definition=definition()

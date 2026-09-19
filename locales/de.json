@@ -1312,7 +1312,7 @@
   "error.api_key.name_required": "Geben Sie dem Schlüssel einen Namen, damit er später von den anderen zu unterscheiden ist.",
   "error.api_key.name_too_long": "Ein Schlüsselname darf höchstens {max} Zeichen lang sein.",
   "error.api_key.scope_not_held": "Sie können einem Schlüssel {scope} nicht geben, weil Sie es selbst nicht besitzen.",
-  "error.api_key.unknown_scope": "{scope} ist keine Berechtigung, die diese Version von Phonix kennt.",
+  "error.api_key.unknown_scope": "{scope} ist keine Berechtigung, die diese Version von Evrykit kennt.",
   "error.audit_event.gone": "Dieser Audit-Eintrag existiert nicht.",
   "error.avatar.pending": "Dieses Bild wurde noch nicht fertig geprüft.",
   "error.avatar.wrong_bucket": "Diese Datei wurde nicht als Profilbild hochgeladen.",

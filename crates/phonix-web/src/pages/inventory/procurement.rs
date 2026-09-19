@@ -22,7 +22,7 @@ use crate::ui::table::config::sales_orders::sales_orders_grid;
 #[component]
 pub fn purchase_orders_page() -> impl IntoView {
     view! {
-        <Title text=format!("{} | Phonix", l!("purchase_orders.title")) />
+        <Title text=format!("{} | Evrykit", l!("purchase_orders.title")) />
 
         <PageHeader
             title=l!("purchase_orders.title")
@@ -38,7 +38,7 @@ pub fn purchase_orders_page() -> impl IntoView {
 #[component]
 pub fn sales_orders_page() -> impl IntoView {
     view! {
-        <Title text=format!("{} | Phonix", l!("sales_orders.title")) />
+        <Title text=format!("{} | Evrykit", l!("sales_orders.title")) />
 
         <PageHeader
             title=l!("sales_orders.title")
@@ -54,7 +54,7 @@ pub fn sales_orders_page() -> impl IntoView {
 #[component]
 pub fn deliveries_page() -> impl IntoView {
     view! {
-        <Title text=format!("{} | Phonix", l!("deliveries.title")) />
+        <Title text=format!("{} | Evrykit", l!("deliveries.title")) />
 
         <PageHeader
             title=l!("deliveries.title")
@@ -69,7 +69,7 @@ pub fn deliveries_page() -> impl IntoView {
 #[component]
 pub fn receipts_page() -> impl IntoView {
     view! {
-        <Title text=format!("{} | Phonix", l!("receipts.title")) />
+        <Title text=format!("{} | Evrykit", l!("receipts.title")) />
 
         <PageHeader
             title=l!("receipts.title")
@@ -85,7 +85,7 @@ pub fn receipts_page() -> impl IntoView {
 #[component]
 pub fn requisitions_page() -> impl IntoView {
     view! {
-        <Title text=format!("{} | Phonix", l!("requisitions.title")) />
+        <Title text=format!("{} | Evrykit", l!("requisitions.title")) />
 
         <PageHeader
             title=l!("requisitions.title")
@@ -101,7 +101,7 @@ pub fn requisitions_page() -> impl IntoView {
 #[component]
 pub fn consolidations_page() -> impl IntoView {
     view! {
-        <Title text=format!("{} | Phonix", l!("consolidations.title")) />
+        <Title text=format!("{} | Evrykit", l!("consolidations.title")) />
 
         <PageHeader
             title=l!("consolidations.title")

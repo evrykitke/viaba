@@ -12,8 +12,8 @@ use crate::ui::table::config::invoices::invoices_grid;
 #[component]
 pub fn invoices_page() -> impl IntoView {
     view! {
-        // "Phonix" is the product's name, not a word.
-        <Title text=format!("{} | Phonix", l!("invoices.title")) />
+        // "Evrykit" is the product's name, not a word.
+        <Title text=format!("{} | Evrykit", l!("invoices.title")) />
 
         <PageHeader
             title=l!("invoices.title")

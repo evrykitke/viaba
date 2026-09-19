@@ -13,7 +13,7 @@ use crate::ui::table::config::stock_moves::stock_moves_grid;
 #[component]
 pub fn stock_page() -> impl IntoView {
     view! {
-        <Title text=format!("{} | Phonix", l!("stock.title")) />
+        <Title text=format!("{} | Evrykit", l!("stock.title")) />
 
         <PageHeader title=l!("stock.title") subtitle=l!("stock.subtitle") icon=Icon::Boxes />
 
@@ -24,7 +24,7 @@ pub fn stock_page() -> impl IntoView {
 #[component]
 pub fn stock_moves_page() -> impl IntoView {
     view! {
-        <Title text=format!("{} | Phonix", l!("moves.title")) />
+        <Title text=format!("{} | Evrykit", l!("moves.title")) />
 
         <PageHeader
             title=l!("moves.title")

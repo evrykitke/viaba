@@ -7,10 +7,10 @@ use leptos_meta::Title;
 #[component]
 pub fn home_page() -> impl IntoView {
     view! {
-        <Title text="Phonix" />
+        <Title text="Evrykit" />
 
         <section class="space-y-6">
-            <h1 class="text-3xl font-semibold tracking-tight text-content">"Phonix"</h1>
+            <h1 class="text-3xl font-semibold tracking-tight text-content">"Evrykit"</h1>
             <p class="max-w-2xl text-content-muted">
                 {l!("home.blurb")}
             </p>
