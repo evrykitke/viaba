@@ -39,8 +39,9 @@ commits it is three items.
 
 ## Next
 
-Two currency items first, then the public site of 2026-09-19, then five deploy
-items left over from putting it there. The currency pair is ahead of the site
+Two currency items first, then the public site of 2026-09-19 - its navigation,
+its pricing and the content coming across - then five deploy items left over
+from putting it there. The currency pair is ahead of the site
 work deliberately: a workspace that posts anything in a currency nobody chose
 cannot be corrected by a settings change afterwards. They are in order - the
 absence has to be representable before anything can block on it. `evrykit.com` serves Global Connect now, and the Symfony application it
@@ -115,6 +116,34 @@ unchanged.
       verify: create a workspace, open Books. The checklist shows the currency
               line unsatisfied, following it reaches the organization settings,
               and until it is answered posting a journal is refused by name.
+
+- [ ] `global-connect` The mega menu, gone
+      why: the Solutions mega panel on the public site is off and the user has
+           asked for it to go. It is desktop-only - a `<details data-menu>` in
+           `_nav.html` whose `<div class="mega">` calls the `solutions_panel`
+           macro - and the mobile nav already links to `/solutions` as a plain
+           link at the same width as everything else. So the fix is the desktop
+           nav agreeing with the phone, not inventing a new navigation.
+      touch: crates/global-connect/templates/_nav.html,
+             crates/global-connect/style/site.css,
+             crates/global-connect/src/routes/pages.rs
+      done: Solutions is a plain `nav-link` beside Product, Pricing, About and
+            Contact - it belongs in the `nav_links` macro, which is what both
+            layouts already call - and the `<details>`, the `solutions_panel`
+            macro and every `.mega*` rule in the stylesheet are gone. The
+            `/solutions` page itself stays exactly as it is; only the way in
+            changes.
+      then: regenerate with `node tools/build-site-assets.mjs` - the tool runs
+            on this machine, checked 2026-09-19 - and commit the new hashed
+            css/js with `assets.rs`. Never edit those by hand: the hash in each
+            URL is the hash of the file.
+      watch: `frame.industry_slugs` and `frame.app_classes` exist for the panel
+             and may have no other caller once it is gone. If nothing else uses
+             them they go too, in the same commit; these crates deny lints, so
+             a leftover will say so.
+      verify: open `/` on a desktop width. There is no Solutions dropdown, the
+              link goes straight to `/solutions`, and the header is the same
+              height and rhythm as before rather than a gap where a menu was.
 
 - [ ] `global-connect` Pricing, when nothing is charged
       why: the page is live at `https://evrykit.com/pricing` with three plans
