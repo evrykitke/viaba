@@ -705,7 +705,7 @@ listen = "127.0.0.1:3200"
 # Say so deliberately to bind anywhere else under production. Refused otherwise.
 allow_public = false
 # The wordmark, and the tail of every page title.
-product_name = "Viaba"
+product_name = "Evrykit"
 # Where the calls to action point. Blank derives them from [server] - the bare
 # domain is where signing in and signing up live, so a development box and a
 # production box are both right without either being written down. Set these

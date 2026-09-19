@@ -74,32 +74,20 @@ pushed, and nothing is migrated before there is a dump to go back to.
             not deployed on this box, so today's `https://phonix.evrykit.com` is
             a placeholder that satisfies a validator.
 
-- [ ] `global-connect` The wordmark that still says Viaba
-      why: `[site] product_name = "Viaba"` is the marketing site's wordmark and
-           the tail of every page title it renders. The rename moved every name
-           a person reads from Phonix to Evrykit and never touched this one,
-           because it was not the name being renamed. Either it is deliberate
-           and nothing changes, or it is the same product and it is wrong.
-      touch: config/base.toml
-      done: the site's wordmark names the product it belongs to, or the line
-            says in one comment why it does not.
-
-- [ ] `deploy` The copies in deploy/, pulled back down
-      why: `deploy/` is meant to be a copy of what is actually running. Its
-           README describes a box building `evrykitke/phonix`, calls the
-           product Phonix throughout and lists fr and de as the deployed
-           translations. After the swap it is a copy of what used to run.
-      done: the nginx site, the unit and `phonix-deploy` are re-pulled with the
-            commands at the bottom of `deploy/README.md`, and the README names
-            the repository the build tree now fetches, says the product in the
-            UI is Evrykit while every name on disk stays phonix, and records
-            that the existing catalog was migrated forward rather than
-            replaced.
-      also: the box changed in three ways that are not in those three files -
-            an 8 GB `/swapfile2` with its `/etc/fstab` line, a systemd drop-in
-            at `phonix-server.service.d/site-url.conf`, and the `deployed`
-            build now taking ~59 minutes rather than the ~12 the README claims.
-            Each belongs in `deploy/README.md`.
+- [ ] `deploy` The deploy that forgets the public site
+      why: `phonix-deploy` builds and swaps `phonix-server` and knows nothing
+           about `global-connect`, which now serves evrykit.com. The next
+           deploy therefore ships a new application beside a site binary from
+           today, silently - config/ is replaced wholesale, so a `[site]` key
+           the old binary does not understand is how it would be found out.
+      done: the script builds `-p global-connect`, installs it beside the
+            marker and restarts the unit, and `deployed <sha>` is printed only
+            when both services are active. The three lines are written out in
+            `deploy/README.md` under 2026-09-19.
+      blocked: applying it needs a write to `/usr/local/bin/phonix-deploy` on
+               the box, which this session's permission classifier refuses.
+               The user allows remote shell writes, or pastes the three lines
+               in by hand.
 
 - [ ] `deploy` The name on the public host
       why: the application answers on `phonix.evrykit.com` while calling itself
@@ -108,12 +96,16 @@ pushed, and nothing is migrated before there is a dump to go back to.
            Moving it is a DNS record, one `server_name`, `PHONIX__SERVER__HOST`
            and the reserved-subdomain list - and it invalidates links people
            already hold, which is why it is not part of the deployment above.
-      blocked: a decision. Which host - `app.evrykit.com`, or the root
-               `evrykit.com`, which already has a site of its own - and whether
-               `phonix.evrykit.com` keeps answering as a permanent redirect or
-               stops. `*.evrykit.com` stays where it is either way: a TLS
-               wildcard matches one label, so tenants cannot move a level down
-               without a certificate Universal SSL will not issue.
+      settled: the apex is taken - `evrykit.com` serves Global Connect as of
+               2026-09-19, and the site links across to the application. So
+               this is now only about the application's own host, which still
+               reads `phonix.` while the product is Evrykit.
+      blocked: a decision. `app.evrykit.com`, or leave it. Moving it
+               invalidates every invitation link people already hold and the
+               Google redirect URI if that is ever turned on.
+               `*.evrykit.com` stays where it is either way: a TLS wildcard
+               matches one label, so tenants cannot move a level down without a
+               certificate Universal SSL will not issue.
 
 - [ ] `deploy` The badge that says this box is a test
       why: `/etc/phonix/phonix.env` carries a TEST MODE block that raises the
@@ -1040,6 +1032,20 @@ a decision, and it is one line in this section.
 ## Done
 
 <!-- The loop appends here with the commit sha. Newest first. -->
+
+- [x] `global-connect` Evrykit's public site, on the apex
+      commit: "The apex, answering for the product"
+      why: `evrykit.com` served a Symfony application while the product's own
+           public site sat built and undeployed. ADR 0007 wrote that site for
+           the apex and `www`; this put it there.
+      done: `https://evrykit.com/` and `www` serve Global Connect - all six
+            pages 200, an unknown path 404, the wordmark reads Evrykit and both
+            calls to action cross to `https://phonix.evrykit.com`. The Symfony
+            files and its php-fpm pool are untouched; its nginx block is beside
+            the new one as `evrykit.com.symfony.bak-*`. nginx was reloaded, not
+            restarted, and the other three sites answered 200 throughout.
+      cost: a second unit, `global-connect.service`, with its own log sink and
+            its own calls to action. `deploy/` carries all of it.
 
 - [x] `phonix-config` The addresses that still read phonix
       commit: "Three addresses and a heading"
