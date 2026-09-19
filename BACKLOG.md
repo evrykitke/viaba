@@ -39,15 +39,119 @@ commits it is three items.
 
 ## Next
 
-The deployment queue of 2026-09-19. The product's name in the UI is Evrykit as
-of "The name the screens say", and main now carries it; what follows puts that
-build on the box at 78.159.111.179, which today serves the old phonix build at
-`phonix.evrykit.com`. Read `.claude/commands/advance.md` section 8 before the
-first of them - a `deploy` item changes a server rather than the source tree,
-and the box is shared with three other sites that must not be disturbed.
+The public site of 2026-09-19, and five deploy items left over from putting it
+there. `evrykit.com` serves Global Connect now, and the Symfony application it
+displaced was carrying the content that earned this domain its search traffic:
+114 markdown files under `/var/www/evrykit.com/content` on the box, served at
+`/articles`, `/kb` and `/learn`. Those addresses are indexed -
+`/articles/software/top-6-erp-systems-to-adopt-2026` and
+`/articles/accounting/chart-of-accounts-small-business-guide` are the two that
+draw - and an address that stops answering is the traffic gone.
 
-They are in order and the order matters: nothing is fetched before main is
-pushed, and nothing is migrated before there is a dump to go back to.
+**The content items are local work.** Build it, check it, commit it. The box is
+a later item and none of them touches it; the read-only source is on the server
+and `scp` from `/var/www/evrykit.com/content` is how it gets here.
+
+ADR 0007 §12 names the content pipeline as a decision rather than an omission,
+so that decision is an item and every content item after it depends on which
+way it goes. The five `deploy` items below it are the older queue and are
+unchanged.
+
+- [ ] `global-connect` Pricing, when nothing is charged
+      why: the page is live at `https://evrykit.com/pricing` with three plans
+           and invented numbers in them. The template says they are provisional
+           at the bottom and `pages::PRICES_ARE_PROVISIONAL` says so in Rust,
+           but a visitor reads the number, not the footnote. Nothing is being
+           charged at the moment, so the page is not provisional - it is wrong.
+      touch: crates/global-connect/templates/pricing.html,
+             crates/global-connect/src/i18n/en.rs,
+             docs/adr/0007-global-connect.md
+      done: the page says what is true - the product is free while it is being
+            built - with no plan grid and no numbers, and the call to action
+            still reaches `/signup`. ADR 0007 §12's "Real pricing" bullet says
+            that is the current answer rather than a placeholder waiting to be
+            filled.
+      verify: open `/pricing`. There is no price on it, nothing reads as a
+              limited trial, and it does not look like a page with its contents
+              deleted.
+
+- [ ] `docs` The content pipeline ADR 0007 said would be a decision
+      why: §12 names Markdown at build time as "a dependency and therefore a
+           decision" and leaves it open. Every content item below needs it
+           settled, and §1 is the constraint: this site depends on nothing that
+           can be down, so content cannot arrive from a database or a network
+           call at request time.
+      touch: docs/adr/0007-global-connect.md
+      done: a new section settles where the markdown lives in the tree, whether
+            it is parsed at build time or at boot, which crate owns the parser
+            and the front-matter type, how a draft is kept out, and what the
+            answer is for languages - the site serves hreflang and this content
+            is English only. It also says what becomes of the two trees that
+            are not web pages.
+      stop: every item after this is built on whichever way it goes.
+
+- [ ] `global-connect` The content itself, in the tree
+      why: the 114 files live only on that box, inside a checkout of the
+           application being replaced. Until they are here they are one
+           `rm -rf` from gone and nothing can be built against them.
+      touch: wherever the ADR item chose
+      done: the web content is in this tree - `articles` 13, `kb` 53, `learn`
+            43 - with its `_category.yaml` and `_topic.yaml` files and the
+            front matter intact. `scripts` (4 files) and `youtube` are video
+            production material rather than pages and are deliberately left
+            behind; the commit says so rather than quietly dropping them.
+
+- [ ] `global-connect` /articles, at the addresses it already has
+      why: `/articles` and `/articles/<category>/<slug>` are what the search
+           results point at. The front matter is already everything a page
+           needs - title, description, keywords, author, publishedAt,
+           updatedAt, excerpt, readTime - and `frame` already carries canonical,
+           hreflang, Open Graph and JSON-LD, so this is wiring rather than
+           invention.
+      done: every article answers at the address it had, the index lists them
+            newest first, and each page's head is built from its own front
+            matter rather than the site's defaults.
+      verify: `/articles/software/top-6-erp-systems-to-adopt-2026` renders with
+              its own title and description in the head, and `/articles` links
+              to it.
+
+- [ ] `global-connect` /kb, three levels of it
+      why: the knowledge base is the larger half - 53 files across ten
+           categories - and it is three levels rather than two: `/kb`,
+           `/kb/<category>` and `/kb/<category>/<slug>`, each indexed
+           separately. `kbLinks` in an article's front matter points into it,
+           so the two halves are one graph.
+      done: all three levels answer, a category page lists what is beneath it,
+            and every `kbLinks` entry resolves to a real page rather than a 404.
+
+- [ ] `global-connect` /learn
+      why: 43 files under six topics with `_topic.yaml` beside them, indexed at
+           `/learn` and below. Its shape is the least like the other two -
+           topics rather than categories - so it is its own item rather than a
+           variation on the last one.
+      done: `/learn` and every page under it answers, and the topic files are
+            what order them.
+
+- [ ] `global-connect` The sitemap that names every page
+      why: `routes::sitemap` lists the handful of pages this site had while it
+           was a skeleton. With the content in, a sitemap naming six pages
+           tells a crawler the other hundred and ten do not matter.
+      touch: crates/global-connect/src/routes/mod.rs
+      done: the sitemap names every page the site serves, each carrying the
+            `updatedAt` from its own front matter rather than today's date, and
+            `robots.txt` still points at it.
+
+- [ ] `global-connect` Nothing that used to answer, 404s
+      why: the only item here that can be checked against the outside world,
+           and the one that decides whether the traffic survives. The rotated
+           nginx logs on the box are the list of addresses really requested,
+           which is a better list than anything derived from filenames.
+      done: every distinct path in `/var/log/nginx/evrykit_access.log*` that is
+            not bot noise answers 200 from the new site, or is a deliberate 301
+            to wherever it moved; anything that is neither is named in the
+            commit with a reason.
+      verify: run that list against the local build, before any of this is
+              deployed.
 
 - [ ] `deploy` The profiler in the production binary
       why: `phonix-deploy` passes `--bin-features ssr` and says in a comment
