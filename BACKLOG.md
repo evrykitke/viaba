@@ -56,36 +56,23 @@ draw - and an address that stops answering is the traffic gone.
 a later item and none of them touches it; the read-only source is on the server
 and `scp` from `/var/www/evrykit.com/content` is how it gets here.
 
-ADR 0007 §12 names the content pipeline as a decision rather than an omission,
-so that decision is an item and every content item after it depends on which
-way it goes. The five `deploy` items below it are the older queue and are
-unchanged.
-
-- [ ] `docs` The content pipeline ADR 0007 said would be a decision
-      why: §12 names Markdown at build time as "a dependency and therefore a
-           decision" and leaves it open. Every content item below needs it
-           settled, and §1 is the constraint: this site depends on nothing that
-           can be down, so content cannot arrive from a database or a network
-           call at request time.
-      touch: docs/adr/0007-global-connect.md
-      done: a new section settles where the markdown lives in the tree, whether
-            it is parsed at build time or at boot, which crate owns the parser
-            and the front-matter type, how a draft is kept out, and what the
-            answer is for languages - the site serves hreflang and this content
-            is English only. It also says what becomes of the two trees that
-            are not web pages.
-      stop: every item after this is built on whichever way it goes.
+The content pipeline is settled - ADR 0007 §14, 2026-09-19 - so the content
+items below it have somewhere to go and a shape to arrive in. The five `deploy`
+items after them are the older queue and are unchanged.
 
 - [ ] `global-connect` The content itself, in the tree
       why: the 114 files live only on that box, inside a checkout of the
            application being replaced. Until they are here they are one
            `rm -rf` from gone and nothing can be built against them.
-      touch: wherever the ADR item chose
+      touch: crates/global-connect/content/ - ADR 0007 §14 chose it
       done: the web content is in this tree - `articles` 13, `kb` 53, `learn`
-            43 - with its `_category.yaml` and `_topic.yaml` files and the
-            front matter intact. `scripts` (4 files) and `youtube` are video
-            production material rather than pages and are deliberately left
-            behind; the commit says so rather than quietly dropping them.
+            43 - with the seven `_category.yaml` beside the article categories,
+            the nine `_topic.yaml` beside the learn topics, and the front
+            matter intact. `kb/` has no `_category.yaml` of its own and none is
+            invented. `scripts` (4 files) and `youtube` (1 markdown, 11 text)
+            are video production material rather than pages and are
+            deliberately left behind; the commit says so rather than quietly
+            dropping them.
 
 - [ ] `global-connect` /articles, at the addresses it already has
       why: `/articles` and `/articles/<category>/<slug>` are what the search
@@ -1225,6 +1212,30 @@ a decision, and it is one line in this section.
 ## Done
 
 <!-- The loop appends here with the commit sha. Newest first. -->
+
+- [x] `docs` The content pipeline ADR 0007 said would be a decision
+      commit: "The decision the hundred and fourteen pages were waiting on"
+      why: §12 named Markdown at build time as "a dependency and therefore a
+           decision" and left it open, and every content item after it is built
+           on whichever way it goes.
+      done: ADR 0007 §14. Content lives in `crates/global-connect/content/`; a
+            `build.rs` walks it, validates it and renders it into `OUT_DIR`, so
+            nothing generated is committed and `cargo` stays the only tool that
+            builds this crate. `pulldown-cmark` and a YAML parser are
+            `[build-dependencies]`, so §2's runtime list is untouched. Three
+            front-matter types rather than one, because the three trees do not
+            share a shape. A leading H1 is dropped and a second one fails the
+            build. `published: false` keeps a file out of the router and the
+            sitemap together, and absent means published. English only, so
+            `/zh/articles/...` is a 404 - which amends §7's switcher rule for
+            the one case it did not anticipate. `scripts/` and `youtube/` do
+            not come across.
+      note: written against the files read off the box rather than against the
+            summary of them, and the summary was wrong in one place - `kb/` has
+            no `_category.yaml`, only `articles/` and `learn/` do. Two other
+            things the survey settled: the bodies use GFM tables, which decided
+            the parser extension, and 66 of the 114 open with an H1 that is not
+            the front matter's title, which decided the drop-it rule.
 
 - [x] `phonix-db` A currency nobody has chosen yet
       commit: "The currency nobody chose, and the default that chose it"

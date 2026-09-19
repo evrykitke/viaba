@@ -227,7 +227,9 @@ rather than arriving in their own language.
 
 Two details that only show up once a second language exists. The switcher offers
 *this page* in the other language rather than the home page, because one that
-always lands on the front page loses somebody's place every time it is used. And
+always lands on the front page loses somebody's place every time it is used —
+amended by §14 for the one case this did not anticipate, a page that exists in
+English only, where there is no other-language version to offer. And
 `<html lang>` is taken from the catalog that actually rendered rather than from
 the address — they agree today, and the difference is the entire value of the
 attribute, since a fallback would otherwise serve English while telling a screen
@@ -383,8 +385,12 @@ named here so that adding them is a decision rather than a drift:
   that it appears before anybody is asked to pay one is on the page itself.
   `desk.trial_days` remains the only number in this estate that currently means
   anything commercially, and it is not quoted here.
-* **Documentation and a changelog.** Both want a content pipeline (Markdown at
-  build time), which is a dependency and therefore a decision.
+* **Documentation and a changelog.** Both wanted a content pipeline, which was
+  a dependency and therefore a decision. Settled 2026-09-19 in §14: Markdown in
+  `content/`, parsed by a `build.rs` into `OUT_DIR`, parsers in
+  `[build-dependencies]` so the binary links neither. The pipeline is decided
+  and not yet built; the 114 pages that come through it are the items after
+  it.
 * **German and French.** The machinery is built and the product already
   promises both, so each is one `de.rs` beside `en.rs`, one arm in
   `i18n::strings`, and its code in `i18n::has_catalog`. Nothing else changes,
@@ -401,3 +407,130 @@ authenticate against — §2 removed the database that would hold an account.
 A visitor who needs to be *somebody* has left the site. That boundary is what
 keeps this crate the cheapest thing in the estate, and it is the one to defend
 when a feature request would cross it.
+
+## 14. The content pipeline
+
+§12 named Markdown at build time as "a dependency and therefore a decision".
+This is the decision. It is written against the 114 files as they actually are,
+read off the box on 2026-09-19, rather than against a summary of them.
+
+### It is parsed by cargo, into `OUT_DIR`
+
+A `build.rs` in this crate walks `crates/global-connect/content/`, validates
+every file, renders each body to HTML, and writes one generated module to
+`OUT_DIR` that the crate `include!`s. Nothing generated is committed.
+
+Three alternatives, and why each loses:
+
+* **Node, like the stylesheet.** §8's precedent is real but it is for *assets*,
+  and `build-site-assets.mjs` says why: node is needed only to change how the
+  site looks. Content is edited far more often than a stylesheet, and the
+  generated file would be a quarter of a megabyte of rendered HTML in the tree —
+  so every typo fix would arrive as an unreadable diff beside a one-line one.
+* **At boot.** §3 says the site is one artefact: copy the binary, run it. A
+  directory read at startup is a second thing to deploy, a second thing to get
+  wrong, and a path that has to exist for the process to serve its front page.
+* **At request time.** §2.
+
+What this buys is that `cargo` remains the only tool that builds and deploys
+this crate — ADR 0005 §3's rule, and §8's — while the content stays readable
+`.md` in the tree rather than a generated artefact somebody has to regenerate
+before their edit is visible.
+
+### The parsers are build dependencies, and the binary links neither
+
+`pulldown-cmark` for the body, with the tables extension because the knowledge
+base uses GFM tables and CommonMark has none; a YAML parser for the front
+matter, which is genuinely YAML — an article's `kbLinks` is a list of maps, not
+a flat key and value.
+
+Both sit in `[build-dependencies]`. **§2's list is untouched**: what reaches the
+binary is `&'static str`, and nothing that can be down was added. The crate that
+owns them is this one, because nothing else in the estate renders Markdown and
+`phonix-core` compiles to wasm and takes no build dependencies. The day a second
+crate wants Markdown is the day to move the parser, not before.
+
+The honest cost is the binary. The three trees are about 277 KB of Markdown and
+render to rather more HTML. That is well inside the shape §8 already accepted —
+its ceiling is 250 KB for a *single* screenshot — but it is growth, and the day
+the knowledge base is ten times this size is the day to revisit this section
+rather than to quietly carry a megabyte.
+
+### Three front-matter types, not one
+
+The trees do not share a shape, and the survey is what says so rather than a
+guess:
+
+| Tree | Files | Front matter |
+| --- | --- | --- |
+| `articles/` | 13 | title, description, keywords, author, publishedAt, updatedAt, excerpt, readTime, kbLinks |
+| `kb/` | 53 | title, description, author, and keywords on 48 of them |
+| `learn/` | 43 | title, description, keywords, author, youtubeId, duration, publishedAt, order, level, published |
+
+So `Article`, `KbDoc` and `Lesson`, each with exactly the fields its tree
+carries. One union type would be a struct of mostly-`None`, and a missing
+article date would then be indistinguishable from an absent optional — which is
+the whole point of a type here. `KbDoc::keywords` is the one genuinely optional
+field, and it is optional because five files say so.
+
+**The build refuses rather than warns**, the same rule §8 applies to a
+screenshot, and for the same reason: nobody notices a page that silently never
+appears the way they notice a build that will not finish.
+
+`_category.yaml` sits beside the articles categories and `_topic.yaml` beside
+the learn topics, carrying a title, a description, an emoji and — for a topic —
+an `order`. **`kb/` has no such file**, which the earlier summary of this
+content got wrong; its categories are the directory names until somebody writes
+one. The `icon_color` and `icon_bg` in those files are light-theme hex values
+from the site being replaced and are not carried over: §3 commits this site to
+dark, and a `#faf5ff` background on it is a white rectangle. The emoji comes
+across; the colours do not.
+
+`kbLinks` are checked. An article naming a category and slug that no `kb/` file
+answers to fails the build with both printed — the same discipline as §8's
+filename wiring, and the same reason: a dead link inside the content is exactly
+what nobody re-reads.
+
+### The body starts at `##`
+
+A page's `<h1>` is the front matter's `title`, always, because `<title>`, the
+Open Graph title and the heading are one sentence and three sources for it are
+two too many.
+
+Every `articles/` and `kb/` body opens with its own `# ` and no body anywhere
+carries a second one — 66 files, one heading each, checked. So the build
+**drops a leading H1 whatever it says** and fails on any later one. Dropping it
+only when it matches the title would fail 42 of 53 knowledge-base files, whose
+title ends in "— Evrykit" and whose heading does not.
+
+### A draft is `published: false`, and only `learn` has the key
+
+The build leaves an unpublished file out of the generated tables, and therefore
+out of the router and out of the sitemap — §9 generates the sitemap from the
+same list that builds the router, and a page that is not served must not be
+advertised.
+
+Absent means published. Only the 43 `learn/` files carry the key and every one
+of them says `true`; defaulting the other way would drop 66 files that have
+never had it.
+
+### The content is English, and that is a 404 rather than a fallback
+
+§7 says the site offers what it has. These 114 files are English only, so
+`/zh/articles/...` **404s**. English at a Chinese address is the thing §7
+refused for `/fr/pricing` and it is no more honest here.
+
+**This amends §7 in one place.** That section says the switcher offers *this
+page* in the other language, because one that always lands on the home page
+loses somebody's place. On a content page there is no other-language version to
+offer, so it offers the home page in that language — the exception §7's rule
+did not anticipate, written down here rather than discovered as a 404 in a
+switcher. A content page emits no `hreflang` alternate for a language it does
+not have, for the same reason.
+
+### What does not come across
+
+`scripts/` (4 files) and `youtube/` (1 Markdown file and 11 `.txt`) are video
+production material, not pages. They are not part of this pipeline and are not
+brought into the tree. They stay on the box, and the commit that brings the
+content across says so rather than dropping them quietly.
