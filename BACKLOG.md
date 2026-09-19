@@ -49,17 +49,6 @@ and the box is shared with three other sites that must not be disturbed.
 They are in order and the order matters: nothing is fetched before main is
 pushed, and nothing is migrated before there is a dump to go back to.
 
-- [ ] `deploy` A dump taken before anything migrates
-      why: `PHONIX__DATABASE__MIGRATE_ON_START` is true on that box, so the
-           first boot of the new build runs viaba's migrations against the live
-           catalog and every existing tenant database. That is an upgrade
-           rather than a reset, which is the intent - but it is 171 commits of
-           schema arriving at once, it is not reversible, and `deploy/README.md`
-           names no backup anywhere.
-      done: a timestamped dump of `phonix_catalog` and every `phonix_tenant_*`
-            database sits on the box outside `/opt/phonix`, each file is
-            non-empty, and the report names the directory.
-
 - [ ] `deploy` The build tree that fetches viaba
       why: `/home/phonix/build` is a shallow clone of `evrykitke/phonix`.
            `phonix-deploy` does `git fetch --depth 1 origin main` and then
@@ -80,6 +69,12 @@ pushed, and nothing is migrated before there is a dump to go back to.
            Postgres role, the Redis ACL user, the RabbitMQ vhost - because
            viaba carries phonix's history and this is the same lineage serving
            a newer commit. Only the product's name in the UI changed.
+      migrations: measured against the live box on 2026-09-19, the boot will
+           apply catalog 3 -> 5, `core` 21 -> 25 and `books` 1 -> 10 in each of
+           the two tenants; `master` is already at 2 and current. Neither `hr`
+           nor `inventory` is installed on either tenant, so their 23
+           migrations do not run here - a workspace installing one gets them
+           through `provision_tenant` instead.
       done: `ssh -i ~/.ssh/phonix_deploy root@78.159.111.179 phonix-deploy`
             ends `deployed <sha>` with that sha at main's head, and
             `journalctl -u phonix-server -n 40 -o cat` shows catalog migrations
@@ -1044,6 +1039,18 @@ a decision, and it is one line in this section.
 ## Done
 
 <!-- The loop appends here with the commit sha. Newest first. -->
+
+- [x] `deploy` A dump taken before anything migrates
+      commit: "The copy taken while it was still the old schema"
+      why: `PHONIX__DATABASE__MIGRATE_ON_START` is true on that box, so the
+           first boot of the new build runs viaba's migrations against the live
+           catalog and every existing tenant database. Not reversible, and
+           `deploy/README.md` named no backup anywhere.
+      done: `/var/backups/phonix/20260919-110144-pre-evrykit` on the box, mode
+            700, holds `phonix_catalog.dump`, `phonix_tenant_app.dump`,
+            `phonix_tenant_med_prod.dump` (pg_dump -Fc --no-owner) and
+            `globals.sql`. `pg_restore -l` reads every archive, and the
+            table-data entries match the live table counts exactly: 2, 36, 36.
 
 - [x] `deploy` The commit the box will fetch
       commit: "The queue that ends on a server" (dd42427), pushed
