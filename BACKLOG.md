@@ -49,6 +49,41 @@ and the box is shared with three other sites that must not be disturbed.
 They are in order and the order matters: nothing is fetched before main is
 pushed, and nothing is migrated before there is a dump to go back to.
 
+- [ ] `deploy` The profiler in the production binary
+      why: `phonix-deploy` passes `--bin-features ssr` and says in a comment
+           that this REPLACES the manifest's `["ssr", "profiler"]`, taking the
+           development profiler back out. It does not: cargo-leptos 0.3.7 built
+           `--features=ssr,profiler`, so the profiler is compiled into the
+           binary now serving the site. It is off at runtime - `[profiler]
+           enabled` is false in `base.toml` and startup refuses true under
+           production - so this is weight and a switch that should not exist
+           there, not an exposure.
+      done: the deployed binary is built without the `profiler` feature, or the
+            script's comment stops claiming something cargo-leptos no longer
+            does and says which it is.
+
+- [ ] `deploy` site.public_url, in the right file
+      why: the new build refuses to start under production without it, which is
+           how the site went down for six minutes after the swap. It is set
+           through a systemd drop-in because writing to `/etc/phonix/phonix.env`
+           was refused mid-incident; the drop-in works and is the wrong home for
+           a setting that is not a secret.
+      done: `PHONIX__SITE__PUBLIC_URL` lives in `/etc/phonix/phonix.env` beside
+            the other non-secret settings, the drop-in is gone, and the value is
+            whatever the marketing site's origin really is - `global-connect` is
+            not deployed on this box, so today's `https://phonix.evrykit.com` is
+            a placeholder that satisfies a validator.
+
+- [ ] `global-connect` The wordmark that still says Viaba
+      why: `[site] product_name = "Viaba"` is the marketing site's wordmark and
+           the tail of every page title it renders. The rename moved every name
+           a person reads from Phonix to Evrykit and never touched this one,
+           because it was not the name being renamed. Either it is deliberate
+           and nothing changes, or it is the same product and it is wrong.
+      touch: config/base.toml
+      done: the site's wordmark names the product it belongs to, or the line
+            says in one comment why it does not.
+
 - [ ] `deploy` The copies in deploy/, pulled back down
       why: `deploy/` is meant to be a copy of what is actually running. Its
            README describes a box building `evrykitke/phonix`, calls the
@@ -60,9 +95,11 @@ pushed, and nothing is migrated before there is a dump to go back to.
             UI is Evrykit while every name on disk stays phonix, and records
             that the existing catalog was migrated forward rather than
             replaced.
-      blocked: waits on `deploy` Evrykit on the box. The box still runs the
-               2026-08-31 phonix build, so re-pulling the three files today
-               would copy back exactly what is already here.
+      also: the box changed in three ways that are not in those three files -
+            an 8 GB `/swapfile2` with its `/etc/fstab` line, a systemd drop-in
+            at `phonix-server.service.d/site-url.conf`, and the `deployed`
+            build now taking ~59 minutes rather than the ~12 the README claims.
+            Each belongs in `deploy/README.md`.
 
 - [ ] `deploy` The name on the public host
       why: the application answers on `phonix.evrykit.com` while calling itself
@@ -103,6 +140,23 @@ a decision, and it is one line in this section.
      The user launches the application, looks, and then either moves the item
      to `## Done` or writes a new item in `## Next` saying what was wrong. The
      loop never moves anything out of this section by itself. -->
+
+- [x] `deploy` Evrykit on the box
+      commit: "The site the box finally held" - deployed c14604f
+      done: `phonix-deploy` finished after 59m01s once the box had 12 GB of
+            swap, the service is active, and `https://phonix.evrykit.com/`
+            answers 200 with `<title>Sign in | Evrykit</title>`. Migrations
+            landed exactly as measured: catalog 3 -> 5, `core` 21 -> 25,
+            `books` 1 -> 10 in both tenants, `master` unchanged at 2, both
+            tenants still active.
+      verify: open `https://phonix.evrykit.com/`. The tab title, the wordmark
+              beside the monogram in the sidebar and the first crumb in the top
+              bar all say Evrykit, the monogram is an E, and an existing
+              workspace at `<slug>.evrykit.com` still signs in and shows its
+              own data.
+      note: the box runs c14604f, not this checkout's head. bd953dc (the
+            developer-facing addresses) is committed here and not deployed,
+            which is correct - none of it is on the box.
 
 - [x] `phonix-web` One letterhead, the same on every report
       commit: "The head of a document, said once"
@@ -982,48 +1036,6 @@ a decision, and it is one line in this section.
               back returns to the list.
 
 ## Blocked
-
-- [ ] `deploy` Evrykit on the box
-      why: the swap itself. Everything on disk keeps its phonix name -
-           `/opt/phonix`, the `phonix-server` unit, the nginx site, the
-           Postgres role, the Redis ACL user, the RabbitMQ vhost - because
-           viaba carries phonix's history and this is the same lineage serving
-           a newer commit. Only the product's name in the UI changed.
-      migrations: measured against the live box on 2026-09-19, the boot will
-           apply catalog 3 -> 5, `core` 21 -> 25 and `books` 1 -> 10 in each of
-           the two tenants; `master` is already at 2 and current. Neither `hr`
-           nor `inventory` is installed on either tenant, so their 23
-           migrations do not run here - a workspace installing one gets them
-           through `provision_tenant` instead.
-      done: `ssh -i ~/.ssh/phonix_deploy root@78.159.111.179 phonix-deploy`
-            ends `deployed <sha>` with that sha at main's head, and
-            `journalctl -u phonix-server -n 40 -o cat` shows catalog migrations
-            applied, connected to redis, connected to rabbitmq, a
-            `loaded translations` line for every file in `locales/`, and
-            `listening address:127.0.0.1:3000`. `systemctl is-active` is not
-            the test - trap 1 in `deploy/README.md` says why.
-      verify: open `https://phonix.evrykit.com/`. The tab title, the wordmark
-              beside the monogram in the sidebar and the first crumb in the top
-              bar all say Evrykit, the monogram is an E, and an existing
-              workspace at `<slug>.evrykit.com` still signs in and shows its
-              own data.
-      stop: the site is live and nobody has looked at it yet.
-      blocked: the box cannot build it. `phonix-deploy` ran to `==> building
-               c14604f` and the wasm pass of `phonix-web` was killed by the OOM
-               killer after 29 minutes - `rustc ... --crate-type cdylib -C
-               opt-level=z -C codegen-units=1 --target wasm32-unknown-unknown`,
-               `signal: 9, SIGKILL`, `anon-rss:5408024kB` against 5925 MB of
-               RAM and a 4 GB swap that was 3.4 GB gone. `set -e` stopped the
-               script there, so nothing was installed: `/opt/phonix` still
-               holds the 2026-08-31 binary, the service has been up since
-               2026-09-01 and answers 200. The decision is how to give the
-               build the memory - a bigger swapfile on the box (65 GB free), or
-               loosening `[profile.wasm-release]`, which is `lto = true` plus
-               `codegen-units = 1` and is the reason one rustc needs 5.4 GB.
-               Log: `/var/log/phonix-deploy-latest.log`.
-
-<!-- Items waiting on something outside the loop's reach. Each carries a
-     `blocked:` line saying what it waits for. -->
 
 ## Done
 
