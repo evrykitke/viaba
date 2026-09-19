@@ -1,4 +1,4 @@
-# Phonix
+# Evrykit
 
 Leptos (SSR + hydration) on Axum, with a **PostgreSQL database per tenant**,
 Redis for caching, RabbitMQ for messaging, and tenants resolved from the request

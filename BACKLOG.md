@@ -87,19 +87,6 @@ pushed, and nothing is migrated before there is a dump to go back to.
       blocked: a decision. Is `phonix.evrykit.com` still a test box now that it
                serves the named product?
 
-- [ ] `phonix-config` The addresses that still read phonix
-      why: the rename moved every name a person reads and deliberately left
-           every name a machine reads alone. Two sit on the line between:
-           `from_address = "no-reply@phonix.local"` in `base.toml` and
-           `development.toml` is what a mail client shows beside the sender
-           name Evrykit, and `README.md` still opens `# Phonix`. Neither is on
-           the box - production supplies its own relay - so this is the
-           developer-facing half of the same rename.
-      touch: config/base.toml, config/development.toml, README.md
-      done: a development invitation arrives from a sender whose address and
-            name agree, and the README's first line names the product it
-            describes.
-
 What is deliberately not here: a mark for the four list reports. Only the
 statement and the receipt declare a logo, and the trial balance, the profit and
 loss, the balance sheet and the product list declare none and have no document
@@ -1041,6 +1028,23 @@ a decision, and it is one line in this section.
 ## Done
 
 <!-- The loop appends here with the commit sha. Newest first. -->
+
+- [x] `phonix-config` The addresses that still read phonix
+      commit: "Three addresses and a heading"
+      why: the rename moved every name a person reads and left every name a
+           machine reads alone. Three sat on the line between: the SMTP
+           `from_address` in `base.toml` and `development.toml`, which a mail
+           client shows beside the sender name Evrykit, and the public site's
+           `contact_email`.
+      done: all three are `@evrykit.local` and `README.md` opens `# Evrykit`.
+            `cargo check -p phonix-config --all-targets` is clean and its 34
+            tests pass, which is what says the files still parse and still
+            satisfy `validate`. No invitation was sent: `smtp.enabled` is false
+            in development, so the sender is a value to read rather than an
+            email to observe.
+      left: `base_domain = "phonix.local"` and the tenant hosts built from it.
+            That is a name a machine reads - it is in a hosts file - and moving
+            it would change every developer's local setup for nothing.
 
 - [x] `deploy` The build tree that fetches viaba
       commit: "The remote the build tree answers to"

@@ -557,7 +557,7 @@ host = ""
 port = 2525
 username = ""
 password = ""
-from_address = "no-reply@phonix.local"
+from_address = "no-reply@evrykit.local"
 from_name = "Evrykit"
 # start_tls | implicit | none
 encryption = "start_tls"

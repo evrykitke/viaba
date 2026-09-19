@@ -153,7 +153,7 @@ host = "sandbox.smtp.mailtrap.io"
 port = 2525
 # username: set PHONIX__SMTP__USERNAME in .env
 # password: set PHONIX__SMTP__PASSWORD in .env
-from_address = "no-reply@phonix.local"
+from_address = "no-reply@evrykit.local"
 from_name = "Evrykit (development)"
 encryption = "start_tls"
 
@@ -171,7 +171,7 @@ enabled = true
 # on the development site goes to http://localhost:3000/signup and actually
 # works. That is the whole reason they are derived rather than written down.
 [site]
-contact_email = "hello@phonix.local"
+contact_email = "hello@evrykit.local"
 
 # Off locally. A limiter that refuses page 121 while somebody is clicking around
 # their own site teaches them nothing except to turn it off.
