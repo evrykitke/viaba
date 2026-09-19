@@ -42,7 +42,8 @@ commits it is three items.
 Two currency items first, then the public site of 2026-09-19, then five deploy
 items left over from putting it there. The currency pair is ahead of the site
 work deliberately: a workspace that posts anything in a currency nobody chose
-cannot be corrected by a settings change afterwards, and the fix is small. `evrykit.com` serves Global Connect now, and the Symfony application it
+cannot be corrected by a settings change afterwards. They are in order - the
+absence has to be representable before anything can block on it. `evrykit.com` serves Global Connect now, and the Symfony application it
 displaced was carrying the content that earned this domain its search traffic:
 114 markdown files under `/var/www/evrykit.com/content` on the box, served at
 `/articles`, `/kb` and `/learn`. Those addresses are indexed -
@@ -59,57 +60,61 @@ so that decision is an item and every content item after it depends on which
 way it goes. The five `deploy` items below it are the older queue and are
 unchanged.
 
-- [ ] `phonix-core` The currency nobody chose
-      why: a workspace is created without ever being asked what it counts in.
-           `SignupInput` collects names, email, password, organization name and
-           slug - no currency - and `OrganizationProfile::empty()` hard-codes
-           `Currency::USD`, which migration 0010 also writes as the column
-           default. Migration 0015 then seeds `core.currencies` from the
-           profile, and the settings screen's own comment says "the currency
-           list starts correct from the organization profile". It does not: it
-           starts at a currency nobody picked, and every amount posted before
-           somebody finds the settings screen is denominated in it. Changing it
-           afterwards is not a settings change - `journals.error.wrong_base_currency`
-           exists because posted rows are already in the old one.
-      touch: crates/phonix-core/src/identity/signup.rs,
-             crates/phonix-web/src/pages/auth/sign_up.rs,
-             crates/phonix-services/src/workspace/onboarding.rs,
-             crates/phonix-services/src/desk/workspace.rs
-      done: the signup wizard asks for the currency on the screen that already
-            asks for the organization, `SignupInput` carries it and validates
-            it, and step 4 of onboarding - "static role permissions + settings",
-            already idempotent - writes it into `core.organization_profile` and
-            makes sure `core.currencies` holds it. Desk's create-workspace path
-            runs the same six steps and asks the same question; neither entry
-            point may create a workspace without an answer.
-      note: a select of currencies is not a picker in the
-            `a-picker-is-a-list-screen` sense - it is a value, not a record, so
-            it stays a field on the form. Country and time zone are unchosen in
-            exactly the same way (`Timezone::utc()`, `country: None`); that is
-            one line here rather than three more items, and it is a decision
-            whether to ask for those too.
-      verify: sign up a new workspace, choose a currency that is not USD, and
-              open Settings -> Currencies. The list holds what was chosen and
-              the organization profile agrees with it.
-
-- [ ] `phonix-db` The default that outlives the choice
-      why: `0010_organization_profile.sql` declares
+- [ ] `phonix-db` A currency nobody has chosen yet
+      why: "not chosen" is not a state this workspace can hold.
+           `0010_organization_profile.sql` declares
            `currency_code TEXT NOT NULL DEFAULT 'USD'` and seeds a profile row,
-           so the database will keep answering USD for anything that forgets to
-           write a currency - which is precisely the failure the item above
-           fixes at one entry point and cannot fix at the next one somebody
-           adds.
-      touch: a new migration under migrations/apps/core/
-      done: the column no longer defaults. 0010 is applied and therefore frozen,
-            so this is an `ALTER ... DROP DEFAULT` in a new migration, and the
-            migration says what now supplies the value. If the seeded row must
-            still exist before a currency is known - the profile is read by
-            screens that run before onboarding finishes - then say so instead
-            and leave the default in place with a comment naming what depends
-            on it. Either answer is fine; an unexamined default is not.
-      blocked: waits on `The currency nobody chose`. Dropping the default while
-               anything still relies on it turns a wrong currency into a failed
-               provision.
+           `OrganizationProfile::empty()` hard-codes `Currency::USD`, and 0015
+           seeds `core.currencies` from whichever of those won. So a workspace
+           created this morning is already counting in dollars and nothing in
+           the system knows that was never a decision. Everything below needs
+           the absence to be representable first.
+      touch: a new migration under migrations/apps/core/,
+             crates/phonix-core/src/organization.rs,
+             crates/phonix-db/src/organization.rs
+      done: an unchosen currency reads as unchosen. 0010 is applied and
+            therefore frozen, so this is an `ALTER` in a new migration - the
+            column drops its default and becomes nullable, or a
+            `currency_chosen_at` sits beside it; the migration says which and
+            why. `OrganizationProfile::currency` follows suit, and the seed in
+            0015 stops inventing a row for a currency nobody picked.
+      note: every screen that reads the profile must cope with the gap without
+            crashing or inventing a fallback - that is the point of the item,
+            and a `unwrap_or(USD)` anywhere in it defeats the whole change.
+
+- [ ] `phonix-core` The currency chosen during onboarding
+      why: the decision, and it is ADR 0006 §4's mechanism rather than a new
+           one. The currency is not a preference: every posted row is
+           denominated in it, `journals.error.wrong_base_currency` exists
+           because those rows are already in the old one, and the window in
+           which changing it is free closes the first time somebody raises an
+           invoice. §4 already says what to do with a thing an app cannot work
+           without - "advisory for most items and blocking for a few: an app
+           whose blocking items are unsatisfied refuses to post" - and it says
+           it is a checklist, explicitly "Not a wizard". So the workspace opens,
+           the checklist is amber, and nothing posts until somebody answers.
+      touch: crates/app-books/src/lib.rs, crates/app-inventory/src/lib.rs,
+             crates/phonix-services/src/workspace/setup.rs,
+             crates/phonix-core/i18n/en.json + the three catalogues
+      done: an unchosen currency is a blocking setup item, it names
+            `/admin/settings` as the screen that satisfies it, and an app that
+            posts money refuses to post while it is unsatisfied - with the
+            message §4 asks for, naming what is missing rather than a
+            constraint violation from four layers down. Choosing it turns the
+            line green and puts the currency in `core.currencies`.
+      decide: currency is a platform fact and §4 has apps declaring their own
+              items - `checklist()` takes an `app_id`. Either every app that
+              posts money declares the same item, or the platform contributes
+              one that every checklist carries. The second is the better shape
+              and it changes §4, so it amends ADR 0006 in the same commit
+              rather than quietly widening the mechanism.
+      note: nothing is added to signup. The wizard stays three screens and one
+            request, and Desk's create-workspace path needs no second question -
+            both produce a workspace whose checklist is honest about what is
+            missing, which is the whole advantage of doing it here.
+      verify: create a workspace, open Books. The checklist shows the currency
+              line unsatisfied, following it reaches the organization settings,
+              and until it is answered posting a journal is refused by name.
 
 - [ ] `global-connect` Pricing, when nothing is charged
       why: the page is live at `https://evrykit.com/pricing` with three plans
