@@ -49,14 +49,6 @@ and the box is shared with three other sites that must not be disturbed.
 They are in order and the order matters: nothing is fetched before main is
 pushed, and nothing is migrated before there is a dump to go back to.
 
-- [ ] `deploy` The commit the box will fetch
-      why: `phonix-deploy` builds `origin/main` from `/home/phonix/build`, and
-           everything the rebrand changed is on this checkout's main. Until
-           that main is on its own origin there is nothing to repoint the build
-           tree at.
-      done: `git push origin main` has run and `git rev-parse origin/main`
-            equals `git rev-parse main` here.
-
 - [ ] `deploy` A dump taken before anything migrates
       why: `PHONIX__DATABASE__MIGRATE_ON_START` is true on that box, so the
            first boot of the new build runs viaba's migrations against the live
@@ -1052,6 +1044,15 @@ a decision, and it is one line in this section.
 ## Done
 
 <!-- The loop appends here with the commit sha. Newest first. -->
+
+- [x] `deploy` The commit the box will fetch
+      commit: "The queue that ends on a server" (dd42427), pushed
+      why: `phonix-deploy` builds `origin/main` from `/home/phonix/build`, and
+           everything the rebrand changed is on this checkout's main. Until
+           that main is on its own origin there was nothing to repoint the
+           build tree at.
+      done: `git push origin main` took 151 commits to `evrykitke/viaba`,
+            915706d..dd42427, and `origin/main` and `main` are the same commit.
 
 - [x] `docs` What ADR 0008 now owes the band model
       commit: "One value, not a vector of rows"
