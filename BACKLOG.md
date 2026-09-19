@@ -39,8 +39,10 @@ commits it is three items.
 
 ## Next
 
-The public site of 2026-09-19, and five deploy items left over from putting it
-there. `evrykit.com` serves Global Connect now, and the Symfony application it
+Two currency items first, then the public site of 2026-09-19, then five deploy
+items left over from putting it there. The currency pair is ahead of the site
+work deliberately: a workspace that posts anything in a currency nobody chose
+cannot be corrected by a settings change afterwards, and the fix is small. `evrykit.com` serves Global Connect now, and the Symfony application it
 displaced was carrying the content that earned this domain its search traffic:
 114 markdown files under `/var/www/evrykit.com/content` on the box, served at
 `/articles`, `/kb` and `/learn`. Those addresses are indexed -
@@ -56,6 +58,58 @@ ADR 0007 §12 names the content pipeline as a decision rather than an omission,
 so that decision is an item and every content item after it depends on which
 way it goes. The five `deploy` items below it are the older queue and are
 unchanged.
+
+- [ ] `phonix-core` The currency nobody chose
+      why: a workspace is created without ever being asked what it counts in.
+           `SignupInput` collects names, email, password, organization name and
+           slug - no currency - and `OrganizationProfile::empty()` hard-codes
+           `Currency::USD`, which migration 0010 also writes as the column
+           default. Migration 0015 then seeds `core.currencies` from the
+           profile, and the settings screen's own comment says "the currency
+           list starts correct from the organization profile". It does not: it
+           starts at a currency nobody picked, and every amount posted before
+           somebody finds the settings screen is denominated in it. Changing it
+           afterwards is not a settings change - `journals.error.wrong_base_currency`
+           exists because posted rows are already in the old one.
+      touch: crates/phonix-core/src/identity/signup.rs,
+             crates/phonix-web/src/pages/auth/sign_up.rs,
+             crates/phonix-services/src/workspace/onboarding.rs,
+             crates/phonix-services/src/desk/workspace.rs
+      done: the signup wizard asks for the currency on the screen that already
+            asks for the organization, `SignupInput` carries it and validates
+            it, and step 4 of onboarding - "static role permissions + settings",
+            already idempotent - writes it into `core.organization_profile` and
+            makes sure `core.currencies` holds it. Desk's create-workspace path
+            runs the same six steps and asks the same question; neither entry
+            point may create a workspace without an answer.
+      note: a select of currencies is not a picker in the
+            `a-picker-is-a-list-screen` sense - it is a value, not a record, so
+            it stays a field on the form. Country and time zone are unchosen in
+            exactly the same way (`Timezone::utc()`, `country: None`); that is
+            one line here rather than three more items, and it is a decision
+            whether to ask for those too.
+      verify: sign up a new workspace, choose a currency that is not USD, and
+              open Settings -> Currencies. The list holds what was chosen and
+              the organization profile agrees with it.
+
+- [ ] `phonix-db` The default that outlives the choice
+      why: `0010_organization_profile.sql` declares
+           `currency_code TEXT NOT NULL DEFAULT 'USD'` and seeds a profile row,
+           so the database will keep answering USD for anything that forgets to
+           write a currency - which is precisely the failure the item above
+           fixes at one entry point and cannot fix at the next one somebody
+           adds.
+      touch: a new migration under migrations/apps/core/
+      done: the column no longer defaults. 0010 is applied and therefore frozen,
+            so this is an `ALTER ... DROP DEFAULT` in a new migration, and the
+            migration says what now supplies the value. If the seeded row must
+            still exist before a currency is known - the profile is read by
+            screens that run before onboarding finishes - then say so instead
+            and leave the default in place with a comment naming what depends
+            on it. Either answer is fine; an unexamined default is not.
+      blocked: waits on `The currency nobody chose`. Dropping the default while
+               anything still relies on it turns a wrong currency into a failed
+               provision.
 
 - [ ] `global-connect` Pricing, when nothing is charged
       why: the page is live at `https://evrykit.com/pricing` with three plans
