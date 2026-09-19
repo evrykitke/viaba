@@ -150,16 +150,6 @@ pub const INDUSTRY_SLUGS: [&str; 6] = [
     "non-profit",
 ];
 
-/// Which plan is drawn as the emphasised column.
-pub const PLAN_FEATURED: [bool; 3] = [false, true, false];
-
-/// Whether the numbers on the pricing page are placeholders.
-///
-/// One switch rather than a flag per plan: nothing has been priced, so the
-/// honest thing is for the page to say so once and to stop saying it the moment
-/// a real number lands. See ADR 0007 section 12.
-pub const PRICES_ARE_PROVISIONAL: bool = true;
-
 /// One entry in the language switcher.
 pub struct LanguageLink {
     pub code: &'static str,
@@ -298,9 +288,7 @@ impl Frame {
     /// An `Organization` and a `WebSite`, which is the honest amount: they are
     /// the two things this site can state about itself without inventing
     /// anything. There is deliberately no `Product` with an `offers` price on
-    /// it, because the prices are placeholders (see
-    /// [`PRICES_ARE_PROVISIONAL`]) and marking up a made-up number is how a
-    /// search engine ends up quoting it.
+    /// it, because nothing has been priced - see ADR 0007 section 12.
     ///
     /// Rendered through askama's `json` filter, which emits no chevrons - so
     /// the string cannot close the script element it sits in.
@@ -482,9 +470,6 @@ pub struct ProductPage {
 pub struct PricingPage {
     pub frame: Frame,
     pub t: &'static Strings,
-    pub featured: [bool; 3],
-    pub trial_note: String,
-    pub provisional: bool,
 }
 
 #[derive(Template)]
@@ -550,9 +535,6 @@ pub async fn pricing(state: &SiteState, language: Language) -> Response {
         frame: Frame::new(state, language, t, "pricing", "/pricing")
             .titled(t.pricing.title, t.pricing.description),
         t,
-        featured: PLAN_FEATURED,
-        trial_note: with_days(t.pricing.trial_note, state.config.desk.trial_days),
-        provisional: PRICES_ARE_PROVISIONAL,
     })
 }
 
@@ -621,7 +603,6 @@ mod tests {
 
         assert_eq!(APP_MARKS.len(), english.apps.len());
         assert_eq!(APP_SLUGS.len(), english.apps.len());
-        assert_eq!(PLAN_FEATURED.len(), english.plans.len());
         assert_eq!(INDUSTRY_SLUGS.len(), english.solutions.industries.len());
     }
 

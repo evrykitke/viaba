@@ -39,9 +39,10 @@ commits it is three items.
 
 ## Next
 
-The public site of 2026-09-19 - its pricing and the content coming across -
-then five deploy items left over from putting it there. Its navigation and
-the currency pair ahead of it are done and waiting to be looked at.
+The public site of 2026-09-19 - what it says about itself, then the content
+coming across - then five deploy items left over from putting it there. Its
+navigation, its pricing and the currency pair ahead of them are done and
+waiting to be looked at.
 
 `evrykit.com` serves Global Connect now, and the Symfony application it
 displaced was carrying the content that earned this domain its search traffic:
@@ -60,23 +61,28 @@ so that decision is an item and every content item after it depends on which
 way it goes. The five `deploy` items below it are the older queue and are
 unchanged.
 
-- [ ] `global-connect` Pricing, when nothing is charged
-      why: the page is live at `https://evrykit.com/pricing` with three plans
-           and invented numbers in them. The template says they are provisional
-           at the bottom and `pages::PRICES_ARE_PROVISIONAL` says so in Rust,
-           but a visitor reads the number, not the footnote. Nothing is being
-           charged at the moment, so the page is not provisional - it is wrong.
-      touch: crates/global-connect/templates/pricing.html,
-             crates/global-connect/src/i18n/en.rs,
-             docs/adr/0007-global-connect.md
-      done: the page says what is true - the product is free while it is being
-            built - with no plan grid and no numbers, and the call to action
-            still reaches `/signup`. ADR 0007 §12's "Real pricing" bullet says
-            that is the current answer rather than a placeholder waiting to be
-            filled.
-      verify: open `/pricing`. There is no price on it, nothing reads as a
-              limited trial, and it does not look like a page with its contents
-              deleted.
+- [ ] `global-connect` The trial the site does not agree about
+      why: three statements, and they do not match. `home.trial_note` promises
+           "{days} days on the house" on the front page; `/pricing` now says
+           nothing is being charged and names no end date; and the code issues a
+           real trial licence of `[desk] trial_days` at signup - see
+           `phonix_services::workspace::onboarding`, and
+           `phonix-server/src/middleware.rs`, which answers 403 and stops
+           serving the workspace once it lapses. Somebody who reads the pricing
+           page and signs up is not told their workspace has thirty days on it.
+      touch: crates/global-connect/src/i18n/en.rs + zh.rs,
+             crates/global-connect/templates/home.html
+      done: the site says one thing about what a new workspace costs and how
+            long it runs, and that one thing is what the code does.
+      decide: whether a trial length is still the right shape while nothing is
+              being charged. `desk.trial_days` is validated as non-zero, so
+              "runs until there is a price" is a config and licensing change
+              rather than a copy change - which of the two this is decides the
+              whole item.
+      stop: it cannot be finished without that answer, and guessing it wrong
+            means a live page promising something the server will not honour.
+      verify: open `/` and `/pricing`. Neither contradicts the other about what
+              a new workspace costs or how long it runs.
 
 - [ ] `docs` The content pipeline ADR 0007 said would be a decision
       why: §12 names Markdown at build time as "a dependency and therefore a
@@ -239,6 +245,33 @@ a decision, and it is one line in this section.
      The user launches the application, looks, and then either moves the item
      to `## Done` or writes a new item in `## Next` saying what was wrong. The
      loop never moves anything out of this section by itself. -->
+
+- [x] `global-connect` Pricing, when nothing is charged
+      commit: "The page that stopped quoting a number nobody had set"
+      why: the page rendered three plans with invented figures in two of them.
+           It said so at the bottom and `PRICES_ARE_PROVISIONAL` said so in
+           Rust, but a visitor reads the number rather than the footnote under
+           it. Nothing is being charged, so the page was not provisional - it
+           was wrong.
+      done: no plan grid and no numbers. The page answers what you get, what it
+            costs and what happens when there is a price, and carries the one
+            promise worth making - that a figure appears there before anybody
+            is asked to pay it. The FAQ is rewritten; the old set answered what
+            happens when a trial ends and whether you pay per application, both
+            of which describe an arrangement that does not exist. The answers
+            use `tile`, the contact page's card, so the page reads as this site
+            rather than as this page with a section removed. `PlanCopy`,
+            `PLAN_FEATURED`, `PRICES_ARE_PROVISIONAL`, the `.plan` rules and
+            `.pill-brand` are gone with the grid.
+      decided: ADR 0007 §12's "Real pricing" bullet said the numbers were
+               marked placeholders. This replaces that decision rather than
+               satisfying it, so §12 was amended in the same commit.
+      note: the page does not mention a trial, which is what the item asked
+            for - and the front page still promises one. That contradiction is
+            queued as its own item rather than settled here.
+      verify: open `/pricing`. There is no price on it, nothing reads as a
+              limited trial, and it does not look like a page with its contents
+              deleted.
 
 - [x] `global-connect` The mega menu, gone
       commit: "The way in that the phone already had"

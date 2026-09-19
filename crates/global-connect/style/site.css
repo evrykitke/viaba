@@ -340,43 +340,17 @@
         color: var(--brand);
     }
 
-    .pill-soft,
-    .pill-brand {
+    .pill-soft {
         display: inline-flex;
         align-items: center;
         align-self: flex-start;
         border-radius: 9999px;
+        border: 1px solid var(--edge);
         padding: 0.125rem 0.5rem;
         font-size: var(--text-2xs);
         font-weight: 600;
         letter-spacing: 0.02em;
-    }
-
-    .pill-soft {
-        border: 1px solid var(--edge);
         color: var(--content-subtle);
-    }
-
-    .pill-brand {
-        background-color: var(--brand);
-        color: var(--on-brand);
-    }
-
-    /* ----------------------------------------------------------------------
-       PRICING
-       ---------------------------------------------------------------------- */
-    .plan {
-        display: flex;
-        flex-direction: column;
-        border-radius: var(--radius-card);
-        border: 1px solid var(--edge);
-        background-color: var(--surface-raised);
-        padding: 1.75rem;
-    }
-
-    .plan-on {
-        border-color: color-mix(in oklch, var(--brand) 55%, var(--edge));
-        box-shadow: 0 0 0 1px color-mix(in oklch, var(--brand) 35%, transparent);
     }
 
     /* ----------------------------------------------------------------------

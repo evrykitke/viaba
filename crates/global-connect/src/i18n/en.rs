@@ -7,7 +7,7 @@
 
 use super::{
     About, AppCopy, Beneath, Common, Contact, Footer, Home, Industry, Nav, NotFound, PillarCopy,
-    PlanCopy, Pricing, Product, Solutions, Strings,
+    Pricing, Product, Solutions, Strings,
 };
 
 pub static STRINGS: Strings = Strings {
@@ -96,32 +96,47 @@ pub static STRINGS: Strings = Strings {
 
     pricing: Pricing {
         title: "Pricing",
-        description: "Start free, and pay per person when it becomes the way you run the business.",
+        description: "Nothing is priced yet, and nobody is being charged. What that means, and what happens next.",
         eyebrow: "Pricing",
-        headline: "Accessible is part of the promise.",
-        lede: "Start free and stay free while you are small. Pay for the people who use it, not for the modules you switched on.",
-        most: "Most companies",
-        trial_note: "Every plan starts with {days} days of the full product, and no card.",
-        provisional_lead: "These figures are not final.",
-        provisional_body: "The plans are the shape we are building towards; the prices are still being settled and will be published here before anybody is asked to pay one.",
+        headline: "There is no price yet.",
+        lede: "The product is still being built. Nothing has been priced, nobody is being charged for it, \
+               and a page of plans with numbers on them would be a guess dressed up as an answer.",
+        answers: [
+            Beneath {
+                heading: "What you get",
+                body: "The whole product rather than a cut-down tier. Every application, your own database, \
+                       your own address, your own users and your own permissions.",
+            },
+            Beneath {
+                heading: "What it costs",
+                body: "Nothing. There is no card to enter, no plan to choose between and nothing to cancel.",
+            },
+            Beneath {
+                heading: "What happens when there is a price",
+                body: "It is published on this page, and you are told before anybody is asked to pay one. \
+                       A number appears here when it is real, and not before.",
+            },
+        ],
         hand_note: "no card, and nothing to cancel",
         faq_title: "The questions people ask first",
         faq: [
             Beneath {
-                heading: "What happens when the trial ends?",
-                body: "The workspace stops serving and nothing is deleted. Your data stays where it is until you pick a plan or ask us to remove it.",
+                heading: "Will it always be free?",
+                body: "No \u{2014} the work has to be paid for eventually. What will not happen is a number \
+                       appearing here before it means something.",
             },
             Beneath {
-                heading: "Do I pay per application?",
-                body: "No. You pay for the people who sign in. Turning on inventory does not change the bill.",
+                heading: "Will I be charged without warning?",
+                body: "No. The price is published here first, and nothing you do today commits you to it.",
             },
             Beneath {
                 heading: "Can I run it myself?",
-                body: "Yes, on the Enterprise plan. It is one binary and a database, which is deliberate.",
+                body: "Yes. It is one binary and a database, which is deliberate.",
             },
             Beneath {
                 heading: "Is my data mixed in with everyone else's?",
-                body: "No. Every workspace gets its own database on its own address. That is the design, not a paid upgrade.",
+                body: "No. Every workspace gets its own database on its own address. That is the design, \
+                       not a paid upgrade.",
             },
         ],
     },
@@ -316,49 +331,6 @@ pub static STRINGS: Strings = Strings {
         PillarCopy {
             heading: "Fast where you work",
             body: "Dense screens, keyboard-first grids, and a compact type scale built for a day of use rather than a screenshot. Nothing here is waiting on a spinner to tell you a number you already knew.",
-        },
-    ],
-
-    plans: [
-        PlanCopy {
-            name: "Starter",
-            who: "One team finding its feet.",
-            price: "Free",
-            cadence: "while you are getting started",
-            points: &[
-                "One workspace",
-                "Up to three people",
-                "Books and Inventory",
-                "Community support",
-            ],
-            action: "Start free",
-        },
-        PlanCopy {
-            name: "Business",
-            who: "A company running on it every day.",
-            price: "\u{2014}",
-            cadence: "per person, per month",
-            points: &[
-                "Everything in Starter",
-                "Unlimited people",
-                "Every application",
-                "Multi-currency and tax",
-                "Email support",
-            ],
-            action: "Start free",
-        },
-        PlanCopy {
-            name: "Enterprise",
-            who: "Several entities, and rules of your own.",
-            price: "Let's talk",
-            cadence: "",
-            points: &[
-                "Everything in Business",
-                "Several workspaces",
-                "Your own deployment",
-                "Onboarding and migration",
-            ],
-            action: "Talk to us",
         },
     ],
 };

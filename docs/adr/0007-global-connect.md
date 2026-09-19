@@ -374,9 +374,15 @@ named here so that adding them is a decision rather than a drift:
 * **Per-app pages.** One page per `app-*` crate — Books, Inventory, People —
   each with the screens it actually has. Blocked on nothing except having
   something true to say about each.
-* **Real pricing.** The page renders a shape; the numbers in it are placeholders
-  and are marked as such in the template. `desk.trial_days` is the only number
-  in this estate that currently means anything commercially.
+* **Real pricing.** Amended 2026-09-19: `/pricing` no longer renders a shape
+  with placeholders in it. Nothing has been priced and nothing is being charged,
+  so the page says that and carries no plan grid and no numbers — a marked-up
+  guess is still a guess, and a visitor reads the number rather than the
+  footnote under it. That is the current answer rather than a page waiting to be
+  filled in; when there is a real price it is published there, and the promise
+  that it appears before anybody is asked to pay one is on the page itself.
+  `desk.trial_days` remains the only number in this estate that currently means
+  anything commercially, and it is not quoted here.
 * **Documentation and a changelog.** Both want a content pipeline (Markdown at
   build time), which is a dependency and therefore a decision.
 * **German and French.** The machinery is built and the product already

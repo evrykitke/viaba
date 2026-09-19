@@ -16,7 +16,7 @@
 
 use super::{
     About, AppCopy, Beneath, Common, Contact, Footer, Home, Industry, Nav, NotFound, PillarCopy,
-    PlanCopy, Pricing, Product, Solutions, Strings,
+    Pricing, Product, Solutions, Strings,
 };
 
 pub static STRINGS: Strings = Strings {
@@ -105,28 +105,38 @@ pub static STRINGS: Strings = Strings {
 
     pricing: Pricing {
         title: "价格",
-        description: "免费开始；当它成为你经营业务的方式时，再按人付费。",
+        description: "还没有定价，也没有向任何人收费。这意味着什么，接下来又会怎样。",
         eyebrow: "价格",
-        headline: "“人人用得上”，价格也算数。",
-        lede: "免费开始，规模还小的时候就一直免费。为真正在用它的人付费，而不是为你打开的模块付费。",
-        most: "多数公司的选择",
-        trial_note: "每个方案都先有 {days} 天完整产品试用，无需信用卡。",
-        provisional_lead: "这些数字尚未确定。",
-        provisional_body: "方案的结构是我们正在搭建的样子；价格仍在敲定，会在向任何人收费之前先公布在这里。",
+        headline: "目前还没有价格。",
+        lede: "产品还在建设中。它还没有定价，没有向任何人收过费；一页写满数字的方案，不过是把猜测包装成答案。",
+        answers: [
+            Beneath {
+                heading: "你得到的",
+                body: "完整的产品，而不是缩水版。所有应用，你自己的数据库、自己的地址、自己的用户和自己的权限。",
+            },
+            Beneath {
+                heading: "你付出的",
+                body: "没有。不用填卡，没有方案要选，也没有什么要取消。",
+            },
+            Beneath {
+                heading: "等到有价格的那一天",
+                body: "价格会先公布在这一页，并且在向任何人收费之前先告知你。数字只有在它算数的时候才会出现在这里。",
+            },
+        ],
         hand_note: "无需信用卡，也没有什么要取消的",
         faq_title: "大家最先问的几个问题",
         faq: [
             Beneath {
-                heading: "试用结束会怎样？",
-                body: "工作区会停止对外服务，但不会删除任何东西。你的数据原样留着，直到你选定方案，或者请我们删除。",
+                heading: "会一直免费吗？",
+                body: "不会 —— 这份工作终归需要有人为它付费。不会发生的是：在一个数字真正算数之前，就把它写在这里。",
             },
             Beneath {
-                heading: "是按应用收费吗？",
-                body: "不是。按登录使用的人数收费。打开库存不会改变账单。",
+                heading: "会不会没打招呼就扣费？",
+                body: "不会。价格会先公布在这里，而你今天做的任何事都不构成对它的承诺。",
             },
             Beneath {
                 heading: "可以自己部署吗？",
-                body: "可以，在企业版方案里。它就是一个可执行文件加一个数据库，这是有意为之。",
+                body: "可以。它就是一个可执行文件加一个数据库，这是有意为之。",
             },
             Beneath {
                 heading: "我的数据会和别人混在一起吗？",
@@ -301,44 +311,6 @@ pub static STRINGS: Strings = Strings {
         PillarCopy {
             heading: "在你干活的地方够快",
             body: "紧凑的界面、以键盘为先的表格，以及为整天使用而不是为截图而定的字号。这里不会让你盯着转圈，只为看一个你早就知道的数字。",
-        },
-    ],
-
-    plans: [
-        PlanCopy {
-            name: "入门版",
-            who: "一个刚站稳脚跟的团队。",
-            price: "免费",
-            cadence: "在你起步的阶段",
-            points: &["一个工作区", "最多三个人", "账簿与库存", "社区支持"],
-            action: "免费开始",
-        },
-        PlanCopy {
-            name: "商业版",
-            who: "每天都靠它运转的公司。",
-            price: "—",
-            cadence: "每人每月",
-            points: &[
-                "包含入门版的全部",
-                "人数不限",
-                "全部应用",
-                "多币种与税务",
-                "邮件支持",
-            ],
-            action: "免费开始",
-        },
-        PlanCopy {
-            name: "企业版",
-            who: "多个法人实体，还有自己的规矩。",
-            price: "面谈",
-            cadence: "",
-            points: &[
-                "包含商业版的全部",
-                "多个工作区",
-                "部署在你自己的环境",
-                "上线导入与数据迁移",
-            ],
-            action: "联系我们",
         },
     ],
 };

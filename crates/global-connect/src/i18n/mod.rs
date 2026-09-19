@@ -63,11 +63,10 @@ pub struct Strings {
     pub solutions: Solutions,
     pub not_found: NotFound,
     /// Fixed-length, so a language that describes two applications where
-    /// English describes three does not compile. The same for the pillars and
-    /// the plans: a translation is complete or it is a build failure.
+    /// English describes three does not compile. The same for the pillars: a
+    /// translation is complete or it is a build failure.
     pub apps: [AppCopy; 3],
     pub pillars: [PillarCopy; 4],
-    pub plans: [PlanCopy; 3],
 }
 
 pub struct Common {
@@ -161,11 +160,9 @@ pub struct Pricing {
     pub eyebrow: &'static str,
     pub headline: &'static str,
     pub lede: &'static str,
-    pub most: &'static str,
-    /// `{days}` is replaced with `desk.trial_days`.
-    pub trial_note: &'static str,
-    pub provisional_lead: &'static str,
-    pub provisional_body: &'static str,
+    /// What is true today, what it costs, and what happens when there is a
+    /// price. The three the page answers in place of a plan grid.
+    pub answers: [Beneath; 3],
     pub faq_title: &'static str,
     pub faq: [Beneath; 4],
     /// See [`Home::hand_note`].
@@ -245,15 +242,6 @@ pub struct AppCopy {
 pub struct PillarCopy {
     pub heading: &'static str,
     pub body: &'static str,
-}
-
-pub struct PlanCopy {
-    pub name: &'static str,
-    pub who: &'static str,
-    pub price: &'static str,
-    pub cadence: &'static str,
-    pub points: &'static [&'static str],
-    pub action: &'static str,
 }
 
 /// Whether the site has prose in this language.
