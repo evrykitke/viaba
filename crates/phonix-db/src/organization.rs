@@ -19,7 +19,8 @@
 //! validated types in Rust. The conversion happens in [`FromRow`] rather than
 //! by deriving it on the raw columns, so a row that somehow holds a code no
 //! longer in the table is refused loudly here instead of defaulting to dollars
-//! several layers up.
+//! several layers up. `currency_code` is nullable since 0026: NULL is a
+//! currency nobody has chosen.
 
 use chrono::{DateTime, Utc};
 use phonix_core::identity::UserId;
@@ -40,15 +41,21 @@ pub struct ProfileRow {
 
 impl<'r> FromRow<'r, sqlx::postgres::PgRow> for ProfileRow {
     fn from_row(row: &'r sqlx::postgres::PgRow) -> Result<Self, sqlx::Error> {
-        let raw_currency: String = row.try_get("currency_code")?;
+        let raw_currency: Option<String> = row.try_get("currency_code")?;
         let raw_country: Option<String> = row.try_get("country_code")?;
         let raw_timezone: String = row.try_get("timezone")?;
         let fiscal_month: i16 = row.try_get("fiscal_year_start_month")?;
 
-        let currency = Currency::parse(&raw_currency).map_err(|err| sqlx::Error::ColumnDecode {
-            index: "currency_code".to_owned(),
-            source: Box::new(err),
-        })?;
+        // Transposed, not defaulted: NULL is a currency nobody has chosen, and a
+        // stored code that no longer resolves is a decode failure.
+        let currency = raw_currency
+            .as_deref()
+            .map(Currency::parse)
+            .transpose()
+            .map_err(|err| sqlx::Error::ColumnDecode {
+                index: "currency_code".to_owned(),
+                source: Box::new(err),
+            })?;
 
         // Transposed rather than defaulted: a stored code that no longer
         // resolves is a decode failure, not an address in no country.
@@ -136,7 +143,7 @@ pub struct ProfileUpdate<'a> {
     pub region: Option<&'a str>,
     pub postal_code: Option<&'a str>,
     pub country: Option<Country>,
-    pub currency: Currency,
+    pub currency: Option<Currency>,
     pub timezone: &'a Timezone,
     pub fiscal_year_start_month: u8,
     pub updated_by: Option<UserId>,
@@ -184,7 +191,7 @@ where
     .bind(update.region)
     .bind(update.postal_code)
     .bind(update.country.map(Country::code))
-    .bind(update.currency.code())
+    .bind(update.currency.map(Currency::code))
     .bind(update.timezone.as_str())
     .bind(i16::from(update.fiscal_year_start_month))
     .bind(update.updated_by)

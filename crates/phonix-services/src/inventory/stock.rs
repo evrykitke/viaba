@@ -596,7 +596,7 @@ async fn overrides(
 // --- Shared ---------------------------------------------------------------
 
 async fn base_currency(pool: &PgPool) -> ServiceResult<Currency> {
-    Ok(crate::workspace::profile::current(pool).await?.currency)
+    crate::workspace::profile::base_currency(pool).await
 }
 
 async fn load_location(pool: &PgPool, id: Uuid) -> ServiceResult<Location> {

@@ -103,7 +103,7 @@ pub async fn set_enabled(
 
     if !is_enabled {
         let profile = organization::load(pool).await?;
-        if profile.profile.currency == currency {
+        if profile.profile.currency == Some(currency) {
             return Err(ServiceError::rejected(
                 "currency",
                 phonix_core::msg!("error.currency.base_locked", code = currency.code()),

@@ -39,6 +39,9 @@ use crate::ui::form::{Choice, Field, FieldValue, FormAction, Then};
 /// [`Country::parse`] as a failure, which is exactly `None`.
 const NO_COUNTRY: &str = "";
 
+/// What "no currency chosen" is worth, as a select option.
+const NO_CURRENCY: &str = "";
+
 /// Who this workspace is.
 pub fn organization_form() -> FormConfig<OrganizationProfile> {
     FormConfig::new("organization", |profile: OrganizationProfile| async move {
@@ -205,17 +208,16 @@ pub fn organization_form() -> FormConfig<OrganizationProfile> {
             "currency",
             l!("organization.currency"),
             currency_choices(),
-            |m: &OrganizationProfile| FieldValue::choice(m.currency.code()),
+            |m: &OrganizationProfile| {
+                FieldValue::choice(m.currency.map_or(NO_CURRENCY, Currency::code))
+            },
         )
-        // Unrecognised keeps what was there. A currency silently becoming
-        // dollars is every stored amount changing meaning at once.
-        .writing(|m, value| {
-            if let Some(currency) = value
-                .as_choice()
-                .and_then(|code| Currency::parse(code).ok())
-            {
-                m.currency = currency;
-            }
+        // Blank is unchosen. An unrecognised code keeps what was there: a
+        // currency silently moving is every stored amount changing meaning.
+        .writing(|m, value| match value.as_choice() {
+            Some(code) if code.is_empty() => m.currency = None,
+            Some(code) => m.currency = Currency::parse(code).ok().or(m.currency),
+            None => {}
         })
         .help(l!("organization.currency_help"))
         .require(permissions::SETTINGS)
@@ -288,9 +290,12 @@ fn country_choices() -> Vec<Choice> {
 
 /// Every ISO 4217 currency, by code, labelled with its name.
 fn currency_choices() -> Vec<Choice> {
-    Currency::all()
-        .iter()
-        .map(|currency| Choice::new(currency.code(), currency.label()))
+    std::iter::once(Choice::new(NO_CURRENCY, "Not set"))
+        .chain(
+            Currency::all()
+                .iter()
+                .map(|currency| Choice::new(currency.code(), currency.label())),
+        )
         .collect()
 }
 
@@ -402,15 +407,18 @@ mod tests {
         };
 
         let mut draft = OrganizationProfile {
-            currency: Currency::parse("KES").unwrap_or_default(),
+            currency: Currency::parse("KES").ok(),
             ..OrganizationProfile::empty()
         };
 
         currency.apply(&mut draft, &FieldValue::choice("ZZZ"));
-        assert_eq!(draft.currency.code(), "KES");
+        assert_eq!(draft.currency.map(Currency::code), Some("KES"));
 
         currency.apply(&mut draft, &FieldValue::choice("JPY"));
-        assert_eq!(draft.currency.code(), "JPY");
+        assert_eq!(draft.currency.map(Currency::code), Some("JPY"));
+
+        currency.apply(&mut draft, &FieldValue::choice(""));
+        assert_eq!(draft.currency, None);
     }
 
     #[test]
@@ -454,7 +462,7 @@ mod tests {
     fn the_pickers_offer_the_domain_tables_and_nothing_else() {
         // A second list would be a second thing to keep in step with the
         // validator, and the failure mode is a code nobody can store.
-        assert_eq!(currency_choices().len(), Currency::all().len());
+        assert_eq!(currency_choices().len(), Currency::all().len() + 1);
         assert_eq!(timezone_choices().len(), Timezone::common().len());
         assert_eq!(month_choices().len(), 12);
         // Every country, plus the blank option.

@@ -128,9 +128,9 @@ pub struct OrganizationProfile {
     pub country: Option<Country>,
 
     // --- how it counts ---------------------------------------------------
-    /// What amounts are denominated in. See [`Currency`] for why this is not a
-    /// three-letter string.
-    pub currency: Currency,
+    /// What amounts are denominated in. `None` until somebody chooses, which
+    /// is what a workspace nobody has answered for looks like.
+    pub currency: Option<Currency>,
     /// What "today" means for this organization. See [`Timezone`].
     pub timezone: Timezone,
     /// The month the financial year opens, 1-12. January for most, but April,
@@ -169,7 +169,7 @@ impl OrganizationProfile {
             region: None,
             postal_code: None,
             country: None,
-            currency: Currency::USD,
+            currency: None,
             timezone: Timezone::utc(),
             fiscal_year_start_month: 1,
             logo_file_id: None,
@@ -308,6 +308,13 @@ impl OrganizationProfile {
             }
         }
 
+        if self.currency.is_none() {
+            errors.push(FieldError::new(
+                "currency",
+                msg!("validation.organization.currency_required"),
+            ));
+        }
+
         if !(1..=12).contains(&self.fiscal_year_start_month) {
             errors.push(FieldError::new(
                 "fiscal_year_start_month",
@@ -443,7 +450,7 @@ mod tests {
             address_line1: Some("14 Harbour Road".to_owned()),
             city: Some("Mombasa".to_owned()),
             country: Country::parse("KE").ok(),
-            currency: Currency::parse("KES").unwrap(),
+            currency: Currency::parse("KES").ok(),
             timezone: Timezone::parse("Africa/Nairobi").unwrap(),
             fiscal_year_start_month: 7,
             ..OrganizationProfile::empty()
@@ -457,9 +464,8 @@ mod tests {
         // The seeded row is not complete, and says so - but it is a row, and
         // every read finds it.
         assert!(!empty.is_complete());
-        let errors = empty.validate();
-        assert_eq!(errors.len(), 1);
-        assert_eq!(errors.first().map(|e| e.field.as_str()), Some("legal_name"));
+        let fields = complaints(&empty);
+        assert_eq!(fields, ["legal_name", "currency"]);
     }
 
     #[test]
@@ -670,6 +676,18 @@ mod tests {
         assert!(letterhead.address.is_empty());
         assert_eq!(letterhead.email, None);
         assert_eq!(letterhead.registration_number, None);
+    }
+
+    #[test]
+    fn an_unchosen_currency_survives_the_wire() {
+        let profile = OrganizationProfile::empty();
+        let json = serde_json::to_string(&profile).expect("serialise");
+
+        assert!(json.contains("\"currency\":null"));
+        assert_eq!(
+            serde_json::from_str::<OrganizationProfile>(&json).expect("deserialise"),
+            profile,
+        );
     }
 
     #[test]

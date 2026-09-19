@@ -200,10 +200,9 @@ impl BooksLedger {
         &self,
         request: JournalRequest,
     ) -> Result<JournalEntry, LedgerError> {
-        let base = crate::workspace::profile::current(&self.pool)
+        let base = crate::workspace::profile::base_currency(&self.pool)
             .await
-            .map_err(unavailable)?
-            .currency;
+            .map_err(unavailable)?;
 
         let currency = Currency::parse(&request.currency)
             .map_err(|err| LedgerError::Unavailable(err.to_string()))?;

@@ -47,7 +47,7 @@ pub async fn list(
     caller.require(permissions::ITEMS)?;
 
     // The column holds a number; the workspace holds what it is denominated in.
-    let currency = crate::workspace::profile::current(pool).await?.currency;
+    let currency = crate::workspace::profile::base_currency(pool).await?;
     Ok(store::page(pool, currency, &request).await?)
 }
 
@@ -67,7 +67,7 @@ pub async fn tiles(
 pub async fn detail(pool: &PgPool, caller: &Caller, id: Uuid) -> ServiceResult<Item> {
     caller.require(permissions::ITEMS)?;
 
-    let currency = crate::workspace::profile::current(pool).await?.currency;
+    let currency = crate::workspace::profile::base_currency(pool).await?;
 
     store::find(pool, id, currency)
         .await?
@@ -88,7 +88,7 @@ pub async fn by_barcode(
 ) -> ServiceResult<Option<(Item, Option<Uuid>)>> {
     caller.require(permissions::ITEMS)?;
 
-    let currency = crate::workspace::profile::current(pool).await?.currency;
+    let currency = crate::workspace::profile::base_currency(pool).await?;
     Ok(store::by_barcode(pool, barcode.trim(), currency).await?)
 }
 

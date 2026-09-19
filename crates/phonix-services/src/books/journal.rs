@@ -532,5 +532,5 @@ async fn detail_unchecked(pool: &PgPool, id: Uuid) -> ServiceResult<Posted> {
 /// What this workspace's books are kept in. The accountant's decision, on the
 /// organization profile.
 async fn base_currency(pool: &PgPool) -> ServiceResult<Currency> {
-    Ok(crate::workspace::profile::current(pool).await?.currency)
+    crate::workspace::profile::base_currency(pool).await
 }

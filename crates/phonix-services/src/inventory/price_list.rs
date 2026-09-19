@@ -134,7 +134,7 @@ pub async fn detail(
 pub async fn blank(pool: &PgPool, caller: &Caller) -> ServiceResult<PriceListInput> {
     caller.require(permissions::ITEMS_EDIT)?;
 
-    let currency = crate::workspace::profile::current(pool).await?.currency;
+    let currency = crate::workspace::profile::base_currency(pool).await?;
 
     Ok(PriceListInput::blank(currency))
 }

@@ -19,6 +19,7 @@ use phonix_config::DatabaseConfig;
 use phonix_core::locale::Currency;
 use phonix_core::money::{ExchangeRate, Money, Rate, Rounding};
 use phonix_db::currency;
+use phonix_db::organization;
 use phonix_db::sqlx::{self, PgPool};
 use phonix_db::tenancy::provision;
 
@@ -65,25 +66,18 @@ async fn fresh(cfg: &DatabaseConfig) -> PgPool {
 
 #[tokio::test]
 #[ignore = "needs a live PostgreSQL server"]
-async fn the_base_currency_is_on_the_list_before_anybody_chooses_one() {
+async fn a_new_workspace_counts_in_nothing_until_somebody_says() {
     let cfg = database_config();
     let pool = fresh(&cfg).await;
 
-    // 0010 seeds the profile at USD; 0015 seeds the list from the profile. So a
-    // brand new workspace already has the currency its amounts are denominated
-    // in, and no screen has to handle a base currency missing from its own
-    // picker.
-    let listed = currency::list(&pool).await.expect("list currencies");
-    assert_eq!(
-        listed.len(),
-        1,
-        "expected only the base currency, got {listed:?}"
-    );
+    // 0010 seeded the profile at USD and 0015 copied that onto the list; 0026
+    // takes both back. A workspace nobody has answered for has no base
+    // currency and no list to draw one from.
+    let profile = organization::load(&pool).await.expect("load profile");
+    assert_eq!(profile.profile.currency, None);
 
-    let only = listed.first().expect("one row");
-    assert_eq!(only.currency, Currency::USD);
-    assert!(only.is_enabled);
-    assert_eq!(only.symbol, None);
+    let listed = currency::list(&pool).await.expect("list currencies");
+    assert!(listed.is_empty(), "expected no currencies, got {listed:?}");
 
     pool.close().await;
     provision::drop_tenant_database(&cfg, DATABASE)

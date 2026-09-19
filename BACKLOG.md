@@ -39,12 +39,14 @@ commits it is three items.
 
 ## Next
 
-Two currency items first, then the public site of 2026-09-19 - its navigation,
+The currency item first, then the public site of 2026-09-19 - its navigation,
 its pricing and the content coming across - then five deploy items left over
-from putting it there. The currency pair is ahead of the site
-work deliberately: a workspace that posts anything in a currency nobody chose
-cannot be corrected by a settings change afterwards. They are in order - the
-absence has to be representable before anything can block on it. `evrykit.com` serves Global Connect now, and the Symfony application it
+from putting it there. The currency item is ahead of the site work
+deliberately: a workspace that posts anything in a currency nobody chose
+cannot be corrected by a settings change afterwards. The absence is now
+representable; what is left is blocking on it.
+
+`evrykit.com` serves Global Connect now, and the Symfony application it
 displaced was carrying the content that earned this domain its search traffic:
 114 markdown files under `/var/www/evrykit.com/content` on the box, served at
 `/articles`, `/kb` and `/learn`. Those addresses are indexed -
@@ -60,28 +62,6 @@ ADR 0007 §12 names the content pipeline as a decision rather than an omission,
 so that decision is an item and every content item after it depends on which
 way it goes. The five `deploy` items below it are the older queue and are
 unchanged.
-
-- [ ] `phonix-db` A currency nobody has chosen yet
-      why: "not chosen" is not a state this workspace can hold.
-           `0010_organization_profile.sql` declares
-           `currency_code TEXT NOT NULL DEFAULT 'USD'` and seeds a profile row,
-           `OrganizationProfile::empty()` hard-codes `Currency::USD`, and 0015
-           seeds `core.currencies` from whichever of those won. So a workspace
-           created this morning is already counting in dollars and nothing in
-           the system knows that was never a decision. Everything below needs
-           the absence to be representable first.
-      touch: a new migration under migrations/apps/core/,
-             crates/phonix-core/src/organization.rs,
-             crates/phonix-db/src/organization.rs
-      done: an unchosen currency reads as unchosen. 0010 is applied and
-            therefore frozen, so this is an `ALTER` in a new migration - the
-            column drops its default and becomes nullable, or a
-            `currency_chosen_at` sits beside it; the migration says which and
-            why. `OrganizationProfile::currency` follows suit, and the seed in
-            0015 stops inventing a row for a currency nobody picked.
-      note: every screen that reads the profile must cope with the gap without
-            crashing or inventing a fallback - that is the point of the item,
-            and a `unwrap_or(USD)` anywhere in it defeats the whole change.
 
 - [ ] `phonix-core` The currency chosen during onboarding
       why: the decision, and it is ADR 0006 §4's mechanism rather than a new
@@ -1224,6 +1204,23 @@ a decision, and it is one line in this section.
 ## Done
 
 <!-- The loop appends here with the commit sha. Newest first. -->
+
+- [x] `phonix-db` A currency nobody has chosen yet
+      commit: "The currency nobody chose, and the default that chose it"
+      why: `0010` declared `currency_code TEXT NOT NULL DEFAULT 'USD'` and 0015
+           copied that onto `core.currencies`, so a workspace created this
+           morning was already counting in dollars with nobody having decided.
+      done: 0026 drops the default and the NOT NULL, takes back the list row
+            0015 invented, and nulls the column on a profile nobody has
+            written to. `OrganizationProfile::currency` is `Option<Currency>`,
+            the settings form opens on "Not set" and refuses to save without
+            an answer, and every posting path reaches one
+            `workspace::profile::base_currency` that refuses rather than
+            defaults. No `unwrap_or(USD)` anywhere.
+      cost: an unchosen currency now stops a journal, a report, an item price
+            and a price list by name rather than quietly denominating them.
+            That is the point, and the item after this one turns the sentence
+            into a setup checklist line.
 
 - [x] `global-connect` Evrykit's public site, on the apex
       commit: "The apex, answering for the product"

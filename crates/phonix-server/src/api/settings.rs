@@ -321,9 +321,10 @@ pub struct OrganizationResource {
     /// ISO 3166-1 alpha-2.
     #[schema(example = "GB")]
     pub country: Option<String>,
-    /// ISO 4217. What amounts are denominated in.
+    /// ISO 4217. What amounts are denominated in, or `null` while nobody has
+    /// chosen.
     #[schema(example = "GBP")]
-    pub currency: String,
+    pub currency: Option<String>,
     /// IANA name. What "today" means here.
     #[schema(example = "Europe/London")]
     pub timezone: String,
@@ -353,7 +354,7 @@ impl From<&OrganizationProfile> for OrganizationResource {
             region: profile.region.clone(),
             postal_code: profile.postal_code.clone(),
             country: profile.country.map(|country| country.code().to_owned()),
-            currency: profile.currency.code().to_owned(),
+            currency: profile.currency.map(|currency| currency.code().to_owned()),
             timezone: profile.timezone.as_str().to_owned(),
             fiscal_year_start_month: profile.fiscal_year_start_month,
             logo_file_id: profile.logo_file_id,
@@ -395,9 +396,10 @@ pub struct SaveOrganization {
     #[schema(example = "GB")]
     #[serde(default)]
     pub country: Option<String>,
-    /// ISO 4217.
+    /// ISO 4217, or `null` to leave it unchosen.
     #[schema(example = "GBP")]
-    pub currency: String,
+    #[serde(default)]
+    pub currency: Option<String>,
     /// IANA name.
     #[schema(example = "Europe/London")]
     pub timezone: String,
@@ -456,13 +458,23 @@ pub async fn save_organization(
     // "no logo" where the honest statement is "not this endpoint's business".
     let current = profile::load(&caller.pool, &caller.caller).await?;
 
-    let currency = Currency::parse(&body.currency).map_err(|_| {
-        Problem::invalid(
-            "currency",
-            "request.currency.unknown",
-            format!("{} is not an ISO 4217 code.", body.currency),
-        )
-    })?;
+    // `None` is a currency nobody has chosen; `Some` that will not parse is one
+    // somebody named wrongly. The same split the country makes below.
+    let currency = match body
+        .currency
+        .as_deref()
+        .map(str::trim)
+        .filter(|raw| !raw.is_empty())
+    {
+        None => None,
+        Some(raw) => Some(Currency::parse(raw).map_err(|_| {
+            Problem::invalid(
+                "currency",
+                "request.currency.unknown",
+                format!("{raw} is not an ISO 4217 code."),
+            )
+        })?),
+    };
 
     let timezone = Timezone::parse(&body.timezone).map_err(|_| {
         Problem::invalid(
@@ -917,7 +929,7 @@ mod tests {
         let profile = OrganizationProfile {
             legal_name: "Ada Computing Ltd".to_owned(),
             country: Country::parse("GB").ok(),
-            currency: Currency::parse("GBP").expect("a real code"),
+            currency: Currency::parse("GBP").ok(),
             timezone: Timezone::parse("Europe/London").expect("a real zone"),
             ..OrganizationProfile::empty()
         };
@@ -925,7 +937,7 @@ mod tests {
         let resource = OrganizationResource::from(&profile);
 
         assert_eq!(resource.country.as_deref(), Some("GB"));
-        assert_eq!(resource.currency, "GBP");
+        assert_eq!(resource.currency.as_deref(), Some("GBP"));
         assert_eq!(resource.timezone, "Europe/London");
     }
 }

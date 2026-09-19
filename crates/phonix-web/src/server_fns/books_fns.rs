@@ -204,7 +204,7 @@ pub async fn journal_context() -> Result<JournalContext, ServerFnError> {
         .filter(app_books::account::Account::is_postable)
         .collect();
 
-    let profile = phonix_services::workspace::profile::current(&pool)
+    let base = phonix_services::workspace::profile::base_currency(&pool)
         .await
         .map_err(service_error)?;
 
@@ -225,12 +225,12 @@ pub async fn journal_context() -> Result<JournalContext, ServerFnError> {
 
     // The workspace's own is always offered, even if somebody switched it off
     // in the currency list: it is what the books are kept in.
-    if !currencies.contains(&profile.currency) {
-        currencies.insert(0, profile.currency);
+    if !currencies.contains(&base) {
+        currencies.insert(0, base);
     }
 
     Ok(JournalContext {
-        base_currency: profile.currency.code().to_owned(),
+        base_currency: base.code().to_owned(),
         accounts,
         cost_centres,
         currencies,

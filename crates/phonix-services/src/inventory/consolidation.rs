@@ -657,7 +657,7 @@ async fn source_lines<'a>(
 }
 
 async fn base_currency(pool: &PgPool) -> ServiceResult<Currency> {
-    Ok(crate::workspace::profile::current(pool).await?.currency)
+    crate::workspace::profile::base_currency(pool).await
 }
 
 fn today() -> NaiveDate {

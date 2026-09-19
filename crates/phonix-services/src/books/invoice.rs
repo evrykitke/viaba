@@ -336,7 +336,7 @@ pub async fn against_delivery(
         ));
     }
 
-    let currency = crate::workspace::profile::current(pool).await?.currency;
+    let currency = crate::workspace::profile::base_currency(pool).await?;
     let mut draft = InvoiceInput::blank(chrono::Utc::now().date_naive(), currency);
 
     draft.party_id = Some(despatch.customer_id);
@@ -802,7 +802,7 @@ async fn conversion_for(
     pool: &PgPool,
     invoice: &Invoice,
 ) -> ServiceResult<Option<(phonix_core::money::ExchangeRate, Money)>> {
-    let base: Currency = phonix_db::organization::load(pool).await?.profile.currency;
+    let base: Currency = crate::workspace::profile::base_currency(pool).await?;
     if base == invoice.currency {
         return Ok(None);
     }

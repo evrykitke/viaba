@@ -16,6 +16,8 @@
 //! the screen can show what is currently set.
 
 use phonix_core::form::{Submission, rejected};
+use phonix_core::locale::Currency;
+use phonix_core::msg;
 use phonix_core::organization::{Letterhead, OrganizationProfile};
 use phonix_core::permissions;
 use phonix_db::organization as store;
@@ -23,7 +25,7 @@ use phonix_db::sqlx::PgPool;
 
 use crate::audit::{self, Target, kinds};
 use crate::caller::{Caller, acting_user};
-use crate::error::ServiceResult;
+use crate::error::{ServiceError, ServiceResult};
 
 /// Who this workspace is, as the settings screen reads it.
 ///
@@ -61,6 +63,22 @@ pub async fn letterhead(pool: &PgPool, _caller: &Caller) -> ServiceResult<Letter
 /// organization's address readable by anyone who can reach the server.
 pub async fn current(pool: &PgPool) -> ServiceResult<OrganizationProfile> {
     Ok(store::load(pool).await?.profile)
+}
+
+/// What this workspace's amounts are denominated in.
+///
+/// Refused rather than defaulted while nobody has chosen. Every posting path
+/// reaches this, and a base currency invented here would denominate rows in
+/// one nobody picked.
+pub async fn base_currency(pool: &PgPool) -> ServiceResult<Currency> {
+    require_currency(&current(pool).await?)
+}
+
+/// The same answer, from a profile the caller has already read.
+pub fn require_currency(profile: &OrganizationProfile) -> ServiceResult<Currency> {
+    profile
+        .currency
+        .ok_or_else(|| ServiceError::rejected("currency", msg!("error.currency.unchosen")))
 }
 
 /// Store a profile an administrator submitted.
@@ -136,7 +154,7 @@ pub async fn save(
     if before != after {
         tracing::info!(
             legal_name = %after.legal_name,
-            currency = %after.currency,
+            currency = ?after.currency,
             %changed_by,
             "organization profile changed",
         );

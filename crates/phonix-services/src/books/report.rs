@@ -79,10 +79,10 @@ pub async fn balance_sheet(
     let opened = year_opened(as_at, start_month)
         .ok_or_else(|| ServiceError::rejected("as_at", msg!("reports.error.no_year")))?;
 
-    let movements =
-        phonix_db::books::report::movements(pool, opened, as_at, profile.currency).await?;
+    let currency = crate::workspace::profile::require_currency(&profile)?;
+    let movements = phonix_db::books::report::movements(pool, opened, as_at, currency).await?;
 
-    BalanceSheet::assemble(as_at, opened, profile.currency, &movements).map_err(unusable)
+    BalanceSheet::assemble(as_at, opened, currency, &movements).map_err(unusable)
 }
 
 /// What one customer has been invoiced, what they have paid, and how long ago.
@@ -99,7 +99,7 @@ pub async fn customer_statement(
         return Err(ServiceError::rejected("party_id", msg!("error.party.gone")));
     };
 
-    let currency = crate::workspace::profile::current(pool).await?.currency;
+    let currency = crate::workspace::profile::base_currency(pool).await?;
     let entries = phonix_db::books::report::statement_entries(pool, party_id, to, currency).await?;
     // Asked separately rather than derived from the entries: what is on account
     // is every payment less every allocation, and the entries carry the
@@ -161,7 +161,7 @@ pub async fn summary(pool: &PgPool, caller: &Caller) -> ServiceResult<LedgerSumm
     caller.require(permissions::REPORTS)?;
 
     let profile = crate::workspace::profile::current(pool).await?;
-    let currency = profile.currency;
+    let currency = crate::workspace::profile::require_currency(&profile)?;
     let as_at = chrono::Utc::now().date_naive();
     let start_month = u32::from(profile.fiscal_year_start_month).clamp(1, 12);
     let opened = year_opened(as_at, start_month)
@@ -190,7 +190,7 @@ async fn ledger(
     from: NaiveDate,
     to: NaiveDate,
 ) -> ServiceResult<(Currency, Vec<AccountMovement>)> {
-    let currency = crate::workspace::profile::current(pool).await?.currency;
+    let currency = crate::workspace::profile::base_currency(pool).await?;
     let movements = phonix_db::books::report::movements(pool, from, to, currency).await?;
 
     Ok((currency, movements))
