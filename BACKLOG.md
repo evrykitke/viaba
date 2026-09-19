@@ -39,10 +39,9 @@ commits it is three items.
 
 ## Next
 
-The public site of 2026-09-19 first - its navigation, its pricing and the
-content coming across - then five deploy items left over from putting it
-there. The currency pair that was ahead of them is done and waiting to be
-looked at.
+The public site of 2026-09-19 - its pricing and the content coming across -
+then five deploy items left over from putting it there. Its navigation and
+the currency pair ahead of it are done and waiting to be looked at.
 
 `evrykit.com` serves Global Connect now, and the Symfony application it
 displaced was carrying the content that earned this domain its search traffic:
@@ -60,34 +59,6 @@ ADR 0007 §12 names the content pipeline as a decision rather than an omission,
 so that decision is an item and every content item after it depends on which
 way it goes. The five `deploy` items below it are the older queue and are
 unchanged.
-
-- [ ] `global-connect` The mega menu, gone
-      why: the Solutions mega panel on the public site is off and the user has
-           asked for it to go. It is desktop-only - a `<details data-menu>` in
-           `_nav.html` whose `<div class="mega">` calls the `solutions_panel`
-           macro - and the mobile nav already links to `/solutions` as a plain
-           link at the same width as everything else. So the fix is the desktop
-           nav agreeing with the phone, not inventing a new navigation.
-      touch: crates/global-connect/templates/_nav.html,
-             crates/global-connect/style/site.css,
-             crates/global-connect/src/routes/pages.rs
-      done: Solutions is a plain `nav-link` beside Product, Pricing, About and
-            Contact - it belongs in the `nav_links` macro, which is what both
-            layouts already call - and the `<details>`, the `solutions_panel`
-            macro and every `.mega*` rule in the stylesheet are gone. The
-            `/solutions` page itself stays exactly as it is; only the way in
-            changes.
-      then: regenerate with `node tools/build-site-assets.mjs` - the tool runs
-            on this machine, checked 2026-09-19 - and commit the new hashed
-            css/js with `assets.rs`. Never edit those by hand: the hash in each
-            URL is the hash of the file.
-      watch: `frame.industry_slugs` and `frame.app_classes` exist for the panel
-             and may have no other caller once it is gone. If nothing else uses
-             them they go too, in the same commit; these crates deny lints, so
-             a leftover will say so.
-      verify: open `/` on a desktop width. There is no Solutions dropdown, the
-              link goes straight to `/solutions`, and the header is the same
-              height and rhythm as before rather than a gap where a menu was.
 
 - [ ] `global-connect` Pricing, when nothing is charged
       why: the page is live at `https://evrykit.com/pricing` with three plans
@@ -268,6 +239,29 @@ a decision, and it is one line in this section.
      The user launches the application, looks, and then either moves the item
      to `## Done` or writes a new item in `## Next` saying what was wrong. The
      loop never moves anything out of this section by itself. -->
+
+- [x] `global-connect` The mega menu, gone
+      commit: "The way in that the phone already had"
+      why: the Solutions mega panel was desktop-only and the user asked for it
+           to go. Below `md` it was never a panel - it collapsed into the plain
+           link the phone's navigation already carried - so the site had two
+           ways in to one page and only one of them was ever seen by half the
+           visitors.
+      done: Solutions is a `nav-link` beside Product, Pricing, About and
+            Contact, inside the `nav_links` macro both layouts call, and the
+            phone's separately written copy of that link is gone with it. The
+            `<details>`, the `solutions_panel` macro, the nine `.mega*` rules,
+            `frame.app_classes` and the two panel-only strings (`by_need`,
+            `menu_foot`) are all removed. `frame.industry_slugs` and
+            `by_industry` stay - the `/solutions` page's own index uses them.
+            Assets regenerated with `node tools/build-site-assets.mjs`.
+      decided: ADR 0007 §10 opened by describing that menu, so removing it is a
+               change to a decision rather than a tidy-up. §10 and §11's built
+               list were amended in the same commit; the section's real
+               argument - six anchors on one page - is untouched.
+      verify: open `/` on a desktop width. There is no Solutions dropdown, the
+              link goes straight to `/solutions`, and the header is the same
+              height and rhythm as before rather than a gap where a menu was.
 
 - [x] `phonix-core` The currency chosen during onboarding
       commit: "The question every app was going to ask separately"

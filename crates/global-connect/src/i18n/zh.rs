@@ -179,8 +179,6 @@ pub static STRINGS: Strings = Strings {
         headline: "同一个产品，你自己的计数方式。",
         lede: "每家企业都要管钱、管物、管人。不同的是「物」到底指什么，以及它必须如何入账。下面是这个产品目前已经贴合的场景。",
         by_industry: "按行业",
-        by_need: "按需要",
-        menu_foot: "没列到你这一行？这些应用本身是通用的 —— 多数行业的差别只在于怎么配置。",
         industries: [
             Industry {
                 name: "医疗健康",

@@ -172,9 +172,6 @@ pub static STRINGS: Strings = Strings {
                a \"thing\" is, and how it has to be accounted for. Here is where the \
                product already fits.",
         by_industry: "By industry",
-        by_need: "By what you need",
-        menu_foot: "Not listed? The applications are general \u{2014} most industries are a \
-                    matter of how you set them up.",
         industries: [
             Industry {
                 name: "Health",

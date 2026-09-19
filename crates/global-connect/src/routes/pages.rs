@@ -218,14 +218,8 @@ pub struct Frame {
     pub origin: String,
     /// The picture a link unfurls into, when `artifacts/og-image` exists.
     pub social: Option<SocialCard>,
-    /// The anchors the solutions panel links to, and the colour class each
-    /// application's dot wears.
-    ///
-    /// On the frame because `_nav.html` is included by every page, so anything
-    /// the navigation needs has to be somewhere every page already carries -
-    /// the alternative is six page structs growing the same two fields.
+    /// The anchors the solutions page's own index links to.
     pub industry_slugs: [&'static str; 6],
-    pub app_classes: [&'static str; 3],
     /// This page's title and one-sentence summary.
     ///
     /// Fields rather than template blocks, because `og:title` needs the same
@@ -284,7 +278,6 @@ impl Frame {
             }),
             origin,
             industry_slugs: INDUSTRY_SLUGS,
-            app_classes: [APP_MARKS[0].class, APP_MARKS[1].class, APP_MARKS[2].class],
             // Overwritten by `titled` before the page renders. Empty rather
             // than a placeholder: a title that says "TODO" is worse in a search
             // result than one that is short.

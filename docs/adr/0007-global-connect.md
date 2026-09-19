@@ -314,13 +314,18 @@ at localhost tells a crawler the real page is somewhere it cannot reach.
 
 ## 10. Solutions, and why it is one page
 
-A mega menu of industries, opening onto `/solutions`.
+One page at `/solutions`, reached by a plain link in the top bar.
 
-The menu is a `<details>` like every other menu here, so it works with the
-script switched off. Its entries and the page's sections come from **one list in
-the catalog**, so a menu entry cannot point at a section that does not exist.
+**Amended 2026-09-19: the mega menu is gone.** It was a `<details>` panel of the
+six industries and the three applications, and it was desktop-only - below `md`
+it degraded into the same links the phone's navigation already carried. A panel
+that half the visitors never see, duplicating the page it opens onto, is a
+second navigation to keep in step with the first. Solutions is now a link
+beside Product, Pricing, About and Contact at both widths. The single list in
+the catalog still feeds the page's own index of sections, which is where the
+guarantee that a link cannot point at a missing section now lives.
 
-**Six anchors on one page, not six pages.** A panel of links has to lead
+**Six anchors on one page, not six pages.** An index of links has to lead
 somewhere, and six links to six pages that have not been written is six 404s.
 One page with anchored sections is the version that is true today, and splitting
 a section out later keeps every link somebody has already shared —
@@ -358,7 +363,7 @@ why they are safe on a Chinese headline where the font is not.
 * The screenshot pipeline and its rules — §8. The folder is empty, and
   every page renders without a picture in it.
 * Canonical links, sitemap, Open Graph and JSON-LD — §9.
-* The Solutions menu and page, six industries — §10.
+* The Solutions page, six industries, reached by a plain link — §10.
 * Coloured application marks, and the handwriting for asides — §10.
 
 ## 12. What is deliberately not built yet

@@ -202,11 +202,8 @@ pub struct Solutions {
     pub eyebrow: &'static str,
     pub headline: &'static str,
     pub lede: &'static str,
-    /// The two column headings inside the menu panel.
+    /// The heading over the page's own index of industries.
     pub by_industry: &'static str,
-    pub by_need: &'static str,
-    /// The strip at the foot of the panel.
-    pub menu_foot: &'static str,
     pub industries: [Industry; 6],
     pub cta_title: &'static str,
     pub cta_body: &'static str,

@@ -31,8 +31,7 @@
      * impossible to reach on a narrow screen - it vanished on the tap that was
      * supposed to open it.
      *
-     * An ancestor of the click is never "another menu". The same now holds for
-     * the solutions panel, which is nested the same way.
+     * An ancestor of the click is never "another menu".
      */
     const closeOthers = (keep) => {
         for (const menu of document.querySelectorAll(MENUS)) {

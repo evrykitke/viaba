@@ -2,9 +2,9 @@
   The top bar.
 
   Every disclosure here is a `<details>`, so all of it opens and closes with the
-  script switched off - the mobile menu, the solutions panel and the language
-  list alike. `script/site.js` only ever *closes* one, which is why a browser
-  that never runs it shows the same site with a menu occasionally left open.
+  script switched off - the mobile menu and the language list alike.
+  `script/site.js` only ever *closes* one, which is why a browser that never
+  runs it shows the same site with a menu occasionally left open.
 
   # The mobile language list is not a menu
 
@@ -21,6 +21,8 @@
   on their second click.
 #}
 {% macro nav_links(prefix, current, layout) %}
+  <a href="{{ prefix }}/solutions" class="nav-link {{ layout }}{% if current == "solutions" %} nav-link-on{% endif %}"
+     {% if current == "solutions" %}aria-current="page"{% endif %}>{{ t.nav.solutions }}</a>
   <a href="{{ prefix }}/product" class="nav-link {{ layout }}{% if current == "product" %} nav-link-on{% endif %}"
      {% if current == "product" %}aria-current="page"{% endif %}>{{ t.nav.product }}</a>
   <a href="{{ prefix }}/pricing" class="nav-link {{ layout }}{% if current == "pricing" %} nav-link-on{% endif %}"
@@ -29,50 +31,6 @@
      {% if current == "about" %}aria-current="page"{% endif %}>{{ t.nav.about }}</a>
   <a href="{{ prefix }}/contact" class="nav-link {{ layout }}{% if current == "contact" %} nav-link-on{% endif %}"
      {% if current == "contact" %}aria-current="page"{% endif %}>{{ t.nav.contact }}</a>
-{% endmacro %}
-
-{# The industries, and the applications, side by side. One list in the catalog
-   feeds both this and the page it opens onto, so a menu entry cannot point at a
-   section that is not there. #}
-{% macro solutions_panel(prefix) %}
-  <div class="mega-grid">
-    <div>
-      <h2 class="mega-head">{{ t.solutions.by_industry }}</h2>
-      <div class="mt-3 grid gap-0.5 sm:grid-cols-2 lg:grid-cols-1">
-        {% for industry in t.solutions.industries %}
-        <a href="{{ prefix }}/solutions#{{ frame.industry_slugs[loop.index0] }}" class="mega-link">
-          <span class="mega-dot" aria-hidden="true"></span>
-          <span>
-            <span class="mega-name">{{ industry.name }}</span>
-            <span class="mega-note block">{{ industry.note }}</span>
-          </span>
-        </a>
-        {% endfor %}
-      </div>
-    </div>
-
-    <div class="lg:col-span-2">
-      <h2 class="mega-head">{{ t.solutions.by_need }}</h2>
-      <div class="mt-3 grid gap-0.5 sm:grid-cols-2">
-        {% for app in t.apps %}
-        <a href="{{ prefix }}/product" class="mega-link {{ frame.app_classes[loop.index0] }}">
-          <span class="mega-dot" aria-hidden="true"></span>
-          <span>
-            <span class="mega-name">{{ app.name }}</span>
-            <span class="mega-note block">{{ app.tagline }}</span>
-          </span>
-        </a>
-        {% endfor %}
-      </div>
-    </div>
-  </div>
-
-  <div class="mega-foot">
-    <span>{{ t.solutions.menu_foot }}</span>
-    <a href="{{ prefix }}/solutions" class="ms-auto font-medium text-brand hover:underline">
-      {{ t.nav.solutions }} →
-    </a>
-  </div>
 {% endmacro %}
 
 <header class="sticky top-0 z-50 border-b border-white/5 bg-surface/80 backdrop-blur">
@@ -85,16 +43,6 @@
     </a>
 
     <nav class="hidden flex-1 items-center gap-1 md:flex" aria-label="{{ t.nav.main }}">
-      <details class="relative" data-menu>
-        <summary class="nav-link flex cursor-pointer items-center gap-1 px-3 py-1.5 marker:content-none{% if frame.current == "solutions" %} nav-link-on{% endif %}">
-          {{ t.nav.solutions }}
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="size-3.5" aria-hidden="true">
-            <path d="m6 9 6 6 6-6" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-        </summary>
-        <div class="mega">{% call solutions_panel(frame.prefix) %}{% endcall %}</div>
-      </details>
-
       {% call nav_links(frame.prefix, frame.current, "px-3 py-1.5") %}{% endcall %}
     </nav>
 
@@ -129,8 +77,6 @@
       </summary>
       <div class="absolute inset-x-0 top-14 max-h-[calc(100dvh-3.5rem)] overflow-y-auto border-b border-edge bg-surface-raised p-3 shadow-pop">
         <nav class="flex flex-col gap-0.5" aria-label="{{ t.nav.main }}">
-          <a href="{{ frame.prefix }}/solutions"
-             class="nav-link px-3 py-2.5{% if frame.current == "solutions" %} nav-link-on{% endif %}">{{ t.nav.solutions }}</a>
           {% call nav_links(frame.prefix, frame.current, "px-3 py-2.5") %}{% endcall %}
         </nav>
 
