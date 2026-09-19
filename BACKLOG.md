@@ -49,20 +49,6 @@ and the box is shared with three other sites that must not be disturbed.
 They are in order and the order matters: nothing is fetched before main is
 pushed, and nothing is migrated before there is a dump to go back to.
 
-- [ ] `deploy` The build tree that fetches viaba
-      why: `/home/phonix/build` is a shallow clone of `evrykitke/phonix`.
-           `phonix-deploy` does `git fetch --depth 1 origin main` and then
-           `reset --hard origin/main`, so with that remote in place a deploy
-           would build the old product no matter what was pushed.
-      done: `git -C /home/phonix/build remote get-url origin` is
-            `https://github.com/evrykitke/viaba.git`, a fetch of main succeeds
-            as the `phonix` user, and `origin/main` there is this checkout's
-            main. Say whether the shallow tree took the new remote or had to be
-            re-cloned.
-      stop: if the fetch asks for a credential. A private repository needs a
-            deploy key or a token put on the box by hand, and that is the
-            user's to place, not the loop's to invent.
-
 - [ ] `deploy` Evrykit on the box
       why: the swap itself. Everything on disk keeps its phonix name -
            `/opt/phonix`, the `phonix-server` unit, the nginx site, the
@@ -1039,6 +1025,18 @@ a decision, and it is one line in this section.
 ## Done
 
 <!-- The loop appends here with the commit sha. Newest first. -->
+
+- [x] `deploy` The build tree that fetches viaba
+      commit: "The remote the build tree answers to"
+      why: `/home/phonix/build` was a shallow clone of `evrykitke/phonix`, and
+           `phonix-deploy` fetches `origin main` and resets hard onto it - so
+           with that remote a deploy would have built the old product no matter
+           what was pushed.
+      done: the remote is `https://github.com/evrykitke/viaba.git`, the shallow
+            tree took it without a re-clone, `git fetch --depth 1 origin main`
+            as the `phonix` user needed no credential, and `origin/main` there
+            is be115b6, this checkout's main. HEAD is still the old 36e83f8
+            because `phonix-deploy` is what resets it.
 
 - [x] `deploy` A dump taken before anything migrates
       commit: "The copy taken while it was still the old schema"
