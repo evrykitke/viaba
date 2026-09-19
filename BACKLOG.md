@@ -39,11 +39,116 @@ commits it is three items.
 
 ## Next
 
-*Empty.* The verification pass of 2026-09-17 queued five items across two
-sittings - the menu, the palette heading it broke, the statements that printed
-blank, the mark that would not print, the words a document was missing and
-where those words go - and every one of them is in `## Awaiting verification`
-below. Each names the screen to open and what should be true on it.
+The deployment queue of 2026-09-19. The product's name in the UI is Evrykit as
+of "The name the screens say", and main now carries it; what follows puts that
+build on the box at 78.159.111.179, which today serves the old phonix build at
+`phonix.evrykit.com`. Read `.claude/commands/advance.md` section 8 before the
+first of them - a `deploy` item changes a server rather than the source tree,
+and the box is shared with three other sites that must not be disturbed.
+
+They are in order and the order matters: nothing is fetched before main is
+pushed, and nothing is migrated before there is a dump to go back to.
+
+- [ ] `deploy` The commit the box will fetch
+      why: `phonix-deploy` builds `origin/main` from `/home/phonix/build`, and
+           everything the rebrand changed is on this checkout's main. Until
+           that main is on its own origin there is nothing to repoint the build
+           tree at.
+      done: `git push origin main` has run and `git rev-parse origin/main`
+            equals `git rev-parse main` here.
+
+- [ ] `deploy` A dump taken before anything migrates
+      why: `PHONIX__DATABASE__MIGRATE_ON_START` is true on that box, so the
+           first boot of the new build runs viaba's migrations against the live
+           catalog and every existing tenant database. That is an upgrade
+           rather than a reset, which is the intent - but it is 171 commits of
+           schema arriving at once, it is not reversible, and `deploy/README.md`
+           names no backup anywhere.
+      done: a timestamped dump of `phonix_catalog` and every `phonix_tenant_*`
+            database sits on the box outside `/opt/phonix`, each file is
+            non-empty, and the report names the directory.
+
+- [ ] `deploy` The build tree that fetches viaba
+      why: `/home/phonix/build` is a shallow clone of `evrykitke/phonix`.
+           `phonix-deploy` does `git fetch --depth 1 origin main` and then
+           `reset --hard origin/main`, so with that remote in place a deploy
+           would build the old product no matter what was pushed.
+      done: `git -C /home/phonix/build remote get-url origin` is
+            `https://github.com/evrykitke/viaba.git`, a fetch of main succeeds
+            as the `phonix` user, and `origin/main` there is this checkout's
+            main. Say whether the shallow tree took the new remote or had to be
+            re-cloned.
+      stop: if the fetch asks for a credential. A private repository needs a
+            deploy key or a token put on the box by hand, and that is the
+            user's to place, not the loop's to invent.
+
+- [ ] `deploy` Evrykit on the box
+      why: the swap itself. Everything on disk keeps its phonix name -
+           `/opt/phonix`, the `phonix-server` unit, the nginx site, the
+           Postgres role, the Redis ACL user, the RabbitMQ vhost - because
+           viaba carries phonix's history and this is the same lineage serving
+           a newer commit. Only the product's name in the UI changed.
+      done: `ssh -i ~/.ssh/phonix_deploy root@78.159.111.179 phonix-deploy`
+            ends `deployed <sha>` with that sha at main's head, and
+            `journalctl -u phonix-server -n 40 -o cat` shows catalog migrations
+            applied, connected to redis, connected to rabbitmq, a
+            `loaded translations` line for every file in `locales/`, and
+            `listening address:127.0.0.1:3000`. `systemctl is-active` is not
+            the test - trap 1 in `deploy/README.md` says why.
+      verify: open `https://phonix.evrykit.com/`. The tab title, the wordmark
+              beside the monogram in the sidebar and the first crumb in the top
+              bar all say Evrykit, the monogram is an E, and an existing
+              workspace at `<slug>.evrykit.com` still signs in and shows its
+              own data.
+      stop: the site is live and nobody has looked at it yet.
+
+- [ ] `deploy` The copies in deploy/, pulled back down
+      why: `deploy/` is meant to be a copy of what is actually running. Its
+           README describes a box building `evrykitke/phonix`, calls the
+           product Phonix throughout and lists fr and de as the deployed
+           translations. After the swap it is a copy of what used to run.
+      done: the nginx site, the unit and `phonix-deploy` are re-pulled with the
+            commands at the bottom of `deploy/README.md`, and the README names
+            the repository the build tree now fetches, says the product in the
+            UI is Evrykit while every name on disk stays phonix, and records
+            that the existing catalog was migrated forward rather than
+            replaced.
+
+- [ ] `deploy` The name on the public host
+      why: the application answers on `phonix.evrykit.com` while calling itself
+           Evrykit, and that host is stamped into every invitation link, every
+           workspace link and the Google redirect URI that would be registered.
+           Moving it is a DNS record, one `server_name`, `PHONIX__SERVER__HOST`
+           and the reserved-subdomain list - and it invalidates links people
+           already hold, which is why it is not part of the deployment above.
+      blocked: a decision. Which host - `app.evrykit.com`, or the root
+               `evrykit.com`, which already has a site of its own - and whether
+               `phonix.evrykit.com` keeps answering as a permanent redirect or
+               stops. `*.evrykit.com` stays where it is either way: a TLS
+               wildcard matches one label, so tenants cannot move a level down
+               without a certificate Universal SSL will not issue.
+
+- [ ] `deploy` The badge that says this box is a test
+      why: `/etc/phonix/phonix.env` carries a TEST MODE block that raises the
+           three rate limits, turns the application's logging to debug and puts
+           a `test` badge in the public top bar. It should stay while this is a
+           test box and go when it is not, and the badge disappearing is the
+           only visible proof the other overrides went with it.
+      blocked: a decision. Is `phonix.evrykit.com` still a test box now that it
+               serves the named product?
+
+- [ ] `phonix-config` The addresses that still read phonix
+      why: the rename moved every name a person reads and deliberately left
+           every name a machine reads alone. Two sit on the line between:
+           `from_address = "no-reply@phonix.local"` in `base.toml` and
+           `development.toml` is what a mail client shows beside the sender
+           name Evrykit, and `README.md` still opens `# Phonix`. Neither is on
+           the box - production supplies its own relay - so this is the
+           developer-facing half of the same rename.
+      touch: config/base.toml, config/development.toml, README.md
+      done: a development invitation arrives from a sender whose address and
+            name agree, and the README's first line names the product it
+            describes.
 
 What is deliberately not here: a mark for the four list reports. Only the
 statement and the receipt declare a logo, and the trial balance, the profit and
