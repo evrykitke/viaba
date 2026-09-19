@@ -61,29 +61,6 @@ so that decision is an item and every content item after it depends on which
 way it goes. The five `deploy` items below it are the older queue and are
 unchanged.
 
-- [ ] `global-connect` The trial the site does not agree about
-      why: three statements, and they do not match. `home.trial_note` promises
-           "{days} days on the house" on the front page; `/pricing` now says
-           nothing is being charged and names no end date; and the code issues a
-           real trial licence of `[desk] trial_days` at signup - see
-           `phonix_services::workspace::onboarding`, and
-           `phonix-server/src/middleware.rs`, which answers 403 and stops
-           serving the workspace once it lapses. Somebody who reads the pricing
-           page and signs up is not told their workspace has thirty days on it.
-      touch: crates/global-connect/src/i18n/en.rs + zh.rs,
-             crates/global-connect/templates/home.html
-      done: the site says one thing about what a new workspace costs and how
-            long it runs, and that one thing is what the code does.
-      decide: whether a trial length is still the right shape while nothing is
-              being charged. `desk.trial_days` is validated as non-zero, so
-              "runs until there is a price" is a config and licensing change
-              rather than a copy change - which of the two this is decides the
-              whole item.
-      stop: it cannot be finished without that answer, and guessing it wrong
-            means a live page promising something the server will not honour.
-      verify: open `/` and `/pricing`. Neither contradicts the other about what
-              a new workspace costs or how long it runs.
-
 - [ ] `docs` The content pipeline ADR 0007 said would be a decision
       why: §12 names Markdown at build time as "a dependency and therefore a
            decision" and leaves it open. Every content item below needs it
@@ -1217,6 +1194,34 @@ a decision, and it is one line in this section.
 
 ## Blocked
 
+- [ ] `global-connect` The trial the site does not agree about
+      why: three statements, and they do not match. `home.trial_note` promises
+           "{days} days on the house" on the front page; `/pricing` now says
+           nothing is being charged and names no end date; and the code issues a
+           real trial licence of `[desk] trial_days` at signup - see
+           `phonix_services::workspace::onboarding`, and
+           `phonix-server/src/middleware.rs`, which answers 403 and stops
+           serving the workspace once it lapses. Somebody who reads the pricing
+           page and signs up is not told their workspace has thirty days on it.
+      touch: crates/global-connect/src/i18n/en.rs + zh.rs,
+             crates/global-connect/templates/home.html
+      done: the site says one thing about what a new workspace costs and how
+            long it runs, and that one thing is what the code does.
+      decide: whether a trial length is still the right shape while nothing is
+              being charged. `desk.trial_days` is validated as non-zero, so
+              "runs until there is a price" is a config and licensing change
+              rather than a copy change - which of the two this is decides the
+              whole item.
+      blocked: waiting on that answer. Either the copy is corrected to say a
+               new workspace runs for `[desk] trial_days` and then stops, or
+               the limit goes and self-service signup issues something that
+               does not lapse - the first is two sentences in `global-connect`,
+               the second reaches `phonix-config`'s validation, the licence
+               `phonix_services::workspace::onboarding` issues, and what Desk
+               does with a workspace whose trial has run out. Guessing wrong
+               puts a promise on a live page that the server will not honour.
+      verify: open `/` and `/pricing`. Neither contradicts the other about what
+              a new workspace costs or how long it runs.
 ## Done
 
 <!-- The loop appends here with the commit sha. Newest first. -->
