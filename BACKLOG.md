@@ -40,7 +40,7 @@ commits it is three items.
 ## Next
 
 The public site of 2026-09-19 - what it says about itself, then the content
-coming across - then five deploy items left over from putting it there. Its
+coming across - then four deploy items left over from putting it there. Its
 navigation, its pricing and the currency pair ahead of them are done and
 waiting to be looked at.
 
@@ -57,8 +57,10 @@ a later item and none of them touches it; the read-only source is on the server
 and `scp` from `/var/www/evrykit.com/content` is how it gets here.
 
 The content pipeline is settled - ADR 0007 §14, 2026-09-19 - so the content
-items below it have somewhere to go and a shape to arrive in. The five `deploy`
-items after them are the older queue and are unchanged.
+items below it have somewhere to go and a shape to arrive in. The four `deploy`
+items after them are the older queue, and none of them can be worked from here:
+two wait on a decision, and the other two - like the fifth now in `## Blocked` -
+wait on shell access to the box.
 
 - [ ] `global-connect` The content itself, in the tree
       why: the 114 files live only on that box, inside a checkout of the
@@ -125,19 +127,6 @@ items after them are the older queue and are unchanged.
             commit with a reason.
       verify: run that list against the local build, before any of this is
               deployed.
-
-- [ ] `deploy` The profiler in the production binary
-      why: `phonix-deploy` passes `--bin-features ssr` and says in a comment
-           that this REPLACES the manifest's `["ssr", "profiler"]`, taking the
-           development profiler back out. It does not: cargo-leptos 0.3.7 built
-           `--features=ssr,profiler`, so the profiler is compiled into the
-           binary now serving the site. It is off at runtime - `[profiler]
-           enabled` is false in `base.toml` and startup refuses true under
-           production - so this is weight and a switch that should not exist
-           there, not an exposure.
-      done: the deployed binary is built without the `profiler` feature, or the
-            script's comment stops claiming something cargo-leptos no longer
-            does and says which it is.
 
 - [ ] `deploy` site.public_url, in the right file
       why: the new build refuses to start under production without it, which is
@@ -1209,6 +1198,33 @@ a decision, and it is one line in this section.
                puts a promise on a live page that the server will not honour.
       verify: open `/` and `/pricing`. Neither contradicts the other about what
               a new workspace costs or how long it runs.
+
+- [ ] `deploy` The profiler in the production binary
+      why: the deployed binary has the profiler compiled in, and the cause is
+           simpler than the item first said. `--bin-features` does replace the
+           manifest's `bin-features`: `config/bin_package.rs` in cargo-leptos
+           0.3.7 takes the CLI list whenever it is non-empty, then appends only
+           the separate `features` key, which this workspace does not set. ADR
+           0004 section 8 is right about the mechanism. `phonix-deploy` simply
+           never passes the flag - line 18 of the copy pulled off the box on
+           2026-09-19 reads `cargo leptos build --release`, so the manifest's
+           `["ssr", "profiler"]` is what it builds. It is off at runtime -
+           `[profiler] enabled` is false and startup refuses true under
+           production - so this is weight and a switch that should not be
+           there, not an exposure.
+      touch: /usr/local/bin/phonix-deploy on the box, line 18
+      done: line 18 reads `cargo leptos build --release --bin-features ssr`,
+            the next deploy's build line names `--features=ssr` alone, and
+            `deploy/scripts/phonix-deploy` is re-pulled to match. Nothing in
+            this tree changes - Cargo.toml and ADR 0004 already describe the
+            build this restores, and rewriting either to bless the profiler
+            would be building past a decision rather than keeping it.
+      blocked: one line on the server, and this session's permission classifier
+               refuses both the write and a read-only `ssh` to the box - the
+               same refusal that already blocks "The deploy that forgets the
+               public site". The user allows remote shell access, or edits line
+               18 by hand.
+
 ## Done
 
 <!-- The loop appends here with the commit sha. Newest first. -->
